@@ -1,0 +1,34 @@
+available field-names
+
+id 						String		 ALIG	SPOT			PILEUP
+refspec 				String		 ALIG 			REF		PILEUP
+bases 					String		 ALIG	SPOT
+cigar 					String		 ALIG
+cigarclipped			String		 ALIG
+cigarlong 				String		 ALIG
+cigarlongclipped		String		 ALIG
+refpos 					Long		 ALIG 					PILEUP
+mapq					Integer		 ALIG 					PILEUP
+refbases				String		 ALIG 					PILEUP
+readgroup				String		 ALIG	SPOT
+readid					String		 ALIG
+reversed				Boolean		 ALIG
+clippedfragmentbases	String		 ALIG
+qualities				String		 ALIG	SPOT			PILEUP
+category				Integer		 ALIG	SPOT
+length					Long		 ALIG			REF
+softclipleft			Integer		 ALIG
+softclipright			Integer		 ALIG
+templatelength			Long		 ALIG
+rnaorientation			String		 ALIG
+hasmate					Boolean		 ALIG
+mateid					String		 ALIG
+materefspec				String		 ALIG
+matereversed			Boolean		 ALIG
+nfragments				Integer		 		SPOT
+name					String		 		SPOT	REF				RDGRP
+circular				Boolean		 				REF
+nalignments				Long		 				REF
+depth					Integer		 						PILEUP
+event					Integer		 						PILEUP
+indel					Integer		 						PILEUP

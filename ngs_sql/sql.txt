@@ -1,0 +1,39 @@
+########################################################################################################
+#	for each source-table
+
+alignments = SRR1237963.ALIG {id,cigar} #1.200000
+#spots = SRR1237963 { id,bases } #1.200000
+#frags = SRR1237963.FRAG { * } #1.20000
+#frags = SRR1237963 { id, bases }
+#pileup = SRR1237963.PILEUP { * } #@NC_000067.5:3000000.20000
+#pileup = SRR1237963.PILEUP { * } #@NC_000067.5
+#ref2 = SRR1237963.ALIG {*} #200000.100000 %2000
+
+#frags1 = SRR1237963 { id, bases, qualities }
+#frags2 = SRR1237962 { id, qualities } #1.5000000
+
+########################################################################################################
+#	from here on only common parts
+
+SQL=SELECT id,cigar FROM alignments WHERE cigar LIKE '%I%' OR cigar LIKE '%D%'
+#SQL=SELECT id, bases FROM frags1 WHERE bases LIKE '%AAAAAAA%TTT%'
+
+#SQL=SELECT a.id, b.id as otherid, a.qualities FROM frags1 a JOIN frags2 b ON a.qualities=b.qualities
+#SQL=SELECT COUNT( DISTINCT qualities ) as n_distinct, COUNT( qualities ) as n_rows FROM frags1
+
+#SQL=SELECT * FROM frags1
+
+# where to write the output to
+OUT=res.txt
+
+#TEMP=/panfs/pan1/sra-test/raetz/sparktemp
+
+# how to write the output to
+FORMAT=TAB
+
+#how many data-slices to use for parallel execution
+SLICES=512
+
+EXECMEM=2g
+MAXRES=2g
+DRVMEM=2g
