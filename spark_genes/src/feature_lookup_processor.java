@@ -506,7 +506,7 @@ public class feature_lookup_processor
             }
         }
 
-		sc.stop();
+		jsc.stop();
 		
         return res;
     }
