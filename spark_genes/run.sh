@@ -15,7 +15,7 @@ MOUSE_GTF="$HOME/spark/spark_genes/mouse.gtf"
 
 GTF_M="-f $MOUSE_GTF"
 GTFPRE="-f preprocessed.txt"
-ACC="-a SRR1237963"
+ACC="-a SRR1273905"
 UNION="-c UNION"
 SLICES="-s 16"
 VERBOSE="-p"
@@ -55,6 +55,6 @@ run_on_cluster()
 }
 
 
-#run_local_without_spark
+run_local_without_spark
 #run_local_with_spark
-run_on_cluster
+#run_on_cluster
