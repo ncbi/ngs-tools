@@ -36,9 +36,32 @@ TEST_SUITE(SraSearchTestSuite);
 
 TEST_CASE ( Create_Destroy )
 {
-    {
-        VdbSearch s ( "ACGT" );
-    }
+    VdbSearch s ( "ACGT" );
+}
+
+TEST_CASE ( Algorithm_Default )
+{
+    VdbSearch s ( "ACGT" );
+    REQUIRE_EQ ( VdbSearch :: Default, s . GetAlgorithm () ); 
+}
+
+TEST_CASE ( SetAlgorithm_Bad )
+{
+    VdbSearch s ( "ACGT" );
+    REQUIRE ( ! s . SetAlgorithm ( "bad" ) );
+}
+
+TEST_CASE ( SetAlgorithmString_FgrepDumb )
+{
+    VdbSearch s ( "ACGT" );
+    REQUIRE ( s . SetAlgorithm ( "FgrepDumb" ) );
+    REQUIRE_EQ ( VdbSearch :: FgrepDumb, s . GetAlgorithm () ); 
+}
+TEST_CASE ( SetAlgorithmString_FgrepBoyerMoore )
+{
+    VdbSearch s ( "ACGT" );
+    REQUIRE ( s . SetAlgorithm ( "FgrepBoyerMoore" ) );
+    REQUIRE_EQ ( VdbSearch :: FgrepBoyerMoore, s . GetAlgorithm () ); 
 }
 
 TEST_CASE ( SingleAccession_FirstMatch )
@@ -47,6 +70,7 @@ TEST_CASE ( SingleAccession_FirstMatch )
     const string Query = "AC";
 
     VdbSearch s ( Query );
+    s . SetAlgorithm ( VdbSearch :: FgrepDumb );
     s . AddAccession ( Accession );
     string accession;
     string fragmentId;
@@ -55,12 +79,36 @@ TEST_CASE ( SingleAccession_FirstMatch )
     REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), fragmentId );
 }
 
-TEST_CASE ( SingleAccession_MultipleHitsAcrossFragments )
+TEST_CASE ( FgrepDumb_SingleAccession_MultipleHitsAcrossFragments )
 {
     const string Accession = "SRR000001";
     const string Query = "ATTAGC";
 
     VdbSearch s ( Query );
+    s . SetAlgorithm ( VdbSearch :: FgrepDumb );
+    s . AddAccession ( Accession );
+    
+    string accession;
+    string fragmentId;
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), fragmentId );
+    
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), fragmentId );
+    
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), fragmentId );
+    
+    //TODO: verify match positions when supported
+}
+
+TEST_CASE ( FgrepBoyerMoore_SingleAccession_MultipleHitsAcrossFragments )
+{
+    const string Accession = "SRR000001";
+    const string Query = "ATTAGC";
+
+    VdbSearch s ( Query );
+    s . SetAlgorithm ( VdbSearch :: FgrepBoyerMoore );
     s . AddAccession ( Accession );
     
     string accession;
@@ -84,6 +132,7 @@ TEST_CASE ( SingleAccession_MultipleHitsInsideOneFragment )
     const string Query = "AT";
 
     VdbSearch s ( Query );
+    s . SetAlgorithm ( VdbSearch :: FgrepDumb );
     s . AddAccession ( Accession );
     
     string accession;

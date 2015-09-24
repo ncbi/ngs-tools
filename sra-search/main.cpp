@@ -32,10 +32,17 @@
 using namespace std;
 
 void 
-DoSearch ( const string& p_query, const string& p_run )
+DoSearch ( const string& p_query, const string& p_run, const string& p_alg  )
 {
     VdbSearch s ( p_query );
+    
+    if ( ! p_alg . empty() && ! s . SetAlgorithm ( p_alg ) )
+    {
+        throw invalid_argument ( string ( "Bad argument for --algorithm : '" ) + p_alg + "'" );
+    }
+    
     s . AddAccession ( p_run );
+    
     string acc;
     string fragId;
     while ( s . NextMatch ( acc, fragId ) )
@@ -64,7 +71,10 @@ static void handle_help ( const char * appName )
         << "  sra-search ACGT SRR000001" << endl
         << endl 
         << "Options:" << endl 
-        << "  -h|--help     Output brief explanation of the program." << endl
+        << "  -h|--help                 Output brief explanation of the program." << endl
+        << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
+        << "      FgrepDumb (default)" << endl
+        << "      FgrepBoyerMoore " << endl
         << endl;
 }
 
@@ -78,6 +88,8 @@ main( int argc, char *argv [] )
         int num_runs = 0;
         string query;
         string run;
+        string alg;
+        
         unsigned int i = 1;
         while ( i < argc )
         {
@@ -99,6 +111,15 @@ main( int argc, char *argv [] )
                 handle_help ( argv [ 0 ] );
                 return 0;
             }
+            else if ( arg == "-a" || arg == "--algorithm" )
+            {
+                ++i;
+                if ( i >= argc )
+                {
+                    throw invalid_argument ( "Missing argument for --algorithm" );
+                }
+                alg = argv [ i ];
+            }
             else
             {
                 throw invalid_argument ( "Invalid argument" );
@@ -115,7 +136,7 @@ main( int argc, char *argv [] )
         if ( num_runs > 1 )
             throw invalid_argument (  "currently, only one run may be processed at a time" );
             
-        DoSearch ( query, run );
+        DoSearch ( query, run, alg );
 
         rc = 0;
     }

@@ -35,7 +35,7 @@ using namespace ngs;
 class VdbSearch :: Search 
 {
 public:
-    Search( const std::string& p_query, const std::string& accession );
+    Search( const std::string& p_query, VdbSearch :: Algorithm, const std::string& accession );
     ~Search ();
     
     bool NextMatch ( std::string& fragmentId );
@@ -45,13 +45,15 @@ public:
 private: 
     ngs::ReadCollection m_coll;
     ngs::ReadIterator   m_readIt;
+    
     // for now, Fgrep-oriented
     struct Fgrep*   m_fgrep;
     const char*     m_query[1];
 };
 
 VdbSearch :: VdbSearch ( const string& p_query )
-: m_query ( p_query )
+:   m_query ( p_query ),
+    m_algorithm ( Default )
 {
 }
 
@@ -65,9 +67,34 @@ VdbSearch :: ~VdbSearch ()
 }
 
 void 
+VdbSearch :: SetAlgorithm ( Algorithm p_algorithm )
+{
+    m_algorithm = p_algorithm;
+}
+
+bool 
+VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
+{
+    if ( p_algStr == "FgrepDumb" )
+    {
+        SetAlgorithm ( VdbSearch :: FgrepDumb );
+    }
+    else if ( p_algStr == "FgrepBoyerMoore" )
+    {
+        SetAlgorithm ( VdbSearch :: FgrepBoyerMoore );
+    }
+    else
+    {
+        return false;
+    }
+    return true;
+}
+
+
+void 
 VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
 {
-    m_searches . push ( new Search ( m_query, p_accession ) );
+    m_searches . push ( new Search ( m_query, m_algorithm, p_accession ) );
 }
 
 bool 
@@ -89,15 +116,34 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
 
 
 //////////////////// VdbSearch :: Search
-VdbSearch :: Search :: Search( const string& p_query, const string& p_accession )
+VdbSearch :: Search :: Search( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession )
 :   m_coll ( ncbi :: NGS :: openReadCollection ( p_accession ) ), 
     m_readIt ( m_coll . getReads ( Read :: all ) )
 {
     m_query[0] = p_query . c_str(); // this object will not outlive it master who owns the query string
-    rc_t rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_DUMB, m_query, 1 );
-    if ( rc != 0 )
+    
+    switch ( p_algorithm )
     {
-        throw ( ErrorMsg ( "FgrepMake failed" ) );
+    case VdbSearch :: FgrepDumb:
+        {
+            rc_t rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_DUMB, m_query, 1 );
+            if ( rc != 0 )
+            {
+                throw ( ErrorMsg ( "FgrepMake failed" ) );
+            }
+        }
+        break;
+    case VdbSearch :: FgrepBoyerMoore:
+        {
+            rc_t rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_BOYERMOORE, m_query, 1 );
+            if ( rc != 0 )
+            {
+                throw ( ErrorMsg ( "FgrepMake failed" ) );
+            }
+        }
+        break;
+    default:
+        throw ( ErrorMsg ( "unsupported VdbSearch :: Algorithm" ) );
     }
 }
 

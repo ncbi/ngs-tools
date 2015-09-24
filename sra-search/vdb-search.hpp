@@ -38,8 +38,22 @@ struct Fgrep;
 class VdbSearch : public SraSearch
 {
 public:
+    typedef enum
+    {
+        FgrepDumb, 
+        FgrepBoyerMoore,
+        
+        Default = FgrepDumb
+    } Algorithm;
+
+public:
     VdbSearch ( const std::string& query );
     virtual ~VdbSearch ();
+    
+    void SetAlgorithm ( Algorithm );
+    bool SetAlgorithm ( const std :: string& );
+    
+    Algorithm GetAlgorithm () const { return m_algorithm; }
     
     virtual void AddAccession ( const std::string& ) throw ( ngs :: ErrorMsg );
     
@@ -47,6 +61,7 @@ public:
     
 private:
     std::string         m_query;
+    Algorithm           m_algorithm;
     
     class Search;
     

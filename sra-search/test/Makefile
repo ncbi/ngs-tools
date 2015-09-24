@@ -76,11 +76,19 @@ test-cmdline:
 	@ $(MAKE) --no-print-directory -C ..
 	@ echo
 	@ echo "Testing $(BINDIR)/sra-search"
+	@ # help
 	@ ./runtestcase.sh $(BINDIR)/sra-search 1.0-h    . 0 -h
 	@ ./runtestcase.sh $(BINDIR)/sra-search 1.1-help . 0 --help 
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args . 1 
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run  . 1 AGCT
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run . 0 AGCTAGCTAGCT SRR000001
+	@ # bad args
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args                         . 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run                          . 1 AGCT
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.2-missing-algorithm               . 1 AGCT SRR000001 -a
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.3-bad-algorithm                   . 1 --algorithm bad AGCT SRR000001
+	@ # single run
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default              . 0 AGCTAGCTAGCT SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb           . 0 AGCTAGCTAGCT -a FgrepDumb SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore    . 0 AGCTAGCTAGCT --algorithm FgrepBoyerMoore SRR000001
+	@ # 
 	@ echo
 
 .PHONY: test-wb test-cmdline
