@@ -30,6 +30,8 @@ MODULE = sra-search/test
 # the location of Makefile.env is likely to change, for now take it from the parent project's directory
 include ../Makefile.env
 
+INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR)
+
 std: 
 	@ $(MAKE) --no-print-directory test-whitebox
 	@ $(MAKE) --no-print-directory test-cmdline
@@ -49,7 +51,6 @@ TEST_SRA_SEARCH_OBJ = \
 	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(TEST_SRA_SEARCH_SRC)))
 
 TEST_SRA_SEARCH_LIBS = \
-	-static             \
     -L$(VDB_LIBDIR)/../ilib     \
     -lktst              \
     -L$(NGS_LIBDIR)     \
@@ -59,13 +60,27 @@ TEST_SRA_SEARCH_LIBS = \
 	-lngs-c++           \
 
 $(TEST_BINDIR)/test-sra-search: $(TEST_SRA_SEARCH_OBJ)
-	$(CP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS)
+	$(CP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS) $(LDFLAGS)
 
 test-whitebox: $(TEST_BINDIR)/test-sra-search    
-	$^
+	@ echo
+	@ echo "Unit-testing $(BINDIR)/sra-search"
+	@ $^
+	@ echo
+
+vg-whitebox: $(TEST_BINDIR)/test-sra-search    
+	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $^
 
 #TODO: create a generic runcmdline.sh to check exit code and diff output with expected    
-test-cmdline: $(BINDIR)/sra-search
-	$^ -h 
+test-cmdline: 
+	@ $(MAKE) --no-print-directory -C ..
+	@ echo
+	@ echo "Testing $(BINDIR)/sra-search"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 1.0-h    . 0 -h
+	@ ./runtestcase.sh $(BINDIR)/sra-search 1.1-help . 0 --help 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args . 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run  . 1 AGCT
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run . 0 AGCTAGCTAGCT SRR000001
+	@ echo
 
 .PHONY: test-wb test-cmdline

@@ -52,13 +52,12 @@ SRA_SEARCH_OBJ = \
 SRA_SEARCH_LIBS = \
     -L$(NGS_LIBDIR) \
     -L$(VDB_LIBDIR) \
-	-static \
     -lncbi-ngs-c++    \
 	-lncbi-vdb-static \
 	-lngs-c++         \
     
 $(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(CP) -o $@ $^ $(SRA_SEARCH_LIBS)
+	$(CP) -o $@ $^ $(SRA_SEARCH_LIBS)  $(LDFLAGS)
 
 #-------------------------------------------------------------------------------
 # test
