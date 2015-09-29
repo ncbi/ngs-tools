@@ -125,6 +125,29 @@ TEST_CASE ( FgrepBoyerMoore_SingleAccession_MultipleHitsAcrossFragments )
     //TODO: verify match positions when supported
 }
 
+TEST_CASE ( FgrepAho_SingleAccession_MultipleHitsAcrossFragments )
+{
+    const string Accession = "SRR000001";
+    const string Query = "ATTAGC";
+
+    VdbSearch s ( Query );
+    s . SetAlgorithm ( VdbSearch :: FgrepAho );
+    s . AddAccession ( Accession );
+    
+    string accession;
+    string fragmentId;
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), fragmentId );
+    
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), fragmentId );
+    
+    REQUIRE ( s . NextMatch ( accession, fragmentId ) );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), fragmentId );
+    
+    //TODO: verify match positions when supported
+}
+
 #if REPORT_MULTIPLE_HITS_IN_ONE_FRAGMENT
 TEST_CASE ( SingleAccession_MultipleHitsInsideOneFragment )
 {

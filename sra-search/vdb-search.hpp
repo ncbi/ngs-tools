@@ -42,6 +42,7 @@ public:
     {
         FgrepDumb, 
         FgrepBoyerMoore,
+        FgrepAho,
         
         Default = FgrepDumb
     } Algorithm;

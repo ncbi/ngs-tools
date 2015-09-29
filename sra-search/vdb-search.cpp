@@ -122,28 +122,24 @@ VdbSearch :: Search :: Search( const string& p_query, VdbSearch :: Algorithm p_a
 {
     m_query[0] = p_query . c_str(); // this object will not outlive it master who owns the query string
     
+    rc_t rc = 0;
     switch ( p_algorithm )
     {
     case VdbSearch :: FgrepDumb:
-        {
-            rc_t rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_DUMB, m_query, 1 );
-            if ( rc != 0 )
-            {
-                throw ( ErrorMsg ( "FgrepMake failed" ) );
-            }
-        }
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_DUMB, m_query, 1 );
         break;
     case VdbSearch :: FgrepBoyerMoore:
-        {
-            rc_t rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_BOYERMOORE, m_query, 1 );
-            if ( rc != 0 )
-            {
-                throw ( ErrorMsg ( "FgrepMake failed" ) );
-            }
-        }
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_BOYERMOORE, m_query, 1 );
+        break;
+    case VdbSearch :: FgrepAho:
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ASCII | FGREP_ALG_AHOCORASICK, m_query, 1 );
         break;
     default:
         throw ( ErrorMsg ( "unsupported VdbSearch :: Algorithm" ) );
+    }
+    if ( rc != 0 )
+    {
+        throw ( ErrorMsg ( "FgrepMake failed" ) );
     }
 }
 
