@@ -33,24 +33,31 @@
 
 #include <ngs/ReadCollection.hpp>
 
-struct Fgrep;
-
 class VdbSearch : public SraSearch
 {
+public:
+    static bool logResults;
+
 public:
     typedef enum
     {
         FgrepDumb, 
         FgrepBoyerMoore,
         FgrepAho,
+        AgrepDP,
+        AgrepWuManber,
+        AgrepMyers,
+        AgrepMyersUnltd,
+        NucStrstr,
         
         Default = FgrepDumb
     } Algorithm;
 
 public:
-    VdbSearch ( const std::string& query );
+    VdbSearch ();
     virtual ~VdbSearch ();
     
+    void SetQuery ( const std::string& );
     void SetAlgorithm ( Algorithm );
     bool SetAlgorithm ( const std :: string& );
     
@@ -64,9 +71,27 @@ private:
     std::string         m_query;
     Algorithm           m_algorithm;
     
-    class Search;
+    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, Algorithm p_algorithm );
     
-    std::queue < Search* > m_searches;
+    // a VDB-agnostic iterator bound to an accession and an engine-side algorithm
+    class MatchIterator 
+    {
+    public:
+        MatchIterator ( SearchBlock*, const std::string& accession );
+        ~MatchIterator ();
+        
+        bool NextMatch ( std::string& fragmentId );
+        
+        std::string AccessionName () const;
+        
+    private: 
+        ngs::ReadCollection m_coll;
+        ngs::ReadIterator   m_readIt;
+        
+        SearchBlock* m_searchBlock;  // owned here
+    };
+    
+    std::queue < MatchIterator* > m_searches;
 };
 
 #endif

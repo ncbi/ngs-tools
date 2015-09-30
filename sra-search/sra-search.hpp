@@ -34,9 +34,18 @@
 class SraSearch
 {
 public:
+    // base class of a hierarchy implementing various search algorithms provided by the NGS engine
+    class SearchBlock
+    {   
+    public:
+        virtual ~SearchBlock () {}
+        virtual bool FirstMatch ( const char* p_bases, size_t p_size ) = 0;
+    };
+
+public:
     virtual void AddAccession ( const std::string& ) throw ( ngs :: ErrorMsg ) = 0;
     
     virtual bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg ) = 0;
 };
-    
+
 #endif

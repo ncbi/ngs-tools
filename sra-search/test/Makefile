@@ -71,7 +71,6 @@ test-whitebox: $(TEST_BINDIR)/test-sra-search
 vg-whitebox: $(TEST_BINDIR)/test-sra-search    
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $^
 
-#TODO: create a generic runcmdline.sh to check exit code and diff output with expected    
 test-cmdline: 
 	@ $(MAKE) --no-print-directory -C ..
 	@ echo

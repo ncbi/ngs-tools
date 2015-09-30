@@ -34,7 +34,8 @@ using namespace std;
 void 
 DoSearch ( const string& p_query, const string& p_run, const string& p_alg  )
 {
-    VdbSearch s ( p_query );
+    VdbSearch s;
+    s . SetQuery ( p_query );
     
     if ( ! p_alg . empty() && ! s . SetAlgorithm ( p_alg ) )
     {
