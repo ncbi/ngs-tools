@@ -13,4 +13,10 @@ Options:
   -a|--algorithm <alg>      Search algorithm, one of:
       FgrepDumb (default)
       FgrepBoyerMoore 
+      FgrepAho 
+      AgrepDP 
+      AgrepWuManber 
+      AgrepMyers 
+      AgrepMyersUnltd 
+      NucStrstr 
 

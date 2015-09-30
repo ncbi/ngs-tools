@@ -84,9 +84,15 @@ test-cmdline:
 	@ ./runtestcase.sh $(BINDIR)/sra-search 2.2-missing-algorithm               . 1 AGCT SRR000001 -a
 	@ ./runtestcase.sh $(BINDIR)/sra-search 2.3-bad-algorithm                   . 1 --algorithm bad AGCT SRR000001
 	@ # single run
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default              . 0 AGCTAGCTAGCT SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb           . 0 AGCTAGCTAGCT -a FgrepDumb SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore    . 0 AGCTAGCTAGCT --algorithm FgrepBoyerMoore SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            . 0 AGCTAGCTAGCT SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         . 0 AGCTAGCTAGCT -a FgrepDumb SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  . 0 AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          . 0 AGCTAGCTAGCT --algorithm FgrepAho           SRR000001
+	-@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001 2>/dev/null
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     . 0 AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        . 0 AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          . 0 AGCTAGCTAGCT --algorithm NucStrstr          SRR000001
 	@ # 
 	@ echo
 

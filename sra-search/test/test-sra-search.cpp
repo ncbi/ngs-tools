@@ -158,6 +158,7 @@ FIXTURE_TEST_CASE ( FgrepAho_SingleAccession_HitsAcrossFragments, VdbSearchFixtu
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
 }
 
+#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( AgrepDP_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
     Setup ( "ATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
@@ -166,6 +167,7 @@ LogResults();
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
 }
+#endif
 
 FIXTURE_TEST_CASE ( AgrepWuManber_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {

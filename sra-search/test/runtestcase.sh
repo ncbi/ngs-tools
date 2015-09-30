@@ -59,7 +59,8 @@ echo -n "running test case $CASEID... "
 
 mkdir -p $TEMPDIR
 if [ "$?" != "0" ] ; then
-    echo "cannot create "
+    echo "failed"
+    echo "cannot create $TEMPDIR"
     exit 1
 fi
 rm -rf $TEMPDIR/*
@@ -69,6 +70,7 @@ CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
+    echo "failed"
     echo "$EXE returned $rc, expected $RC"
     echo "command executed:"
     echo $CMD
@@ -80,7 +82,8 @@ fi
 diff $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/$CASEID.stdout.diff
+    echo "failed"
+    cat $TEMPDIR/$CASEID.stdout.diff  >&2
     echo "command executed:"
     echo $CMD
     exit 4
@@ -103,7 +106,8 @@ if [ -f $EXPECTED_STDERR ]
     diff $EXPECTED_STDERR $ACTUAL_STDERR >$TEMPDIR/$CASEID.stderr.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then
-        cat $TEMPDIR/$CASEID.stderr.diff
+        echo "failed"
+        cat $TEMPDIR/$CASEID.stderr.diff >&2
         echo "command executed:"
         echo $CMD
         exit 4

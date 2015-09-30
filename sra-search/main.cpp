@@ -76,6 +76,12 @@ static void handle_help ( const char * appName )
         << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
         << "      FgrepDumb (default)" << endl
         << "      FgrepBoyerMoore " << endl
+        << "      FgrepAho " << endl
+        << "      AgrepDP " << endl
+        << "      AgrepWuManber " << endl
+        << "      AgrepMyers " << endl
+        << "      AgrepMyersUnltd " << endl
+        << "      NucStrstr " << endl
         << endl;
 }
 
