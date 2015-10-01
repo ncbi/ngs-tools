@@ -31,8 +31,10 @@
 
 using namespace std;
 
+typedef vector < string > Runs;
+
 void 
-DoSearch ( const string& p_query, const string& p_run, const string& p_alg  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg  )
 {
     VdbSearch s;
     s . SetQuery ( p_query );
@@ -42,7 +44,10 @@ DoSearch ( const string& p_query, const string& p_run, const string& p_alg  )
         throw invalid_argument ( string ( "Bad argument for --algorithm : '" ) + p_alg + "'" );
     }
     
-    s . AddAccession ( p_run );
+    for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
+    {
+        s . AddAccession ( *i );
+    }
     
     string acc;
     string fragId;
@@ -77,7 +82,7 @@ static void handle_help ( const char * appName )
         << "      FgrepDumb (default)" << endl
         << "      FgrepBoyerMoore " << endl
         << "      FgrepAho " << endl
-        << "      AgrepDP " << endl
+//VDB-VDB-2681        << "      AgrepDP " << endl
         << "      AgrepWuManber " << endl
         << "      AgrepMyers " << endl
         << "      AgrepMyersUnltd " << endl
@@ -92,9 +97,8 @@ main( int argc, char *argv [] )
     
     try
     {
-        int num_runs = 0;
         string query;
-        string run;
+        Runs runs;
         string alg;
         
         unsigned int i = 1;
@@ -109,8 +113,7 @@ main( int argc, char *argv [] )
                 }
                 else
                 {   // an input run
-                    ++ num_runs;
-                    run = arg;
+                    runs . push_back ( arg );
                 }
             }
             else if ( arg == "-h" || arg == "--help" )
@@ -135,15 +138,12 @@ main( int argc, char *argv [] )
             ++i;
         }
         
-        if ( query . empty () || num_runs == 0 )
+        if ( query . empty () || runs . size () == 0 )
         {
             throw invalid_argument ( "Missing arguments" );
         }
 
-        if ( num_runs > 1 )
-            throw invalid_argument (  "currently, only one run may be processed at a time" );
-            
-        DoSearch ( query, run, alg );
+        DoSearch ( query, runs, alg );
 
         rc = 0;
     }

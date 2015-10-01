@@ -85,30 +85,47 @@ FIXTURE_TEST_CASE ( SetAlgorithm_Bad, VdbSearchFixture )
     REQUIRE ( ! m_s . SetAlgorithm ( "bad" ) );
 }
 
+// algorithm selection based on a string (for command line)
 FIXTURE_TEST_CASE ( SetAlgorithmString_FgrepDumb, VdbSearchFixture )
 {
-    m_s . SetQuery ( "ACGT" );
     REQUIRE ( m_s . SetAlgorithm ( "FgrepDumb" ) );
     REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s . GetAlgorithm () ); 
 }
 FIXTURE_TEST_CASE ( SetAlgorithmString_FgrepBoyerMoore, VdbSearchFixture )
 {
-    m_s . SetQuery ( "ACGT" );
     REQUIRE ( m_s . SetAlgorithm ( "FgrepBoyerMoore" ) );
     REQUIRE_EQ ( VdbSearch :: FgrepBoyerMoore, m_s . GetAlgorithm () ); 
 }
 FIXTURE_TEST_CASE ( SetAlgorithmString_FgrepAho, VdbSearchFixture )
 {
-    m_s . SetQuery ( "ACGT" );
     REQUIRE ( m_s . SetAlgorithm ( "FgrepAho" ) );
     REQUIRE_EQ ( VdbSearch :: FgrepAho, m_s . GetAlgorithm () ); 
 }
-FIXTURE_TEST_CASE ( SetAlgorithmString_AgrepDP, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SetAlgorithmString_AgrepDP_Disabled, VdbSearchFixture )
 {
-    m_s . SetQuery ( "ACGT" );
-    REQUIRE ( m_s . SetAlgorithm ( "AgrepDP" ) );
-    REQUIRE_EQ ( VdbSearch :: AgrepDP, m_s . GetAlgorithm () ); 
+    REQUIRE ( ! m_s . SetAlgorithm ( "AgrepDP" ) ); // using AgrepDB from command line is disabled
 }
+FIXTURE_TEST_CASE ( SetAlgorithmString_AgrepWuManber, VdbSearchFixture )
+{
+    REQUIRE ( m_s . SetAlgorithm ( "AgrepWuManber" ) );
+    REQUIRE_EQ ( VdbSearch :: AgrepWuManber, m_s . GetAlgorithm () ); 
+}
+FIXTURE_TEST_CASE ( SetAlgorithmString_AgrepMyers, VdbSearchFixture )
+{
+    REQUIRE ( m_s . SetAlgorithm ( "AgrepMyers" ) );
+    REQUIRE_EQ ( VdbSearch :: AgrepMyers, m_s . GetAlgorithm () ); 
+}
+FIXTURE_TEST_CASE ( SetAlgorithmString_AgrepMyersUnltd, VdbSearchFixture )
+{
+    REQUIRE ( m_s . SetAlgorithm ( "AgrepMyersUnltd" ) );
+    REQUIRE_EQ ( VdbSearch :: AgrepMyersUnltd, m_s . GetAlgorithm () ); 
+}
+FIXTURE_TEST_CASE ( SetAlgorithmString_NucStrstr, VdbSearchFixture )
+{
+    REQUIRE ( m_s . SetAlgorithm ( "NucStrstr" ) );
+    REQUIRE_EQ ( VdbSearch :: NucStrstr, m_s . GetAlgorithm () ); 
+}
+//
 
 FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
 {
@@ -160,7 +177,7 @@ FIXTURE_TEST_CASE ( FgrepAho_SingleAccession_HitsAcrossFragments, VdbSearchFixtu
 
 #if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( AgrepDP_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
-{
+{   /* VDB-2681: AgrepDP algorithm is broken */
     Setup ( "ATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
 LogResults();    
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
@@ -215,6 +232,21 @@ FIXTURE_TEST_CASE ( SingleAccession_HitsInsideOneFragment, VdbSearchFixture )
     //TODO: verify positions when supported
 }
 #endif
+
+FIXTURE_TEST_CASE ( MultipleAccessions, VdbSearchFixture )
+{
+    const string Sra1 = "SRR600096";
+    const string Sra2 = "SRR000001";
+    m_s . SetQuery ( "ACGTACG" );
+    m_s . SetAlgorithm ( VdbSearch :: NucStrstr );
+    m_s . AddAccession ( Sra1 );
+    m_s . AddAccession ( Sra2 );
+    
+    REQUIRE_EQ ( Sra1 + ".FR1.5", NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.26",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.717",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.951",  NextFragmentId () );
+}
 
 //TODO: bad query string
 //TODO: bad m_accession name

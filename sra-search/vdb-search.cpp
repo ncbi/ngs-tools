@@ -67,7 +67,7 @@ VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
     if      ( p_algStr == "FgrepDumb" )         SetAlgorithm ( VdbSearch :: FgrepDumb );
     else if ( p_algStr == "FgrepBoyerMoore" )   SetAlgorithm ( VdbSearch :: FgrepBoyerMoore );
     else if ( p_algStr == "FgrepAho" )          SetAlgorithm ( VdbSearch :: FgrepAho );
-    else if ( p_algStr == "AgrepDP" )           SetAlgorithm ( VdbSearch :: AgrepDP );
+//    else if ( p_algStr == "AgrepDP" )           SetAlgorithm ( VdbSearch :: AgrepDP ); /* VDB-2681: AgrepDP algorithm is broken */
     else if ( p_algStr == "AgrepWuManber" )     SetAlgorithm ( VdbSearch :: AgrepWuManber );
     else if ( p_algStr == "AgrepMyers" )        SetAlgorithm ( VdbSearch :: AgrepMyers );
     else if ( p_algStr == "AgrepMyersUnltd" )   SetAlgorithm ( VdbSearch :: AgrepMyersUnltd );

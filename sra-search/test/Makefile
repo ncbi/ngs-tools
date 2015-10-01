@@ -94,6 +94,12 @@ test-cmdline:
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          . 0 AGCTAGCTAGCT --algorithm NucStrstr          SRR000001
 	@ # 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
+	@ # 
 	@ echo
 
-.PHONY: test-wb test-cmdline
+onetest: 
+	@ $(MAKE) --no-print-directory -C ..
+	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
+    
+.PHONY: test-wb test-cmdline onetest

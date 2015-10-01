@@ -14,7 +14,6 @@ Options:
       FgrepDumb (default)
       FgrepBoyerMoore 
       FgrepAho 
-      AgrepDP 
       AgrepWuManber 
       AgrepMyers 
       AgrepMyersUnltd 
