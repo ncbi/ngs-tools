@@ -69,7 +69,7 @@ test-whitebox: $(TEST_BINDIR)/test-sra-search
 	@ echo
 
 vg-whitebox: $(TEST_BINDIR)/test-sra-search    
-	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $^
+	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress $^
 
 test-cmdline: 
 	@ $(MAKE) --no-print-directory -C ..
@@ -93,6 +93,7 @@ test-cmdline:
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        . 0 AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          . 0 AGCTAGCTAGCT --algorithm NucStrstr          SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     . 0 AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001
 	@ # 
 	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
 	@ # 
@@ -100,6 +101,6 @@ test-cmdline:
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     . 0 AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001
     
 .PHONY: test-wb test-cmdline onetest

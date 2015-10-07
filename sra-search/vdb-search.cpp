@@ -29,6 +29,7 @@
 #include <ngs/ncbi/NGS.hpp>
 #include <search/grep.h>
 #include <search/nucstrstr.h>
+#include <../libs/search/search-priv.h>
 
 using namespace std;
 using namespace ngs;
@@ -61,20 +62,48 @@ VdbSearch :: SetAlgorithm ( Algorithm p_algorithm )
     m_algorithm = p_algorithm;
 }
 
+static 
+const 
+struct {
+    const char* name;
+    VdbSearch :: Algorithm value;
+} Algorithms[] = {
+#define ALG(n) { #n, VdbSearch :: n }
+    ALG ( FgrepDumb ),
+    ALG ( FgrepBoyerMoore ),
+    ALG ( FgrepAho ),
+//    ALG ( AgrepDP ),
+    ALG ( AgrepWuManber ),
+    ALG ( AgrepMyers ),
+    ALG ( AgrepMyersUnltd ),
+    ALG ( NucStrstr ),
+    ALG ( SmithWaterman ),
+#undef ALG
+};
+
+SraSearch :: SupportedAlgorithms 
+VdbSearch :: GetSupportedAlgorithms () const
+{
+    vector < string > ret;
+    for ( size_t i = 0 ; i < sizeof ( Algorithms ) / sizeof ( Algorithms [ 0 ] ); ++i )
+    {
+        ret . push_back ( Algorithms [ i ] . name );
+    }
+    return ret;
+}
+
 bool 
 VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
 {
-    if      ( p_algStr == "FgrepDumb" )         SetAlgorithm ( VdbSearch :: FgrepDumb );
-    else if ( p_algStr == "FgrepBoyerMoore" )   SetAlgorithm ( VdbSearch :: FgrepBoyerMoore );
-    else if ( p_algStr == "FgrepAho" )          SetAlgorithm ( VdbSearch :: FgrepAho );
-//    else if ( p_algStr == "AgrepDP" )           SetAlgorithm ( VdbSearch :: AgrepDP ); /* VDB-2681: AgrepDP algorithm is broken */
-    else if ( p_algStr == "AgrepWuManber" )     SetAlgorithm ( VdbSearch :: AgrepWuManber );
-    else if ( p_algStr == "AgrepMyers" )        SetAlgorithm ( VdbSearch :: AgrepMyers );
-    else if ( p_algStr == "AgrepMyersUnltd" )   SetAlgorithm ( VdbSearch :: AgrepMyersUnltd );
-    else if ( p_algStr == "NucStrstr" )         SetAlgorithm ( VdbSearch :: NucStrstr );
-    else return false;
-    
-    return true;
+    for ( size_t i = 0 ; i < sizeof ( Algorithms ) / sizeof ( Algorithms [ 0 ] ); ++i )
+    {
+        if ( string ( Algorithms [ i ] . name ) == p_algStr )
+        {
+            SetAlgorithm ( Algorithms [ i ] . value );
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -304,6 +333,48 @@ private:
     const char*  m_query;
 };
 
+class SmithWatermanSearch : public SraSearch :: SearchBlock
+{   
+public:
+    SmithWatermanSearch ( const string& p_query )
+    :   m_query ( p_query . c_str() ),
+        m_querySize ( p_query . size() ),
+        m_matrix ( 0 ),
+        m_matrixSize ( 0 )
+    {
+    }
+    virtual ~SmithWatermanSearch ()
+    {
+        delete [] m_matrix;
+    }    
+    
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size )
+    {
+        const size_t Rows = p_size + 1;
+        const size_t Cols = m_querySize + 1;
+        const size_t MatrixSize = Rows * Cols;
+        if ( MatrixSize > m_matrixSize )
+        {
+            delete m_matrix;
+            m_matrix = new int [ MatrixSize ];
+            m_matrixSize = MatrixSize;
+        }
+        int maxScore = -1;
+        rc_t rc = calculate_similarity_matrix ( p_bases, p_size, m_query, m_querySize, m_matrix, true, & maxScore ); 
+        if ( rc != 0 )
+        {
+            throw ( ErrorMsg ( "calculate_similarity_matrix failed" ) );
+        }
+        return maxScore == m_querySize * 2; // exact match
+    }
+
+private:
+    const char*     m_query;
+    const size_t    m_querySize;
+    int*            m_matrix;
+    size_t          m_matrixSize;
+};
+
 //////////////////// SearchBlock factory
 
 SraSearch :: SearchBlock* 
@@ -324,6 +395,9 @@ VdbSearch :: SearchBlockFactory ( const string& p_query, Algorithm p_algorithm )
         
         case VdbSearch :: NucStrstr:
             return new NucStrstrBlock ( p_query );
+            
+        case VdbSearch :: SmithWaterman:
+            return new SmithWatermanSearch ( p_query );
             
         default:
             throw ( ErrorMsg ( "SearchBlockFactory: unsupported algorithm" ) );

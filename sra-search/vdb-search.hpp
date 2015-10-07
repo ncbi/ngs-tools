@@ -41,7 +41,7 @@ public:
 public:
     typedef enum
     {
-        FgrepDumb, 
+        FgrepDumb = 0, 
         FgrepBoyerMoore,
         FgrepAho,
         AgrepDP,
@@ -49,10 +49,13 @@ public:
         AgrepMyers,
         AgrepMyersUnltd,
         NucStrstr,
+        SmithWaterman,
         
         Default = FgrepDumb
     } Algorithm;
 
+    virtual SraSearch :: SupportedAlgorithms GetSupportedAlgorithms () const; // enum Algorithm values correspond to indexes in the container returned here
+    
 public:
     VdbSearch ();
     virtual ~VdbSearch ();

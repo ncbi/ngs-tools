@@ -28,6 +28,7 @@
 #define _hpp_sra_search_
 
 #include <string>
+#include <vector>
 
 #include <ngs/ErrorMsg.hpp>
 
@@ -39,10 +40,15 @@ public:
     {   
     public:
         virtual ~SearchBlock () {}
+        
         virtual bool FirstMatch ( const char* p_bases, size_t p_size ) = 0;
     };
 
 public:
+    typedef std :: vector < std :: string >  SupportedAlgorithms;
+
+    virtual SupportedAlgorithms GetSupportedAlgorithms () const = 0;
+    
     virtual void AddAccession ( const std::string& ) throw ( ngs :: ErrorMsg ) = 0;
     
     virtual bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg ) = 0;

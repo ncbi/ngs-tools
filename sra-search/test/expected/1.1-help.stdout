@@ -12,10 +12,11 @@ Options:
   -h|--help                 Output brief explanation of the program.
   -a|--algorithm <alg>      Search algorithm, one of:
       FgrepDumb (default)
-      FgrepBoyerMoore 
-      FgrepAho 
-      AgrepWuManber 
-      AgrepMyers 
-      AgrepMyersUnltd 
-      NucStrstr 
+      FgrepBoyerMoore
+      FgrepAho
+      AgrepWuManber
+      AgrepMyers
+      AgrepMyersUnltd
+      NucStrstr
+      SmithWaterman
 

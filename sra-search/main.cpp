@@ -78,16 +78,20 @@ static void handle_help ( const char * appName )
         << endl 
         << "Options:" << endl 
         << "  -h|--help                 Output brief explanation of the program." << endl
-        << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
-        << "      FgrepDumb (default)" << endl
-        << "      FgrepBoyerMoore " << endl
-        << "      FgrepAho " << endl
-//VDB-VDB-2681        << "      AgrepDP " << endl
-        << "      AgrepWuManber " << endl
-        << "      AgrepMyers " << endl
-        << "      AgrepMyersUnltd " << endl
-        << "      NucStrstr " << endl
-        << endl;
+        << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl;
+        
+    const SraSearch :: SupportedAlgorithms algs = VdbSearch () . GetSupportedAlgorithms ();
+    for ( SraSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
+    {
+        cout << "      " << *i;
+        if ( i - algs . begin () == VdbSearch :: Default )
+        {
+            cout << " (default)";
+        }
+        cout << endl;
+    }
+    
+    cout << endl;
 }
 
 int
@@ -118,7 +122,7 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-h" || arg == "--help" )
             {
-                handle_help ( argv [ 0 ] );
+                handle_help ( argv [ 0 ]  );
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
