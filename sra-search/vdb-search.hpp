@@ -27,18 +27,30 @@
 #ifndef _hpp_vdb_search_
 #define _hpp_vdb_search_
 
-#include "sra-search.hpp"
-
+#include <string>
+#include <vector>
 #include <queue>
+#include <stdexcept>
 
 #include <ngs/ReadCollection.hpp>
 
-class VdbSearch : public SraSearch
+class VdbSearch
 {
+public:
+    // base class of a hierarchy implementing various search algorithms 
+    class SearchBlock
+    {   
+    public:
+        virtual ~SearchBlock () {}
+        
+        virtual bool FirstMatch ( const char* p_bases, size_t p_size ) = 0;
+    };
+    
 public:
     static bool logResults;
 
 public:
+    // Search algorithms supported by this class
     typedef enum
     {
         FgrepDumb = 0, 
@@ -50,32 +62,25 @@ public:
         AgrepMyersUnltd,
         NucStrstr,
         SmithWaterman,
-        
-        Default = FgrepDumb
     } Algorithm;
 
-    virtual SraSearch :: SupportedAlgorithms GetSupportedAlgorithms () const; // enum Algorithm values correspond to indexes in the container returned here
+    typedef std :: vector < std :: string >  SupportedAlgorithms;
+
+    static SupportedAlgorithms GetSupportedAlgorithms (); // enum Algorithm values correspond to indexes in the container returned here
     
 public:
-    VdbSearch ();
-    virtual ~VdbSearch ();
+    VdbSearch ( Algorithm, const std::string& query, bool isExpression ) throw ( std :: invalid_argument );
+    VdbSearch ( const std :: string& algorithm, const std::string& query, bool isExpression ) throw ( std :: invalid_argument );
     
-    void SetQuery ( const std::string& );
-    void SetAlgorithm ( Algorithm );
-    bool SetAlgorithm ( const std :: string& );
+    ~VdbSearch ();
     
     Algorithm GetAlgorithm () const { return m_algorithm; }
     
-    virtual void AddAccession ( const std::string& ) throw ( ngs :: ErrorMsg );
+    void AddAccession ( const std::string& ) throw ( ngs :: ErrorMsg );
     
-    virtual bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
+    bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
     
 private:
-    std::string         m_query;
-    Algorithm           m_algorithm;
-    
-    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, Algorithm p_algorithm );
-    
     // a VDB-agnostic iterator bound to an accession and an engine-side algorithm
     class MatchIterator 
     {
@@ -94,6 +99,15 @@ private:
         SearchBlock* m_searchBlock;  // owned here
     };
     
+    bool SetAlgorithm ( const std :: string& p_algStr );
+    
+    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, bool p_isExpression, Algorithm p_algorithm );
+
+private:
+    std::string         m_query;
+    bool                m_isExpression; 
+    Algorithm           m_algorithm;
+
     std::queue < MatchIterator* > m_searches;
 };
 

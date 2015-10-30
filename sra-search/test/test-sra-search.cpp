@@ -38,8 +38,13 @@ class VdbSearchFixture
 {
 public:
     VdbSearchFixture ()
+    : m_s ( 0 )
     {
         VdbSearch :: logResults = false;
+    }
+    ~VdbSearchFixture ()
+    {
+        delete m_s;
     }
     
     void LogResults() 
@@ -47,58 +52,41 @@ public:
         VdbSearch :: logResults = true; 
     }
     
-    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession)
+    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, bool p_expression = false )
     {
-        m_s . SetQuery ( p_query );
-        m_s . SetAlgorithm ( p_algorithm );
-        m_s . AddAccession ( p_accession );
+        delete m_s;
+        m_s = 0;
+        
+        m_s = new VdbSearch ( p_algorithm, p_query, p_expression );
+        m_s -> AddAccession ( p_accession );
     }
     
     const string& NextFragmentId () 
     {
-        if ( ! m_s . NextMatch ( m_accession, m_fragment ) )
+        if ( ! m_s -> NextMatch ( m_accession, m_fragment ) )
         {
             throw logic_error ( "VdbSearchFixture::NextFragmentId : NextMatch() failed" );
         }
         return m_fragment;
     }
 
-    VdbSearch m_s;
+    VdbSearch* m_s;
     string m_accession;
     string m_fragment;
 };
 
 FIXTURE_TEST_CASE ( Create_Destroy, VdbSearchFixture )
 {
-    m_s . SetQuery ( "ACGT" );
+    m_s = new VdbSearch ( VdbSearch :: FgrepDumb, "ACGT", false );
+    REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s -> GetAlgorithm () ); 
+    delete m_s;
+    m_s = 0;
 }
 
-FIXTURE_TEST_CASE ( Algorithm_Default, VdbSearchFixture )
-{
-    m_s . SetQuery ( "ACGT" );
-    REQUIRE_EQ ( VdbSearch :: Default, m_s . GetAlgorithm () ); 
-}
-
-FIXTURE_TEST_CASE ( SetAlgorithm_Bad, VdbSearchFixture )
-{
-    m_s . SetQuery ( "ACGT" );
-    REQUIRE ( ! m_s . SetAlgorithm ( "bad" ) );
-}
-
-FIXTURE_TEST_CASE ( SetAlgorithmString, VdbSearchFixture )
-{
-    REQUIRE ( m_s . SetAlgorithm ( "FgrepDumb" ) );
-    REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s . GetAlgorithm () ); 
-}
 FIXTURE_TEST_CASE ( SupportedAlgorithms, VdbSearchFixture )
 {
-    SraSearch :: SupportedAlgorithms algs = m_s . GetSupportedAlgorithms ();
+    VdbSearch :: SupportedAlgorithms algs = m_s -> GetSupportedAlgorithms ();
     REQUIRE_LT ( ( size_t ) 0, algs . size () );
-    REQUIRE_LT ( ( size_t ) VdbSearch :: Default, algs . size () );
-    for ( SraSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
-    {
-        REQUIRE ( m_s . SetAlgorithm ( *i ) );
-    }
 }
 
 FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
@@ -106,7 +94,7 @@ FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
     const string Accession = "SRR000001";
     Setup ( "A", VdbSearch :: FgrepDumb, Accession ); // will hit (almost) every fragment
     
-    REQUIRE ( m_s . NextMatch ( m_accession, m_fragment ) );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
     REQUIRE_EQ ( Accession, m_accession );
     REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), m_fragment );
     
@@ -149,16 +137,13 @@ FIXTURE_TEST_CASE ( FgrepAho_SingleAccession_HitsAcrossFragments, VdbSearchFixtu
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
 }
 
-#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( AgrepDP_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {   /* VDB-2681: AgrepDP algorithm is broken */
     Setup ( "ATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
-LogResults();    
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
 }
-#endif
 
 FIXTURE_TEST_CASE ( AgrepWuManber_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
@@ -218,17 +203,30 @@ FIXTURE_TEST_CASE ( SingleAccession_HitsInsideOneFragment, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( MultipleAccessions, VdbSearchFixture )
 {
+    
     const string Sra1 = "SRR600096";
     const string Sra2 = "SRR000001";
-    m_s . SetQuery ( "ACGTACG" );
-    m_s . SetAlgorithm ( VdbSearch :: NucStrstr );
-    m_s . AddAccession ( Sra1 );
-    m_s . AddAccession ( Sra2 );
+    Setup ( "ACGTACG", VdbSearch :: NucStrstr, Sra1 );
+    m_s -> AddAccession ( Sra2 );
     
     REQUIRE_EQ ( Sra1 + ".FR1.5", NextFragmentId () );
     REQUIRE_EQ ( Sra2 + ".FR0.26",   NextFragmentId () );
     REQUIRE_EQ ( Sra2 + ".FR0.717",   NextFragmentId () );
     REQUIRE_EQ ( Sra2 + ".FR0.951",  NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( NucStrstr_Expression, VdbSearchFixture )
+{
+    Setup ( "AAAAAAACCCCCCC||ATTAGC", VdbSearch :: NucStrstr, "SRR000001", true );
+    
+    REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( Expression_OnlyForNucStrstr, VdbSearchFixture )
+{
+    REQUIRE_THROW ( Setup ( "AAAAAAA||ATTAGC", VdbSearch :: SmithWaterman, "SRR000001", true ) );
 }
 
 //TODO: bad query string

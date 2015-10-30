@@ -82,7 +82,7 @@ fi
 diff $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
-    echo "failed"
+    echo -e "\ndiff $EXPECTED_STDOUT $ACTUAL_STDOUT failed with $rc"
     cat $TEMPDIR/$CASEID.stdout.diff  >&2
     echo "command executed:"
     echo $CMD
@@ -106,7 +106,7 @@ if [ -f $EXPECTED_STDERR ]
     diff $EXPECTED_STDERR $ACTUAL_STDERR >$TEMPDIR/$CASEID.stderr.diff
     rc="$?"
     if [ "$rc" != "0" ] ; then
-        echo "failed"
+        echo -e "\ndiff $EXPECTED_STDERR $ACTUAL_STDERR failed with $rc"
         cat $TEMPDIR/$CASEID.stderr.diff >&2
         echo "command executed:"
         echo $CMD

@@ -43,7 +43,6 @@ clean:
 #
 SRA_SEARCH_SRC = \
 	vdb-search \
-	sra-search \
 	main \
 
 SRA_SEARCH_OBJ = \

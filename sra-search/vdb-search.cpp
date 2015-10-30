@@ -36,9 +36,29 @@ using namespace ngs;
 
 bool VdbSearch :: logResults = false;
 
-VdbSearch :: VdbSearch ()
-:   m_algorithm ( Default )
+VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression )  throw ( invalid_argument )
+:   m_algorithm ( p_algorithm ),
+    m_query ( p_query ),
+    m_isExpression ( p_isExpression )
 {
+    if ( p_isExpression && m_algorithm != NucStrstr ) 
+    {
+        throw invalid_argument ( "query expressions are only supported for NucStrstr" );
+    }
+}
+
+VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression )  throw ( invalid_argument )
+:   m_query ( p_query ),
+    m_isExpression ( p_isExpression )
+{
+    if ( ! SetAlgorithm ( p_algorithm ) )
+    {
+        throw invalid_argument ( string ( "unrecognized algorithm: " ) + p_algorithm );
+    }
+    if ( p_isExpression && m_algorithm != NucStrstr ) 
+    {
+        throw invalid_argument ( "query expressions are only supported for NucStrstr" );
+    }
 }
 
 VdbSearch :: ~VdbSearch ()
@@ -48,18 +68,6 @@ VdbSearch :: ~VdbSearch ()
         delete m_searches . front ();
         m_searches . pop ();
     }
-}
-
-void 
-VdbSearch :: SetQuery ( const string& p_query )
-{
-    m_query = p_query;
-}
-
-void 
-VdbSearch :: SetAlgorithm ( Algorithm p_algorithm )
-{
-    m_algorithm = p_algorithm;
 }
 
 static 
@@ -72,7 +80,7 @@ struct {
     ALG ( FgrepDumb ),
     ALG ( FgrepBoyerMoore ),
     ALG ( FgrepAho ),
-//    ALG ( AgrepDP ),
+    ALG ( AgrepDP ),
     ALG ( AgrepWuManber ),
     ALG ( AgrepMyers ),
     ALG ( AgrepMyersUnltd ),
@@ -81,8 +89,8 @@ struct {
 #undef ALG
 };
 
-SraSearch :: SupportedAlgorithms 
-VdbSearch :: GetSupportedAlgorithms () const
+VdbSearch :: SupportedAlgorithms 
+VdbSearch :: GetSupportedAlgorithms ()
 {
     vector < string > ret;
     for ( size_t i = 0 ; i < sizeof ( Algorithms ) / sizeof ( Algorithms [ 0 ] ); ++i )
@@ -99,7 +107,7 @@ VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
     {
         if ( string ( Algorithms [ i ] . name ) == p_algStr )
         {
-            SetAlgorithm ( Algorithms [ i ] . value );
+            m_algorithm = Algorithms [ i ] . value;
             return true;
         }
     }
@@ -110,7 +118,7 @@ VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
 void 
 VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
 {
-    m_searches . push ( new MatchIterator ( SearchBlockFactory ( m_query, m_algorithm ), p_accession ) );
+    m_searches . push ( new MatchIterator ( SearchBlockFactory ( m_query, m_isExpression, m_algorithm ), p_accession ) );
 }
 
 bool 
@@ -171,7 +179,7 @@ VdbSearch :: MatchIterator :: AccessionName () const
 
 //////////////////// SearchBlock subclasses
 
-class FgrepSearch : public SraSearch :: SearchBlock
+class FgrepSearch : public VdbSearch :: SearchBlock
 {   
 public:
     FgrepSearch ( const string& p_query, VdbSearch :: Algorithm p_algorithm )
@@ -214,7 +222,7 @@ private:
     const char*     m_query[1];
 };
 
-class AgrepSearch : public SraSearch :: SearchBlock
+class AgrepSearch : public VdbSearch :: SearchBlock
 {   
 public:
     AgrepSearch ( const string& p_query, VdbSearch :: Algorithm p_algorithm )
@@ -271,15 +279,15 @@ private:
 };
 
 
-class NucStrstrBlock : public SraSearch :: SearchBlock
+class NucStrstrBlock : public VdbSearch :: SearchBlock
 {   
 public:
-    NucStrstrBlock ( const string& p_query )
+    NucStrstrBlock ( const string& p_query, bool p_positional = false )
     {
         
         m_query = p_query . c_str(); // this object will not outlive it master who owns the query string
 
-        rc_t rc = NucStrstrMake ( &m_nss, 0, m_query, p_query . size () );
+        rc_t rc = NucStrstrMake ( &m_nss, p_positional ? 1 : 0, m_query, p_query . size () );
         if ( rc != 0 )
         {
             throw ( ErrorMsg ( "NucStrstrMake failed" ) );
@@ -333,7 +341,7 @@ private:
     const char*  m_query;
 };
 
-class SmithWatermanSearch : public SraSearch :: SearchBlock
+class SmithWatermanSearch : public VdbSearch :: SearchBlock
 {   
 public:
     SmithWatermanSearch ( const string& p_query )
@@ -377,8 +385,8 @@ private:
 
 //////////////////// SearchBlock factory
 
-SraSearch :: SearchBlock* 
-VdbSearch :: SearchBlockFactory ( const string& p_query, Algorithm p_algorithm )
+VdbSearch :: SearchBlock* 
+VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Algorithm p_algorithm )
 {
     switch ( p_algorithm )
     {
@@ -394,7 +402,7 @@ VdbSearch :: SearchBlockFactory ( const string& p_query, Algorithm p_algorithm )
             return new AgrepSearch ( p_query, p_algorithm );
         
         case VdbSearch :: NucStrstr:
-            return new NucStrstrBlock ( p_query );
+            return new NucStrstrBlock ( p_query, p_isExpression );
             
         case VdbSearch :: SmithWaterman:
             return new SmithWatermanSearch ( p_query );

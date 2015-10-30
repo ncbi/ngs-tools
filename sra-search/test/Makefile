@@ -88,7 +88,7 @@ test-cmdline:
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         . 0 AGCTAGCTAGCT -a FgrepDumb SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  . 0 AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          . 0 AGCTAGCTAGCT --algorithm FgrepAho           SRR000001
-	-@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001 2>/dev/null
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     . 0 AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        . 0 AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
@@ -101,6 +101,6 @@ test-cmdline:
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     . 0 AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001
     
 .PHONY: test-wb test-cmdline onetest

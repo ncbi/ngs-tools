@@ -1,1 +1,1 @@
-ERROR: Bad argument for --algorithm : 'bad'
+ERROR: unrecognized algorithm: bad

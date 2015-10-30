@@ -36,13 +36,7 @@ typedef vector < string > Runs;
 void 
 DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg  )
 {
-    VdbSearch s;
-    s . SetQuery ( p_query );
-    
-    if ( ! p_alg . empty() && ! s . SetAlgorithm ( p_alg ) )
-    {
-        throw invalid_argument ( string ( "Bad argument for --algorithm : '" ) + p_alg + "'" );
-    }
+    VdbSearch s ( p_alg, p_query, false );
     
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
@@ -68,23 +62,23 @@ static void handle_help ( const char * appName )
 
     cout << endl 
         << "Usage:" << endl 
-        << "  " << fileName << " [Options] query accession" << endl 
+        << "  " << fileName << " [Options] query accession ..." << endl 
         << endl 
         << "Summary:" << endl
-        << "  Searches all reads in the accession and prints Ids of all the fragments that contain a match." << endl
+        << "  Searches all reads in the accessions and prints Ids of all the fragments that contain a match." << endl
         << endl 
         << "Example:" << endl
-        << "  sra-search ACGT SRR000001" << endl
+        << "  sra-search ACGT SRR000001 SRR000002" << endl
         << endl 
         << "Options:" << endl 
         << "  -h|--help                 Output brief explanation of the program." << endl
         << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl;
         
-    const SraSearch :: SupportedAlgorithms algs = VdbSearch () . GetSupportedAlgorithms ();
-    for ( SraSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
+    const VdbSearch :: SupportedAlgorithms algs = VdbSearch :: GetSupportedAlgorithms ();
+    for ( VdbSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
     {
         cout << "      " << *i;
-        if ( i - algs . begin () == VdbSearch :: Default )
+        if ( i == algs . begin () )
         {
             cout << " (default)";
         }
@@ -103,7 +97,7 @@ main( int argc, char *argv [] )
     {
         string query;
         Runs runs;
-        string alg;
+        string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         
         unsigned int i = 1;
         while ( i < argc )
