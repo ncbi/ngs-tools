@@ -34,9 +34,9 @@ using namespace std;
 typedef vector < string > Runs;
 
 void 
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr  )
 {
-    VdbSearch s ( p_alg, p_query, false );
+    VdbSearch s ( p_alg, p_query, p_isExpr );
     
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
@@ -69,6 +69,7 @@ static void handle_help ( const char * appName )
         << endl 
         << "Example:" << endl
         << "  sra-search ACGT SRR000001 SRR000002" << endl
+        << "  sra-search \"CGTA||ACGT\" -e -a NucStrstr SRR000002" << endl
         << endl 
         << "Options:" << endl 
         << "  -h|--help                 Output brief explanation of the program." << endl
@@ -84,6 +85,7 @@ static void handle_help ( const char * appName )
         }
         cout << endl;
     }
+    cout << "  -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)" << endl;
     
     cout << endl;
 }
@@ -98,6 +100,7 @@ main( int argc, char *argv [] )
         string query;
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
+        bool is_expr = false;
         
         unsigned int i = 1;
         while ( i < argc )
@@ -128,9 +131,13 @@ main( int argc, char *argv [] )
                 }
                 alg = argv [ i ];
             }
+            else if ( arg == "-e" || arg == "--expression" )
+            {
+                is_expr = true;
+            }
             else
             {
-                throw invalid_argument ( "Invalid argument" );
+                throw invalid_argument ( string ( "Invalid option " ) + arg );
             }
             
             ++i;
@@ -141,24 +148,24 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        DoSearch ( query, runs, alg );
+        DoSearch ( query, runs, alg, is_expr );
 
         rc = 0;
     }
-    catch ( invalid_argument & x )
+    catch ( const invalid_argument & x )
     {
-        cerr << "ERROR: " << x . what () << endl;
+        cerr << endl << "ERROR: " << x . what () << endl;
         handle_help ( argv [ 0 ] );
         rc = 1;
     }
-    catch ( exception & x )
+    catch ( const exception & x )
     {
-        cerr << "ERROR: " << argv [ 0 ] << ": " << x . what () << endl;
+        cerr << endl << "ERROR: " << argv [ 0 ] << ": " << x . what () << endl;
         rc = 2;
     }
     catch ( ... )
     {
-        cerr << "ERROR: "<< argv [ 0 ] << ": unknown" << endl;
+        cerr << endl << "ERROR: "<< argv [ 0 ] << ": unknown" << endl;
         rc = 3;
     }
 

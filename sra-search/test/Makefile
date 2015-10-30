@@ -94,13 +94,16 @@ test-cmdline:
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          . 0 AGCTAGCTAGCT --algorithm NucStrstr          SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     . 0 AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001
-	@ # 
+	@ # multiple runs
 	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
+	@ # query expressions
+	@ ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression . 0 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm NucStrstr --expression  SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression . 1 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm FgrepDumb --expression  SRR000001
 	@ # 
 	@ echo
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression . 1 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm FgrepDumb --expression  SRR000001
     
 .PHONY: test-wb test-cmdline onetest
