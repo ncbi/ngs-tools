@@ -99,11 +99,24 @@ test-cmdline:
 	@ # query expressions
 	@ ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression . 0 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm NucStrstr --expression  SRR000001
 	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression . 1 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm FgrepDumb --expression  SRR000001
+	@ # imperfect match
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.1-imperfect-match-no-arg           . 1 AGCTAGCTAGCT SRR000001 -S
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.2-imperfect-match-bad-arg          . 1 AGCTAGCTAGCT SRR000001 -S qq
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.3-imperfect-match-default          . 1 AGCTAGCTAGCT -S 90 SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.1-imperfect-match-fgrep-dumb         . 1 AGCTAGCTAGCT --score 90 -a FgrepDumb SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.2-imperfect-match-fgrep-boyer-moore  . 1 AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore    SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.3-imperfect-match-fgrep-aho          . 1 AGCTAGCTAGCT --score 90 --algorithm FgrepAho           SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.4-imperfect-match-agrep-dp           . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.5-imperfect-match-agrep-wumanber     . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.6-imperfect-match-agrep-myers        . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.7-imperfect-match-agrep-myers-unltd  . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.8-imperfect-match-nucstrstr          . 1 AGCTAGCTAGCT --score 90 --algorithm NucStrstr          SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     . 0 AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001
 	@ # 
 	@ echo
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression . 1 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm FgrepDumb --expression  SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     . 0 AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001
     
 .PHONY: test-wb test-cmdline onetest

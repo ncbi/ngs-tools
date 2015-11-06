@@ -36,29 +36,49 @@ using namespace ngs;
 
 bool VdbSearch :: logResults = false;
 
-VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression )  throw ( invalid_argument )
-:   m_algorithm ( p_algorithm ),
-    m_query ( p_query ),
-    m_isExpression ( p_isExpression )
+void 
+VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )
 {
     if ( p_isExpression && m_algorithm != NucStrstr ) 
     {
         throw invalid_argument ( "query expressions are only supported for NucStrstr" );
     }
+    if ( p_minScorePct != 100 )
+    {
+        switch ( m_algorithm )
+        {
+            case VdbSearch :: FgrepDumb: 
+            case VdbSearch :: FgrepBoyerMoore:
+            case VdbSearch :: FgrepAho:
+            case VdbSearch :: NucStrstr:
+                throw invalid_argument ( "this algorithm only supports 100% match" );
+            default:
+                break;
+        }
+    }
 }
 
-VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression )  throw ( invalid_argument )
+VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct )  
+    throw ( invalid_argument )
+:   m_algorithm ( p_algorithm ),
+    m_query ( p_query ),
+    m_isExpression ( p_isExpression ),
+    m_minScorePct ( p_minScorePct )
+{
+    CheckArguments ( p_isExpression, p_minScorePct );
+}
+
+VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct )  
+    throw ( invalid_argument )
 :   m_query ( p_query ),
-    m_isExpression ( p_isExpression )
+    m_isExpression ( p_isExpression ),
+    m_minScorePct ( p_minScorePct )
 {
     if ( ! SetAlgorithm ( p_algorithm ) )
     {
         throw invalid_argument ( string ( "unrecognized algorithm: " ) + p_algorithm );
     }
-    if ( p_isExpression && m_algorithm != NucStrstr ) 
-    {
-        throw invalid_argument ( "query expressions are only supported for NucStrstr" );
-    }
+    CheckArguments ( p_isExpression, p_minScorePct );
 }
 
 VdbSearch :: ~VdbSearch ()
@@ -118,7 +138,8 @@ VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
 void 
 VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
 {
-    m_searches . push ( new MatchIterator ( SearchBlockFactory ( m_query, m_isExpression, m_algorithm ), p_accession ) );
+    m_searches . push ( new MatchIterator ( SearchBlockFactory ( m_query, m_isExpression, m_algorithm, m_minScorePct ), 
+                                            p_accession ) );
 }
 
 bool 
@@ -225,7 +246,8 @@ private:
 class AgrepSearch : public VdbSearch :: SearchBlock
 {   
 public:
-    AgrepSearch ( const string& p_query, VdbSearch :: Algorithm p_algorithm )
+    AgrepSearch ( const string& p_query, VdbSearch :: Algorithm p_algorithm, uint8_t p_minScorePct )
+    : m_minScorePct ( p_minScorePct )
     {
         m_query = p_query . c_str(); // this object will not outlive it master who owns the query string
         
@@ -260,7 +282,11 @@ public:
     virtual bool FirstMatch ( const char* p_bases, size_t p_size )
     {
         AgrepMatch matchinfo;
-        bool ret = AgrepFindFirst ( m_agrep, 0, p_bases, p_size, & matchinfo ) != 0; // 0 = perfect match
+        bool ret = AgrepFindFirst ( m_agrep, 
+                                    strlen ( m_query ) * ( 100 - m_minScorePct ) / 100, // 0 = perfect match
+                                    p_bases, 
+                                    p_size, 
+                                    & matchinfo ) != 0; 
         if ( ret && VdbSearch :: logResults )
         {
             cout << "Pattern='" << m_query << "' " 
@@ -276,6 +302,7 @@ public:
 private:
     struct Agrep*   m_agrep;
     const char*     m_query;
+    uint8_t         m_minScorePct;
 };
 
 
@@ -344,11 +371,12 @@ private:
 class SmithWatermanSearch : public VdbSearch :: SearchBlock
 {   
 public:
-    SmithWatermanSearch ( const string& p_query )
+    SmithWatermanSearch ( const string& p_query, uint8_t p_minScorePct )
     :   m_query ( p_query . c_str() ),
         m_querySize ( p_query . size() ),
         m_matrix ( 0 ),
-        m_matrixSize ( 0 )
+        m_matrixSize ( 0 ),
+        m_minScorePct ( p_minScorePct )        
     {
     }
     virtual ~SmithWatermanSearch ()
@@ -363,7 +391,7 @@ public:
         const size_t MatrixSize = Rows * Cols;
         if ( MatrixSize > m_matrixSize )
         {
-            delete m_matrix;
+            delete [] m_matrix;
             m_matrix = new int [ MatrixSize ];
             m_matrixSize = MatrixSize;
         }
@@ -373,7 +401,16 @@ public:
         {
             throw ( ErrorMsg ( "calculate_similarity_matrix failed" ) );
         }
-        return maxScore == m_querySize * 2; // exact match
+        unsigned int scoreThreshold = ( m_querySize * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
+        bool ret = maxScore >= scoreThreshold;
+        if ( ret && VdbSearch :: logResults )
+        {
+            cout << "Pattern='" << m_query << "' " 
+                 << "Score=" << maxScore 
+                 << " scoreThreshold=" << scoreThreshold 
+                 << endl;
+        }
+        return ret;
     }
 
 private:
@@ -381,12 +418,13 @@ private:
     const size_t    m_querySize;
     int*            m_matrix;
     size_t          m_matrixSize;
+    uint8_t         m_minScorePct;
 };
 
 //////////////////// SearchBlock factory
 
 VdbSearch :: SearchBlock* 
-VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Algorithm p_algorithm )
+VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Algorithm p_algorithm, unsigned int p_minScorePct )
 {
     switch ( p_algorithm )
     {
@@ -399,13 +437,13 @@ VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Al
         case VdbSearch :: AgrepWuManber:
         case VdbSearch :: AgrepMyers:
         case VdbSearch :: AgrepMyersUnltd:
-            return new AgrepSearch ( p_query, p_algorithm );
+            return new AgrepSearch ( p_query, p_algorithm, p_minScorePct );
         
         case VdbSearch :: NucStrstr:
             return new NucStrstrBlock ( p_query, p_isExpression );
             
         case VdbSearch :: SmithWaterman:
-            return new SmithWatermanSearch ( p_query );
+            return new SmithWatermanSearch ( p_query, p_minScorePct );
             
         default:
             throw ( ErrorMsg ( "SearchBlockFactory: unsupported algorithm" ) );

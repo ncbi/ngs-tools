@@ -26,6 +26,9 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <cerrno>
+
+#include <strtol.h>
 
 #include "vdb-search.hpp"
 
@@ -34,9 +37,9 @@ using namespace std;
 typedef vector < string > Runs;
 
 void 
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, uint32_t p_minScore  )
 {
-    VdbSearch s ( p_alg, p_query, p_isExpr );
+    VdbSearch s ( p_alg, p_query, p_isExpr, p_minScore );
     
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
@@ -85,7 +88,9 @@ static void handle_help ( const char * appName )
         }
         cout << endl;
     }
-    cout << "  -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)" << endl;
+    cout << "  -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)" << endl
+         << "  -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);" << endl
+         << "                            supported for all variants of Agrep and SmithWaterman." << endl;
     
     cout << endl;
 }
@@ -101,6 +106,7 @@ main( int argc, char *argv [] )
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         bool is_expr = false;
+        uint32_t score = 100;
         
         unsigned int i = 1;
         while ( i < argc )
@@ -127,13 +133,27 @@ main( int argc, char *argv [] )
                 ++i;
                 if ( i >= argc )
                 {
-                    throw invalid_argument ( "Missing argument for --algorithm" );
+                    throw invalid_argument ( string ( "Missing argument for " ) + arg );
                 }
                 alg = argv [ i ];
             }
             else if ( arg == "-e" || arg == "--expression" )
             {
                 is_expr = true;
+            }
+            else if ( arg == "-S" || arg == "--score" )
+            {
+                ++i;
+                if ( i >= argc )
+                {
+                    throw invalid_argument ( string ( "Missing argument for " ) + arg );
+                }
+                char* endptr;
+                score = strtou32 ( argv [ i ], &endptr, 10 );
+                if ( *endptr != 0 || score == 0 && errno == ERANGE )
+                {
+                    throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
+                }
             }
             else
             {
@@ -148,7 +168,7 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        DoSearch ( query, runs, alg, is_expr );
+        DoSearch ( query, runs, alg, is_expr, score );
 
         rc = 0;
     }

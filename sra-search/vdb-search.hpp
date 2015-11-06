@@ -66,11 +66,18 @@ public:
 
     typedef std :: vector < std :: string >  SupportedAlgorithms;
 
-    static SupportedAlgorithms GetSupportedAlgorithms (); // enum Algorithm values correspond to indexes in the container returned here
+    // enum Algorithm values correspond to indexes in the container returned here
+    static SupportedAlgorithms GetSupportedAlgorithms (); 
     
 public:
-    VdbSearch ( Algorithm, const std::string& query, bool isExpression ) throw ( std :: invalid_argument );
-    VdbSearch ( const std :: string& algorithm, const std::string& query, bool isExpression ) throw ( std :: invalid_argument );
+    VdbSearch ( Algorithm, 
+                const std::string& query, 
+                bool isExpression, 
+                unsigned int p_minScorePct = 100 ) throw ( std :: invalid_argument );
+    VdbSearch ( const std :: string& algorithm, 
+                const std::string& query, 
+                bool isExpression, 
+                unsigned int p_minScorePct = 100 ) throw ( std :: invalid_argument );
     
     ~VdbSearch ();
     
@@ -99,14 +106,20 @@ private:
         SearchBlock* m_searchBlock;  // owned here
     };
     
+    void CheckArguments ( bool isExpression, unsigned int minScorePct) throw ( std :: invalid_argument );
+    
     bool SetAlgorithm ( const std :: string& p_algStr );
     
-    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, bool p_isExpression, Algorithm p_algorithm );
+    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, 
+                                             bool p_isExpression, 
+                                             Algorithm p_algorithm, 
+                                             unsigned int m_minScorePct );
 
 private:
-    std::string         m_query;
-    bool                m_isExpression; 
-    Algorithm           m_algorithm;
+    std::string     m_query;
+    bool            m_isExpression; 
+    Algorithm       m_algorithm;
+    unsigned int    m_minScorePct;
 
     std::queue < MatchIterator* > m_searches;
 };

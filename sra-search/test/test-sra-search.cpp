@@ -60,6 +60,14 @@ public:
         m_s = new VdbSearch ( p_algorithm, p_query, p_expression );
         m_s -> AddAccession ( p_accession );
     }
+    void SetupWithScore ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, unsigned int p_minScore )
+    {
+        delete m_s;
+        m_s = 0;
+        
+        m_s = new VdbSearch ( p_algorithm, p_query, false, p_minScore  );
+        m_s -> AddAccession ( p_accession );
+    }
     
     const string& NextFragmentId () 
     {
@@ -229,9 +237,62 @@ FIXTURE_TEST_CASE ( Expression_OnlyForNucStrstr, VdbSearchFixture )
     REQUIRE_THROW ( Setup ( "AAAAAAA||ATTAGC", VdbSearch :: SmithWaterman, "SRR000001", true ) );
 }
 
+// Imperfect matches
+FIXTURE_TEST_CASE ( FgrepDumb_ImperfectMatch_Unsupported, VdbSearchFixture )
+{   
+    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepDumb, "SRR000001", 90 ) );
+}
+FIXTURE_TEST_CASE ( FgrepBoyerMoore_ImperfectMatch_Unsupported, VdbSearchFixture )
+{   
+    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepBoyerMoore, "SRR000001", 90 ) );
+}
+FIXTURE_TEST_CASE ( FgrepAho_ImperfectMatch_Unsupported, VdbSearchFixture )
+{   
+    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepAho, "SRR000001", 90 ) );
+}
+
+FIXTURE_TEST_CASE ( AgrepDP_ImperfectMatch, VdbSearchFixture )
+{   
+    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepDP, "SRR000001", 90 );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( AgrepWuManber_ImperfectMatch, VdbSearchFixture )
+{   
+    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepWuManber, "SRR000001", 90 );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( AgrepMyers_ImperfectMatch, VdbSearchFixture )
+{   
+    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepMyers, "SRR000001", 90 );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( AgrepMyersUnltd_ImperfectMatch, VdbSearchFixture )
+{   
+    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepMyersUnltd, "SRR000001", 90 );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
+}
+
+FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
+{   // SW scoring function is different from Agrep's, so the results are slightly different
+    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: SmithWaterman, "SRR000001", 90 );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.183" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
+}
+
 //TODO: bad query string
-//TODO: bad m_accession name
-//TODO: multiple accessions
+///TODO: bad accession name
 
 int
 main( int argc, char *argv [] )
