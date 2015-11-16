@@ -147,7 +147,7 @@ namespace fastrq
             if ( arg [ 0 ] != '-' )
             {
                 // have an input run
-                argv [ ++ settings . num_accessions ] = ( char* ) arg;
+                argv [ ++ settings . num_accessions ] = arg;
             }
             else do switch ( ( ++ arg ) [ 0 ] )
                     {
@@ -212,7 +212,7 @@ namespace fastrq
         // NULL OK
         FastRQFormatter *formatter = make_formatter ( settings );
 
-        for ( uint32_t i = 0; i < settings . num_accessions; ++ i )
+        for ( uint32_t i = 1; i <= settings . num_accessions; ++ i )
         {
             const char *accession = argv [ i ];
             ReadCollection rCollection = ncbi :: NGS :: openReadCollection ( accession );

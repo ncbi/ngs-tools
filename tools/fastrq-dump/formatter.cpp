@@ -52,15 +52,15 @@ namespace fastrq
     void FastQFormatter :: dump ( String run_name, uint64_t spotID, const ReadIterator &reads, const StringRef &bases ) const
     {
         StringRef read_name = reads . getReadName ();
-        StringRef read_id = reads . getReadId ();
+        //StringRef read_id = reads . getReadId ();
         StringRef qualities = reads . getReadQualities ();
         
         std :: cout 
             << '@'
             << run_name
             << '.'
-            //<< i
-            << read_id
+            << spotID
+            //<< read_id
             << ' '
             << read_name
             << " length="
@@ -71,8 +71,8 @@ namespace fastrq
             << '+'
             << run_name
             << '.'
-            //<< i
-            << read_id
+            << spotID
+            //<< read_id
             << ' '
             << read_name
             << " length="

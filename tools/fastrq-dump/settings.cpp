@@ -30,7 +30,7 @@ namespace fastrq
 {
     void FastRQSettings :: validate ()
     {
-        if ( fmt == 0 )
-            throw "Invalid settings";
+        if ( num_accessions == 0 )
+            throw "missing input specification";
     }   
 }
