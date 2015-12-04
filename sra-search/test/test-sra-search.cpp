@@ -52,12 +52,12 @@ public:
         VdbSearch :: logResults = true; 
     }
     
-    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, bool p_expression = false )
+    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, bool p_expression = false, unsigned int p_threads = 0 )
     {
         delete m_s;
         m_s = 0;
         
-        m_s = new VdbSearch ( p_algorithm, p_query, p_expression );
+        m_s = new VdbSearch ( p_algorithm, p_query, p_expression, 100, p_threads );
         m_s -> AddAccession ( p_accession );
     }
     void SetupWithScore ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, unsigned int p_minScore )
@@ -290,6 +290,40 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.183" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
+
+FIXTURE_TEST_CASE ( MultipleAccessions_Threaded, VdbSearchFixture )
+{
+    
+    const string Sra1 = "SRR600096";
+    const string Sra2 = "SRR000001";
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2 );
+    m_s -> AddAccession ( Sra2 );
+    
+    REQUIRE_EQ ( Sra1 + ".FR0.3", NextFragmentId () );
+    REQUIRE_EQ ( Sra1 + ".FR0.4", NextFragmentId () );
+    REQUIRE_EQ ( Sra1 + ".FR0.6", NextFragmentId () );
+    REQUIRE_EQ ( Sra1 + ".FR0.8", NextFragmentId () );
+    REQUIRE_EQ ( Sra1 + ".FR0.10", NextFragmentId () );
+    REQUIRE_EQ ( Sra1 + ".FR0.15", NextFragmentId () );
+    
+    REQUIRE_EQ ( Sra2 + ".FR0.28322",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.65088",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.67400",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.82256",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.103663",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR1.150301",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.153062",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR1.236848",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.250066",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.271976",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.446398",   NextFragmentId () );
+    REQUIRE_EQ ( Sra2 + ".FR0.452060",   NextFragmentId () );
+
+    //TODO: find a better set of acessions to get intermixed results
+    
+//    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
 
 //TODO: bad query string
 ///TODO: bad accession name

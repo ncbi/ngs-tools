@@ -60,6 +60,7 @@ TEST_SRA_SEARCH_LIBS = \
 	-lngs-c++           \
 
 $(TEST_BINDIR)/test-sra-search: $(TEST_SRA_SEARCH_OBJ)
+	$(MAKE) -C $(SRCDIR)/..
 	$(CP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS) $(LDFLAGS)
 
 test-whitebox: $(TEST_BINDIR)/test-sra-search    

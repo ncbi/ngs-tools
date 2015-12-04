@@ -31,8 +31,111 @@
 #include <search/nucstrstr.h>
 #include <../libs/search/search-priv.h>
 
+#include <atomic32.h>
+
+#include <klib/time.h>
+
+#include <kproc/thread.h>
+#include <kproc/lock.h>
+
 using namespace std;
 using namespace ngs;
+
+//////////////////// VdbSearch :: OutputQueue
+
+class VdbSearch :: OutputQueue 
+{   // thread safe output queue; one consumer, multiple producers
+    // counts producers
+    // if there are active producers, Pop will wait for new items to appear or the last producer to go away
+public:
+    OutputQueue ( unsigned int p_producers ) throw ( ErrorMsg )
+    {
+        atomic32_set ( & m_producers, p_producers );
+        rc_t rc = KLockMake ( & m_lock );
+        if ( rc != 0 )
+        {
+            throw ( ErrorMsg ( "KLockMake failed" ) );
+        }  
+    }
+    ~OutputQueue()
+    {
+        queue < Item > empty;   
+        swap( m_queue, empty );
+        
+        KLockRelease ( m_lock );
+    }
+    
+    void ProducerDone () // called by the producers
+    {
+        assert ( atomic32_read ( & m_producers ) > 0 );
+        atomic32_dec ( & m_producers );
+    }
+    
+    void Push (const string& p_accession, const string& p_fragmentId) // called by the producers
+    {
+        KLockAcquire ( m_lock );
+        m_queue . push ( Item ( p_accession , p_fragmentId ) );
+        KLockUnlock ( m_lock );
+    }
+    
+    // called by the consumer; will block until items become available or the last producer goes away
+    bool Pop (string& p_accession, string& p_fragmentId) 
+    {
+        while ( m_queue . size () == 0 && atomic32_read ( & m_producers ) > 0 )
+        {
+            KSleepMs(1);
+        }
+
+        assert ( m_queue . size () > 0 || atomic32_read ( & m_producers ) == 0 );
+        
+        if ( m_queue . size () > 0 )
+        {
+            KLockAcquire ( m_lock );
+            p_accession = m_queue . front () . first;     
+            p_fragmentId = m_queue . front () . second;
+            m_queue.pop();
+            KLockUnlock ( m_lock );
+            return true;
+        }
+        
+        assert ( atomic32_read ( & m_producers ) == 0 );
+        return false;
+    }
+    
+private:    
+    typedef pair < string, string > Item;
+    queue < Item > m_queue;
+    
+    KLock* m_lock;
+    
+    atomic32_t m_producers; 
+};
+
+////////////////////  VdbSearch :: SearchThreadBlock
+
+struct VdbSearch :: SearchThreadBlock
+{
+    KLock* m_lock;
+    VdbSearch :: SearchQueue& m_search;        
+    VdbSearch :: OutputQueue& m_output;
+    
+    SearchThreadBlock ( SearchQueue& p_search, OutputQueue& p_output )
+    : m_search ( p_search ), m_output ( p_output )
+    {
+        rc_t rc = KLockMake ( & m_lock ); 
+        if ( rc != 0 )
+        {
+            throw ( ErrorMsg ( "KLockMake failed" ) );
+        }
+    }
+    ~SearchThreadBlock ()
+    {
+        KLockRelease ( m_lock );
+    }
+};
+
+
+//////////////////// VdbSearch
 
 bool VdbSearch :: logResults = false;
 
@@ -58,12 +161,15 @@ VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) t
     }
 }
 
-VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct )  
+VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct, unsigned int p_threads )  
     throw ( invalid_argument )
 :   m_algorithm ( p_algorithm ),
     m_query ( p_query ),
     m_isExpression ( p_isExpression ),
-    m_minScorePct ( p_minScorePct )
+    m_minScorePct ( p_minScorePct ),
+    m_threads ( p_threads ),
+    m_output ( 0 ),
+    m_searchBlock ( 0 )
 {
     CheckArguments ( p_isExpression, p_minScorePct );
 }
@@ -72,7 +178,10 @@ VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, 
     throw ( invalid_argument )
 :   m_query ( p_query ),
     m_isExpression ( p_isExpression ),
-    m_minScorePct ( p_minScorePct )
+    m_minScorePct ( p_minScorePct ),
+    m_threads ( 0 ),
+    m_output ( 0 ),
+    m_searchBlock ( 0 )
 {
     if ( ! SetAlgorithm ( p_algorithm ) )
     {
@@ -88,6 +197,16 @@ VdbSearch :: ~VdbSearch ()
         delete m_searches . front ();
         m_searches . pop ();
     }
+
+    // make sure all threads are gone before we release shared objects    
+    for ( ThreadPool :: iterator i = m_threadPool . begin (); i != m_threadPool. end (); ++i )
+    {
+        KThreadCancel ( *i );        
+        KThreadWait  ( *i, 0 );
+        KThreadRelease ( *i );
+    }
+    delete m_searchBlock;
+    delete m_output;    
 }
 
 static 
@@ -142,21 +261,79 @@ VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
                                             p_accession ) );
 }
 
+rc_t CC VdbSearch :: SearchThread ( const KThread *self, void *data )
+{
+    assert ( data );
+    SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
+    assert ( sb . m_lock );
+    
+    while ( true )
+    {
+        KLockAcquire ( sb . m_lock );
+        if ( sb . m_search . empty () )
+        {
+            KLockUnlock ( sb . m_lock );
+            break;
+        }
+
+        MatchIterator* it = sb . m_search . front ();
+        sb . m_search . pop ();
+        
+        KLockUnlock ( sb . m_lock );
+        
+        string fragmentId;
+        while ( it -> NextMatch ( fragmentId ) )
+        {
+            sb . m_output . Push ( it -> AccessionName (), fragmentId );
+        }
+        delete it;
+    }
+    
+    sb . m_output . ProducerDone();
+    return 0;    
+}
+
 bool 
 VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( ErrorMsg )
 {
-    while ( ! m_searches . empty () )
-    {
-        if ( m_searches . front () -> NextMatch ( p_fragmentId ) )
+    if ( m_threads > 0 )
+    {   
+        if ( m_output == 0 ) // first call to NextMatch() - set up
         {
-            p_accession = m_searches. front () -> AccessionName ();
-            return true;
-        }
-        delete m_searches . front ();
-        m_searches . pop ();
+            size_t threadNum = min<size_t> ( m_threads, m_searches . size () );
+            m_output = new OutputQueue ( threadNum );
+            m_searchBlock = new SearchThreadBlock ( m_searches, *m_output ); 
+            for ( unsigned  int i = 0 ; i != threadNum; ++i )
+            {
+                KThread* t;
+                rc_t rc = KThreadMake ( &t, SearchThread, m_searchBlock );
+                if ( rc != 0 )
+                {
+                    throw ( ErrorMsg ( "KThreadMake failed" ) );
+                }  
+                m_threadPool . push_back ( t );
+            }
+        }        
+        
+        // block until a result appears on the output queue or all searches are marked as completed
+        bool ret = m_output -> Pop ( p_accession, p_fragmentId );
+        return ret;        
     }
-    
-    return false;
+    else
+    {   // no threads, return one result at a time
+        while ( ! m_searches . empty () )
+        {
+            if ( m_searches . front () -> NextMatch ( p_fragmentId ) )
+            {
+                p_accession = m_searches. front () -> AccessionName ();
+                return true;
+            }
+            delete m_searches . front ();
+            m_searches . pop ();
+        }
+        
+        return false;
+    }
 }
 
 //////////////////// VdbSearch :: MatchIterator

@@ -32,7 +32,11 @@
 #include <queue>
 #include <stdexcept>
 
+#include <klib/rc.h>
+
 #include <ngs/ReadCollection.hpp>
+
+struct KThread;
 
 class VdbSearch
 {
@@ -73,7 +77,8 @@ public:
     VdbSearch ( Algorithm, 
                 const std::string& query, 
                 bool isExpression, 
-                unsigned int p_minScorePct = 100 ) throw ( std :: invalid_argument );
+                unsigned int p_minScorePct = 100, 
+                unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     VdbSearch ( const std :: string& algorithm, 
                 const std::string& query, 
                 bool isExpression, 
@@ -106,6 +111,14 @@ private:
         SearchBlock* m_searchBlock;  // owned here
     };
     
+    typedef std::queue < MatchIterator* > SearchQueue;
+    
+    struct SearchThreadBlock;
+    
+    class OutputQueue;
+    
+    typedef std :: vector < KThread* > ThreadPool;
+    
     void CheckArguments ( bool isExpression, unsigned int minScorePct) throw ( std :: invalid_argument );
     
     bool SetAlgorithm ( const std :: string& p_algStr );
@@ -114,14 +127,22 @@ private:
                                              bool p_isExpression, 
                                              Algorithm p_algorithm, 
                                              unsigned int m_minScorePct );
+                                             
+    static rc_t CC SearchThread ( const struct KThread *self, void *data );
 
 private:
     std::string     m_query;
     bool            m_isExpression; 
     Algorithm       m_algorithm;
     unsigned int    m_minScorePct;
+    unsigned int    m_threads;
 
-    std::queue < MatchIterator* > m_searches;
+    SearchQueue     m_searches;
+        
+    // used with multi-threading        
+    OutputQueue*                m_output;  
+    struct SearchThreadBlock*   m_searchBlock;
+    ThreadPool                  m_threadPool;
 };
 
 #endif
