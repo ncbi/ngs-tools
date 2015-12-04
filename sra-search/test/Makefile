@@ -77,47 +77,51 @@ test-cmdline:
 	@ echo
 	@ echo "Testing $(BINDIR)/sra-search"
 	@ # help
-	@ ./runtestcase.sh $(BINDIR)/sra-search 1.0-h    . 0 -h
-	@ ./runtestcase.sh $(BINDIR)/sra-search 1.1-help . 0 --help 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 1.0-h    --args "-h"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 1.1-help --args "--help" 
 	@ # bad args
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args                         . 1 
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run                          . 1 AGCT
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.2-missing-algorithm               . 1 AGCT SRR000001 -a
-	@ ./runtestcase.sh $(BINDIR)/sra-search 2.3-bad-algorithm                   . 1 --algorithm bad AGCT SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args          	--rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run              --rc 1 --args AGCT
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.2-missing-algorithm   --rc 1 --args "AGCT SRR000001 -a"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 2.3-bad-algorithm       --rc 1 --args "--algorithm bad AGCT SRR000001"
 	@ # single run
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            . 0 AGCTAGCTAGCT SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         . 0 AGCTAGCTAGCT -a FgrepDumb SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  . 0 AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          . 0 AGCTAGCTAGCT --algorithm FgrepAho           SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           . 0 AGCTAGCTAGCT --algorithm AgrepDP            SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     . 0 AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        . 0 AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  . 0 AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          . 0 AGCTAGCTAGCT --algorithm NucStrstr          SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     . 0 AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         --args "AGCTAGCTAGCT -a FgrepDumb SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001"
 	@ # multiple runs
-	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs . 0 TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097
+	@ ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs --args "TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097"
 	@ # query expressions
-	@ ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression . 0 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm NucStrstr --expression  SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression . 1 \"AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT\" --algorithm FgrepDumb --expression  SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression 	    --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression 	--args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm FgrepDumb --expression  SRR000001" --rc 1 
 	@ # imperfect match
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.1-imperfect-match-no-arg           . 1 AGCTAGCTAGCT SRR000001 -S
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.2-imperfect-match-bad-arg          . 1 AGCTAGCTAGCT SRR000001 -S qq
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.3-imperfect-match-default          . 1 AGCTAGCTAGCT -S 90 SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.1-imperfect-match-fgrep-dumb         . 1 AGCTAGCTAGCT --score 90 -a FgrepDumb SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.2-imperfect-match-fgrep-boyer-moore  . 1 AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore    SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.3-imperfect-match-fgrep-aho          . 1 AGCTAGCTAGCT --score 90 --algorithm FgrepAho           SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.4-imperfect-match-agrep-dp           . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.5-imperfect-match-agrep-wumanber     . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.6-imperfect-match-agrep-myers        . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.7-imperfect-match-agrep-myers-unltd  . 0 AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.8-imperfect-match-nucstrstr          . 1 AGCTAGCTAGCT --score 90 --algorithm NucStrstr          SRR000001
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     . 0 AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.1-imperfect-match-no-arg           --args "AGCTAGCTAGCT SRR000001 -S" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.2-imperfect-match-bad-arg          --args "AGCTAGCTAGCT SRR000001 -S qq" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.0.3-imperfect-match-default          --args "AGCTAGCTAGCT -S 90 SRR000001" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.1-imperfect-match-fgrep-dumb         --args "AGCTAGCTAGCT --score 90 -a FgrepDumb SRR000001" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.2-imperfect-match-fgrep-boyer-moore  --args "AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore    SRR000001" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.3-imperfect-match-fgrep-aho          --args "AGCTAGCTAGCT --score 90 --algorithm FgrepAho           SRR000001" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.5-imperfect-match-agrep-wumanber     --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.6-imperfect-match-agrep-myers        --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.8-imperfect-match-nucstrstr          --args "AGCTAGCTAGCT --score 90 --algorithm NucStrstr          SRR000001" --rc 1 
+	@ ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001"
+	@ # multi-threading
+	@ ./runtestcase.sh $(BINDIR)/sra-search 7.0.1-threads-no-arg   --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 -T"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 7.0.2-threads-bad-arg  --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 --threads -1"
+	@ ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 2 SRR600094 SRR600095"
 	@ # 
 	@ echo
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     . 0 AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001
+	@ ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 2 SRR600094 SRR600095"
     
 .PHONY: test-wb test-cmdline onetest

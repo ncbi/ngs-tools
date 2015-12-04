@@ -82,7 +82,8 @@ public:
     VdbSearch ( const std :: string& algorithm, 
                 const std::string& query, 
                 bool isExpression, 
-                unsigned int p_minScorePct = 100 ) throw ( std :: invalid_argument );
+                unsigned int p_minScorePct = 100, 
+                unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     
     ~VdbSearch ();
     

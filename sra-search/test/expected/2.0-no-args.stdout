@@ -24,4 +24,5 @@ Options:
   -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)
   -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);
                             supported for all variants of Agrep and SmithWaterman.
+  -T|--threads <number>     The number of threads to use; no threads by deafult
 

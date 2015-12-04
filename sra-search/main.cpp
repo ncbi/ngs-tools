@@ -37,9 +37,9 @@ using namespace std;
 typedef vector < string > Runs;
 
 void 
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, uint32_t p_minScore  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, unsigned int p_minScore, unsigned int p_threads  )
 {
-    VdbSearch s ( p_alg, p_query, p_isExpr, p_minScore );
+    VdbSearch s ( p_alg, p_query, p_isExpr, p_minScore, p_threads );
     
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
@@ -76,7 +76,8 @@ static void handle_help ( const char * appName )
         << endl 
         << "Options:" << endl 
         << "  -h|--help                 Output brief explanation of the program." << endl
-        << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl;
+        << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
+        ;
         
     const VdbSearch :: SupportedAlgorithms algs = VdbSearch :: GetSupportedAlgorithms ();
     for ( VdbSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
@@ -90,7 +91,9 @@ static void handle_help ( const char * appName )
     }
     cout << "  -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)" << endl
          << "  -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);" << endl
-         << "                            supported for all variants of Agrep and SmithWaterman." << endl;
+         << "                            supported for all variants of Agrep and SmithWaterman." << endl
+         << "  -T|--threads <number>     The number of threads to use; no threads by deafult" << endl
+         ;
     
     cout << endl;
 }
@@ -106,7 +109,8 @@ main( int argc, char *argv [] )
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         bool is_expr = false;
-        uint32_t score = 100;
+        int score = 100;
+        int threads = 0;
         
         unsigned int i = 1;
         while ( i < argc )
@@ -149,8 +153,22 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Missing argument for " ) + arg );
                 }
                 char* endptr;
-                score = strtou32 ( argv [ i ], &endptr, 10 );
-                if ( *endptr != 0 || score == 0 && errno == ERANGE )
+                score = strtoi32 ( argv [ i ], &endptr, 10 );
+                if ( *endptr != 0 || score <= 0 || errno == ERANGE )
+                {
+                    throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
+                }
+            }
+            else if ( arg == "-T" || arg == "--threads" )
+            {
+                ++i;
+                if ( i >= argc )
+                {
+                    throw invalid_argument ( string ( "Missing argument for " ) + arg );
+                }
+                char* endptr;
+                threads = strtoi32 ( argv [ i ], &endptr, 10 );
+                if ( *endptr != 0 || threads <= 0 || errno == ERANGE )
                 {
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
@@ -168,7 +186,7 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        DoSearch ( query, runs, alg, is_expr, score );
+        DoSearch ( query, runs, alg, is_expr, (unsigned int)score, (unsigned int)threads );
 
         rc = 0;
     }

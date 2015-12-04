@@ -174,12 +174,12 @@ VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool
     CheckArguments ( p_isExpression, p_minScorePct );
 }
 
-VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct )  
+VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct, unsigned int p_threads )  
     throw ( invalid_argument )
 :   m_query ( p_query ),
     m_isExpression ( p_isExpression ),
     m_minScorePct ( p_minScorePct ),
-    m_threads ( 0 ),
+    m_threads ( p_threads ),
     m_output ( 0 ),
     m_searchBlock ( 0 )
 {

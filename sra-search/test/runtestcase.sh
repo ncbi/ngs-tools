@@ -25,29 +25,62 @@
 #echo "$0 $*"
 
 #
-# A generic script to run a command line and diff the output against previously saved
+# A generic script to run a command line tool and diff the output against previously saved
 #
 # $1 - the executable
-# $2 - test case ID 
-# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-#       expected/$2.stdout is expected to exists and will be diffed against the sdtout of the run
-#       if expected/$2.stderr exists, it is diffed against the sdterr of the run
-# $4 - expected return code
-# $5, $6, ... - command line options for the executable
+# $2 - test case ID
+# 
+# Options:
+# -d|--dir <path>       (default .) work directory (expected results under expected/, actual results and temporaries created under actual/)
+#                           expected/$2.stdout is expected to exists and will be diffed against the sdtout of the run
+#                           if expected/$2.stderr exists, it is diffed against the sdterr of the run
+# -r|--rc <number>      (default 0) expected return code
+# -a|--args <string>    (deault empty) arguments to pass to the executable, e.g. --args "ACGTAGGGTCC --threads 2"
+# -s|--sort             (default off) sort the tool's stdout
 #
 # return codes:
 # 0 - passed
-# 1 - could not create actual/$2/
+# 1 - could not create $WORKDIR/actual/$2/
 # 2 - unexpected return code from the executable
 # 3 - stdouts differ
 # 4 - stderrs differ
+# 5 - unknown option specified
 
 EXE=$1
 CASEID=$2
-WORKDIR=$3
-RC=$4
-shift 4
-ARGS=$*
+shift 2
+
+WORKDIR="."
+RC=0
+ARGS=""
+SORT=""
+
+while [[ $# > 1 ]]
+do
+    key="$1"
+    case $key in
+        -d|--dir)
+            WORKDIR="$2"
+            shift 
+            ;;
+        -r|--rc)
+            RC="$2"
+            shift 
+            ;;
+        -a|--args)
+            ARGS="$2"
+            shift 
+            ;;
+        -s|--sort)
+            SORT="1"
+            ;;
+        *)
+            echo "unknown option " $key
+            exit 5
+        ;;
+    esac
+    shift # past argument or value
+done
 
 TEMPDIR=$WORKDIR/actual
 EXPECTED_STDOUT=$WORKDIR/expected/$CASEID.stdout
@@ -65,7 +98,12 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/*
 
-CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
+if [ "$SORT" == "" ] ; then
+    CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
+else
+    CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT" 
+fi
+    
 #echo $CMD
 eval $CMD
 rc="$?"
