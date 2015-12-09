@@ -75,7 +75,7 @@ test-whitebox: $(TEST_BINDIR)/test-sra-search
 vg-whitebox: $(TEST_BINDIR)/test-sra-search    
 	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress $^
 
-TIME = time -f"%E"
+TIME = `which time` -f"%E"
 
 test-cmdline: 
 	@ $(MAKE) --no-print-directory -C ..
@@ -138,6 +138,6 @@ slowtest-cmdline:
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099"
+	$(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099"
     
 .PHONY: test-wb test-cmdline onetest
