@@ -1,12 +1,13 @@
 set ( PLATFORM x86_64 )
 
-set ( OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-tools )
-
 # by default, look for sister repositories sources side by side with ngs-tools
 set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
 set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
 
 if (UNIX)
+
+    set ( OUTDIR ${CMAKE_BINARY_DIR}/.. )
+    
 	# TODO: support gmake on Mac
 	
 	set ( OS linux )
@@ -25,6 +26,8 @@ if (UNIX)
 	set ( VDB_ILIBDIR ${OUTDIR}/../ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib/ )
 
 	set ( SYS_LIBRARIES 
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
 			${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
 			pthread 
 			dl 
@@ -39,18 +42,22 @@ if (UNIX)
 	set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 	
 elseif (WIN32)
+
+    set ( OUTDIR ${CMAKE_BINARY_DIR} )
+
 	set ( OS win )
 	set ( COMPILER vc++ )
 
 	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${OUTDIR}/../ngs-sdk/${OS}/cl/$(Platform)/$(Configuration)/lib/ )
-	set ( VDB_LIBDIR ${OUTDIR}/../ncbi-vdb/${OS}/cl/$(Platform)/$(Configuration)/lib/ )
+	set ( NGS_LIBDIR ${OUTDIR}/../${OS}/cl/$(Platform)/$(Configuration)/lib/ )
+	set ( VDB_LIBDIR ${OUTDIR}/../${OS}/cl/$(Platform)/$(Configuration)/lib/ )
 	set ( VDB_ILIBDIR ${VDB_LIBDIR} )
 
 	set ( SYS_LIBRARIES 
 		${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}
 		${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+        ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
 		libngs-bind-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
 		libngs-disp${CMAKE_STATIC_LIBRARY_SUFFIX}
 		ws2_32
@@ -59,6 +66,7 @@ elseif (WIN32)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 	set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd")
 
+    include_directories ("${NGS_ROOT}/ngs-sdk/win")
     link_directories ( ${VDB_LIBDIR} ${NGS_LIBDIR} )
     
     if (!CMAKE_INSTALL_PREFIX)
