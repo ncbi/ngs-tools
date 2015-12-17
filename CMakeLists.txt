@@ -1,7 +1,9 @@
 cmake_minimum_required (VERSION 2.8)
 
+project ( ngs-tools )
+
 add_subdirectory(sra-search)
-add_subdirectory(other-app)
+add_subdirectory(frag-test)
 
 include ( build/cmake/env.cmake )  
 

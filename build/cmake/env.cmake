@@ -29,7 +29,7 @@ if (UNIX)
 
 	include_directories ("${VDB_ROOT}/interfaces/os/unix")
 
-	set ( CMAKE_INSTALL_PREFIX /usr/local )  
+	set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
 
 	set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 	
@@ -41,9 +41,9 @@ elseif (WIN32)
 	set ( NGS_ROOT C:/Users/NCBI/github/ngs )
 	set ( VDB_ROOT C:/Users/NCBI/github/ncbi-vdb )
 
-	# I do not know how to switch between Debug/Release versions of our "3d party" libraries
-	# for a multi-configuration generator, so for now will use Release
-	set ( BUILD Release )
+	# switch between Debug/Release versions of our "3d party" libraries
+	set ( BUILD $<CONFIG> )
+	
 	# TODO: adjust external builds to be consistent with Unix, then switch to PLATFORM and COMPILER here;
 	# NGS_LIBDIR and VDB_LIBDIR then can be defined outside of this if
 	set ( WIN_PLATFORM x64 )
@@ -63,7 +63,7 @@ elseif (WIN32)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 
-	set ( CMAKE_INSTALL_PREFIX "C:/Program Files" )
+	set ( CMAKE_INSTALL_PREFIX "C:/Program Files/ngs-tools" )
 	  
 	set ( CPACK_GENERATOR "ZIP" )
 	
@@ -79,3 +79,7 @@ include_directories ("${VDB_ROOT}/interfaces/cc/${COMPILER}/${PLATFORM}")
 include_directories ("${VDB_ROOT}/interfaces/cc/${COMPILER}")
 include_directories ("${VDB_ROOT}/interfaces/os/${OS}")
 include_directories ("${NGS_ROOT}/ngs-sdk")
+
+# Java needs
+set ( NGSJAR "${OUTDIR}/ngs-java/jar/ngs-java.jar" )
+set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
