@@ -1,4 +1,4 @@
 mkdir -p Debug
 cd Debug
-cmake CMAKE_BUILD_TYPE=Debug ../../..
+cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX:PATH=~/usr/ ../../..
 make

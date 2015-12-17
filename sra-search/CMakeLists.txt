@@ -7,8 +7,8 @@ project ( sra-search )
 add_executable ( sra-search main.cpp vdb-search.cpp )
 
 target_link_libraries ( sra-search 
-	${VDB_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
-	${VDB_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
+	${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+	${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${SYS_LIBRARIES}
 )
 
