@@ -11,5 +11,5 @@ target_link_libraries ( sra-search
 )
 
 install ( TARGETS sra-search RUNTIME DESTINATION bin )
- 
 
+add_subdirectory ( test )

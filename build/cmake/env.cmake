@@ -33,7 +33,6 @@ if (UNIX)
 			dl 
 	)
 	include_directories ("${VDB_ROOT}/interfaces/os/unix")
-    link_directories ( ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
     if (!CMAKE_INSTALL_PREFIX)
     	set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
@@ -67,7 +66,6 @@ elseif (WIN32)
 	set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd")
 
     include_directories ("${NGS_ROOT}/ngs-sdk/win")
-    link_directories ( ${VDB_LIBDIR} ${NGS_LIBDIR} )
     
     if (!CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX "C:/Program Files/ngs-tools" )
@@ -88,6 +86,11 @@ include_directories ("${VDB_ROOT}/interfaces/cc/${COMPILER}")
 include_directories ("${VDB_ROOT}/interfaces/os/${OS}")
 include_directories ("${NGS_ROOT}/ngs-sdk")
 
+link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
+
 # Java needs
 set ( NGSJAR "${OUTDIR}/../ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
+
+# testing
+enable_testing()
