@@ -4,6 +4,7 @@ project ( ngs-tools )
 
 add_subdirectory(sra-search)
 add_subdirectory(frag-test)
+add_subdirectory(frag-test-py)
 
 include ( build/cmake/env.cmake )  
 
