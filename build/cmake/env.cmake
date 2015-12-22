@@ -1,8 +1,17 @@
 set ( PLATFORM x86_64 )
 
+set ( NGS_ROOT "$ENV{HOME}/ngs" )
+set ( VDB_ROOT "$ENV{HOME}/ncbi-vdb" )
+set ( INSTALL_DIR "$ENV{HOME}/install" )
+
 # by default, look for sister repositories sources side by side with ngs-tools
-set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
-set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+if (NOT DEFINED NGS_ROOT)
+	set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
+endif()
+
+if (NOT DEFINED VDB_ROOT)
+	set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+endif()
 
 if (UNIX)
 
@@ -16,14 +25,16 @@ if (UNIX)
 	# gmake is a single-configuration generator; we are either Debug or Release
 	if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 		set ( BUILD dbg )
+        set ( CONFIGURE_FLAGS "--with-debug" )
 	else ()
 		set ( BUILD rel )
+        set ( CONFIGURE_FLAGS "" )
 	endif ()
     
 	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${OUTDIR}/../ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ )
-	set ( VDB_LIBDIR ${OUTDIR}/../ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ )
-	set ( VDB_ILIBDIR ${OUTDIR}/../ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib/ )
+	set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+	set ( VDB_LIBDIR ${VDB_ROOT}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+	set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
 
 	set ( SYS_LIBRARIES 
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -48,8 +59,8 @@ elseif (WIN32)
 	set ( COMPILER vc++ )
 
 	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${OUTDIR}/../${OS}/cl/$(Platform)/$(Configuration)/lib/ )
-	set ( VDB_LIBDIR ${OUTDIR}/../${OS}/cl/$(Platform)/$(Configuration)/lib/ )
+	set ( NGS_LIBDIR ${OUTDIR}/../OUTDIR/${OS}/cl/$(Platform)/$(Configuration)/lib )
+	set ( VDB_LIBDIR ${OUTDIR}/../OUTDIR/${OS}/cl/$(Platform)/$(Configuration)/lib )
 	set ( VDB_ILIBDIR ${VDB_LIBDIR} )
 
 	set ( SYS_LIBRARIES 
@@ -89,7 +100,7 @@ include_directories ("${NGS_ROOT}/ngs-sdk")
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
 # Java needs
-set ( NGSJAR "${OUTDIR}/../ngs-java/jar/ngs-java.jar" )
+set ( NGSJAR "${NGS_ROOT}/../OUTDIR/ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # testing
