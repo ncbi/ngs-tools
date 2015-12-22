@@ -32,7 +32,7 @@ if (UNIX)
 	endif ()
     
 	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+	set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
 	set ( VDB_LIBDIR ${VDB_ROOT}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
 	set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
 
