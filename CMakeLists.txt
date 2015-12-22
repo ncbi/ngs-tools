@@ -13,6 +13,7 @@ ExternalProject_Add ( ngs
 )
 
 ExternalProject_Add ( ncbi-vdb 
+    DEPENDS ngs
 	SOURCE_DIR ${VDB_ROOT}
 	GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
     UPDATE_COMMAND git checkout VDB-2660-support-for-sra-search
