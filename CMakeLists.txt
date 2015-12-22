@@ -2,6 +2,10 @@ cmake_minimum_required (VERSION 2.8)
 
 project ( ngs-tools )
 
+# best to use at the top
+project ( ngs-tools )
+
+# this has to follow the project() command!
 include ( build/cmake/env.cmake )  
 
 include(ExternalProject)

@@ -47,8 +47,15 @@ if (UNIX)
             pthread 
             dl 
     )
-
+    
     include_directories ("${VDB_ROOT}/interfaces/os/unix")
+    
+    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
+        # on Mac, we may need some gcc headers in addition to clang's
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
+    endif ()
+    
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         # on Mac, we may need some gcc headers in addition to clang's
