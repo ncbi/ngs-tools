@@ -15,41 +15,44 @@ endif()
 
 if (UNIX)
 
+    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
+        set ( OS mac )
+        set ( COMPILER clang )
+    else ()
+        set ( OS linux )
+        set ( COMPILER gcc )
+    endif()
+
     set ( OUTDIR ${CMAKE_BINARY_DIR}/.. )
     
-	# TODO: support gmake on Mac
-	
-	set ( OS linux )
-	set ( COMPILER gcc )
-
-	# gmake is a single-configuration generator; we are either Debug or Release
-	if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-		set ( BUILD dbg )
+    # gmake is a single-configuration generator; we are either Debug or Release
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        set ( BUILD dbg )
         set ( CONFIGURE_FLAGS "--with-debug" )
-	else ()
-		set ( BUILD rel )
+    else ()
+        set ( BUILD rel )
         set ( CONFIGURE_FLAGS "" )
-	endif ()
+    endif ()
     
-	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-	set ( VDB_LIBDIR ${VDB_ROOT}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-	set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
+    # By default, look for our "3d party" libraries side by side with our binary directory
+    set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+    set ( VDB_LIBDIR ${VDB_ROOT}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+    set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
 
-	set ( SYS_LIBRARIES 
+    set ( SYS_LIBRARIES 
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
-			${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
-			pthread 
-			dl 
-	)
-	include_directories ("${VDB_ROOT}/interfaces/os/unix")
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            pthread 
+            dl 
+    )
+    include_directories ("${VDB_ROOT}/interfaces/os/unix")
 
     if (!CMAKE_INSTALL_PREFIX)
-    	set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
+        set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
     endif ()
 
-	set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
+    set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 	
 elseif (WIN32)
 
@@ -85,9 +88,9 @@ elseif (WIN32)
 	set ( CPACK_GENERATOR "ZIP" )
 	
 else()
-	# TODO: support XCode on Mac
 
 	message ( FATAL_ERROR "Unsupported OS" )
+    
 endif()
 
 
