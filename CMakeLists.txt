@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
+project ( ngs-tools )
+
 include ( build/cmake/env.cmake )  
 
 include(ExternalProject)
@@ -21,8 +23,6 @@ ExternalProject_Add ( ncbi-vdb
 	BUILD_COMMAND make -C ${VDB_ROOT}
 	INSTALL_COMMAND make -C ${VDB_ROOT} install
 )
-
-project ( ngs-tools )
 
 add_subdirectory(sra-search)
 add_subdirectory(frag-test)

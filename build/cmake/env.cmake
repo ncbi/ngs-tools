@@ -18,6 +18,7 @@ if (UNIX)
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( OS mac )
         set ( COMPILER clang )
+        set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6" )
     else ()
         set ( OS linux )
         set ( COMPILER gcc )
@@ -41,12 +42,19 @@ if (UNIX)
 
     set ( SYS_LIBRARIES 
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread 
             dl 
     )
+
     include_directories ("${VDB_ROOT}/interfaces/os/unix")
+
+    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
+        # on Mac, we may need some gcc headers in addition to clang's
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
+    endif ()
 
     if (!CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
