@@ -1,30 +1,35 @@
 set ( PLATFORM x86_64 )
 
-set ( NGS_ROOT "$ENV{HOME}/ngs" )
-set ( VDB_ROOT "$ENV{HOME}/ncbi-vdb" )
-set ( INSTALL_DIR "$ENV{HOME}/install" )
-
-# by default, look for sister repositories sources side by side with ngs-tools
-if (NOT DEFINED NGS_ROOT)
-	set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
-endif()
-
-if (NOT DEFINED VDB_ROOT)
-	set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
-endif()
+if (NOT DEFINED OUTDIR)
+    set ( OUTDIR ${CMAKE_SOURCE_DIR}/../OUTPUT )
+endif ()
 
 if (UNIX)
+    # by default, look for sister repositories sources side by side with ngs-tools
+    if (NOT DEFINED NGS_ROOT)
+        set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
+    endif()
 
+    if (NOT DEFINED VDB_ROOT)
+        set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+    endif()
+    
+    set ( INSTALL_DIR "$ENV{HOME}/devel/install" )
+
+    
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( OS mac )
         set ( COMPILER clang )
         set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6" )
+        # on Mac, we may need some gcc headers in addition to clang's
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
+        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
     else ()
         set ( OS linux )
         set ( COMPILER gcc )
     endif()
 
-    set ( OUTDIR ${CMAKE_BINARY_DIR}/.. )
+    include_directories ("${VDB_ROOT}/interfaces/os/unix")
     
     # gmake is a single-configuration generator; we are either Debug or Release
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -35,9 +40,8 @@ if (UNIX)
         set ( CONFIGURE_FLAGS "" )
     endif ()
     
-    # By default, look for our "3d party" libraries side by side with our binary directory
-    set ( NGS_LIBDIR ${NGS_ROOT}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-    set ( VDB_LIBDIR ${VDB_ROOT}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+    set ( NGS_LIBDIR ${OUTDIR}/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+    set ( VDB_LIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
     set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
 
     set ( SYS_LIBRARIES 
@@ -48,21 +52,6 @@ if (UNIX)
             dl 
     )
     
-    include_directories ("${VDB_ROOT}/interfaces/os/unix")
-    
-    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
-        # on Mac, we may need some gcc headers in addition to clang's
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
-    endif ()
-    
-
-    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
-        # on Mac, we may need some gcc headers in addition to clang's
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
-    endif ()
-
     if (!CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
     endif ()
@@ -71,14 +60,26 @@ if (UNIX)
 	
 elseif (WIN32)
 
-    set ( OUTDIR ${CMAKE_BINARY_DIR} )
+    # by default, look for sister repositories sources side by side with ngs-tools
+    if (NOT DEFINED NGS_ROOT)
+        set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs )
+    endif()
+
+    if (NOT DEFINED VDB_ROOT)
+        set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb )
+    endif()
+
 
 	set ( OS win )
 	set ( COMPILER vc++ )
 
-	# By default, look for our "3d party" libraries side by side with our binary directory
-	set ( NGS_LIBDIR ${OUTDIR}/../OUTDIR/${OS}/cl/$(Platform)/$(Configuration)/lib )
-	set ( VDB_LIBDIR ${OUTDIR}/../OUTDIR/${OS}/cl/$(Platform)/$(Configuration)/lib )
+    include_directories ("${NGS_ROOT}/ngs-sdk/win")
+    
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+	set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd")
+
+	set ( NGS_LIBDIR ${OUTDIR}/ngs-sdk/${OS}/cl/$(Platform)/$(Configuration)/lib )
+	set ( VDB_LIBDIR ${OUTDIR}/ncbi-vdb/${OS}/cl/$(Platform)/$(Configuration)/lib )
 	set ( VDB_ILIBDIR ${VDB_LIBDIR} )
 
 	set ( SYS_LIBRARIES 
@@ -91,11 +92,6 @@ elseif (WIN32)
 		ws2_32
 	)
 
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-	set(CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd")
-
-    include_directories ("${NGS_ROOT}/ngs-sdk/win")
-    
     if (!CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX "C:/Program Files/ngs-tools" )
     endif ()
@@ -118,7 +114,7 @@ include_directories ("${NGS_ROOT}/ngs-sdk")
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
 # Java needs
-set ( NGSJAR "${NGS_ROOT}/../OUTDIR/ngs-java/jar/ngs-java.jar" )
+set ( NGSJAR "${OUTDIR}/ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # testing

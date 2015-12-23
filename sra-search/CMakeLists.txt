@@ -4,6 +4,8 @@ project ( sra-search )
 
 add_executable ( sra-search main.cpp vdb-search.cpp )
 
+add_dependencies ( sra-search ngs ncbi-vdb ) 
+
 target_link_libraries ( sra-search 
 	${SYS_LIBRARIES}
 )
