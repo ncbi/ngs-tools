@@ -5,6 +5,8 @@ include(UseJava)
 
 project ( ngs-fragtest )
 
+add_dependencies ( ngs-fragtest ngs ncbi-vdb ) 
+
 add_jar ( ngs-fragtest
 	SOURCES FragTest.java	     
 	INCLUDE_JARS ${NGSJAR}
