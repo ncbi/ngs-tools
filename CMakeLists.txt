@@ -59,6 +59,10 @@ add_subdirectory(sra-search)
 add_subdirectory(frag-test)
 add_subdirectory(frag-test-py)
 
+#add_dependencies ( sra-search ngs ncbi-vdb ) 
+#add_dependencies ( test-sra-search sra-search ngs ncbi-vdb ) 
+#add_dependencies ( ngs-fragtest ngs ncbi-vdb ) 
+
 set ( CPACK_PACKAGE_NAME ngs-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )
 set ( CPACK_PACKAGE_CONTACT "sra-tools@ncbi.nlm.nih.gov" )
