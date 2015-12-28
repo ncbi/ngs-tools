@@ -1,0 +1,25 @@
+(X) use timer to animate something in AccessionWindow as long as check runs.
+(X) color the job based on accession-type
+(X) give jobpanel a current job / start-stop with space-key ...
+(X) ESC closes ( hides ) window
+(X) StateAndProgressNotifier: instead of 3 queues, have one with a Progress/State event...
+( ) have mouse-context menus...
+( ) restrict filters based on accession-type
+( ) SettingsWindow: http-dnld timeouts/cig-url
+(X) Settings: preview-rows
+(X) preview of first N rows for FASTA/FASTQ
+(X) filter by aligned/unaligned etc.
+(X) have the BioRecord have a row-id extracted from the ID-String
+( ) filter by slice
+( ) custom filter
+( ) reference download / FASTA verification
+( ) show references of accession if aligned
+( ) check connection to NCBI-server
+( ) batch-mode for creating multiple jobs at once
+( ) time left estimation
+( ) use eutils to resolve SRX- and SRS-accessions
+( ) different defline-options for FASTQ
+( ) manage configuration
+( ) pick up download destination from config
+( ) private repositories
+( ) provide ASPERA downloads
