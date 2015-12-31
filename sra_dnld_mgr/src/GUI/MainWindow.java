@@ -96,7 +96,7 @@ public class MainWindow extends JFrame
     private final JobDoneEvent job_done_event;
     private final JobDeleteEvent job_delete_event;
     private final KeyDispatcher key_dispatcher;
-
+    
     public final void enable_key_processor( boolean enable )
     {
         KeyboardFocusManager kfm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
@@ -241,12 +241,18 @@ public class MainWindow extends JFrame
             switch_panel( jobs.getComponentCount(), active_id, new_panel_id );
     }
     
-    private class JobDoneEvent implements Runnable
+    private class JobDoneEvent
+        implements Runnable, ProgressListenerInterface
     {
         @Override public void run()
         {
             if ( Settings.getInstance().get_autostart() )
                 start_download_jobs();
+        }
+
+        @Override public void on_state_progress_event( final StateAndProgressEvent ev )
+        {
+
         }
     }
 
@@ -276,9 +282,13 @@ public class MainWindow extends JFrame
         boolean res = job.is_valid();
         if ( res )
         {
+            /*
             CLogger.logfmt( "job( %s ) loaded / state = %s",
                     job.get_short_source(), job.get_state().to_string() );
-            JobPanel p = new JobPanel( this, job, job_done_event, job_delete_event );
+            */
+            
+            JobPanel p = new JobPanel( this, job, job_delete_event );
+            p.add_state_listener( job_done_event );
             p.set_active( jobs.getComponentCount() == 0 );
             jobs.add( p );
         }
@@ -461,6 +471,8 @@ public class MainWindow extends JFrame
             new_visible_job( new JobData( filename ) );
         }
 
+        add( StatusBar.getInstance(), BorderLayout.SOUTH );
+        
         if ( Settings.getInstance().get_autostart() )
             start_download_jobs();
     }
@@ -471,6 +483,7 @@ public class MainWindow extends JFrame
         this.setIconImage( ResourceImages.get_logo_img().getImage() );
         
         setJMenuBar( new TheMenuBar( this ) );
+        StatusBar.make_status_bar( this.getWidth(), 64 );
         
         job_done_event = new JobDoneEvent();
         job_delete_event = new JobDeleteEvent( this );

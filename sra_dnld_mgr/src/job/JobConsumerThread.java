@@ -34,14 +34,14 @@ import data.CLogger;
 class JobConsumerThread extends Thread
 {
     protected final JobThreadData data;
-    protected long current, maximum, time1;
+    protected long current, maximum, run_time, total_elapsed_time;
     protected volatile boolean exit_flag;
     private boolean finished;
     
     public boolean is_finished() { return finished; }
     public void set_finished() { finished = true; }
     
-    public void sleep_for( int time_to_sleep )
+    public void sleep_for_ms( long time_to_sleep )
     {
         try
         {
@@ -62,7 +62,7 @@ class JobConsumerThread extends Thread
         {
             maximum = value;
             data.job.set_max( maximum, true );
-            data.notifier.put_maximum( maximum );
+            data.notifier.put_maximum( maximum, total_elapsed_time );
         }
     }
     
@@ -96,21 +96,22 @@ class JobConsumerThread extends Thread
     {
         data.job.change_job_state( JobState.RUNNING );
         data.notifier.put_state();
-        time1 = System.currentTimeMillis();
+        run_time = System.currentTimeMillis();
         return true;
     }    
     
     public boolean perform_step()
     {
         long now = System.currentTimeMillis();
-        long elapsed = now - time1;
-        data.job.set_runtime( data.job.get_runtime() + elapsed );
-        time1 = now;
+        long elapsed = ( now - run_time );
+        total_elapsed_time += elapsed;
+        data.job.set_runtime( total_elapsed_time );
+        run_time= now;
     
         if ( ( maximum > 0 && current > maximum ) || is_finished() ) current = maximum;
 
         data.job.set_progress( current, true );
-        data.notifier.put_progress( current );
+        data.notifier.put_progress( current, total_elapsed_time );
         return true;
     }
 
@@ -140,7 +141,8 @@ class JobConsumerThread extends Thread
         this.data = data;
         current = 0;
         maximum = 0;
-        time1 = 0;
+        run_time = 0;
+        total_elapsed_time = data.job.get_runtime();
         exit_flag = false;
         finished = false;
     }

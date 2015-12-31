@@ -24,8 +24,6 @@
 
 package job;
 
-import GUI.StateAndProgressNotifier;
-
 public class JobThreadData
 {
     public final JobData job;

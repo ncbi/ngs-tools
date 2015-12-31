@@ -43,7 +43,6 @@ public class ALabel extends JLabel
         return getMaximumSize();
     }
 
-    
     private void decorate( final Color c )
     {
         setOpaque( true );

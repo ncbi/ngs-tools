@@ -27,7 +27,6 @@ package job;
 import Bio.BioSpec;
 import Bio.BioVerifier;
 import data.*;
-import GUI.StateAndProgressNotifier;
 
 public class JobConsumerRunner
 {
@@ -106,7 +105,7 @@ public class JobConsumerRunner
     public void reset()
     {
         stop();
-        data.notifier.put_progress( 0 );
+        data.notifier.put_progress( 0, 0 );
         data.job.set_runtime( 0 );
         data.job.set_rejected( 0 );
         data.job.set_progress( 0, true );

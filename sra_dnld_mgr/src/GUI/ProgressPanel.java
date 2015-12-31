@@ -25,35 +25,24 @@ package GUI;
 
 import job.JobData;
 import java.awt.*;
-import java.text.NumberFormat;
 import javax.swing.*;
 
 public class ProgressPanel extends JPanel
 {
     static final long serialVersionUID = 1;
     
-    private final JLabel info;
     private final JProgressBar pro;
-    private long progress, maximum;
     
-    private String get_progress_string( long value, long maximum )
+    public void set_progress( final long value )
     {
-        return String.format( "%s of %s",
-                NumberFormat.getInstance().format( value ),
-                NumberFormat.getInstance().format( maximum )
-                );
+        pro.setValue( JobData.to_blocks( value ) );
     }
     
-    public void update()
+    public void set_maximum( long value )
     {
-        info.setText( get_progress_string( progress, maximum ) );
-        int int_max = JobData.to_blocks( maximum );
-        if ( pro.getMaximum() != int_max ) pro.setMaximum( int_max );
-        pro.setValue( JobData.to_blocks( progress ) );
+        pro.setMaximum( JobData.to_blocks( value ) );
     }
     
-    public void set_progress( final long value ) { progress = value; update(); }
-    public void set_maximum( long value ) { maximum = value; update(); }
     public void start() { pro.setIndeterminate( true ); }
     public void stop() { pro.setIndeterminate( false ); }
 
@@ -61,10 +50,8 @@ public class ProgressPanel extends JPanel
     {
         setLayout( new BorderLayout( 0, 2 ) );
         setOpaque( false );
+        setBorder( BorderFactory.createEmptyBorder( 2, 0, 2, 0 ) );
         
-        info = new JLabel( get_progress_string( job.get_progress(), job.get_max() ) );
-        add( info, BorderLayout.PAGE_START );
-    
         pro = new JProgressBar();
 
         pro.setMaximum( JobData.to_blocks( job.get_max() ) );

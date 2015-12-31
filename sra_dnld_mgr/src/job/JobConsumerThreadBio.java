@@ -26,7 +26,6 @@ package job;
 
 import Bio.*;
 import data.CLogger;
-import data.Settings;
 import java.io.*;
 
 public class JobConsumerThreadBio extends JobConsumerThread
@@ -39,7 +38,7 @@ public class JobConsumerThreadBio extends JobConsumerThread
     private BufferedWriter writer1;    
     private final BioRunState rs;
     private final JobSubFormat subformat;
-    private final int per_step;
+    private long step_time;
     private long rejected;
     
     private BufferedWriter make_writer( String filename, boolean append )
@@ -137,9 +136,8 @@ public class JobConsumerThreadBio extends JobConsumerThread
         if ( res )
         {
             /* the correct start-value is needed by the dumper-creation! */
-            if ( current < START_VALUE ) current = START_VALUE;
-            final BioDumperFactory factory = new BioDumperFactory();
-            producer = factory.make_dumper( data.job, current );
+            current = ( current <= START_VALUE ) ? START_VALUE : current + 1;
+            producer = BioDumperFactory.make_dumper( data.job, current );
             res = ( producer != null );
         }
         
@@ -176,57 +174,88 @@ public class JobConsumerThreadBio extends JobConsumerThread
         return super.perform_start();
     }
 
+    private boolean write_bio_read( final BioRead read )
+    {
+        boolean res = true;
+        int i = 0;
+        while ( res && !read.is_empty() )
+        {
+            BioRecord rec = read.get_record();
+            if ( rec != null )
+            {
+                switch ( subformat )
+                {
+                    case SPOT               : res &= write( rec ); break;
+                    case FRAGMENTS          : res &= write( rec ); break;
+                    case FRAGMENTS_SPLITED  : res &= write_splitted( rec, i ); break;
+                }
+                rs.put_record_back( rec );
+            }
+            else
+                rejected++;
+            i++;
+        }
+        return res;
+    }
+    
+    private boolean run_for( final long mili_secs )
+    {
+        boolean res = true;
+        boolean done = false;
+        long start = System.currentTimeMillis();
+        long elapsed = 0;
+        long reads_handled = 0;
+        while ( res && !done && ( elapsed < mili_secs ) )
+        {
+            BioRead read = rs.get();
+            if ( read == null )
+            {
+                // the producer thread has not yet/in the mean time produced spot's
+                done = !rs.is_running();
+                if ( done )
+                {
+                    set_finished();
+                }
+                else
+                {
+                    // maybe sleep a little bit, if we are not done ...
+                    sleep_for_ms( 1 );
+                }
+            }
+            else
+            {
+                res = write_bio_read( read );
+                if ( res ) current = read.read_id;
+                rs.put_to_stock( read );
+                reads_handled++;
+            }
+            elapsed = ( System.currentTimeMillis() - start );
+        }
+
+        if ( reads_handled > 2000 )
+        {
+            // there are too many reads per time-slot, we can reduce
+            // the time-slot but not below 125 ms
+            if ( step_time > 175 )
+                step_time -= 50;
+        }
+        else if ( reads_handled < 1000 )
+        {
+            // there are not anoth reads per time-slot, we can increase
+            // the time-slot but not above 1000 ms
+            if ( step_time < 900 )
+                step_time += 50;
+        }
+        return res;
+    }
+
     /* one step means up to PER_STEP spots before we update and save */
     @Override public boolean perform_step()
     {
         boolean res = rs.is_running();
-        if ( !res ) res = rs.has_entries();
-        if ( res )
-        {
-            boolean done = false;
-            int count = 0;
-            while ( res && !done && count < per_step )
-            {
-                BioRead read = rs.get();
-                if ( read == null )
-                {
-                    // the producer thread has not yet/in the mean time produced spot's
-                    done = !rs.is_running();
-                    if ( done )
-                        set_finished();
-                    else
-                    // maybe sleep a little bit, if we are not done ...
-                        sleep_for( 1 );
-                }
-                else
-                {
-                    int i = 0;
-                    while ( res && !read.is_empty() )
-                    {
-                        BioRecord rec = read.get_record();
-                        if ( rec != null )
-                        {
-                            switch ( subformat )
-                            {
-                                case SPOT               : res &= write( rec ); break;
-                                case FRAGMENTS          : res &= write( rec ); break;
-                                case FRAGMENTS_SPLITED  : res &= write_splitted( rec, i ); break;
-                            }
-                            rs.put_record_back( rec );
-                        }
-                        else
-                            rejected++;
-                        i++;
-                    }
-                    if ( res )
-                        current = read.read_id;
-                    rs.put_to_stock( read );
-                    count++;
-                }
-            }
-        }
-        if ( res )
-            res = super.perform_step(); // updates the current in the job...
+        if ( !res ) res = rs.has_entries(); // notice the !res
+        if ( res ) res = run_for( step_time );
+        if ( res ) res = super.perform_step(); // updates the current in the job...
         return res;
     }
 
@@ -268,7 +297,7 @@ public class JobConsumerThreadBio extends JobConsumerThread
         super( data );
         rs = new BioRunState( MAX_BIO_READS_IN_Q );
         subformat = data.job.get_subformat();
-        per_step = Settings.getInstance().get_dnld_steps();
+        step_time = 250;
         rejected = 0;
         producer = null;
         writer0 = null;

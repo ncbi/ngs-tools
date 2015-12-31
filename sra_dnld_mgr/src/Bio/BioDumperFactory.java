@@ -32,17 +32,17 @@ import ngs.ReferenceSequence;
 
 public class BioDumperFactory
 {
-    private String NewLine( final JobData job )
+    private static String NewLine( final JobData job )
     {
         return job.get_line_ending_str();
     }
     
-    private int LineWrap( final JobData job )
+    private static int LineWrap( final JobData job )
     {
         return job.get_use_line_wrap() ? job.get_line_wrap() : 0;
     }
     
-    private BioFormatter make_formatter( final JobData job )
+    private static BioFormatter make_formatter( final JobData job )
     {
         BioFormatter res = null;
         switch ( job.get_format() )
@@ -59,7 +59,7 @@ public class BioDumperFactory
         return res;
     }
 
-    private BioDumper make_read_collection_dumper( final JobData job, final long current )
+    private static BioDumper make_read_collection_dumper( final JobData job, final long current )
     {
         BioDumper res = null;
         try
@@ -104,7 +104,7 @@ public class BioDumperFactory
         return res;
     }
     
-    private BioDumper make_reference_dumper( final JobData job, final long current )
+    private static BioDumper make_reference_dumper( final JobData job, final long current )
     {
         BioDumper res = null;
         try
@@ -130,7 +130,7 @@ public class BioDumperFactory
         return res;
     }
 
-    public BioDumper make_dumper( final JobData job, final long current )
+    public static BioDumper make_dumper( final JobData job, final long current )
     {
         BioDumper res = null;
         switch( job.get_bio_type() )
@@ -141,8 +141,10 @@ public class BioDumperFactory
         }
         return res;
     }
-    
+
+/*    
     public BioDumperFactory()
     {
     }
+*/    
 }

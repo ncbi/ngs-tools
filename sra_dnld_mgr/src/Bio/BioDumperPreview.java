@@ -30,7 +30,6 @@ import job.JobData;
 
 public class BioDumperPreview  extends SwingWorker< Integer, String >
 {
-    private final BioDumperFactory factory;
     private final JobData job;
     private final BioRead read;
     private BioRecord rec;
@@ -77,7 +76,7 @@ public class BioDumperPreview  extends SwingWorker< Integer, String >
     
     @Override protected Integer doInBackground()
     {
-        final BioDumper dumper = factory.make_dumper( job, start_value() );
+        final BioDumper dumper = BioDumperFactory.make_dumper( job, start_value() );
         progress = 0;
         if ( dumper != null )
         {
@@ -101,7 +100,6 @@ public class BioDumperPreview  extends SwingWorker< Integer, String >
     public BioDumperPreview( final JobData job,
             final JTextArea txt, final int rows )
     {
-        factory = new BioDumperFactory();
         this.job = job;
         this.rows = rows;
         read = new BioRead();

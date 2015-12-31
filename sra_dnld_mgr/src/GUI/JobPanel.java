@@ -24,14 +24,20 @@
 package GUI;
 
 import data.CLogger;
+import data.TimeDiff;
 import job.JobState;
 import job.JobData;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 import job.JobConsumerRunner;
+import job.ProgressListenerInterface;
+import job.StateAndProgressEvent;
+import job.StateAndProgressNotifier;
+import job.StateAndProgressType;
 
-class JobButtons extends JPanel implements ActionListener, Runnable
+class JobButtons extends JPanel 
+    implements ActionListener, Runnable, ProgressListenerInterface
 {
     static final long serialVersionUID = 1;
     
@@ -146,7 +152,13 @@ class JobButtons extends JPanel implements ActionListener, Runnable
     {
         update_buttons_states();
     }
-    
+
+    @Override  public void on_state_progress_event( final StateAndProgressEvent ev )
+    {
+        if ( ev.type == StateAndProgressType.STATE )
+            update_buttons_states();
+    }
+
     public boolean has_name( String name ) { return name.equals( job.get_short_source() ); }
     public boolean is_running() { return( job.get_state() == JobState.RUNNING ); }
     public boolean is_done() { return( job.get_state() == JobState.DONE ); }
@@ -208,12 +220,16 @@ class JobPanelMouseListener extends MouseAdapter
     public JobPanelMouseListener( final JobPanel panel ) { this.panel = panel; }
 }
 
-public class JobPanel extends JPanel
+public class JobPanel
+    extends JPanel
+    implements ProgressListenerInterface
 {
     static final long serialVersionUID = 1;
 
     private final MainWindow parent;
     private final JobButtons buttons;
+    private final ProgressPanel progress_panel;
+    private final StateAndProgressNotifier notifier;
     private boolean active;
     
     // needed by MainWindow to count how many jobs are running
@@ -232,19 +248,69 @@ public class JobPanel extends JPanel
     {
         this.active = active;
         setBackground( active ? Color.green : Color.lightGray );
+        if ( active )
+        {
+            StatusBar.set_acc( getName() );
+            long maximum = notifier.get_maximum();
+            long progress = notifier.get_progress();
+            long elapsed  = notifier.get_elapsed_time();
+            StatusBar.set_max( maximum);
+            StatusBar.set_pro( progress );
+            StatusBar.set_time( elapsed );
+            StatusBar.set_rpm( TimeDiff.calc_rpm( elapsed, progress ) );
+            StatusBar.set_left( TimeDiff.calc_time_left( elapsed, progress, maximum ) );
+        }
     }
+    
     public boolean is_active() { return active; }
     
     public void clicked() { parent.on_panel_clicked( this ); }
     
+    public void add_progress_listener( final ProgressListenerInterface listener )
+    {
+        notifier.add_progress_listener( listener );
+    }
+
+    public void add_state_listener( final ProgressListenerInterface listener )
+    {
+        notifier.add_state_listener( listener );
+    }
+
+    @Override public void on_state_progress_event( final StateAndProgressEvent ev )
+    {
+        switch( ev.type )
+        {
+            case PROGRESS : progress_panel.set_progress( ev.value );
+                            if ( active )
+                            {
+                                StatusBar.set_pro( ev.value );
+                                StatusBar.set_time( ev.elapsed_time );
+                                StatusBar.set_rpm( TimeDiff.calc_rpm( ev.elapsed_time, ev.value ) );
+                                StatusBar.set_left( TimeDiff.calc_time_left( ev.elapsed_time, ev.value, notifier.get_maximum() ) );
+                            }
+                            break;
+                
+            case MAXIMUM  : progress_panel.set_maximum( ev.value );
+                            if ( active )
+                            {
+                                StatusBar.set_max( ev.value );
+                                StatusBar.set_time( ev.elapsed_time );
+                            }
+                            break;
+
+            case START    : progress_panel.start(); break;
+            case STOP     : progress_panel.stop(); break;
+        }
+    }
+    
     public JobPanel( final MainWindow parent,
                      final JobData job,
-                     final Runnable done_signal,
                      final JobDeleteEvent jde )
     {
         super();
         
         this.parent = parent;
+        this.setName( job.get_short_source() );
         setPreferredSize( new Dimension( 400, 50 ) );
         setMinimumSize( getPreferredSize() );
         setMaximumSize( new Dimension( Short.MAX_VALUE, 50 ) );
@@ -258,16 +324,17 @@ public class JobPanel extends JPanel
         add( l, BorderLayout.LINE_START );
 
         /* in the middle there is a panel with a label and a progress-bar */
-        ProgressPanel progress_panel = new ProgressPanel( job );
+        progress_panel = new ProgressPanel( job );
         add( progress_panel, BorderLayout.CENTER );
 
         /* we need this to notify the parent and the button-panel about state-changes */
-        EventRelay on_state_change = new EventRelay( done_signal, null );
+        //EventRelay on_state_change = new EventRelay( done_signal, null );
 
         /* this class updates the progress-panel ( bar in percent and label )
            and propagates state-change-events originating from the job-thread */
-        StateAndProgressNotifier notifier = new StateAndProgressNotifier(
-                progress_panel, on_state_change, job.get_max(), job.get_progress()  );
+        notifier = new StateAndProgressNotifier(
+                job.get_max(), job.get_progress(), job.get_runtime() );
+        notifier.add_progress_listener( this );
         
         /* the download-task maintains a thread to run the job-loop */
         JobConsumerRunner runner = new JobConsumerRunner( job, notifier );
@@ -276,10 +343,9 @@ public class JobPanel extends JPanel
         buttons = new JobButtons( this, job, runner, jde );
         
         /* the button-panel also wants to be notified about state-changes */
-        on_state_change.set_relay2( buttons );
+        notifier.add_state_listener( buttons );
         add( buttons, BorderLayout.LINE_END );
         
         this.addMouseListener( new JobPanelMouseListener( this ) );
-        
     }
 }

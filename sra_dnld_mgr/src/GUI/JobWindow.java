@@ -23,38 +23,12 @@
 =========================================================================== */
 package GUI;
 
+import data.TimeDiff;
 import job.JobData;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 import job.JobFormat;
-
-class timediff
-{
-    private static final long SecondsInMilli = 1000;
-    private static final long MinutesInMilli = SecondsInMilli * 60;
-    private static final long HoursInMilli = MinutesInMilli * 60;
-    private static final long DaysInMilli = HoursInMilli * 60;
-    
-    static String to_str( final long milliseconds )
-    {
-        long days = milliseconds / DaysInMilli;
-        long diff = milliseconds % DaysInMilli;
-        long hours = diff / HoursInMilli;
-        diff = diff % HoursInMilli;
-        long minutes = diff / MinutesInMilli;
-        diff = diff % MinutesInMilli;
-        long seconds = diff / SecondsInMilli;
-        if ( days > 0 )
-            return String.format( "%d days, %d hours, %d min %d sec", days, hours, minutes, seconds );
-        else if ( hours > 0 )
-            return String.format( "%d hours, %d min %d sec", hours, minutes, seconds );
-        else if ( minutes > 0 )
-            return String.format( "%d min %d sec", minutes, seconds );
-        else
-            return String.format( "%d sec", seconds );
-    }
-}
 
 public class JobWindow extends DlgWithMaxSize
     implements ItemListener, ActionListener
@@ -140,7 +114,7 @@ public class JobWindow extends DlgWithMaxSize
         fastq_dump_name.set_value( job.get_fastq_dump_name() );
         progress.set_text( job.get_completion_str() );
         md5.set_text( job.get_md5() );
-        time_used.set_text( timediff.to_str( job.get_runtime() ) );
+        time_used.set_text( TimeDiff.to_str( job.get_runtime() ) );
         rejected.set_text( String.format( "%d" , job.get_rejected() ) );
         setup_by_format( job.get_format() );
     }

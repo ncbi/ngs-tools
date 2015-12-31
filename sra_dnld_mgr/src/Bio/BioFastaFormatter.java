@@ -44,6 +44,7 @@ public class BioFastaFormatter extends BioFormatter
                           fastq_dump_style ? reformat_id( obj.getReadId() ) : obj.getReadId(),
                           obj.getReadName(),
                           bases.length() );
+            write_newline( rec );
         }
         catch ( ErrorMsg e )
         {
@@ -61,6 +62,7 @@ public class BioFastaFormatter extends BioFormatter
                           HDR_WITHOUT_NAME,
                           fastq_dump_style ? reformat_id( obj.getFragmentId() ) : obj.getFragmentId(),
                           bases.length() );
+            write_newline( rec );
         }
         catch ( ErrorMsg e )
         {
@@ -78,6 +80,7 @@ public class BioFastaFormatter extends BioFormatter
                           fastq_dump_style ? reformat_id( obj.getFragmentId() ) : obj.getFragmentId(),
                           readname,
                           bases.length() );
+            write_newline( rec );            
         }
         catch ( ErrorMsg e )
         {
@@ -90,7 +93,12 @@ public class BioFastaFormatter extends BioFormatter
     {
         try
         {
-            write_format( rec, bases, HDR_WITHOUT_NAME, obj.getAlignmentId(), bases.length() );
+            write_format( rec,
+                          bases,
+                          HDR_WITHOUT_NAME,
+                          obj.getAlignmentId(),
+                          bases.length() );
+            write_newline( rec );
         }
         catch ( ErrorMsg e )
         {
@@ -105,7 +113,10 @@ public class BioFastaFormatter extends BioFormatter
         {
             try
             {
-                write_fmt( rec, HDR_WITHOUT_NAME, obj.getCanonicalName(), obj.getLength() - position );
+                write_fmt( rec,
+                           HDR_WITHOUT_NAME,
+                           obj.getCanonicalName(),
+                           obj.getLength() - position );
                 write_newline( rec );
                 header_written = true;
             }
