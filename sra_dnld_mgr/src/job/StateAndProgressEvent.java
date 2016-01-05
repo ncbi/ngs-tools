@@ -28,4 +28,5 @@ public class StateAndProgressEvent
     public StateAndProgressType type;
     public long value;
     public long elapsed_time;
+    public JobState prev_state, new_state;
 }

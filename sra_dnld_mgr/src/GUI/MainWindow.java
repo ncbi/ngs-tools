@@ -87,13 +87,12 @@ class KeyDispatcher implements KeyEventDispatcher
     }
 }
 
-public class MainWindow extends JFrame
+public class MainWindow extends JFrame implements ProgressListenerInterface
 {
     static final long serialVersionUID = 1;
     
     private JToolBar toolbar;
     private JPanel jobs;
-    private final JobDoneEvent job_done_event;
     private final JobDeleteEvent job_delete_event;
     private final KeyDispatcher key_dispatcher;
     
@@ -234,26 +233,19 @@ public class MainWindow extends JFrame
     
     public void on_panel_clicked( final JobPanel p )
     {
-        CLogger.log( "on_panel_clicked" );
         int active_id = get_active_panel_id();
         int new_panel_id = get_panel_id( p );
         if ( active_id != new_panel_id )
             switch_panel( jobs.getComponentCount(), active_id, new_panel_id );
     }
     
-    private class JobDoneEvent
-        implements Runnable, ProgressListenerInterface
+    @Override public void on_state_progress_event( final StateAndProgressEvent ev )
     {
-        @Override public void run()
-        {
-            if ( Settings.getInstance().get_autostart() )
+        if ( Settings.getInstance().get_autostart() && 
+             ev.type == StateAndProgressType.STATE &&
+             ev.prev_state == JobState.RUNNING &&
+             ev.new_state == JobState.DONE )
                 start_download_jobs();
-        }
-
-        @Override public void on_state_progress_event( final StateAndProgressEvent ev )
-        {
-
-        }
     }
 
     public void re_arrange()
@@ -288,7 +280,7 @@ public class MainWindow extends JFrame
             */
             
             JobPanel p = new JobPanel( this, job, job_delete_event );
-            p.add_state_listener( job_done_event );
+            p.add_state_listener( this );
             p.set_active( jobs.getComponentCount() == 0 );
             jobs.add( p );
         }
@@ -485,7 +477,6 @@ public class MainWindow extends JFrame
         setJMenuBar( new TheMenuBar( this ) );
         StatusBar.make_status_bar( this.getWidth(), 64 );
         
-        job_done_event = new JobDoneEvent();
         job_delete_event = new JobDeleteEvent( this );
         
         populateContentPane( getContentPane() );

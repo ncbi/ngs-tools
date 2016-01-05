@@ -88,14 +88,16 @@ class JobConsumerThread extends Thread
 
     private void change_state_and_notify( final JobState new_state )
     {
+        JobState prev_state = data.job.get_state();
         if ( data.job.change_job_state( new_state ) )
-            data.notifier.put_state();
+            data.notifier.put_state( prev_state, new_state );
     }
     
     public boolean perform_start()
     {
+        JobState prev_state = data.job.get_state();
         data.job.change_job_state( JobState.RUNNING );
-        data.notifier.put_state();
+        data.notifier.put_state( prev_state, data.job.get_state() );
         run_time = System.currentTimeMillis();
         return true;
     }    

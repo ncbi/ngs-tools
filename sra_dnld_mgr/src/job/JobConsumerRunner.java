@@ -111,8 +111,10 @@ public class JobConsumerRunner
         data.job.set_progress( 0, true );
         // no if (), because we want the notifier fired, even if the state has not changed...
         // that is necessary if we are already in READY, but now the curr-row is zero
+        
+        JobState prev_state = data.job.get_state();
         data.job.change_job_state( JobState.READY );
-        data.notifier.put_state();
+        data.notifier.put_state( prev_state, data.job.get_state() );
     }
     
     public JobConsumerRunner( JobData job,

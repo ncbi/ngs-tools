@@ -54,8 +54,21 @@ public class StateAndProgressNotifier
     }
 
     @Override public StateAndProgressEvent make_entry() { return new StateAndProgressEvent(); }
-    
-    public void put_ev( final StateAndProgressType type, final long value )
+
+    private void put_ev( final StateAndProgressType type )
+    {
+        StateAndProgressEvent ev = get_from_stock();
+        if ( ev != null )
+        {
+            ev.type = type;
+            ev.value = 0;
+            ev.elapsed_time = elapsed_time;
+            put( ev );
+            EventQueue.invokeLater( this ); // call run() in the context of the gui-task
+        }
+    }
+
+    private void put_ev( final StateAndProgressType type, final long value )
     {
         StateAndProgressEvent ev = get_from_stock();
         if ( ev != null )
@@ -80,11 +93,15 @@ public class StateAndProgressNotifier
         elapsed_time = elapsed;
         put_ev( StateAndProgressType.MAXIMUM, value );
     }
-    
-    final public void put_state() { put_ev( StateAndProgressType.STATE, 0 ); }    
-    final public void put_start() { put_ev( StateAndProgressType.START, 0 ); }
-    final public void put_stop() { put_ev( StateAndProgressType.STOP, 0 ); }
 
+    final public void put_start() { put_ev( StateAndProgressType.START ); }
+    final public void put_stop() { put_ev( StateAndProgressType.STOP ); }
+
+    final public void put_state( final JobState prev_state, final JobState new_state )
+    {
+        put_ev( StateAndProgressType.STATE );
+    }
+    
     @Override public void run()
     {
         while( has_entries() )
