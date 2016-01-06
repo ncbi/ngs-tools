@@ -63,7 +63,7 @@ public class AccessionWindow extends DlgWithMaxSize
     private final TextInputPanel row_count;
     private final Save_Cancel_Panel save_cancel;
     private final BioSpec f_spec;
-    private BioAccessionChecker check;
+    private BioAccessionChecker checker;
     
     private void show_spec()
     {
@@ -74,11 +74,11 @@ public class AccessionWindow extends DlgWithMaxSize
     
     private void get_spec()
     {
-        if ( check != null )
+        if ( checker != null )
         {
             try
             {
-                f_spec.copy( check.get() );
+                f_spec.copy( checker.get() );
             }
             catch ( InterruptedException | ExecutionException ex )
             {
@@ -109,9 +109,9 @@ public class AccessionWindow extends DlgWithMaxSize
     
     private void new_check()
     {
-        check = new BioAccessionChecker( f_spec.get_accession() );
-        check.addPropertyChangeListener( this );
-        check.execute();
+        checker = new BioAccessionChecker( f_spec.get_accession() );
+        checker.addPropertyChangeListener( this );
+        checker.execute();
     }
     
     @Override public void actionPerformed( ActionEvent ae )
@@ -126,22 +126,24 @@ public class AccessionWindow extends DlgWithMaxSize
             save_cancel.set_save_btn_status( false );
             if ( f_spec.get_accession().length() > 8 )
             {
-                if ( check != null )
+                if ( checker != null )
                 {
-                    if ( check.isDone() )
+                    if ( checker.isDone() )
                     {
+                        checker.removePropertyChangeListener( this );
                         new_check();
                     }
                     else
                     {
-                        if ( !check.isCancelled() )
-                            check.cancel( true );
+                        if ( !checker.isCancelled() )
+                        {
+                            checker.removePropertyChangeListener( this );
+                            checker.cancel( true );
+                        }
                     }
                 }
                 else
-                {
                     new_check();
-                }
             }
         }
     }
@@ -164,7 +166,7 @@ public class AccessionWindow extends DlgWithMaxSize
         super( parent, "", new Dimension( 500, 100 ) );
 
         f_spec = new BioSpec();
-        check = null;
+        checker = null;
         
         Container pane = getContentPane();
         pane.setLayout( new BoxLayout( pane, BoxLayout.PAGE_AXIS ) );
