@@ -154,6 +154,7 @@ public class AccessionWindow extends DlgWithMaxSize
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
         if ( res )
             spec.copy( f_spec );
+        source.blink( false );
         return res;
     }
     
