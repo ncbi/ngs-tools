@@ -33,6 +33,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import javax.swing.BoxLayout;
 import javax.swing.SwingWorker;
@@ -65,28 +66,28 @@ public class AccessionWindow extends DlgWithMaxSize
     private final BioSpec f_spec;
     private BioAccessionChecker checker;
     
-    private void show_spec()
+    private void show_spec( final BioSpec spec )
     {
-        bio_type.set_text( f_spec.get_type().toString() );
-        row_count.set_text( String.format( "%,d rows", f_spec.get_count() ) );
-        save_cancel.set_save_btn_status(f_spec.get_type() != BioAccessionType.INVALID );        
+        bio_type.set_text( spec.get_type().toString() );
+        row_count.set_text( String.format( "%,d rows", spec.get_count() ) );
+        save_cancel.set_save_btn_status( spec.get_type() != BioAccessionType.INVALID );        
     }
     
-    private void get_spec()
+    private void get_spec( final BioSpec spec )
     {
         if ( checker != null )
         {
             try
             {
-                f_spec.copy( checker.get() );
+                spec.copy( checker.get() );
             }
-            catch ( InterruptedException | ExecutionException ex )
+            catch ( InterruptedException | ExecutionException | CancellationException ex )
             {
-                f_spec.set_type(BioAccessionType.INVALID );
+                spec.set_type( BioAccessionType.INVALID );
             }
         }
         else
-            f_spec.set_type(BioAccessionType.INVALID );
+            spec.set_type( BioAccessionType.INVALID );
     }
     
     @Override public void propertyChange( final PropertyChangeEvent event )
@@ -94,21 +95,23 @@ public class AccessionWindow extends DlgWithMaxSize
         final String propname = event.getPropertyName();
         if ( propname.equals( "state" ) )
         {
-            switch ( (SwingWorker.StateValue) event.getNewValue() )
+            switch ( ( SwingWorker.StateValue ) event.getNewValue() )
             {
-                case DONE    : get_spec();
-                               show_spec();
+                case DONE    : get_spec( f_spec );
+                               show_spec( f_spec );
                                source.blink( false );
+                               //source.set_editable( true );
                                break;
                     
-                case STARTED : 
-                case PENDING : source.blink( true ); break;
+                case STARTED : source.blink( true ); break;
+                case PENDING : break;
             }
         }
     }
     
     private void new_check()
     {
+        //source.set_editable( false );
         checker = new BioAccessionChecker( f_spec.get_accession() );
         checker.addPropertyChangeListener( this );
         checker.execute();
@@ -122,23 +125,20 @@ public class AccessionWindow extends DlgWithMaxSize
             f_spec.clear();
             f_spec.set_accession( source.get_text() );
 
-            show_spec();
+            show_spec( f_spec );
             save_cancel.set_save_btn_status( false );
             if ( f_spec.get_accession().length() > 8 )
             {
                 if ( checker != null )
                 {
                     if ( checker.isDone() )
-                    {
-                        checker.removePropertyChangeListener( this );
                         new_check();
-                    }
                     else
                     {
                         if ( !checker.isCancelled() )
                         {
-                            checker.removePropertyChangeListener( this );
                             checker.cancel( true );
+                            new_check();
                         }
                     }
                 }
@@ -152,10 +152,13 @@ public class AccessionWindow extends DlgWithMaxSize
     {
         f_spec.clear();
         source.set_text( f_spec.get_accession() );
-        show_spec();
+        //source.set_editable( true );
+        show_spec( f_spec );
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
         if ( res )
             spec.copy( f_spec );
+        else
+            spec.set_type( BioAccessionType.INVALID );
         source.blink( false );
         return res;
     }

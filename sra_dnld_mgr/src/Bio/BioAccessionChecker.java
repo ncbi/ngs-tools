@@ -46,27 +46,37 @@ public class BioAccessionChecker extends SwingWorker< BioSpec, Integer >
     {
         BioSpec res = new BioSpec();
         res.set_accession( accession );
-        if ( supported_and_valid() )
+        if ( supported_and_valid() && !isCancelled() )
         {
             try
             {
                 ReadCollection run = gov.nih.nlm.ncbi.ngs.NGS.openReadCollection( accession );
-                res.set_count( run.getReadCount() );
-                if ( run.getAlignmentCount() > 0 )
-                    res.set_type( BioAccessionType.READ_COLLECTION_ALIGNED );
-                else
-                    res.set_type( BioAccessionType.READ_COLLECTION_UNALIGNED );
+                if ( !isCancelled() )
+                {
+                    res.set_count( run.getReadCount() );
+                    if ( !isCancelled() )
+                    {
+                        if ( run.getAlignmentCount() > 0 )
+                            res.set_type( BioAccessionType.READ_COLLECTION_ALIGNED );
+                        else
+                            res.set_type( BioAccessionType.READ_COLLECTION_UNALIGNED );
+                    }
+                }
             }
             catch ( ErrorMsg ex )
             {  }
             
-            if ( res.get_type().equals( BioAccessionType.INVALID ) )
+            if ( !isCancelled() && res.get_type().equals( BioAccessionType.INVALID ) )
             {
                 try
                 {
                     ReferenceSequence ref = gov.nih.nlm.ncbi.ngs.NGS.openReferenceSequence( accession );
-                    res.set_count( ref.getLength() );
-                    res.set_type( BioAccessionType.REF_SEQUENCE );
+                    if ( !isCancelled() )
+                    {
+                        res.set_count( ref.getLength() );
+                        if ( !isCancelled() )
+                            res.set_type( BioAccessionType.REF_SEQUENCE );
+                    }
                 }
                 catch ( ErrorMsg ex )
                 {  }
