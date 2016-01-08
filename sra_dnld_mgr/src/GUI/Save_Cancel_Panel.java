@@ -25,7 +25,10 @@ package GUI;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -33,11 +36,12 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
-public class Save_Cancel_Panel extends JPanel
+public class Save_Cancel_Panel extends JPanel implements ActionListener
 {
     static final long serialVersionUID = 1;
     private final JButton b_save;
     private final JButton b_cancel;    
+    private final List< SaveCancelFilterEventHandler > btn_handlers;
     
     final JButton make_txt_btn( String caption,
                                 ImageIcon icon )
@@ -45,26 +49,50 @@ public class Save_Cancel_Panel extends JPanel
         JButton b;
         b = new JButton( caption, icon );
         b.setPreferredSize( new Dimension( 150, 5 ) );
+        b.addActionListener( this );
         return b;
     }
 
+    @Override public void actionPerformed( ActionEvent ae )
+    {
+        if ( ae != null )
+        {
+            Object src = ae.getSource();
+            if ( src != null )
+            {
+                if ( src instanceof JButton )
+                {
+                    JButton btn = ( JButton )src;
+
+                    SaveCancelFilterEventType ev_type = SaveCancelFilterEventType.INVALID;
+                    if ( btn == b_save ) ev_type = SaveCancelFilterEventType.SAVE;
+                    else if ( btn == b_cancel ) ev_type = SaveCancelFilterEventType.CANCEL;
+
+                    if ( ev_type != SaveCancelFilterEventType.INVALID )
+                    {
+                        for ( SaveCancelFilterEventHandler h : btn_handlers )
+                            h.on_save_cancel_filter_event( ev_type );
+                    }
+                }
+            }
+        }
+    }
+    
     public void set_save_btn_status( final boolean enabled )
     {
         b_save.setEnabled( enabled );
     }
     
-    private void set_btn_action( final JButton btn, final ActionListener action )
+    public void add_btn_handler( final SaveCancelFilterEventHandler btn_handler )
     {
-        if ( btn != null && action != null )
-            btn.addActionListener( action );
+        btn_handlers.add( btn_handler );
     }
-    
-    public void set_on_save( final ActionListener action ) { set_btn_action( b_save, action ); }
-    public void set_on_cancel( final ActionListener action ) { set_btn_action( b_cancel, action ); }
 
     public Save_Cancel_Panel()
     {
         super();
+        this.btn_handlers = new ArrayList<>();
+        
         setMaximumSize( new Dimension( Short.MAX_VALUE, 50 ) );
         setLayout( new BoxLayout( this, BoxLayout.LINE_AXIS ) );
         setBorder( BorderFactory.createMatteBorder( 1, 1, 1, 1, Color.WHITE ) );

@@ -23,7 +23,6 @@
 =========================================================================== */
 package GUI;
 
-import data.TimeDiff;
 import job.JobData;
 import java.awt.*;
 import java.awt.event.*;
@@ -31,7 +30,7 @@ import javax.swing.*;
 import job.JobFormat;
 
 public class JobWindow extends DlgWithMaxSize
-    implements ItemListener, ActionListener
+    implements ItemListener
 {
     private static JobWindow INSTANCE = null;
     public static JobWindow getInstance() { return INSTANCE; }
@@ -58,9 +57,7 @@ public class JobWindow extends DlgWithMaxSize
     private final IntInputPanel line_wrap;
     private final IntInputPanel fixed_qual;
     private final BoolSettingsPanel fastq_dump_name;
-    private final TextInputPanel progress;
     private final TextInputPanel md5;
-    private final TextInputPanel time_used;
     private final TextInputPanel rejected;
     private final Save_Cancel_Filter_Panel save_cancel_filter;
     
@@ -82,22 +79,7 @@ public class JobWindow extends DlgWithMaxSize
     {
         setup_by_format( format.get_format() );
     }
-    
-    @Override  public void actionPerformed( ActionEvent ae )
-    {
-        super.actionPerformed( ae );
-        Object src = ae.getSource();
-        if ( src instanceof JButton )
-        {
-            JButton btn = ( JButton )src;
-            switch( btn.getText() )
-            {
-                case "Filter"  : show_filter_window(); break;
-                case "Preview" : show_preview(); break;
-            }
-        }
-    }
-    
+
     private void populate_window( final JobData job )
     {
         source.set_text( job.get_full_source() );
@@ -112,9 +94,7 @@ public class JobWindow extends DlgWithMaxSize
         fixed_qual.set_value( job.get_fixed_qual() );
         fixed_qual.set_editable( job.get_use_fixed_qual() );
         fastq_dump_name.set_value( job.get_fastq_dump_name() );
-        progress.set_text( job.get_completion_str() );
         md5.set_text( job.get_md5() );
-        time_used.set_text( TimeDiff.to_str( job.get_runtime() ) );
         rejected.set_text( String.format( "%d" , job.get_rejected() ) );
         setup_by_format( job.get_format() );
     }
@@ -130,7 +110,6 @@ public class JobWindow extends DlgWithMaxSize
         job.set_use_fixed_qual( fixed_qual.is_editable() );
         job.set_fixed_qual( fixed_qual.get_value() );
         job.set_fastq_dump_name( fastq_dump_name.get_value() );
-        // progress/md5 etc. cannot be changed...
     }
     
     private boolean set_show_and_get( final JobData job )
@@ -157,11 +136,21 @@ public class JobWindow extends DlgWithMaxSize
         return set_show_and_get( job );        
     }
 
+    @Override public void on_save_cancel_filter_event( final SaveCancelFilterEventType event_type )
+    {
+        super.on_save_cancel_filter_event( event_type );
+        switch( event_type )
+        {
+            case FILTER     : show_filter_window(); break;
+            case PREVIEW    : show_preview(); break;
+        }
+    }
+    
     public void show_filter_window()
     {
         if ( current_job != null )
         {
-            MyKeyEventListener.set_receiver( this );
+            MyKeyEventListener.set_receiver( null );
             this.setVisible( false );
             FilterWindow.edit( current_job );
             MyKeyEventListener.set_receiver( this );
@@ -218,14 +207,8 @@ public class JobWindow extends DlgWithMaxSize
         fastq_dump_name = new BoolSettingsPanel( "fastq-dump-style", false );
         pane.add( fastq_dump_name );
         
-        progress = new TextInputPanel( "progress", false );
-        pane.add( progress );
-
         md5 = new TextInputPanel( "md5-sum", false );
         pane.add( md5 );
-
-        time_used = new TextInputPanel( "time_used", false );
-        pane.add( time_used );
 
         rejected = new TextInputPanel( "rejected", false );
         pane.add( rejected );
@@ -233,8 +216,7 @@ public class JobWindow extends DlgWithMaxSize
         resize_labels( pane );
         
         save_cancel_filter = add_save_cancel_filter_panel( pane );
-        save_cancel_filter.set_on_filter( this );
-        save_cancel_filter.set_on_preview( this );
+        
         adjust_height( 35 );
     }
 }

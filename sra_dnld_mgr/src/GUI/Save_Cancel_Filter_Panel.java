@@ -25,7 +25,10 @@ package GUI;
 
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -33,15 +36,19 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
+
 public class Save_Cancel_Filter_Panel extends JPanel
+    implements ActionListener
 {
     static final long serialVersionUID = 1;
     private final JButton b_save;
     private final JButton b_cancel;
     private final JButton b_filter;
-    private final JButton b_preview;    
+    private final JButton b_preview;
     
-    final JButton make_txt_btn( String caption,
+    private final List< SaveCancelFilterEventHandler > btn_handlers;
+   
+    private JButton make_txt_btn( String caption,
                                 ImageIcon icon )
     {
         JButton b;
@@ -51,19 +58,36 @@ public class Save_Cancel_Filter_Panel extends JPanel
             b = new JButton( caption );
         
         b.setPreferredSize( new Dimension( 110, 20 ) );
+        b.addActionListener( this );
         return b;
     }
 
-    private void set_btn_action( final JButton btn, final ActionListener action )
+    @Override public void actionPerformed( ActionEvent ae )
     {
-        if ( btn != null && action != null )
-            btn.addActionListener( action );
+        if ( ae != null )
+        {
+            Object src = ae.getSource();
+            if ( src != null )
+            {
+                if ( src instanceof JButton )
+                {
+                    JButton btn = ( JButton )src;
+                    
+                    SaveCancelFilterEventType ev_type = SaveCancelFilterEventType.INVALID;
+                    if ( btn == b_save ) ev_type = SaveCancelFilterEventType.SAVE;
+                    else if ( btn == b_cancel ) ev_type = SaveCancelFilterEventType.CANCEL;
+                    else if ( btn == b_filter ) ev_type = SaveCancelFilterEventType.FILTER;
+                    else if ( btn == b_preview ) ev_type =SaveCancelFilterEventType.PREVIEW;
+                    
+                    if ( ev_type != SaveCancelFilterEventType.INVALID )
+                    {
+                        for ( SaveCancelFilterEventHandler h : btn_handlers )
+                            h.on_save_cancel_filter_event( ev_type );
+                    }
+                }
+            }
+        }
     }
-    
-    public void set_on_save( final ActionListener action ) { set_btn_action( b_save, action ); }
-    public void set_on_cancel( final ActionListener action ) { set_btn_action( b_cancel, action ); }
-    public void set_on_filter( final ActionListener action ) { set_btn_action( b_filter, action ); }
-    public void set_on_preview( final ActionListener action ) { set_btn_action( b_preview, action ); }
     
     public void set_filter_btn_enabled( final boolean enabled )
     {
@@ -77,9 +101,16 @@ public class Save_Cancel_Filter_Panel extends JPanel
             b_preview.setEnabled( enabled );
     }
     
+    public void add_btn_handler( final SaveCancelFilterEventHandler btn_handler )
+    {
+        btn_handlers.add( btn_handler );
+    }
+    
     public Save_Cancel_Filter_Panel()
     {
         super();
+
+        this.btn_handlers = new ArrayList<>();
         
         setMaximumSize( new Dimension( Short.MAX_VALUE, 50 ) );
         setLayout( new BoxLayout( this, BoxLayout.LINE_AXIS ) );

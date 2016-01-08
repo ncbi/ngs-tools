@@ -23,195 +23,16 @@
 =========================================================================== */
 package GUI;
 
-import data.CLogger;
 import data.TimeDiff;
-import job.JobState;
 import job.JobData;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 import job.JobConsumerRunner;
+import job.JobFormat;
 import job.ProgressListenerInterface;
 import job.StateAndProgressEvent;
 import job.StateAndProgressNotifier;
-import job.StateAndProgressType;
-
-class JobButtons extends JPanel 
-    implements ActionListener, Runnable, ProgressListenerInterface
-{
-    static final long serialVersionUID = 1;
-    
-    private final JobPanel parent;
-    private final JButton Start, Pause, Reset, Edit, Delete;
-    private final JobData job;
-    private final JobConsumerRunner runner;
-    private final JobDeleteEvent jde;
-            
-    @Override public void actionPerformed( ActionEvent ae )
-    {
-        JButton b = (JButton) ae.getSource();
-        parent.clicked();
-        if ( b == Start ) start();
-        else if ( b == Pause ) pause();
-        else if ( b == Reset ) reset();
-        else if ( b == Edit ) edit();
-        else if ( b == Delete ) delete_job();
-    }
-    
-    public final void update_buttons_states()
-    {
-        JobState js = job.get_state();
-        switch ( js )
-        {
-            case INVALID    : Start.setEnabled( false );
-                              Pause.setEnabled( false );
-                              Reset.setEnabled( false );
-                              Edit.setEnabled( true );
-                              Delete.setEnabled( true );
-                              break;
-
-            case READY      : Start.setEnabled( true );
-                              Pause.setEnabled( false );
-                              Reset.setEnabled( job.get_progress() > 0 );
-                              Edit.setEnabled( true );
-                              Delete.setEnabled( true );                             
-                              break;
-
-            case RUNNING    : Start.setEnabled( false );
-                              Pause.setEnabled( true );
-                              Reset.setEnabled( true );
-                              Edit.setEnabled( false );
-                              Delete.setEnabled( false );                              
-                              break;
-
-            case PAUSED     : Start.setEnabled( true );
-                              Pause.setEnabled( false );
-                              Reset.setEnabled( true );
-                              Edit.setEnabled( false );
-                              Delete.setEnabled( false );                              
-                              break;
-
-            case ERROR      : Start.setEnabled( false );
-                              Pause.setEnabled( false );
-                              Reset.setEnabled( false );
-                              Edit.setEnabled( true );
-                              Delete.setEnabled( true );                              
-                              break;
-
-            case DONE       : Start.setEnabled( false );
-                              Pause.setEnabled( false );
-                              Reset.setEnabled( true );
-                              Edit.setEnabled( true );
-                              Delete.setEnabled( true );                              
-                              break;
-        }
-    }
-            
-    public boolean start()
-    {
-        CLogger.logfmt( "start job %s", job.get_short_source() );
-        Start.setEnabled( false );
-        boolean res = runner.start();
-        if ( !res )
-        {
-            JOptionPane.showMessageDialog( this, "this job cannot be started, the accession is invalid",
-                        "Error", JOptionPane.INFORMATION_MESSAGE );
-            Start.setEnabled( true );
-        }
-        return res;
-    }
-    
-    public void pause()
-    {
-        CLogger.logfmt( "pause job %s", job.get_short_source() );
-        runner.pause();
-    }
-    
-    public void reset()
-    {
-        CLogger.logfmt( "reset job %s", job.get_short_source() );
-        runner.reset();
-    }
-    
-    public void edit()
-    {
-        CLogger.logfmt( "edit job %s", job.get_short_source() );
-        boolean res = JobWindow.edit( job );
-        if ( res ) res = job.store(); /* edit does not store, the caller has to */
-        if ( res ) update_buttons_states();
-    }
-
-    public void delete_job()
-    {
-        CLogger.logfmt( "delete job %s", job.get_short_source() );        
-        if ( !is_running() ) { jde.delete_job( job ); }
-    }
-    
-    /* this runnable has been notified about a change of job-state */
-    @Override public void run()
-    {
-        update_buttons_states();
-    }
-
-    @Override  public void on_state_progress_event( final StateAndProgressEvent ev )
-    {
-        if ( ev.type == StateAndProgressType.STATE )
-            update_buttons_states();
-    }
-
-    public boolean has_name( String name ) { return name.equals( job.get_short_source() ); }
-    public boolean is_running() { return( job.get_state() == JobState.RUNNING ); }
-    public boolean is_done() { return( job.get_state() == JobState.DONE ); }
-    
-    private JButton add_btn( final ImageIcon icon, final String txt )
-    {
-        JButton b = ResourceImages.make_img_button( icon, txt, 2, this );
-        b.setToolTipText( txt );
-        add( b, BorderLayout.WEST );
-        return b;
-    }
-
-    public JobButtons( final JobPanel parent,
-                       final JobData job,
-                       final JobConsumerRunner runner,
-                       final JobDeleteEvent jde )
-    {
-        super();
-        this.parent = parent;
-        this.job = job;
-        this.runner = runner;
-        this.jde = jde;
-        setOpaque( false );
-        
-        Start  = add_btn( ResourceImages.get_start_img(), "Start job" );
-        Pause  = add_btn( ResourceImages.get_pause_img(), "Pause job" );
-        Reset  = add_btn( ResourceImages.get_stop_img(), "Reset job" );
-        Edit   = add_btn( ResourceImages.get_settings_img(), "Edit job" );
-        Delete = add_btn( ResourceImages.get_del_img(), "Delete job" );
-
-        update_buttons_states();
-   }
-}
-
-class EventRelay implements Runnable
-{
-    private Runnable r1, r2;
-    
-    @Override public void run()
-    {
-        if ( r1 != null ) r1.run();
-        if ( r2 != null ) r2.run();
-    }
-
-    public void set_relay1( Runnable r ) { r1 = r; }
-    public void set_relay2( Runnable r ) { r2 = r; }
-    
-    public EventRelay( Runnable r1, Runnable r2 )
-    {
-        this.r1 = r1;
-        this.r2 = r2;
-    }
-}
 
 class JobPanelMouseListener extends MouseAdapter
 {
@@ -231,14 +52,20 @@ public class JobPanel
     private final ProgressPanel progress_panel;
     private final StateAndProgressNotifier notifier;
     private boolean active;
-    
+    final JobData job;
+        
     // needed by MainWindow to count how many jobs are running
     public boolean is_running() { return buttons.is_running(); }
     public boolean is_done() { return buttons.is_done(); }
     
     // needed by MainWindow to start/pause all
     public boolean start() { return buttons.start(); }
-    public void pause() { buttons.pause(); }
+    
+    public void pause()
+    {
+        buttons.pause();
+    }
+    
     public void reset() { buttons.reset(); }
     
     // needeb by MainWindow to remove completed Jobs
@@ -251,13 +78,15 @@ public class JobPanel
         if ( active )
         {
             StatusBar.set_acc( getName() );
+            
             long maximum = notifier.get_maximum();
             long progress = notifier.get_progress();
             long elapsed  = notifier.get_elapsed_time();
+            StatusBar.set_is_dnld( job.get_format().equals( JobFormat.DOWNLOAD ) );
             StatusBar.set_max( maximum);
             StatusBar.set_pro( progress );
             StatusBar.set_time( elapsed );
-            StatusBar.set_rpm( TimeDiff.calc_rpm( elapsed, progress ) );
+            StatusBar.set_rpm_or_bpm( TimeDiff.calc_rpm( elapsed, progress ) );
             StatusBar.set_left( TimeDiff.calc_time_left( elapsed, progress, maximum ) );
         }
     }
@@ -285,7 +114,7 @@ public class JobPanel
                             {
                                 StatusBar.set_pro( ev.value );
                                 StatusBar.set_time( ev.elapsed_time );
-                                StatusBar.set_rpm( TimeDiff.calc_rpm( ev.elapsed_time, ev.value ) );
+                                StatusBar.set_rpm_or_bpm( TimeDiff.calc_rpm( ev.elapsed_time, ev.value ) );
                                 StatusBar.set_left( TimeDiff.calc_time_left( ev.elapsed_time, ev.value, notifier.get_maximum() ) );
                             }
                             break;
@@ -310,6 +139,7 @@ public class JobPanel
         super();
         
         this.parent = parent;
+        this.job = job;
         this.setName( job.get_short_source() );
         setPreferredSize( new Dimension( 400, 50 ) );
         setMinimumSize( getPreferredSize() );

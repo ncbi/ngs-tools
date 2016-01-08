@@ -47,6 +47,18 @@ public class StatusBar extends JPanel
         return INSTANCE;
     }
     
+    private static final String EMPTY_STR = "";
+    private static final String ACC_STR = "accession";
+    private static final String MAX_LABEL_HINT_DNLD = "total bytes to be downloaded";
+    private static final String MAX_LABEL_HINT = "total reads to be processed";
+    private static final String PRO_LABEL_HINT_DNLD = "bytes downloaded so far";
+    private static final String PRO_LABEL_HINT = "reads processed so far";
+    private static final String RPM_LABEL_HINT_DNLD = "bytes per minute";
+    private static final String RPM_LABEL_HINT = "reads per minute";
+    
+    private static final String RPM_FMT_DNLD = "%s bpm";
+    private static final String RPM_FMT = "%s rpm";
+
     private final JLabel acc_label;
     private final JLabel max_label;
     private final JLabel pro_label;
@@ -54,7 +66,13 @@ public class StatusBar extends JPanel
     private final JLabel time_label;
     private final JLabel left_label;
     private final NumberFormat nf_inst;
-            
+    private boolean is_dnld;
+    
+    public static void set_is_dnld( final boolean value )
+    {
+        if ( INSTANCE != null ) INSTANCE.set_dnld( value );
+    }
+    
     public static void set_acc( final String txt )
     {
         if ( INSTANCE != null ) INSTANCE.set_acc_txt( txt );
@@ -75,21 +93,35 @@ public class StatusBar extends JPanel
         if ( INSTANCE != null ) INSTANCE.set_time_value( value );
     }
 
-    public static void set_rpm( final String value )
+    public static void set_rpm_or_bpm( final long value )
     {
-        if ( INSTANCE != null ) INSTANCE.set_rpm_value( value );
+        if ( INSTANCE != null ) INSTANCE.set_rpm_or_bpm_value( value );
     }
 
     public static void set_left( final String value )
     {
         if ( INSTANCE != null ) INSTANCE.set_left_value( value );
     }
+
+    private void set_dnld( final boolean value )
+    {
+        is_dnld = value;
+        max_label.setToolTipText( is_dnld ? MAX_LABEL_HINT_DNLD : MAX_LABEL_HINT );
+        pro_label.setToolTipText( is_dnld ? PRO_LABEL_HINT_DNLD : PRO_LABEL_HINT );
+        rpm_label.setToolTipText( is_dnld ? RPM_LABEL_HINT_DNLD : RPM_LABEL_HINT );
+    }
     
     private void set_acc_txt( final String txt ) { acc_label.setText( txt ); }
     private void set_max_value( final long value ) { max_label.setText( nf_inst.format( value ) ); }
     private void set_pro_value( final long value ) { pro_label.setText( nf_inst.format( value ) ); }
     private void set_time_value( final long value ) { time_label.setText( TimeDiff.to_str( value ) ); }
-    private void set_rpm_value( final String txt ) { rpm_label.setText( txt ); }
+    
+    private void set_rpm_or_bpm_value( final long value )
+    {
+        rpm_label.setText( String.format( is_dnld ? RPM_FMT_DNLD : RPM_FMT, 
+                                          NumberFormat.getInstance().format( value ) ) );
+    }
+    
     private void set_left_value( final String txt ) { left_label.setText( txt ); }
     
     private void set_dim( final JComponent c, final Dimension dim )
@@ -141,9 +173,9 @@ public class StatusBar extends JPanel
         res.setLayout( new BoxLayout( res, BoxLayout.LINE_AXIS ) );
         set_dim( res, new Dimension( Short.MAX_VALUE, label_h ) );
         res.add( pro_label );
-        res.add( make_label( 30, label_h, "of", "" ) );
+        res.add( make_label( 30, label_h, "of", EMPTY_STR ) );
         res.add( max_label );
-        res.add( make_label( 50, label_h, " --- ", "" ) );
+        res.add( make_label( 50, label_h, " --- ", EMPTY_STR ) );
         res.add( rpm_label );
         return res;
     }
@@ -178,13 +210,14 @@ public class StatusBar extends JPanel
 
         // make the labels...
         int label_h = ( height / 2 ) - 4;
-        acc_label = make_label( 100, height - 4, "", "accession" );
-        pro_label = make_label( 120, label_h, "", "reads processed so far" );
-        max_label = make_label( 120, label_h, "", "total reads to be processed" );
-        rpm_label = make_label( 120, label_h, "", "reads per minute" );
-        time_label = make_label( 220, label_h, "", "elapsed time" );
-        left_label = make_label( 220, label_h, "", "time left" );
-        
+        acc_label = make_label( 100, height - 4, EMPTY_STR, ACC_STR );
+        pro_label = make_label( 120, label_h, EMPTY_STR, PRO_LABEL_HINT );
+        max_label = make_label( 120, label_h, EMPTY_STR, MAX_LABEL_HINT );
+        rpm_label = make_label( 120, label_h, EMPTY_STR, RPM_LABEL_HINT );
+        time_label = make_label( 220, label_h, EMPTY_STR, "elapsed time" );
+        left_label = make_label( 220, label_h, EMPTY_STR, "time left" );
+
+        is_dnld = false;
         add( make_left_box() );
         add( make_right_box( label_h ) );
     }

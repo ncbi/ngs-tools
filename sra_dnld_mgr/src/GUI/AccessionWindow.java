@@ -72,7 +72,7 @@ public class AccessionWindow extends DlgWithMaxSize
         row_count.set_text( String.format( "%,d rows", spec.get_count() ) );
         save_cancel.set_save_btn_status( spec.get_type() != BioAccessionType.INVALID );        
     }
-    
+
     private void get_spec( final BioSpec spec )
     {
         if ( checker != null )
@@ -100,7 +100,6 @@ public class AccessionWindow extends DlgWithMaxSize
                 case DONE    : get_spec( f_spec );
                                show_spec( f_spec );
                                source.blink( false );
-                               //source.set_editable( true );
                                break;
                     
                 case STARTED : source.blink( true ); break;
@@ -111,7 +110,6 @@ public class AccessionWindow extends DlgWithMaxSize
     
     private void new_check()
     {
-        //source.set_editable( false );
         checker = new BioAccessionChecker( f_spec.get_accession() );
         checker.addPropertyChangeListener( this );
         checker.execute();
@@ -119,7 +117,6 @@ public class AccessionWindow extends DlgWithMaxSize
     
     @Override public void actionPerformed( ActionEvent ae )
     {
-        super.actionPerformed( ae );
         if ( isShowing() )
         {
             f_spec.clear();
@@ -152,7 +149,6 @@ public class AccessionWindow extends DlgWithMaxSize
     {
         f_spec.clear();
         source.set_text( f_spec.get_accession() );
-        //source.set_editable( true );
         show_spec( f_spec );
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
         if ( res )

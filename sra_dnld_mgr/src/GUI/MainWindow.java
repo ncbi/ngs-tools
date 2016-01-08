@@ -274,11 +274,6 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         boolean res = job.is_valid();
         if ( res )
         {
-            /*
-            CLogger.logfmt( "job( %s ) loaded / state = %s",
-                    job.get_short_source(), job.get_state().to_string() );
-            */
-            
             JobPanel p = new JobPanel( this, job, job_delete_event );
             p.add_state_listener( this );
             p.set_active( jobs.getComponentCount() == 0 );
@@ -357,7 +352,10 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         for ( i = 0; i < n_panels; ++i )
         {
             JobPanel vj = ( JobPanel ) jobs.getComponent( i );
-            if ( vj != null ) vj.pause();
+            if ( vj != null )
+            {
+                if ( vj.is_running() ) vj.pause();
+            }
         }
     }
 

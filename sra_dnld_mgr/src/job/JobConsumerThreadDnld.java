@@ -71,9 +71,6 @@ public class JobConsumerThreadDnld extends JobConsumerThread
                 CLogger.logfmt( "job >%s< resolved to >%s< ( size: %d )" ,
                         data.job.get_short_source(), remote_location.get_url(), remote_size );
                 
-                // update the display about the size of the download
-                update_maximum( remote_size );
-                
                 // update the display about the md5-sum ( not all download-urls have one )
                 update_md5( remote_location.get_md5() );
                 
@@ -81,7 +78,20 @@ public class JobConsumerThreadDnld extends JobConsumerThread
                 range_reader.set_conn_timeout( settings.get_conn_timeout() );
                 range_reader.set_read_timeout( settings.get_read_timeout() );
                 range_reader.set_agent( settings.get_user_agent() );
-        
+
+                if ( remote_size == 0 )
+                {
+                    remote_size = range_reader.get_size();
+                    CLogger.logfmt( "job >%s< discovered size: %d" ,
+                            data.job.get_short_source(), remote_size );
+                }
+                
+                if ( remote_size != data.job.get_max() )
+                    data.job.set_max( remote_size, true );
+                
+                // update the display about the size of the download
+                update_maximum( remote_size );
+                
                 make_output_stream();
             }
             else

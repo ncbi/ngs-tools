@@ -51,11 +51,12 @@ public class TimeDiff
             return String.format( "%d sec", seconds );
     }
     
-    static public String calc_rpm( final long milliseconds, final long reads )
+    static public long calc_rpm( final long milliseconds, final long reads )
     {
-        long rpm = 0;
-        if ( milliseconds > 0  ) rpm = ( reads * 60000 ) / milliseconds;
-        return String.format( "%s rpm", NumberFormat.getInstance().format( rpm ) );
+        long res = 0;
+        if ( milliseconds > 0  ) res = ( reads * 60000 ) / milliseconds;
+        return res;
+        //return String.format( "%s rpm", NumberFormat.getInstance().format( rpm ) );
     }
     
     static public String calc_time_left( final long milliseconds, final long reads, final long max )

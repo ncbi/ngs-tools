@@ -24,14 +24,11 @@
 package GUI;
 
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
-import javax.swing.JButton;
 import javax.swing.JDialog;
 
 public class DlgWithMaxSize extends JDialog
-    implements ActionListener, MyKeyEventReceiver
+    implements MyKeyEventReceiver, SaveCancelFilterEventHandler
 {
     static final long serialVersionUID = 1;
     
@@ -48,26 +45,15 @@ public class DlgWithMaxSize extends JDialog
         return res;
     }
 
-    @Override public void actionPerformed( ActionEvent ae )
+    @Override public void on_save_cancel_filter_event( final SaveCancelFilterEventType event_type )
     {
-        if ( ae != null )
+        switch( event_type )
         {
-            Object src = ae.getSource();
-            if ( src != null )
-            {
-                if ( src instanceof JButton )
-                {
-                    JButton btn = ( JButton )src;
-                    switch( btn.getText() )
-                    {
-                        case "Save"   : save_and_close_dlg(); break;
-                        case "Cancel" : cancel_dlg(); break;
-                    }
-                }
-            }
+            case SAVE   : save_and_close_dlg(); break;
+            case CANCEL : cancel_dlg(); break;
         }
     }
-    
+
     /*  this is unfortunately neccessary,
         because setMaximumSize( ... ) is ignored by JFrame */
     @Override public void paint( Graphics g )
@@ -94,8 +80,7 @@ public class DlgWithMaxSize extends JDialog
     public Save_Cancel_Panel add_save_cancel_panel( Container pane )
     {
         Save_Cancel_Panel res = new Save_Cancel_Panel();
-        res.set_on_save( this );
-        res.set_on_cancel( this );
+        res.add_btn_handler( this );
         pane.add( res );
         return res;
     }
@@ -103,8 +88,7 @@ public class DlgWithMaxSize extends JDialog
     public Save_Cancel_Filter_Panel add_save_cancel_filter_panel( Container pane )
     {
         Save_Cancel_Filter_Panel res =  new Save_Cancel_Filter_Panel();
-        res.set_on_save( this );
-        res.set_on_cancel( this );
+        res.add_btn_handler( this );
         pane.add( res );
         return res;
     }

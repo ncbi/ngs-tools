@@ -35,12 +35,18 @@ public class ProgressPanel extends JPanel
     
     public void set_progress( final long value )
     {
-        pro.setValue( JobData.to_blocks( value ) );
+        if ( pro.getMaximum() > 0 )
+            pro.setValue( JobData.to_blocks( value ) );
+        else
+            pro.setValue( 0 );
     }
     
     public void set_maximum( long value )
     {
-        pro.setMaximum( JobData.to_blocks( value ) );
+        if ( value > 0 )
+            pro.setMaximum( JobData.to_blocks( value ) );
+        else
+            pro.setMaximum( 100 );
     }
     
     public void start() { pro.setIndeterminate( true ); }
@@ -54,9 +60,16 @@ public class ProgressPanel extends JPanel
         
         pro = new JProgressBar();
 
-        pro.setMaximum( JobData.to_blocks( job.get_max() ) );
+        long max = job.get_max();
+        if ( max > 0 )
+            pro.setMaximum( JobData.to_blocks( job.get_max() ) );
+        else
+            pro.setMaximum( 100 );
         pro.setMinimum( 0 );
-        pro.setValue( JobData.to_blocks( job.get_progress() ) );
+        if ( max > 0 )
+            pro.setValue( JobData.to_blocks( job.get_progress() ) );
+        else
+            pro.setValue( 0 );
         pro.setBorder( BorderFactory.createMatteBorder( 2, 2, 2, 2, Color.GRAY ) );
         pro.setStringPainted( true );
         

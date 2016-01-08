@@ -98,6 +98,8 @@ class JobConsumerThread extends Thread
         JobState prev_state = data.job.get_state();
         data.job.change_job_state( JobState.RUNNING );
         data.notifier.put_state( prev_state, data.job.get_state() );
+        if ( maximum == 0 )
+            data.notifier.put_start();
         run_time = System.currentTimeMillis();
         return true;
     }    
@@ -120,7 +122,11 @@ class JobConsumerThread extends Thread
     public void perform_done()
     {
         if ( data.job.get_state() == JobState.RUNNING )
+        {
             change_state_and_notify( exit_flag ? JobState.PAUSED : JobState.DONE );
+            if ( maximum == 0 )
+                data.notifier.put_stop();
+        }
     }
 
     @Override public void run()
