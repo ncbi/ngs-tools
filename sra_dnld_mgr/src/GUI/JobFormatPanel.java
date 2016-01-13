@@ -37,11 +37,12 @@ public class JobFormatPanel extends DlgPanel implements ItemListener
     
     private final JComboBox<String> format_box;
     private final JComboBox<String> sub_format_box;
-    private final ItemListener event_relay;
+    private final ItemListener listener;
     
     @Override public void itemStateChanged( ItemEvent e )
     {
-        event_relay.itemStateChanged( e );
+        if ( listener != null )
+            listener.itemStateChanged( e );
     }
     
     public JobFormat get_format()
@@ -72,11 +73,11 @@ public class JobFormatPanel extends DlgPanel implements ItemListener
         sub_format_box.setEnabled( enabled );
     }
 
-    public JobFormatPanel( final String caption, final ItemListener event_relay )
+    public JobFormatPanel( final String caption, final ItemListener listener )
     {
         super( caption, 75 );
         
-        this.event_relay = event_relay;
+        this.listener = listener;
         
         JPanel p = new JPanel( new BorderLayout() );
         

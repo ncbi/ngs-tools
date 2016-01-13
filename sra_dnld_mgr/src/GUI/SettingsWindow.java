@@ -54,7 +54,6 @@ public class SettingsWindow extends DlgWithMaxSize
     private final LineEndingsPanel line_endings;
     private final IntInputPanel line_wrap;
     private final IntInputPanel fixed_qual;
-    private final IntInputPanel dnld_steps;
     private final IntInputPanel preview_rows;
     
     private boolean set_and_get()
@@ -69,7 +68,6 @@ public class SettingsWindow extends DlgWithMaxSize
         line_wrap.set_editable( settings.get_use_line_wrap() );
         fixed_qual.set_value( settings.get_fixed_qual() );
         fixed_qual.set_editable( settings.get_use_fixed_qual() );
-        dnld_steps.set_value( settings.get_dnld_steps() );
         preview_rows.set_value( settings.get_preview_rows() );
         boolean res = show_dialog();
         if ( res )
@@ -83,7 +81,6 @@ public class SettingsWindow extends DlgWithMaxSize
             settings.set_use_line_wrap( line_wrap.is_editable() );
             settings.set_fixed_qual( fixed_qual.get_value() );
             settings.set_use_fixed_qual( fixed_qual.is_editable() );
-            settings.set_dnld_steps( dnld_steps.get_value() );
             settings.set_preview_rows( preview_rows.get_value() );
             settings.store();
         }
@@ -118,9 +115,6 @@ public class SettingsWindow extends DlgWithMaxSize
         fixed_qual = new IntInputPanel( "fixed qualitiy", "pthread", false, true );
         pane.add( fixed_qual );
 
-        dnld_steps = new IntInputPanel( "download steps", "steps", true, false );
-        pane.add( dnld_steps );
-        
         preview_rows = new IntInputPanel( "preview rows", "rows", true, false );
         pane.add( preview_rows );
 

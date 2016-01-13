@@ -3,6 +3,8 @@
 (X) give jobpanel a current job / start-stop with space-key ...
 (X) ESC closes ( hides ) window
 (X) StateAndProgressNotifier: instead of 3 queues, have one with a Progress/State event...
+(X) remove download-steps from Global Settings
+( ) have different destination-paths for download vs FASTQ/FASTA-export
 ( ) have mouse-context menus...
 ( ) restrict filters based on accession-type
 ( ) SettingsWindow: http-dnld timeouts/cig-url
@@ -16,7 +18,7 @@
 ( ) show references of accession if aligned
 ( ) check connection to NCBI-server
 ( ) batch-mode for creating multiple jobs at once
-( ) time left estimation
+(X) time left estimation
 ( ) use eutils to resolve SRX- and SRS-accessions
 ( ) different defline-options for FASTQ
 ( ) manage configuration

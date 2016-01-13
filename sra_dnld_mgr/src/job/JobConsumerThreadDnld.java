@@ -44,8 +44,24 @@ public class JobConsumerThreadDnld extends JobConsumerThread
         try
         {
             boolean append_mode = ( data.job.get_progress() > 0 );
-            out_stream = new FileOutputStream( data.job.get_output_filename(), append_mode );
-            res = true;
+            if ( !data.job.does_downloadpath_exist() )
+            {
+                res = data.job.create_downloadpath();
+                CLogger.logfmt( "creating path: %s = %s" ,
+                        data.job.get_downloadpath(),
+                        res ? "OK" : "ERROR" );
+            }
+            else
+                res = true;
+            if ( res )
+            {
+                String output_filename = data.job.get_output_filename();
+                out_stream = new FileOutputStream( output_filename, append_mode );
+                res = ( out_stream != null );
+                CLogger.logfmt( "creating/opening file: %s = %s" ,
+                        output_filename,
+                        res ? "OK" : "ERROR" );
+            }
         }
         catch ( IOException ex ) { CLogger.log( ex.toString() ); }
         return res;

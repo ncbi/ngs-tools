@@ -47,6 +47,7 @@ import Bio.BioSpec;
 import data.*;
 import Bio.BioAccessionType;
 import Bio.BioReadType;
+import java.io.File;
 import java.nio.file.*;
 import java.text.*;
 import java.util.concurrent.locks.*;
@@ -55,6 +56,7 @@ public final class JobData extends IniFile
 {
     private static final String SOURCE = "SOURCE";
     private static final String EXPORTPATH = "EXPORTPATH";
+    private static final String DOWNLOADPATH = "DOWNLOADPATH";
     private static final String STATE = "STATE";
     private static final String FORMAT = "FORMAT";
     private static final String SUBFORMAT = "SUBFORMAT";    
@@ -104,6 +106,7 @@ public final class JobData extends IniFile
 
     private final Lock lock;
     private final Lock state_lock;
+    private final String sep;
     private long current_row;
     private long max_row;
     
@@ -133,8 +136,8 @@ public final class JobData extends IniFile
     public final String get_short_source()
     {
         String s = get_full_source();
-        String sep = FileSystems.getDefault().getSeparator();
-        if ( s.contains( sep ) )
+        String fsep = FileSystems.getDefault().getSeparator();
+        if ( s.contains( fsep ) )
         {
             Path p = FileSystems.getDefault().getPath( s );
             int n = p.getNameCount();
@@ -148,34 +151,49 @@ public final class JobData extends IniFile
         return s;
     }
    
-    public final String get_exportpath()
-    {
-        return get_str_value( EXPORTPATH );
-    }
-
+    public final String get_exportpath() { return get_str_value( EXPORTPATH ); }
+    public final String get_downloadpath() { return get_str_value( DOWNLOADPATH ); }
+    
     public final String get_output_extension()
     {
-        String res = "TXT";
+        String res = "txt";
         JobFormat jf = get_format();
         switch( jf )
         {
-            case DOWNLOAD            : res = "SRA"; break;
-            case FASTA               : res = "FASTA.TXT"; break;
-            case FASTQ               : res = "FASTQ.TXT"; break;
+            case DOWNLOAD            : res = "sra"; break;
+            case FASTA               : res = "fasta.txt"; break;
+            case FASTQ               : res = "fastq.txt"; break;
         }
         return res;
     }
     
     public final String get_output_filename()
     {
-        return String.format( "%s//%s.%s",
-                get_exportpath(), get_short_source(), get_output_extension() );
+        JobFormat jf = get_format();
+        BioAccessionType bt = get_bio_type();
+        boolean is_dnld = ( jf == JobFormat.DOWNLOAD );
+        boolean is_ref  = ( bt.equals( BioAccessionType.REF_SEQUENCE ) );
+        if ( is_ref )
+        {
+            return String.format( "%s%s%s",
+                    is_dnld ? get_downloadpath() : get_exportpath(),
+                    sep,
+                    get_short_source() );
+        }
+        return String.format( "%s%s%s.%s",
+                is_dnld ? get_downloadpath() : get_exportpath(),
+                sep,
+                get_short_source(),
+                get_output_extension() );
     }
     
     public final String get_output_filename( final int suffix_nr )
     {
-        return String.format( "%s//%s_%d.%s",
-                get_exportpath(), get_short_source(), suffix_nr, get_output_extension() );
+        return String.format( "%s%s%s_%d.%s",
+                get_exportpath(),
+                sep,
+                get_short_source(),
+                suffix_nr, get_output_extension() );
     }
 
     public final JobState get_state()
@@ -319,6 +337,12 @@ public final class JobData extends IniFile
                 NumberFormat.getInstance().format( max_value ) );
     }
     
+    public final boolean is_dnld()
+    {
+        JobFormat jf = get_format();
+        return jf.equals( JobFormat.DOWNLOAD );
+    }
+    
 /* -------------------------------------------------------------------------- */    
     
     private void set_str_value( final String key, final String value )
@@ -332,6 +356,7 @@ public final class JobData extends IniFile
     
     public final void set_source( final String value ) { set_str_value( SOURCE, value ); }
     public final void set_exportpath( final String value ) { set_str_value( EXPORTPATH, value ); }
+    public final void set_downloadpath( final String value ) { set_str_value( DOWNLOADPATH, value ); }
     public final void set_line_ending( final LineEndings value ) {  set_int( LINE_ENDING, value.ordinal() ); }
     public final void set_line_wrap( final int value ) { set_int( LINE_WRAP, value ); }
     public final void set_use_line_wrap( final Boolean value ) { set_bool( USE_LINE_WRAP, value ); }
@@ -426,6 +451,7 @@ public final class JobData extends IniFile
     {
         set_source( "" );
         set_exportpath( "" );
+        set_downloadpath( "" );
         set_state( JobState.INVALID, false );
         set_format( JobFormat.INVALID );
         set_line_ending( LineEndings.AUTOMATIC );
@@ -465,9 +491,49 @@ public final class JobData extends IniFile
             set_exportpath( get_current_dir() );
             store_needed = true;
         }
+        
+        String p = get_downloadpath();
+        if ( p.isEmpty() || !is_directory( get_downloadpath() ) )
+        {
+            BioAccessionType bt = get_bio_type();
+            p = String.format( "%s%sncbi%s%s",
+                    System.getProperty( "user.home" ),
+                    sep,
+                    sep,
+                    bt.equals( BioAccessionType.REF_SEQUENCE ) ? "refseq" : "sra",
+                    sep
+                    );
+            set_downloadpath( p );
+            store_needed = true;
+        }
+        
         if ( store_needed ) store();
     }
+
+    final public boolean does_downloadpath_exist()
+    {
+        File f = new File( get_downloadpath() );
+        return ( f.exists() && f.isDirectory() );
+    }
+
+    final public boolean create_downloadpath()
+    {
+        File f = new File( get_downloadpath() );
+        return f.mkdirs();
+    }
     
+    final public boolean does_exportpath_exist()
+    {
+        File f = new File( get_exportpath() );
+        return ( f.exists() && f.isDirectory() );
+    }
+
+    final public boolean create_exportpath()
+    {
+        File f = new File( get_exportpath() );
+        return f.mkdirs();
+    }
+
     final public void set_defaults()
     {
         Settings settings = Settings.getInstance();
@@ -495,22 +561,14 @@ public final class JobData extends IniFile
         check_paths();
     }
     
-    public JobData()
-    {
-        super( "one job for SRA download" );
-        lock = new ReentrantLock();
-        state_lock = new ReentrantLock();
-        common_init();        
-        set_defaults();
-    }
-    
     public JobData( final BioSpec spec )
     {
         super( "one job for SRA download" );
         lock = new ReentrantLock();
         state_lock = new ReentrantLock();
+        sep = System.getProperty( "file.separator" );
         common_init();        
-        set_defaults(spec );
+        set_defaults( spec );
     }
     
     public JobData( final String filename )
@@ -518,6 +576,7 @@ public final class JobData extends IniFile
         super( "one job for SRA download" );
         lock = new ReentrantLock();
         state_lock = new ReentrantLock();
+        sep = System.getProperty( "file.separator" );
         clear();
         clear_job();
         set_valid( load_from( filename ) );

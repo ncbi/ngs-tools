@@ -46,7 +46,6 @@ public class Settings extends IniFile
     private static final String USE_LINE_WRAP = "USE_LINE_WRAP";    
     private static final String FIXED_QUAL = "FIXED_QUAL";
     private static final String USE_FIXED_QUAL = "USE_FIXED_QUAL";
-    private static final String DNLD_STEPS = "DNLD_STEPS";
     private static final String PREVIEW_ROWS = "PREVIEW_ROWS";
     
     private static final int DFLT_MAXDOWNLOADS = 2;
@@ -64,7 +63,6 @@ public class Settings extends IniFile
     private static final int DFLT_FIXED_QUAL = 30;
     private static final boolean DFLT_USE_LINE_WRAP = true;
     private static final boolean DFLT_USE_FIXED_QUAL = false;
-    private static final int DFLT_DNLD_STEPS = 500;
     private static final int DFLT_PREVIEW_ROWS = 10;
     
     private static final Settings INSTANCE = new Settings();
@@ -98,7 +96,6 @@ public class Settings extends IniFile
         set_line_wrap( DFLT_LINE_WRAP );
         set_use_line_wrap( DFLT_USE_LINE_WRAP );
         set_use_fixed_qual( DFLT_USE_FIXED_QUAL );
-        set_dnld_steps( DFLT_DNLD_STEPS );
         set_preview_rows( DFLT_PREVIEW_ROWS );
     }
     
@@ -143,7 +140,6 @@ public class Settings extends IniFile
     public final int get_fixed_qual() { return get_int( FIXED_QUAL, DFLT_FIXED_QUAL ); }
     public final boolean get_use_line_wrap() { return get_bool( USE_LINE_WRAP, DFLT_USE_LINE_WRAP ); }
     public final boolean get_use_fixed_qual() { return get_bool( USE_FIXED_QUAL, DFLT_USE_FIXED_QUAL ); }
-    public final int get_dnld_steps() { return get_int( DNLD_STEPS, DFLT_DNLD_STEPS ); }
     public final int get_preview_rows() { return get_int( PREVIEW_ROWS, DFLT_PREVIEW_ROWS ); }
     
     public final void set_jobpath( final String value ) { set_str( JOBPATH, value ); }
@@ -172,7 +168,6 @@ public class Settings extends IniFile
     public final void set_fixed_qual( final int value ) { set_int( FIXED_QUAL, value ); }
     public final void set_use_line_wrap( final boolean value ) { set_bool( USE_LINE_WRAP, value ); }
     public final void set_use_fixed_qual( final boolean value ) { set_bool( USE_FIXED_QUAL, value ); }
-    public final void set_dnld_steps( final int value ) { set_int( DNLD_STEPS, value ); }
     public final void set_preview_rows( final int value ) { set_int( PREVIEW_ROWS, value ); }
     
     final void check_paths()

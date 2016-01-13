@@ -419,14 +419,10 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         JobList jl = new JobList( Settings.getInstance().get_jobpath() );
         for ( String filename : jl.make_list() )
         {
-            JobData job = new JobData();
-            if ( job.load_from( filename ) )
+            JobData job = new JobData( filename );
+            if ( job.is_valid() && job.is_complete() )
             {
-                if ( job.is_complete() )
-                {
-                    if ( RemoveJob( job ) )
-                        removed++;
-                }
+                if ( RemoveJob( job ) ) removed++;
             }
         }
         if ( removed > 0 ) re_arrange();

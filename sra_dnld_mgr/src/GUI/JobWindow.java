@@ -63,9 +63,10 @@ public class JobWindow extends DlgWithMaxSize
     
     private JobData current_job;
     
-    private void setup_by_format( final JobFormat jf )
+    private void setup_by_format()
     {
-        boolean is_dnld = jf.equals( JobFormat.DOWNLOAD );
+        boolean is_dnld = current_job.is_dnld();
+        
         format.set_sub_format_enabled( !is_dnld );
         line_endings.set_enabled( !is_dnld );
         line_wrap.set_enabled( !is_dnld );
@@ -73,35 +74,42 @@ public class JobWindow extends DlgWithMaxSize
         fastq_dump_name.set_enabled( !is_dnld );
         save_cancel_filter.set_filter_btn_enabled( !is_dnld );
         save_cancel_filter.set_preview_btn_enabled( !is_dnld );
+        export_path.set_text( is_dnld ? 
+                                current_job.get_downloadpath() :
+                                current_job.get_exportpath() );
     }
     
     @Override public void itemStateChanged( ItemEvent e )
     {
-        setup_by_format( format.get_format() );
+        current_job.set_format( format.get_format() );
+        setup_by_format();
     }
 
-    private void populate_window( final JobData job )
+    private void populate_window()
     {
-        source.set_text( job.get_full_source() );
-        bio_type.set_text( job.get_bio_type().toString() );
-        export_path.set_text( job.get_exportpath() );
-        status.set_text( job.get_state().toString() );
-        format.set_format( job.get_format() );
-        format.set_sub_format( job.get_subformat() );
-        line_endings.set_value( job.get_line_ending() );
-        line_wrap.set_value( job.get_line_wrap() );
-        line_wrap.set_editable( job.get_use_line_wrap() );
-        fixed_qual.set_value( job.get_fixed_qual() );
-        fixed_qual.set_editable( job.get_use_fixed_qual() );
-        fastq_dump_name.set_value( job.get_fastq_dump_name() );
-        md5.set_text( job.get_md5() );
-        rejected.set_text( String.format( "%d" , job.get_rejected() ) );
-        setup_by_format( job.get_format() );
+        source.set_text( current_job.get_full_source() );
+        bio_type.set_text( current_job.get_bio_type().toString() );
+        status.set_text( current_job.get_state().toString() );
+        format.set_format( current_job.get_format() );
+        format.set_sub_format( current_job.get_subformat() );
+        line_endings.set_value( current_job.get_line_ending() );
+        line_wrap.set_value( current_job.get_line_wrap() );
+        line_wrap.set_editable( current_job.get_use_line_wrap() );
+        fixed_qual.set_value( current_job.get_fixed_qual() );
+        fixed_qual.set_editable( current_job.get_use_fixed_qual() );
+        fastq_dump_name.set_value( current_job.get_fastq_dump_name() );
+        md5.set_text( current_job.get_md5() );
+        rejected.set_text( String.format( "%d" , current_job.get_rejected() ) );
+        setup_by_format();
     }
 
     private void extract_values( final JobData job )
     {
-        job.set_exportpath( export_path.get_text() );
+        if ( current_job.is_dnld() )
+            job.set_downloadpath( export_path.get_text() );
+        else
+            job.set_exportpath( export_path.get_text() );
+        
         job.set_format( format.get_format() );
         job.set_subformat( format.get_sub_format() );
         job.set_line_ending( line_endings.get_value() );
@@ -115,15 +123,15 @@ public class JobWindow extends DlgWithMaxSize
     private boolean set_show_and_get( final JobData job )
     {
         current_job = job;
-        populate_window( job );
+        populate_window();
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
-        current_job = null;
         if ( res )
         {
             extract_values( job );
             /* do not store here, because the client has to verify
                the job before actually storing it */
         }
+        current_job = null;
         return res;
     }
     
