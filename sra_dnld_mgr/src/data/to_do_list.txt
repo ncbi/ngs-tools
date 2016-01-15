@@ -4,7 +4,9 @@
 (X) ESC closes ( hides ) window
 (X) StateAndProgressNotifier: instead of 3 queues, have one with a Progress/State event...
 (X) remove download-steps from Global Settings
-( ) have different destination-paths for download vs FASTQ/FASTA-export
+(X) have different destination-paths for download vs FASTQ/FASTA-export
+( ) predict output-size, reject if too big for available space
+( ) setting: console-logging, log-file-logging
 ( ) have mouse-context menus...
 ( ) restrict filters based on accession-type
 ( ) SettingsWindow: http-dnld timeouts/cig-url

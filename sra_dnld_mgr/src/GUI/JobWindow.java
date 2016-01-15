@@ -27,7 +27,6 @@ import job.JobData;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import job.JobFormat;
 
 public class JobWindow extends DlgWithMaxSize
     implements ItemListener

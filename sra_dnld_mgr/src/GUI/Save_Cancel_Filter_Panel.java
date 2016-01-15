@@ -133,7 +133,7 @@ public class Save_Cancel_Filter_Panel extends JPanel
 
         add( Box.createRigidArea( new Dimension( 10, 10 ) ) );
         
-        b_preview = make_txt_btn( "Preview", null );
+        b_preview = make_txt_btn( "Preview", ResourceImages.get_preview_img() );
         add( b_preview );
         
         add( Box.createHorizontalGlue() );

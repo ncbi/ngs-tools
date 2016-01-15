@@ -42,24 +42,64 @@ class MyFormatter extends Formatter
         return sb.toString();
     }
     
-    public MyFormatter()
-    {
-        sb = new StringBuilder();
-    }
+    public MyFormatter() { sb = new StringBuilder(); }
 }
+
+enum LogHandlerRequest { NONE, ENABLE, DISABLE; }
 
 class LogTask implements Runnable
 {
+    private FileHandler file_handler;
+    private boolean file_handler_used;
+    private ConsoleHandler console_handler;
+    private boolean console_handler_used;
     private Logger my_logger;
     private final boolean valid;
     private BlockingQueue<String> log_lines_queue;
     private boolean done;
+    private LogHandlerRequest console_request, file_request;
     
-    public void write( final String s )
+    private void write( final String s )
     {
         if ( valid ) my_logger.log( Level.INFO, s );
     }
     
+    private void enable_console_handler()
+    {
+        if ( !console_handler_used && console_handler != null )
+        {
+            my_logger.addHandler( console_handler );
+            console_handler_used = true;
+        }
+    }
+
+    private void disabled_console_handler()
+    {
+        if ( console_handler_used && console_handler != null )
+        {
+            my_logger.removeHandler( console_handler );
+            console_handler_used = false;
+        }
+    }
+
+    private void enable_file_handler()
+    {
+        if ( !file_handler_used && file_handler != null )
+        {
+            my_logger.addHandler( file_handler );
+            file_handler_used = true;
+        }
+    }
+
+    private void disabled_file_handler()
+    {
+        if ( file_handler_used && file_handler != null )
+        {
+            my_logger.removeHandler( file_handler );
+            file_handler_used = false;
+        }
+    }
+
     @Override public void run()
     {
         try
@@ -67,6 +107,27 @@ class LogTask implements Runnable
             do
             {
                 write( log_lines_queue.take() );
+                
+                switch( console_request )
+                {
+                    case ENABLE  : enable_console_handler();
+                                   console_request = LogHandlerRequest.NONE;
+                                   break;
+                    case DISABLE : disabled_console_handler();
+                                   console_request = LogHandlerRequest.NONE;
+                                   break;
+                }
+
+                switch( file_request )
+                {
+                    case ENABLE  : enable_file_handler();
+                                   file_request = LogHandlerRequest.NONE;
+                                   break;
+                    case DISABLE : disabled_file_handler();
+                                   file_request = LogHandlerRequest.NONE;
+                                   break;
+                }
+                
             } while ( !done );
             /* empty the queue after the done flag is set... */
             while ( !log_lines_queue.isEmpty() )
@@ -79,39 +140,61 @@ class LogTask implements Runnable
         }
     }
     
-    public void stop()
+    public void stop() { done = true; }
+    
+    public void set_console_state( boolean value )
     {
-        done = true;
+        console_request = value ? LogHandlerRequest.ENABLE : LogHandlerRequest.DISABLE;
+        try
+        {
+            log_lines_queue.put( String.format( "log.console = %s", value ? "enabled" : "disabled" ) );
+        } catch ( InterruptedException ex ) { }
+    }
+
+    public void set_file_state( boolean value )
+    {
+        file_request = value ? LogHandlerRequest.ENABLE : LogHandlerRequest.DISABLE;
+        try
+        {
+            log_lines_queue.put( String.format( "log.file = %s", value ? "enabled" : "disabled" ) );
+        } catch ( InterruptedException ex ) { }
     }
     
     public LogTask( final String filename,
-					final String info,
-					BlockingQueue<String> q )
+                    final String info,
+                    BlockingQueue<String> q )
     {
         my_logger = null;
         log_lines_queue = q;
         boolean success = false;
 
+        file_handler = null;
+        console_handler = null;
+        file_handler_used = false;
+        console_handler_used = false;
+        console_request = LogHandlerRequest.NONE;
+        file_request = LogHandlerRequest.NONE;
+                
         try
         {
             MyFormatter f = new MyFormatter();
-                    
-            FileHandler my_file_handler = null;
-            if ( filename != null && !filename.isEmpty() )
-            {
-                my_file_handler = new FileHandler( filename, true );
-                my_file_handler.setFormatter( f );
-            }
-           
-            ConsoleHandler my_console_handler = new ConsoleHandler();
-            my_console_handler.setFormatter( f );
-            
+
             my_logger = Logger.getLogger( info );
             my_logger.setLevel( Level.INFO );
-            my_logger.addHandler( my_console_handler );            
-            if ( my_file_handler != null )
-                my_logger.addHandler( my_file_handler );
-            
+
+            if ( filename != null && !filename.isEmpty() )
+            {
+                file_handler = new FileHandler( filename, true );
+                file_handler.setFormatter( f );
+                my_logger.addHandler( file_handler );
+                file_handler_used = true;
+            }
+           
+            console_handler = new ConsoleHandler();
+            console_handler.setFormatter( f );
+            my_logger.addHandler( console_handler );
+            console_handler_used = true;
+        
             LogManager my_log_manager = LogManager.getLogManager();
             my_log_manager.addLogger( my_logger );
             
@@ -191,17 +274,16 @@ public class CLogger
      * 
      * @param s ... optional final string to write
      */
-    private void stop_log( final String s )
-    {
-        if ( s != null )  my_task.write( s );
-        if ( my_task != null )
-            my_task.stop();
-    }
-
     public static void stop( final String s )
     {
         if ( INSTANCE != null )
-            INSTANCE.stop_log( s );
+        {
+            if ( INSTANCE.my_task != null )
+            {
+                if ( s != null ) log( s );
+                INSTANCE.my_task.stop();
+            }
+        }
     }
     
     /**

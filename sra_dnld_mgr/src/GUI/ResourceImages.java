@@ -45,6 +45,7 @@ public class ResourceImages
     static final String CLEAR = "Clear";
     static final String LOGO = "sra_logo";
     static final String FILTER = "filter";
+    static final String PREVIEW = "preview";
     
     private final ImageIcon StartImage;
     private final ImageIcon PauseImage;
@@ -57,6 +58,7 @@ public class ResourceImages
     private final ImageIcon ClearImage;
     private final ImageIcon LogoImage;
     private final ImageIcon FilterImage;
+    private final ImageIcon PreviewImage;
     
     private ImageIcon make_img( String key )
     {
@@ -78,6 +80,7 @@ public class ResourceImages
     public static ImageIcon get_clear_img() { return INSTANCE.ClearImage; }
     public static ImageIcon get_logo_img() { return INSTANCE.LogoImage; }
     public static ImageIcon get_filter_img() { return INSTANCE.FilterImage; }
+    public static ImageIcon get_preview_img() { return INSTANCE.PreviewImage; }
     
     static public JButton make_img_button( ImageIcon img,
             String txt, int border, ActionListener action )
@@ -109,5 +112,6 @@ public class ResourceImages
         ClearImage = make_img( CLEAR );
         LogoImage = make_img( LOGO );
         FilterImage = make_img( FILTER );
+        PreviewImage = make_img( PREVIEW );
     }
 }

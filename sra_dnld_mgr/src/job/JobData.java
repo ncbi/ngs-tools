@@ -496,8 +496,9 @@ public final class JobData extends IniFile
         if ( p.isEmpty() || !is_directory( get_downloadpath() ) )
         {
             BioAccessionType bt = get_bio_type();
-            p = String.format( "%s%sncbi%s%s",
+            p = String.format( "%s%sncbi%spublic%s%s",
                     System.getProperty( "user.home" ),
+                    sep,
                     sep,
                     sep,
                     bt.equals( BioAccessionType.REF_SEQUENCE ) ? "refseq" : "sra",
