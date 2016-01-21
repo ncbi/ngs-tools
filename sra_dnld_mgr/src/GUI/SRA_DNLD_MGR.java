@@ -50,9 +50,13 @@ class main_window_runner implements Runnable
     {
         if ( Settings.getInstance().is_valid() )
         {
-            CLogger.start( "log.txt", "sra-dnld-mgr" );
+            CLogger.start( "log.txt",
+                           "sra-dnld-mgr",
+                           Settings.getInstance().get_log_to_file(),
+                           Settings.getInstance().get_log_to_cons()
+                           );
             CLogger.log( "Start Application" );
-
+            
             set_look_and_feel();
         
             MainWindow main_window = new MainWindow();
@@ -62,6 +66,7 @@ class main_window_runner implements Runnable
             AccessionWindow.make_instance( main_window );
             PreviewWindow.make_instance( main_window );
             FilterWindow.make_instance( main_window );
+            ReferenceWindow.make_instance( main_window );
         }
         else
         {

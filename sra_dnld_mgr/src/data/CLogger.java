@@ -49,6 +49,7 @@ enum LogHandlerRequest { NONE, ENABLE, DISABLE; }
 
 class LogTask implements Runnable
 {
+    private final String filename;
     private FileHandler file_handler;
     private boolean file_handler_used;
     private ConsoleHandler console_handler;
@@ -153,6 +154,20 @@ class LogTask implements Runnable
 
     public void set_file_state( boolean value )
     {
+        if ( file_handler == null && value )
+        {
+            MyFormatter f = new MyFormatter();
+            try
+            {
+                file_handler = new FileHandler( filename, true );
+                file_handler.setFormatter( f );
+            }
+            catch( IOException io_e )
+            {
+                System.out.println( "cannot create Log-Filehandler: " + io_e );
+            }
+        }
+        
         file_request = value ? LogHandlerRequest.ENABLE : LogHandlerRequest.DISABLE;
         try
         {
@@ -162,16 +177,19 @@ class LogTask implements Runnable
     
     public LogTask( final String filename,
                     final String info,
-                    BlockingQueue<String> q )
+                    BlockingQueue<String> q,
+                    final boolean log_to_file,
+                    final boolean log_to_cons )
     {
+        this.filename = filename;
         my_logger = null;
         log_lines_queue = q;
         boolean success = false;
 
         file_handler = null;
         console_handler = null;
-        file_handler_used = false;
-        console_handler_used = false;
+        file_handler_used = log_to_file;
+        console_handler_used = log_to_cons;
         console_request = LogHandlerRequest.NONE;
         file_request = LogHandlerRequest.NONE;
                 
@@ -182,18 +200,17 @@ class LogTask implements Runnable
             my_logger = Logger.getLogger( info );
             my_logger.setLevel( Level.INFO );
 
-            if ( filename != null && !filename.isEmpty() )
+            if ( filename != null && !filename.isEmpty() && file_handler_used )
             {
                 file_handler = new FileHandler( filename, true );
                 file_handler.setFormatter( f );
                 my_logger.addHandler( file_handler );
-                file_handler_used = true;
             }
            
             console_handler = new ConsoleHandler();
             console_handler.setFormatter( f );
-            my_logger.addHandler( console_handler );
-            console_handler_used = true;
+            if ( console_handler_used )
+                my_logger.addHandler( console_handler );
         
             LogManager my_log_manager = LogManager.getLogManager();
             my_log_manager.addLogger( my_logger );
@@ -250,9 +267,10 @@ public class CLogger
             INSTANCE.log_str( String.format( fmt, arguments ) );
     }
     
-    private void start_log( final String filename, final String info )
+    private void start_log( final String filename, final String info,
+            final boolean log_to_file, final boolean log_to_cons )
     {
-        my_task = new LogTask( filename, info, log_lines_queue );
+        my_task = new LogTask( filename, info, log_lines_queue, log_to_file, log_to_cons );
         my_thread = new Thread( my_task );
         my_thread.start();
     }
@@ -263,10 +281,11 @@ public class CLogger
      * @param info ........ info string to be written into log
      * 
      */
-    public static void start( final String filename, final String info )
+    public static void start( final String filename, final String info,
+            final boolean log_to_file, final boolean log_to_cons )
     {
         if ( INSTANCE != null )
-            INSTANCE.start_log( filename, info );
+            INSTANCE.start_log( filename, info, log_to_file, log_to_cons );
     }
     
     /**
@@ -285,7 +304,25 @@ public class CLogger
             }
         }
     }
-    
+
+    public static void set_file_logging( boolean value )
+    {
+        if ( INSTANCE != null )
+        {
+            if ( INSTANCE.my_task != null )
+                INSTANCE.my_task.set_file_state( value );
+        }
+    }
+
+    public static void set_console_logging( boolean value )
+    {
+        if ( INSTANCE != null )
+        {
+            if ( INSTANCE.my_task != null )
+                INSTANCE.my_task.set_console_state( value );
+        }
+    }
+
     /**
      * custom logger
      */

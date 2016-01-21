@@ -44,7 +44,10 @@ public class ProgressPanel extends JPanel
     public void set_maximum( long value )
     {
         if ( value > 0 )
+        {
             pro.setMaximum( JobData.to_blocks( value ) );
+            pro.setIndeterminate( false );
+        }
         else
             pro.setMaximum( 100 );
     }

@@ -86,7 +86,7 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
     public IntInputPanel( final String caption, final String unit,
                           boolean editable, boolean show_enabled )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
 
         JPanel p = new JPanel( new BorderLayout() );
         

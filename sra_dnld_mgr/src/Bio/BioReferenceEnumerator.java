@@ -23,22 +23,20 @@
 =========================================================================== */
 package Bio;
 
-import GUI.StringReceiver;
+import GUI.BioRefSpecReceiver;
 import data.CLogger;
 import java.util.List;
 import javax.swing.SwingWorker;
 import ngs.ErrorMsg;
 import ngs.ReadCollection;
-import ngs.ReadGroupIterator;
+import ngs.ReferenceIterator;
 
-/* a SwingWorker that produces an Integer at the end ( count of ReadGroups ),
-   and publishes Strings for each step ( name of ReadGroup ) */
-public class BioReadGroupEnumerator extends SwingWorker< Integer, String >
+public class BioReferenceEnumerator extends SwingWorker< Integer, BioRefSpec >
 {
-    private final String accession, first_value;
-    private final StringReceiver receiver;
+    private final String accession;
+    private final BioRefSpecReceiver receiver;
     private int progress;
-    
+
     public String get_accession() { return accession; }
     
     private boolean supported_and_valid()
@@ -49,34 +47,30 @@ public class BioReadGroupEnumerator extends SwingWorker< Integer, String >
         return res;
     }
 
-    private void publish_item( final String s )
+    private void publish_item( final BioRefSpec spec )
     {
-        publish( s );
+        //CLogger.logfmt( "publish reference: %s", spec.name() );
+        publish( spec );
         setProgress( ++progress );
     }
-    
+
     /* this runs in the background in a hidden thread */
     @Override protected Integer doInBackground()
     {
-        if ( first_value != null && !first_value.isEmpty() )
-            publish_item( first_value );
-            
         if ( supported_and_valid() )
         {
             try
             {
                 ReadCollection run = gov.nih.nlm.ncbi.ngs.NGS.openReadCollection( accession );
-                ReadGroupIterator iter = run.getReadGroups();
-                while( iter.nextReadGroup() )
+                ReferenceIterator iter = run.getReferences();
+                while ( iter.nextReference() )
                 {
-                    if ( iter.getName().length() > 0 )
-                    {
-                        boolean do_publish = ( first_value == null );
-                        if ( !do_publish )
-                            do_publish = !first_value.equals( iter.getName() );
-                        if ( do_publish )
-                            publish_item( iter.getName() );
-                    }
+                    publish_item( new BioRefSpec(
+                        iter.getCanonicalName(),
+                        iter.getCommonName(),
+                        iter.getIsCircular(),
+                        iter.getLength() ) );
+                    progress++;
                 }
             }
             catch ( ErrorMsg ex )
@@ -88,16 +82,14 @@ public class BioReadGroupEnumerator extends SwingWorker< Integer, String >
     }
 
     /* this runs in the event-loop and has access to Swing-components */
-    @Override protected void process( final List< String > chunks )
+    @Override protected void process( final List< BioRefSpec > chunks )
     {
-        for ( final String s : chunks ) receiver.on_received_string( s );   
+        for ( final BioRefSpec spec : chunks ) receiver.on_received_spec( spec );   
     }
 
-    public BioReadGroupEnumerator( final StringReceiver receiver,
-            final String accession, final String first_value )
+    public BioReferenceEnumerator( final BioRefSpecReceiver receiver, final String accession )
     {
         this.accession = accession;
-        this.first_value = first_value;
         this.receiver = receiver;
         progress = 0;
     }

@@ -47,6 +47,8 @@ public class Settings extends IniFile
     private static final String FIXED_QUAL = "FIXED_QUAL";
     private static final String USE_FIXED_QUAL = "USE_FIXED_QUAL";
     private static final String PREVIEW_ROWS = "PREVIEW_ROWS";
+    private static final String LOG_TO_FILE = "LOG_TO_FILE";
+    private static final String LOG_TO_CONS = "LOG_TO_CONS";
     
     private static final int DFLT_MAXDOWNLOADS = 2;
     private static final int DFLT_XPOS = 100;
@@ -64,6 +66,8 @@ public class Settings extends IniFile
     private static final boolean DFLT_USE_LINE_WRAP = true;
     private static final boolean DFLT_USE_FIXED_QUAL = false;
     private static final int DFLT_PREVIEW_ROWS = 10;
+    private static final boolean DFLT_LOG_TO_FILE = false;
+    private static final boolean DFLT_LOG_TO_CONS = false;
     
     private static final Settings INSTANCE = new Settings();
     public static Settings getInstance() { return INSTANCE; }
@@ -97,6 +101,8 @@ public class Settings extends IniFile
         set_use_line_wrap( DFLT_USE_LINE_WRAP );
         set_use_fixed_qual( DFLT_USE_FIXED_QUAL );
         set_preview_rows( DFLT_PREVIEW_ROWS );
+        set_log_to_file( DFLT_LOG_TO_FILE );
+        set_log_to_cons( DFLT_LOG_TO_CONS );
     }
     
     public final String get_jobpath() { return get_str( JOBPATH, "" ); }
@@ -141,6 +147,8 @@ public class Settings extends IniFile
     public final boolean get_use_line_wrap() { return get_bool( USE_LINE_WRAP, DFLT_USE_LINE_WRAP ); }
     public final boolean get_use_fixed_qual() { return get_bool( USE_FIXED_QUAL, DFLT_USE_FIXED_QUAL ); }
     public final int get_preview_rows() { return get_int( PREVIEW_ROWS, DFLT_PREVIEW_ROWS ); }
+    public final boolean get_log_to_file() { return get_bool( LOG_TO_FILE, DFLT_LOG_TO_FILE ); }
+    public final boolean get_log_to_cons() { return get_bool( LOG_TO_CONS, DFLT_LOG_TO_CONS ); }
     
     public final void set_jobpath( final String value ) { set_str( JOBPATH, value ); }
     public final void set_exportpath( final String value ) { set_str( EXPORTPATH, value ); }
@@ -169,6 +177,8 @@ public class Settings extends IniFile
     public final void set_use_line_wrap( final boolean value ) { set_bool( USE_LINE_WRAP, value ); }
     public final void set_use_fixed_qual( final boolean value ) { set_bool( USE_FIXED_QUAL, value ); }
     public final void set_preview_rows( final int value ) { set_int( PREVIEW_ROWS, value ); }
+    public final void set_log_to_file( final boolean value ) { set_bool( LOG_TO_FILE, value ); }
+    public final void set_log_to_cons( final boolean value ) { set_bool( LOG_TO_CONS, value ); }
     
     final void check_paths()
     {

@@ -75,7 +75,7 @@ public class JobFormatPanel extends DlgPanel implements ItemListener
 
     public JobFormatPanel( final String caption, final ItemListener listener )
     {
-        super( caption, 75 );
+        super( caption, 75, 0 );
         
         this.listener = listener;
         

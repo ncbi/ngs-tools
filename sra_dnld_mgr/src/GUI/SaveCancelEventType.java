@@ -23,51 +23,7 @@
 =========================================================================== */
 package GUI;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import javax.swing.JCheckBox;
-
-public class BoolSettingsPanel extends DlgPanel
+public enum SaveCancelEventType
 {
-    static final long serialVersionUID = 1;
-    
-    private final JCheckBox checkbox;
-    private boolean value;
-    
-    public boolean get_value()
-    {
-        if ( checkbox != null )
-            return checkbox.isSelected();
-        else
-            return false;
-    }
-
-    public void set_value( boolean value )
-    {
-        this.value = value;
-        if ( checkbox != null )
-            checkbox.setSelected( value );
-    }
-
-    public boolean has_changed()
-    {
-        return ( value != get_value() );
-    }
-    
-    public void set_enabled( boolean value )
-    {
-        if ( checkbox != null )
-            checkbox.setEnabled( value );
-    }
-
-    public BoolSettingsPanel( final String caption, final boolean init_value )    
-    {
-        super( caption, DFLT_PANEL_WIDTH, 0 );
-
-        value = init_value;
-        checkbox = new JCheckBox( "enabled" );
-        checkbox.setPreferredSize( new Dimension( 100, 5 ) );
-        checkbox.setSelected( init_value );
-        add( checkbox, BorderLayout.CENTER );
-    }
+    INVALID, SAVE, CANCEL;
 }

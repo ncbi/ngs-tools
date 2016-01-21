@@ -64,7 +64,7 @@ public class JobReadTypePanel extends DlgPanel implements ActionListener
 
     public JobReadTypePanel( String caption )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
         JPanel p = new JPanel( new BorderLayout() );
         
         checkbox = make_checkbox( false );

@@ -23,7 +23,7 @@
 =========================================================================== */
 package GUI;
 
-public enum SaveCancelFilterEventType
+public interface SaveCancelEventHandler
 {
-    INVALID, SAVE, CANCEL, FILTER, PREVIEW;
+    void on_save_cancel_filter_event( final SaveCancelEventType event_type );
 }

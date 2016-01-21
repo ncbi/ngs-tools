@@ -39,7 +39,6 @@ import javax.swing.SwingWorker;
 import job.JobData;
 
 public class PreviewWindow extends JDialog
-    implements PropertyChangeListener, MyKeyEventReceiver
 {
     static final long serialVersionUID = 1;
     
@@ -57,22 +56,50 @@ public class PreviewWindow extends JDialog
         if ( INSTANCE != null )
             INSTANCE.preview( job );
     }
-            
+    
+    private final KeyEventReceiver KeyEventReceiverImpl = new KeyEventReceiver();
+    private final PropertyChaneReceiver PropertyChaneReceiverImpl = new PropertyChaneReceiver();
+    
     private final MainWindow parent;
-    private final JScrollPane scroll;
-    private final JTextArea txt;
-    private final JProgressBar progress;
-
-    @Override public boolean on_key( final KeyEvent e )
+    private final JTextArea txt = new JTextArea();
+    private final JScrollPane scroll = new JScrollPane( txt );  
+    private final JProgressBar progress = new JProgressBar();
+    
+    private class KeyEventReceiver implements MyKeyEventReceiver
     {
-        boolean res = false;
-        switch( e.getKeyCode() )
+        @Override public boolean on_key( final KeyEvent e )
         {
-            case KeyEvent.VK_ESCAPE  : setVisible( false );
-                                       res = true;
-                                       break;
+            boolean res = false;
+            switch( e.getKeyCode() )
+            {
+                case KeyEvent.VK_ESCAPE  : setVisible( false );
+                                           res = true;
+                                           break;
+            }
+            return res;
         }
-        return res;
+    }
+
+    private class PropertyChaneReceiver implements PropertyChangeListener
+    {
+        @Override public void propertyChange( final PropertyChangeEvent event )
+        {
+            final String propname = event.getPropertyName();
+            if ( propname.equals( "progress" ) )
+            {
+                progress.setValue( ( Integer )event.getNewValue() );
+            }
+            else if ( propname.equals( "state" ) )
+            {
+                switch ( (SwingWorker.StateValue) event.getNewValue() )
+                {
+                    case DONE    : progress.setVisible( false ); break;
+
+                    case STARTED : 
+                    case PENDING : progress.setVisible( true ); break;
+                }
+            }
+        }
     }
     
     private void preview( final JobData job )
@@ -80,31 +107,14 @@ public class PreviewWindow extends JDialog
         setLocationRelativeTo( parent );
         setTitle( String.format( "preview %s", job.get_short_source() ) );
         txt.setText( "" );
+        
         BioDumperPreview preview = new BioDumperPreview( job, txt,
                 Settings.getInstance().get_preview_rows() );
-        preview.addPropertyChangeListener( this );        
+        preview.addPropertyChangeListener( PropertyChaneReceiverImpl );
         preview.execute();
-        MyKeyEventListener.set_receiver( this );
+        
+        MyKeyEventListener.set_receiver( KeyEventReceiverImpl );
         setVisible( true );
-    }
-
-    @Override public void propertyChange( final PropertyChangeEvent event )
-    {
-        final String propname = event.getPropertyName();
-        if ( propname.equals( "progress" ) )
-        {
-            progress.setValue( ( Integer )event.getNewValue() );
-        }
-        else if ( propname.equals( "state" ) )
-        {
-            switch ( (SwingWorker.StateValue) event.getNewValue() )
-            {
-                case DONE    : progress.setVisible( false ); break;
-                    
-                case STARTED : 
-                case PENDING : progress.setVisible( true ); break;
-            }
-        }
     }
 
     public PreviewWindow( MainWindow parent )
@@ -119,12 +129,9 @@ public class PreviewWindow extends JDialog
         Container pane = getContentPane();
         pane.setLayout( new BoxLayout( pane, BoxLayout.PAGE_AXIS ) );
         
-        txt = new JTextArea();
         txt.setEditable( false );
-        scroll = new JScrollPane( txt );
         pane.add( scroll );
 
-        progress = new JProgressBar();
         progress.setIndeterminate( true );
         pane.add( progress, BoxLayout.Y_AXIS );
     }

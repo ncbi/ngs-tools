@@ -301,15 +301,8 @@ public final class JobData extends IniFile
     
     public final boolean is_complete()
     {
-        boolean res = false;
-        if ( lock.tryLock() )
-        {
-            if ( max_row < 0 ) max_row = get_long( MAX, 0 );
-            if ( current_row < 0 ) current_row = get_long( PROGRESS, 0 );
-            res = ( current_row >= max_row );
-            lock.unlock();
-        }
-        return res;
+        long v_max = get_max();
+        return ( v_max > 0 && get_progress() >= v_max );
     }
 
     private static double get_completion( final long progress, final long max_value )
@@ -342,7 +335,13 @@ public final class JobData extends IniFile
         JobFormat jf = get_format();
         return jf.equals( JobFormat.DOWNLOAD );
     }
-    
+
+    public final boolean is_csra()
+    {
+        BioAccessionType bio = get_bio_type();
+        return bio.equals( BioAccessionType.READ_COLLECTION_ALIGNED );
+    }
+
 /* -------------------------------------------------------------------------- */    
     
     private void set_str_value( final String key, final String value )

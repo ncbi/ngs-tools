@@ -30,79 +30,95 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
-class Main_Window_Action implements ActionListener
-{
-    public final MainWindow main_window;
-    @Override public void actionPerformed( ActionEvent ae ) { }
-    public Main_Window_Action( MainWindow main_window ) { this.main_window = main_window; }
-}
-
-class Edit_Global_Settings extends Main_Window_Action
-{
-    public Edit_Global_Settings( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { SettingsWindow.edit(); }
-}
-
-class Exit_Action extends Main_Window_Action
-{
-    public Exit_Action( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { main_window.on_exit(); }
-}
-
-class Stop_All_Action extends Main_Window_Action
-{
-    public Stop_All_Action( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { main_window.stop_all_threads(); }
-}
-
-class Start_All_Action extends Main_Window_Action
-{
-    public Start_All_Action( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { main_window.start_download_jobs(); }
-}
-
-class New_Job_Action extends Main_Window_Action
-{
-    public New_Job_Action( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { main_window.NewJob(); }
-}
-
-class CleanUp_Action extends Main_Window_Action
-{
-    public CleanUp_Action( MainWindow main_window ) { super( main_window ); }
-    @Override public void actionPerformed( ActionEvent ae ) { main_window.CleanUp(); }
-}
-
-class KeyDispatcher implements KeyEventDispatcher
-{
-    public final MainWindow main_window;
-    public KeyDispatcher( MainWindow main_window ) { this.main_window = main_window; }
-
-    @Override public boolean dispatchKeyEvent( KeyEvent ke )
-    {
-        boolean res = false;
-        if ( ke.getID() == KeyEvent.KEY_PRESSED )
-            res = main_window.on_key( ke );
-        return res;
-    }
-}
-
-public class MainWindow extends JFrame implements ProgressListenerInterface
+public class MainWindow extends JFrame
 {
     static final long serialVersionUID = 1;
+
+    private final on_settings settings_event = new on_settings();
+    private final on_exit exit_event = new on_exit();
+    private final on_stop_all stop_all_event = new on_stop_all();
+    private final on_start_all start_all_event = new on_start_all();
+    private final on_new_job now_job_event = new on_new_job();
+    private final on_cleanup cleanup_event = new on_cleanup();
+    private final on_key_dispatch key_dispatch_event = new on_key_dispatch();
+    private final on_progress progress_event = new on_progress();
+    private final on_window_close window_close_event = new on_window_close();
+    private final on_job_delete job_delete_event = new on_job_delete();
+            
+    private final JToolBar toolbar = make_toolbar();
+    private final JPanel jobs = new JPanel();
     
-    private JToolBar toolbar;
-    private JPanel jobs;
-    private final JobDeleteEvent job_delete_event;
-    private final KeyDispatcher key_dispatcher;
+    private class on_settings implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { SettingsWindow.edit(); }
+    }
+
+    private class on_exit implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { on_exit(); }
+    }
+
+    private class on_stop_all implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { stop_all_threads(); }
+    }
+
+    private class on_start_all implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { start_download_jobs(); }
+    }
+
+    private class on_new_job implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { NewJob(); }
+    }
+
+    private class on_cleanup implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { CleanUp(); }
+    }
+
+    private class on_key_dispatch implements KeyEventDispatcher
+    {
+        @Override public boolean dispatchKeyEvent( KeyEvent ke )
+        {
+            boolean res = false;
+            if ( ke.getID() == KeyEvent.KEY_PRESSED ) res = on_key( ke );
+            return res;
+        }
+    }
+
+    private class on_progress implements ProgressListenerInterface
+    {
+        @Override public void on_state_progress_event( StateAndProgressEvent ev )
+        {
+            if ( Settings.getInstance().get_autostart() && 
+                 ev.type == StateAndProgressType.STATE &&
+                 ev.prev_state == JobState.RUNNING &&
+                 ev.new_state == JobState.DONE )
+                    start_download_jobs();
+        }
+    }
+
+    private class on_window_close extends WindowAdapter
+    {
+        @Override public void windowClosing( WindowEvent we ) { on_exit(); }
+    }
+
+    private class on_job_delete implements JobDeleteEvent
+    {
+        @Override public void delete_job( JobData job ) { ask_and_delete_job( job ); }
+    }
     
+    /* -----------------------------------------------------------------------*/
+
     public final void enable_key_processor( boolean enable )
     {
         KeyboardFocusManager kfm = KeyboardFocusManager.getCurrentKeyboardFocusManager();
         if ( enable )
-            kfm.addKeyEventDispatcher( key_dispatcher );
+            kfm.addKeyEventDispatcher( key_dispatch_event );
         else
-            kfm.removeKeyEventDispatcher( key_dispatcher );
+            kfm.removeKeyEventDispatcher( key_dispatch_event );
     }
     
     public JobPanel get_active_panel()
@@ -239,27 +255,18 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
             switch_panel( jobs.getComponentCount(), active_id, new_panel_id );
     }
     
-    @Override public void on_state_progress_event( final StateAndProgressEvent ev )
-    {
-        if ( Settings.getInstance().get_autostart() && 
-             ev.type == StateAndProgressType.STATE &&
-             ev.prev_state == JobState.RUNNING &&
-             ev.new_state == JobState.DONE )
-                start_download_jobs();
-    }
-
-    public void re_arrange()
+    public void re_arrange( final boolean change_visiblity )
     {
         Rectangle R = getBounds();
         try
         {
-            setVisible( false );
+            if ( change_visiblity ) setVisible( false );
             pack();
             setBounds( R );
         }
         finally
         {
-            setVisible( true );
+            if ( change_visiblity ) setVisible( true );
         }
     }
     
@@ -269,17 +276,37 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         return jl.contains_job( String.format( "%s.JOB", src ) );
     }
 
-    private boolean new_visible_job( JobData job )
+    public void ask_and_delete_job( JobData job )
+    {
+        int response = JOptionPane.showConfirmDialog(
+                this,
+                String.format( "delete job %s", job.get_short_source() ),
+                "question",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.INFORMATION_MESSAGE );
+
+        if ( response == JOptionPane.YES_OPTION )
+            RemoveJobAndReArrange( job, true );
+    }
+    
+    public boolean new_visible_job( JobData job )
     {
         boolean res = job.is_valid();
         if ( res )
         {
             JobPanel p = new JobPanel( this, job, job_delete_event );
-            p.add_state_listener( this );
+            p.add_state_listener( progress_event );
             p.set_active( jobs.getComponentCount() == 0 );
             jobs.add( p );
         }
         return res;
+    }
+    
+    public void re_arrange_and_autostart( final Boolean change_visibility )
+    {
+        re_arrange( change_visibility );
+        if ( Settings.getInstance().get_autostart() )
+            start_download_jobs();
     }
     
     public void NewJob()
@@ -304,11 +331,7 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
                     if ( job.save( Settings.getInstance().get_jobpath() ) )
                     {
                         if ( new_visible_job( job ) )
-                        {
-                            re_arrange();
-                            if ( Settings.getInstance().get_autostart() )
-                                start_download_jobs();
-                        }
+                            re_arrange_and_autostart( true );
                     }
                 }
             }
@@ -362,14 +385,14 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
     private JToolBar make_toolbar()
     {
         JToolBar res = new JToolBar();
-        res.add( ResourceImages.make_img_button( ResourceImages.get_exit_img(), "exit", 2, new Exit_Action( this ) ) );
-        res.add( ResourceImages.make_img_button( ResourceImages.get_settings_img(), "settings", 2, new Edit_Global_Settings( this ) ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_exit_img(), "exit", 2, exit_event ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_settings_img(), "settings", 2, settings_event ) );
         res.addSeparator();
-        res.add( ResourceImages.make_img_button( ResourceImages.get_start_img(), "start downloads", 2, new Start_All_Action( this) ) );
-        res.add( ResourceImages.make_img_button( ResourceImages.get_pause_img(), "pause all downloads", 2, new Stop_All_Action( this ) ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_start_img(), "start downloads", 2, start_all_event ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_pause_img(), "pause all downloads", 2, stop_all_event ) );
         res.addSeparator();
-        res.add( ResourceImages.make_img_button( ResourceImages.get_add_img(), "add new job", 2, new New_Job_Action( this ) ) );
-        res.add( ResourceImages.make_img_button( ResourceImages.get_clear_img(), "remove finished jobs", 2, new CleanUp_Action( this ) ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_add_img(), "add new job", 2, now_job_event ) );
+        res.add( ResourceImages.make_img_button( ResourceImages.get_clear_img(), "remove finished jobs", 2, cleanup_event ) );
         res.setFloatable( false );
         return res;
     }
@@ -406,10 +429,10 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         return res;
     }
     
-    public void RemoveJobAndReArrange( JobData job )
+    public void RemoveJobAndReArrange( final JobData job, final Boolean change_visibility )
     {
         if ( RemoveJob( job ) )
-            re_arrange();
+            re_arrange( change_visibility );
     }
     
     public void CleanUp()
@@ -425,7 +448,7 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
                 if ( RemoveJob( job ) ) removed++;
             }
         }
-        if ( removed > 0 ) re_arrange();
+        if ( removed > 0 ) re_arrange( true );
     }
     
     public void on_exit()
@@ -439,10 +462,8 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
     
     private void populateContentPane( Container pane )
     {
-        toolbar = make_toolbar();
         pane.add( toolbar, BorderLayout.PAGE_START );
         
-        jobs = new JPanel();
         jobs.setLayout( new BoxLayout( jobs, BoxLayout.PAGE_AXIS ) );
         
         JScrollPane scroll = new JScrollPane( jobs,
@@ -470,12 +491,8 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         
         setJMenuBar( new TheMenuBar( this ) );
         StatusBar.make_status_bar( this.getWidth(), 64 );
-        
-        job_delete_event = new JobDeleteEvent( this );
-        
         populateContentPane( getContentPane() );
-        pack();
-        
+       
         Dimension MinAndPrefDim = new Dimension( jobs.getWidth() + 50, 400 );
         setPreferredSize( MinAndPrefDim );
         setMinimumSize( MinAndPrefDim );
@@ -484,20 +501,9 @@ public class MainWindow extends JFrame implements ProgressListenerInterface
         setLocationRelativeTo( null );
         setBounds( Settings.getInstance().get_position() );
 
-        /* to save the position of this frame on exit */
         setDefaultCloseOperation( JFrame.DO_NOTHING_ON_CLOSE );
-        addWindowListener( new WindowAdapter()
-            {
-                @Override public void windowClosing( WindowEvent e )
-                {
-                    on_exit();
-                }
-            }
-        );
-        
-        key_dispatcher = new KeyDispatcher( this );
+        addWindowListener( window_close_event );
         enable_key_processor( true );
-
         setVisible( true );
     }
 }

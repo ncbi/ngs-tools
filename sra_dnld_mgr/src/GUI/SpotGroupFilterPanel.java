@@ -33,15 +33,52 @@ import javax.swing.*;
 import javax.swing.SwingWorker.StateValue;
 
 public class SpotGroupFilterPanel extends DlgPanel
-    implements ActionListener, PropertyChangeListener
 {
     static final long serialVersionUID = 1;
     
-    private final JCheckBox checkbox;
-    private final JComboBox<String> groups;
-    private final JProgressBar progress;
+    private final JCheckBox checkbox = make_checkbox( false );
+    private final JComboBox<String> groups = make_combo_box( false );
+    private final JProgressBar progress = new JProgressBar();
+    private final StringReceiverImpl receiver = new StringReceiverImpl();
+    private final CheckBoxEvent checkboxevent = new CheckBoxEvent();
+    private final PropChange propchange = new PropChange(); 
     private BioReadGroupEnumerator enumerator;
-            
+
+    private class StringReceiverImpl implements StringReceiver
+    {
+        @Override public void on_received_string( final String s ) { groups.addItem( s ); }        
+    }
+    
+    private class CheckBoxEvent implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae )
+        {
+            groups.setEnabled( checkbox.isSelected() );
+        }
+    }
+
+    private class PropChange implements PropertyChangeListener
+    {
+        @Override public void propertyChange( final PropertyChangeEvent event )
+        {
+            final String propname = event.getPropertyName();
+            if ( propname.equals( "progress" ) )
+            {
+                progress.setValue( ( Integer )event.getNewValue() );
+            }
+            else if ( propname.equals( "state" ) )
+            {
+                switch ( (StateValue) event.getNewValue() )
+                {
+                    case DONE    : progress.setVisible( false ); break;
+
+                    case STARTED : 
+                    case PENDING : progress.setVisible( true ); break;
+                }
+            }
+        }
+    }
+    
     public String get_text()
     {
         if ( groups.getItemCount() > 0 )
@@ -65,8 +102,8 @@ public class SpotGroupFilterPanel extends DlgPanel
             if ( restart )
             {
                 groups.removeAllItems();
-                enumerator = new BioReadGroupEnumerator( groups, accession, value );
-                enumerator.addPropertyChangeListener( this );
+                enumerator = new BioReadGroupEnumerator( receiver, accession, value );
+                enumerator.addPropertyChangeListener( propchange );
                 enumerator.execute();
             }
         }
@@ -80,44 +117,16 @@ public class SpotGroupFilterPanel extends DlgPanel
 
     public boolean get_editable() { return checkbox.isSelected(); }
     
-    @Override public void actionPerformed( ActionEvent e )
-    {
-        groups.setEnabled( checkbox.isSelected() );
-    }
-
-    @Override public void propertyChange( final PropertyChangeEvent event )
-    {
-        final String propname = event.getPropertyName();
-        if ( propname.equals( "progress" ) )
-        {
-            progress.setValue( ( Integer )event.getNewValue() );
-        }
-        else if ( propname.equals( "state" ) )
-        {
-            switch ( (StateValue) event.getNewValue() )
-            {
-                case DONE    : progress.setVisible( false ); break;
-                    
-                case STARTED : 
-                case PENDING : progress.setVisible( true ); break;
-            }
-        }
-    }
-    
     public SpotGroupFilterPanel( final String caption )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
         
         JPanel p = new JPanel( new BorderLayout() );
         
-        checkbox = make_checkbox( false );
-        checkbox.addActionListener( this );
+        checkbox.addActionListener( checkboxevent );
         p.add( checkbox, BorderLayout.LINE_START );
-        
-        groups = make_combo_box( false );
         p.add( groups, BorderLayout.CENTER );
 
-        progress = new JProgressBar();
         progress.setVisible( false );
         progress.setIndeterminate( true );
         p.add( progress, BorderLayout.LINE_END );

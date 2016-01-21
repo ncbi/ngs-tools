@@ -77,7 +77,7 @@ public class TextInputPanel extends DlgPanel
     
     public TextInputPanel( final String caption, final boolean editable )
     {
-        super( caption, 75 );
+        super( caption, 75, 0 );
         listener = null;
         
         tf = make_input( editable );

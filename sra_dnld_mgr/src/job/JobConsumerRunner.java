@@ -33,38 +33,41 @@ public class JobConsumerRunner
     private final JobThreadData data;
     private JobConsumerThread thread;
     
+    /*
+    not needed any more because we do not allow unverified stuff...
+    private boolean verify()
+    {
+        BioVerifier v = new BioVerifier();
+        BioSpec spec = v.verify( data.job.get_full_source() );
+        return spec.is_valid();
+    }
+    */
+    
+    private boolean perform_start()
+    {
+        boolean res = false;
+        JobFormat job_fmt = data.job.get_format();
+        switch( job_fmt )
+        {
+            case DOWNLOAD   : thread = new JobConsumerThreadDnld( data ); break;
+            case FASTA      : thread = new JobConsumerThreadBio( data ); break;
+            case FASTQ      : thread = new JobConsumerThreadBio( data ); break;
+            default : CLogger.logfmt( "job( %s ).start: invalid output-format: %s",
+                data.job.get_short_source(), job_fmt.toString() );
+        }
+        res = ( thread != null );
+        if ( res ) thread.start();
+        return res;
+    }
+    
     public boolean start()
     {
         boolean res = false;
         if ( thread == null )
-        {
-            BioVerifier v = new BioVerifier();
-            BioSpec spec = v.verify( data.job.get_full_source() );
-            if ( spec.is_valid() )
-            {
-                JobFormat job_fmt = data.job.get_format();
-                switch( job_fmt )
-                {
-                    case DOWNLOAD   : thread = new JobConsumerThreadDnld( data ); break;
-                    case FASTA      : thread = new JobConsumerThreadBio( data ); break;
-                    case FASTQ      : thread = new JobConsumerThreadBio( data ); break;
-                    default : CLogger.logfmt( "job( %s ).start: invalid output-format: %s",
-                        data.job.get_short_source(), job_fmt.toString() );
-                }
-                res = ( thread != null );
-                if ( res ) thread.start();
-            }
-            else
-            {
-                CLogger.logfmt( "job( %s ).start: verify source failed",
-                        data.job.get_short_source() );
-            }
-        }
+            res = perform_start();
         else
-        {
             CLogger.logfmt( "job( %s ).start: thread did already exist",
                     data.job.get_short_source() );
-        }
         return res;
     }
 

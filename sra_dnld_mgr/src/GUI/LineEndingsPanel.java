@@ -50,7 +50,7 @@ public class LineEndingsPanel  extends DlgPanel
     
     public LineEndingsPanel( final String caption )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
         
         line_endings_box = make_combo_box( LineEndings.to_StringList( LineEndings.INVALID ) );
         add( line_endings_box, BorderLayout.CENTER );

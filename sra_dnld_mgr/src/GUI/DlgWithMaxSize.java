@@ -28,7 +28,7 @@ import java.awt.event.KeyEvent;
 import javax.swing.JDialog;
 
 public class DlgWithMaxSize extends JDialog
-    implements MyKeyEventReceiver, SaveCancelFilterEventHandler
+    implements MyKeyEventReceiver, SaveCancelEventHandler
 {
     static final long serialVersionUID = 1;
     
@@ -45,7 +45,7 @@ public class DlgWithMaxSize extends JDialog
         return res;
     }
 
-    @Override public void on_save_cancel_filter_event( final SaveCancelFilterEventType event_type )
+    @Override public void on_save_cancel_filter_event( final SaveCancelEventType event_type )
     {
         switch( event_type )
         {
@@ -85,14 +85,6 @@ public class DlgWithMaxSize extends JDialog
         return res;
     }
 
-    public Save_Cancel_Filter_Panel add_save_cancel_filter_panel( Container pane )
-    {
-        Save_Cancel_Filter_Panel res =  new Save_Cancel_Filter_Panel();
-        res.add_btn_handler( this );
-        pane.add( res );
-        return res;
-    }
-    
     public void cancel_dlg()
     {
         show_result = false;

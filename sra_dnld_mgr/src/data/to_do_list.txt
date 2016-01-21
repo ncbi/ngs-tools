@@ -6,18 +6,23 @@
 (X) remove download-steps from Global Settings
 (X) have different destination-paths for download vs FASTQ/FASTA-export
 ( ) predict output-size, reject if too big for available space
-( ) setting: console-logging, log-file-logging
+(X) setting: console-logging, log-file-logging
+( ) global setting: ask for delete-confirmation
+( ) display rejected-count live
+( ) display output-size live
 ( ) have mouse-context menus...
 ( ) restrict filters based on accession-type
-( ) SettingsWindow: http-dnld timeouts/cig-url
+( ) verify md5-sum for downloads...
+(X) SettingsWindow: http-dnld timeouts/cgi-url
 (X) Settings: preview-rows
 (X) preview of first N rows for FASTA/FASTQ
 (X) filter by aligned/unaligned etc.
 (X) have the BioRecord have a row-id extracted from the ID-String
 ( ) filter by slice
 ( ) custom filter
-( ) reference download / FASTA verification
-( ) show references of accession if aligned
+(X) reference download / FASTA verification
+( ) show references of accession if aligned, batch-create jobs for them...
+( ) programmable def-line for FASTQ/FASTA
 ( ) check connection to NCBI-server
 ( ) batch-mode for creating multiple jobs at once
 (X) time left estimation
@@ -27,3 +32,4 @@
 ( ) pick up download destination from config
 ( ) private repositories
 ( ) provide ASPERA downloads
+( ) switch LAF through settings

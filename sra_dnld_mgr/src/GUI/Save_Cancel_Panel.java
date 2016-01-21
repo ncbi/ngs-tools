@@ -41,10 +41,9 @@ public class Save_Cancel_Panel extends JPanel implements ActionListener
     static final long serialVersionUID = 1;
     private final JButton b_save;
     private final JButton b_cancel;    
-    private final List< SaveCancelFilterEventHandler > btn_handlers;
+    private final List< SaveCancelEventHandler > btn_handlers;
     
-    final JButton make_txt_btn( String caption,
-                                ImageIcon icon )
+    final JButton make_txt_btn( final String caption, final ImageIcon icon )
     {
         JButton b;
         b = new JButton( caption, icon );
@@ -64,13 +63,13 @@ public class Save_Cancel_Panel extends JPanel implements ActionListener
                 {
                     JButton btn = ( JButton )src;
 
-                    SaveCancelFilterEventType ev_type = SaveCancelFilterEventType.INVALID;
-                    if ( btn == b_save ) ev_type = SaveCancelFilterEventType.SAVE;
-                    else if ( btn == b_cancel ) ev_type = SaveCancelFilterEventType.CANCEL;
+                    SaveCancelEventType ev_type = SaveCancelEventType.INVALID;
+                    if ( btn == b_save ) ev_type = SaveCancelEventType.SAVE;
+                    else if ( btn == b_cancel ) ev_type = SaveCancelEventType.CANCEL;
 
-                    if ( ev_type != SaveCancelFilterEventType.INVALID )
+                    if ( ev_type != SaveCancelEventType.INVALID )
                     {
-                        for ( SaveCancelFilterEventHandler h : btn_handlers )
+                        for ( SaveCancelEventHandler h : btn_handlers )
                             h.on_save_cancel_filter_event( ev_type );
                     }
                 }
@@ -83,7 +82,7 @@ public class Save_Cancel_Panel extends JPanel implements ActionListener
         b_save.setEnabled( enabled );
     }
     
-    public void add_btn_handler( final SaveCancelFilterEventHandler btn_handler )
+    public void add_btn_handler( final SaveCancelEventHandler btn_handler )
     {
         btn_handlers.add( btn_handler );
     }

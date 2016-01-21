@@ -23,7 +23,7 @@
 =========================================================================== */
 package GUI;
 
-public interface SaveCancelFilterEventHandler
+public interface StringReceiver
 {
-    void on_save_cancel_filter_event( final SaveCancelFilterEventType event_type );
+    public void on_received_string( final String s );
 }

@@ -29,7 +29,6 @@ import java.awt.event.*;
 import javax.swing.*;
 
 public class JobWindow extends DlgWithMaxSize
-    implements ItemListener
 {
     private static JobWindow INSTANCE = null;
     public static JobWindow getInstance() { return INSTANCE; }
@@ -47,21 +46,55 @@ public class JobWindow extends DlgWithMaxSize
         return res;
     }
     
-    private final TextInputPanel source;
-    private final TextInputPanel bio_type;
-    private final PathChooserPanel export_path;
-    private final TextInputPanel status;
-    private final JobFormatPanel format;
-    private final LineEndingsPanel line_endings;
-    private final IntInputPanel line_wrap;
-    private final IntInputPanel fixed_qual;
-    private final BoolSettingsPanel fastq_dump_name;
-    private final TextInputPanel md5;
-    private final TextInputPanel rejected;
-    private final Save_Cancel_Filter_Panel save_cancel_filter;
-    
     private JobData current_job;
     
+    private final ActionListener on_preview = new on_preview_event();
+    private final ActionListener on_filter = new on_filter_event();
+    private final ItemListener on_format = new on_format_event();
+    private final ActionListener on_references = new on_references_event();
+    
+    private final TextInputPanel source = new TextInputPanel( "source", false );
+    private final TextInputPanel bio_type = new TextInputPanel( "type", false );
+    private final PathChooserPanel export_path = new PathChooserPanel( "export path" );
+    private final TextInputPanel status = new TextInputPanel( "state", false );
+    private final JobFormatPanel format = new JobFormatPanel( "format", on_format );
+    private final LineEndingsPanel line_endings = new LineEndingsPanel( "line ending" );
+    private final IntInputPanel line_wrap = new IntInputPanel( "line wrap", "chars", true, true );
+    private final IntInputPanel fixed_qual = new IntInputPanel( "fixed quality", "pthread", false, true );
+    private final BoolSettingsPanel fastq_dump_name = new BoolSettingsPanel( "fastq-dump-style", false );
+    private final TextInputPanel md5 = new TextInputPanel( "md5-sum", false );
+    private final TextInputPanel rejected = new TextInputPanel( "rejected", false );
+    private final ButtonPanel preview =  new ButtonPanel( "preview", "preview FASTQ/FASTA",
+                    on_preview, ResourceImages.get_preview_img() );
+    private final ButtonPanel filter = new ButtonPanel( "preview", "filter FASTQ/FASTA",
+                    on_filter, ResourceImages.get_filter_img() );
+    private final ButtonPanel refs = new ButtonPanel( "references", "show used references",
+                    on_references, null );
+
+    private class on_preview_event implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { show_preview(); }
+    }
+
+    private class on_filter_event implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { show_filter_window(); }
+    }
+
+    private class on_format_event implements ItemListener
+    {
+        @Override  public void itemStateChanged( ItemEvent ie )
+        {
+            current_job.set_format( format.get_format() );
+            setup_by_format();
+        }
+    }
+
+    private class on_references_event implements ActionListener
+    {
+        @Override public void actionPerformed( ActionEvent ae ) { show_references(); }
+    }
+
     private void setup_by_format()
     {
         boolean is_dnld = current_job.is_dnld();
@@ -71,19 +104,14 @@ public class JobWindow extends DlgWithMaxSize
         line_wrap.set_enabled( !is_dnld );
         fixed_qual.set_enabled( !is_dnld );
         fastq_dump_name.set_enabled( !is_dnld );
-        save_cancel_filter.set_filter_btn_enabled( !is_dnld );
-        save_cancel_filter.set_preview_btn_enabled( !is_dnld );
+        preview.set_enabled( !is_dnld );
+        filter.set_enabled( !is_dnld );
         export_path.set_text( is_dnld ? 
                                 current_job.get_downloadpath() :
                                 current_job.get_exportpath() );
+        refs.set_enabled( current_job.is_csra() );
     }
     
-    @Override public void itemStateChanged( ItemEvent e )
-    {
-        current_job.set_format( format.get_format() );
-        setup_by_format();
-    }
-
     private void populate_window()
     {
         source.set_text( current_job.get_full_source() );
@@ -119,8 +147,12 @@ public class JobWindow extends DlgWithMaxSize
         job.set_fastq_dump_name( fastq_dump_name.get_value() );
     }
     
-    private boolean set_show_and_get( final JobData job )
+    /* transfer the values from the job into the dialog-fields
+       and show the dialog, if OK pressed transfer the values
+       back into the job-instance */
+    private boolean edit_job( JobData job )
     {
+        this.setTitle( job.get_short_source() );
         current_job = job;
         populate_window();
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
@@ -133,26 +165,7 @@ public class JobWindow extends DlgWithMaxSize
         current_job = null;
         return res;
     }
-    
-    /* transfer the values from the job into the dialog-fields
-       and show the dialog, if OK pressed transfer the values
-       back into the job-instance */
-    private boolean edit_job( JobData job )
-    {
-        this.setTitle( job.get_short_source() );
-        return set_show_and_get( job );        
-    }
 
-    @Override public void on_save_cancel_filter_event( final SaveCancelFilterEventType event_type )
-    {
-        super.on_save_cancel_filter_event( event_type );
-        switch( event_type )
-        {
-            case FILTER     : show_filter_window(); break;
-            case PREVIEW    : show_preview(); break;
-        }
-    }
-    
     public void show_filter_window()
     {
         if ( current_job != null )
@@ -178,6 +191,19 @@ public class JobWindow extends DlgWithMaxSize
         }
     }
 
+    public void show_references()
+    {
+        if ( current_job != null )
+        {
+            extract_values( current_job );
+            MyKeyEventListener.set_receiver( null );
+            this.setVisible( false );
+            ReferenceWindow.show_refs( current_job );
+            MyKeyEventListener.set_receiver( this );
+            this.setVisible( true );
+        }
+    }
+
     /* make the job-dialog, but do not show it */
     public JobWindow( final MainWindow parent )
     {
@@ -187,43 +213,23 @@ public class JobWindow extends DlgWithMaxSize
         Container pane = getContentPane();
         pane.setLayout( new BoxLayout( pane, BoxLayout.PAGE_AXIS ) );
         
-        source = new TextInputPanel( "source", false );
         pane.add( source );
-        
-        bio_type = new TextInputPanel( "type", false );
         pane.add( bio_type );
-        
-        export_path = new PathChooserPanel( "export path" );
         pane.add( export_path );
-        
-        status = new TextInputPanel( "state", false );
         pane.add( status );
-
-        format = new JobFormatPanel( "format", this );
         pane.add( format );
-
-        line_endings = new LineEndingsPanel( "line ending" );
         pane.add( line_endings );
-
-        line_wrap = new IntInputPanel( "line wrap", "chars", true, true );
         pane.add( line_wrap );
-
-        fixed_qual = new IntInputPanel( "fixed quality", "pthread", false, true );
         pane.add( fixed_qual );
-
-        fastq_dump_name = new BoolSettingsPanel( "fastq-dump-style", false );
         pane.add( fastq_dump_name );
-        
-        md5 = new TextInputPanel( "md5-sum", false );
         pane.add( md5 );
-
-        rejected = new TextInputPanel( "rejected", false );
         pane.add( rejected );
-
+        pane.add( preview );
+        pane.add( filter );
+        pane.add( refs );
+        
         resize_labels( pane );
-        
-        save_cancel_filter = add_save_cancel_filter_panel( pane );
-        
+        add_save_cancel_panel( pane );
         adjust_height( 35 );
     }
 }

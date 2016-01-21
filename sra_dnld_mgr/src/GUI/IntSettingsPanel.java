@@ -60,7 +60,7 @@ public class IntSettingsPanel extends DlgPanel implements ChangeListener
     
     public IntSettingsPanel( final String caption, final int min, final int max )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
         
         slider = make_slider( min, max, min );
         add( slider, BorderLayout.CENTER );

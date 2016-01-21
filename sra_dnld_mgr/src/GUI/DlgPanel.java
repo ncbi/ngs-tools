@@ -24,6 +24,7 @@
 package GUI;
 
 import java.awt.*;
+import java.awt.event.ActionListener;
 import javax.swing.*;
 
 class DlgPanel extends JPanel
@@ -81,6 +82,20 @@ class DlgPanel extends JPanel
         return res;
     }
 
+    public JButton make_btn( final String caption, int width, int height,
+                             ActionListener al, ImageIcon icon )
+    {
+        JButton b;
+        if ( icon != null )
+            b = new JButton( caption, icon );
+        else
+            b = new JButton( caption );
+
+        b.setPreferredSize( new Dimension( width, height ) );
+        if ( al != null ) b.addActionListener( al ); 
+        return b;
+    }
+    
     public int get_label_text_width()
     {
         int res = 0;
@@ -104,7 +119,8 @@ class DlgPanel extends JPanel
         }
     }
     
-    public DlgPanel( final String caption, final int width )
+    public DlgPanel( final String caption,
+                     final int width, final int height )
     {
         super();
         L = null;
@@ -112,7 +128,10 @@ class DlgPanel extends JPanel
         setLayout( new BorderLayout( 5, 0 ) );
         setBorder( BorderFactory.createMatteBorder( 1, 1, 1, 1, Color.WHITE ) );
 
-        setPreferredSize( new Dimension( Short.MAX_VALUE, 25 ) );
+        if ( height == 0 )
+            setPreferredSize( new Dimension( Short.MAX_VALUE, 25 ) );
+        else
+            setPreferredSize( new Dimension( Short.MAX_VALUE, height ) );
         setMinimumSize( getPreferredSize() );
         setMaximumSize( getPreferredSize() );
 

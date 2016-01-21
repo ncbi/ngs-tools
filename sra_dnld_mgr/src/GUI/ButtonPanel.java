@@ -23,51 +23,45 @@
 =========================================================================== */
 package GUI;
 
-import java.awt.BorderLayout;
-import java.awt.Dimension;
-import javax.swing.JCheckBox;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
 
-public class BoolSettingsPanel extends DlgPanel
+public class ButtonPanel extends DlgPanel
 {
-    static final long serialVersionUID = 1;
+    private final JTextField tf = make_input( false );
+    private final JButton b;
+    private final on_button button_event = new on_button();
+    private ActionListener relay;
     
-    private final JCheckBox checkbox;
-    private boolean value;
-    
-    public boolean get_value()
+    private class on_button implements ActionListener
     {
-        if ( checkbox != null )
-            return checkbox.isSelected();
+        @Override public void actionPerformed( ActionEvent ae )
+        {
+            if ( relay != null ) relay.actionPerformed( ae );
+        }
+    }
+
+    public String get_text() { return tf.getText(); }
+    public void set_text( String value ) { tf.setText( value ); }
+    public void set_action_listener( final ActionListener al ) { relay = al; }
+
+    public void set_enabled( final boolean enabled ) { b.setEnabled( enabled ); }
+    
+    public ButtonPanel( final String caption, final String hint,
+                        final ActionListener al, ImageIcon icon )
+    {
+        super( caption, DFLT_PANEL_WIDTH, icon == null ? 0 : icon.getIconHeight() + 4 );
+        relay = al;
+        
+        tf.setText( hint );
+        add( tf, BorderLayout.CENTER );
+
+        if ( icon == null )
+            b = make_btn( "...", 75, 32, button_event, null );
         else
-            return false;
+            b = make_btn( "", 75, 32, button_event, icon );
+        add( b, BorderLayout.LINE_END );
     }
 
-    public void set_value( boolean value )
-    {
-        this.value = value;
-        if ( checkbox != null )
-            checkbox.setSelected( value );
-    }
-
-    public boolean has_changed()
-    {
-        return ( value != get_value() );
-    }
-    
-    public void set_enabled( boolean value )
-    {
-        if ( checkbox != null )
-            checkbox.setEnabled( value );
-    }
-
-    public BoolSettingsPanel( final String caption, final boolean init_value )    
-    {
-        super( caption, DFLT_PANEL_WIDTH, 0 );
-
-        value = init_value;
-        checkbox = new JCheckBox( "enabled" );
-        checkbox.setPreferredSize( new Dimension( 100, 5 ) );
-        checkbox.setSelected( init_value );
-        add( checkbox, BorderLayout.CENTER );
-    }
 }

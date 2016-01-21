@@ -34,26 +34,31 @@ import job.ProgressListenerInterface;
 import job.StateAndProgressEvent;
 import job.StateAndProgressNotifier;
 
-class JobPanelMouseListener extends MouseAdapter
-{
-    private final JobPanel panel;
-    @Override public void mouseClicked( MouseEvent e ) { panel.clicked(); }
-    public JobPanelMouseListener( final JobPanel panel ) { this.panel = panel; }
-}
-
-public class JobPanel
-    extends JPanel
-    implements ProgressListenerInterface
+public class JobPanel extends JPanel
 {
     static final long serialVersionUID = 1;
 
+    private final JobPanelMouseListener on_mouse_event = new JobPanelMouseListener();
+    private final ProgressListener progress_event = new ProgressListener();
+    
     private final MainWindow parent;
     private final JobButtons buttons;
     private final ProgressPanel progress_panel;
     private final StateAndProgressNotifier notifier;
     private boolean active;
     final JobData job;
-        
+
+    class JobPanelMouseListener extends MouseAdapter
+    {
+        @Override public void mouseClicked( MouseEvent e ) { clicked(); }
+    }
+
+    class ProgressListener implements ProgressListenerInterface
+    {
+        @Override public void on_state_progress_event( StateAndProgressEvent ev )
+        { on_progress_event( ev ); }
+    }
+    
     // needed by MainWindow to count how many jobs are running
     public boolean is_running() { return buttons.is_running(); }
     public boolean is_done() { return buttons.is_done(); }
@@ -105,7 +110,7 @@ public class JobPanel
         notifier.add_state_listener( listener );
     }
 
-    @Override public void on_state_progress_event( final StateAndProgressEvent ev )
+    private void on_progress_event( final StateAndProgressEvent ev )
     {
         switch( ev.type )
         {
@@ -141,6 +146,7 @@ public class JobPanel
         this.parent = parent;
         this.job = job;
         this.setName( job.get_short_source() );
+
         setPreferredSize( new Dimension( 400, 50 ) );
         setMinimumSize( getPreferredSize() );
         setMaximumSize( new Dimension( Short.MAX_VALUE, 50 ) );
@@ -164,7 +170,7 @@ public class JobPanel
            and propagates state-change-events originating from the job-thread */
         notifier = new StateAndProgressNotifier(
                 job.get_max(), job.get_progress(), job.get_runtime() );
-        notifier.add_progress_listener( this );
+        notifier.add_progress_listener( progress_event );
         
         /* the download-task maintains a thread to run the job-loop */
         JobConsumerRunner runner = new JobConsumerRunner( job, notifier );
@@ -176,6 +182,6 @@ public class JobPanel
         notifier.add_state_listener( buttons );
         add( buttons, BorderLayout.LINE_END );
         
-        this.addMouseListener( new JobPanelMouseListener( this ) );
+        this.addMouseListener( on_mouse_event );
     }
 }

@@ -30,7 +30,7 @@ import javax.swing.*;
 
 public class PathChooserPanel extends DlgPanel implements ActionListener
 {
-    JTextField tf;
+    private JTextField tf;
 
     @Override public void actionPerformed( ActionEvent e )
     {
@@ -44,35 +44,18 @@ public class PathChooserPanel extends DlgPanel implements ActionListener
             catch ( Exception ex ) { }
         }
     }
-    
-    final JTextField make_input()
-    {
-        JTextField res;
-        res = new JTextField();
-        res.setPreferredSize( new Dimension( 100, 5 ) );
-        res.setEditable( false );
-        return res;
-    }
-
-    final JButton make_btn()
-    {
-        JButton b;
-        b = new JButton( "..." );
-        b.setPreferredSize( new Dimension( 50, 5 ) );
-        b.addActionListener( this ); 
-        return b;
-    }
 
     public String get_text() { return tf.getText(); }
     public void set_text( String value ) { tf.setText( value ); }
     
     public PathChooserPanel( final String caption )
     {
-        super( caption, DFLT_PANEL_WIDTH );
+        super( caption, DFLT_PANEL_WIDTH, 0 );
         
-        tf = make_input();
+        tf = make_input( false );
         add( tf, BorderLayout.CENTER );
         
-        add( make_btn(), BorderLayout.LINE_END );
+        JButton b = make_btn( "...", 50, 5, this, null );
+        add( b, BorderLayout.LINE_END );
     }
 }
