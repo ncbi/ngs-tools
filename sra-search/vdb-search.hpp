@@ -47,11 +47,18 @@ public:
     public:
         virtual ~SearchBlock () {}
         
-        virtual bool FirstMatch ( const char* p_bases, size_t p_size ) = 0;
+        virtual bool FirstMatch ( const char* p_bases, uint64_t p_size ) throw ( ngs :: ErrorMsg )
+        {
+            uint64_t hitStart;
+            uint64_t hitEnd;
+            return FirstMatch ( p_bases, p_size, hitStart, hitEnd );
+        }
+        virtual bool FirstMatch ( const char* p_bases, uint64_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) throw ( ngs :: ErrorMsg ) = 0;
     };
     
 public:
     static bool logResults;
+    static bool useBlobSearch;
 
 public:
     // Search algorithms supported by this class
@@ -94,23 +101,25 @@ public:
     bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
     
 private:
-    // a VDB-agnostic iterator bound to an accession and an engine-side algorithm
+    // a VDB-agnostic iterator bound to an accession and an engine-side algorithm; 
+    // subclasses implement different styles of retrieval (row/blob based, SRA/WGS schema)
     class MatchIterator 
     {
     public:
         MatchIterator ( SearchBlock*, const std::string& accession );
         ~MatchIterator ();
         
-        bool NextMatch ( std::string& fragmentId );
+        virtual bool NextMatch ( std::string& fragmentId ) = 0;
         
-        std::string AccessionName () const;
+        std::string AccessionName () const { return m_accession; }
         
-    private: 
-        ngs::ReadCollection m_coll;
-        ngs::ReadIterator   m_readIt;
-        
+    protected: 
         SearchBlock* m_searchBlock;  // owned here
+        std::string m_accession; 
     };
+    
+    class FragmentMatchIterator; // fragment-based search
+    class BlobMatchIterator; // blob-based search
     
     typedef std::queue < MatchIterator* > SearchQueue;
     

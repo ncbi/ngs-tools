@@ -51,7 +51,7 @@ TEST_SRA_SEARCH_SRC = \
 	test-sra-search \
 
 TEST_SRA_SEARCH_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(TEST_SRA_SEARCH_SRC)))
+	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(TEST_SRA_SEARCH_SRC) ../vdb-search ../searchblock ../ngs-vdb ../NGS_VDB)) 
 
 TEST_SRA_SEARCH_LIBS = \
     -L$(VDB_LIBDIR)/../ilib     \
@@ -73,7 +73,7 @@ test-whitebox: $(TEST_BINDIR)/test-sra-search
 	@ echo
 
 vg-whitebox: $(TEST_BINDIR)/test-sra-search    
-	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress $^
+	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress --leak-check=full $^
 
 TIME = `which time` -f"%E"
 
@@ -111,6 +111,7 @@ slowtest-cmdline:
 	@ echo "Slow-Testing $(BINDIR)/sra-search"
 	@ # single run
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         --args "AGCTAGCTAGCT -a FgrepDumb SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001"
@@ -138,6 +139,6 @@ slowtest-cmdline:
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	$(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS        --args "AGCTAGCTA ALAI01"
     
 .PHONY: test-wb test-cmdline onetest

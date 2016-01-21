@@ -43,6 +43,9 @@ clean:
 #
 SRA_SEARCH_SRC = \
 	vdb-search \
+    searchblock \
+    ngs-vdb \
+    NGS_VDB \
 	main \
 
 SRA_SEARCH_OBJ = \
