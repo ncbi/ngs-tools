@@ -21,7 +21,7 @@
 ( ) filter by slice
 ( ) custom filter
 (X) reference download / FASTA verification
-( ) show references of accession if aligned, batch-create jobs for them...
+(X) show references of accession if aligned, batch-create jobs for them...
 ( ) programmable def-line for FASTQ/FASTA
 ( ) check connection to NCBI-server
 ( ) batch-mode for creating multiple jobs at once

@@ -49,6 +49,7 @@ public class Settings extends IniFile
     private static final String PREVIEW_ROWS = "PREVIEW_ROWS";
     private static final String LOG_TO_FILE = "LOG_TO_FILE";
     private static final String LOG_TO_CONS = "LOG_TO_CONS";
+    private static final String CONFIRM_DELETE = "CONFIRM_DELETE";
     
     private static final int DFLT_MAXDOWNLOADS = 2;
     private static final int DFLT_XPOS = 100;
@@ -68,6 +69,7 @@ public class Settings extends IniFile
     private static final int DFLT_PREVIEW_ROWS = 10;
     private static final boolean DFLT_LOG_TO_FILE = false;
     private static final boolean DFLT_LOG_TO_CONS = false;
+    private static final boolean DFLT_CONFIRM_DELETE = true;
     
     private static final Settings INSTANCE = new Settings();
     public static Settings getInstance() { return INSTANCE; }
@@ -103,6 +105,7 @@ public class Settings extends IniFile
         set_preview_rows( DFLT_PREVIEW_ROWS );
         set_log_to_file( DFLT_LOG_TO_FILE );
         set_log_to_cons( DFLT_LOG_TO_CONS );
+        set_confirm_delete( DFLT_CONFIRM_DELETE );
     }
     
     public final String get_jobpath() { return get_str( JOBPATH, "" ); }
@@ -149,6 +152,7 @@ public class Settings extends IniFile
     public final int get_preview_rows() { return get_int( PREVIEW_ROWS, DFLT_PREVIEW_ROWS ); }
     public final boolean get_log_to_file() { return get_bool( LOG_TO_FILE, DFLT_LOG_TO_FILE ); }
     public final boolean get_log_to_cons() { return get_bool( LOG_TO_CONS, DFLT_LOG_TO_CONS ); }
+    public final boolean get_confirm_delete() { return get_bool( CONFIRM_DELETE, DFLT_CONFIRM_DELETE ); }
     
     public final void set_jobpath( final String value ) { set_str( JOBPATH, value ); }
     public final void set_exportpath( final String value ) { set_str( EXPORTPATH, value ); }
@@ -179,6 +183,7 @@ public class Settings extends IniFile
     public final void set_preview_rows( final int value ) { set_int( PREVIEW_ROWS, value ); }
     public final void set_log_to_file( final boolean value ) { set_bool( LOG_TO_FILE, value ); }
     public final void set_log_to_cons( final boolean value ) { set_bool( LOG_TO_CONS, value ); }
+    public final void set_confirm_delete( final boolean value ) { set_bool( CONFIRM_DELETE, value ); }
     
     final void check_paths()
     {

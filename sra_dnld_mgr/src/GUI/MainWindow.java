@@ -278,14 +278,21 @@ public class MainWindow extends JFrame
 
     public void ask_and_delete_job( JobData job )
     {
-        int response = JOptionPane.showConfirmDialog(
+        Boolean perform_delete = true;
+        
+        if ( Settings.getInstance().get_confirm_delete() )
+        {
+            int response = JOptionPane.showConfirmDialog(
                 this,
                 String.format( "delete job %s", job.get_short_source() ),
                 "question",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.INFORMATION_MESSAGE );
 
-        if ( response == JOptionPane.YES_OPTION )
+            perform_delete = ( response == JOptionPane.YES_OPTION );
+        }
+        
+        if ( perform_delete )
             RemoveJobAndReArrange( job, true );
     }
     

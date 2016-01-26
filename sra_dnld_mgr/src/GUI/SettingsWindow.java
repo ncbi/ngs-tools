@@ -54,6 +54,7 @@ public class SettingsWindow extends DlgWithMaxSize
     private final BoolSettingsPanel autostart = new BoolSettingsPanel( "autoresume", false );
     private final BoolSettingsPanel log_to_file = new BoolSettingsPanel( "log to file", false );
     private final BoolSettingsPanel log_to_cons = new BoolSettingsPanel( "log to console", false );
+    private final BoolSettingsPanel confirm_delete = new BoolSettingsPanel( "confirm delete", false );    
     private final LineEndingsPanel line_endings = new LineEndingsPanel( "line ending" );
     private final IntInputPanel line_wrap = new IntInputPanel( "line wrap", "chars", true, true );
     private final IntInputPanel fixed_qual = new IntInputPanel( "fixed qualitiy", "pthread", false, true );
@@ -70,6 +71,7 @@ public class SettingsWindow extends DlgWithMaxSize
         autostart.set_value( settings.get_autostart() );
         log_to_file.set_value( settings.get_log_to_file() );
         log_to_cons.set_value( settings.get_log_to_cons() );
+        confirm_delete.set_value( settings.get_confirm_delete() );
         line_endings.set_value( settings.get_line_ending() );
         line_wrap.set_value( settings.get_line_wrap() );
         line_wrap.set_editable( settings.get_use_line_wrap() );
@@ -95,6 +97,7 @@ public class SettingsWindow extends DlgWithMaxSize
             if ( log_to_cons.has_changed() )
                 CLogger.set_console_logging( log_to_cons.get_value() );
             
+            settings.set_confirm_delete( confirm_delete.get_value() );
             settings.set_line_ending(  line_endings.get_value() );
             settings.set_line_wrap( line_wrap.get_value() );
             settings.set_use_line_wrap( line_wrap.is_editable() );
@@ -122,6 +125,7 @@ public class SettingsWindow extends DlgWithMaxSize
         pane.add( autostart );
         pane.add( log_to_file );
         pane.add( log_to_cons );
+        pane.add( confirm_delete );
         pane.add( line_endings );
         pane.add( line_wrap );
         pane.add( fixed_qual );
