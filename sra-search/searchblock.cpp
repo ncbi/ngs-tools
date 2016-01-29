@@ -28,7 +28,9 @@
 
 #include <search/grep.h>
 #include <search/nucstrstr.h>
-#include <../libs/search/search-priv.h>
+#include <search/smith-waterman.h>
+
+#include <cstring>
 
 using namespace std;
 using namespace ngs;
@@ -56,7 +58,7 @@ FgrepSearch :: FgrepSearch ( const string& p_query, VdbSearch :: Algorithm p_alg
     }
     if ( rc != 0 )
     {
-        throw ( ErrorMsg ( "FgrepMake failed" ) );
+        throw ( ErrorMsg ( "FgrepMake() failed" ) );
     }
 }
 
@@ -73,7 +75,15 @@ FgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
     if ( ret )
     {
         p_hitStart = matchinfo . position;
-        p_hitEnd = p_hitStart + matchinfo . length;       
+        p_hitEnd = p_hitStart + matchinfo . length;
+        if ( VdbSearch :: logResults )
+        {
+            cout << "Pattern='" << m_query[0] << "' " 
+                 << " Substr(" << matchinfo . position 
+                 << ", " << matchinfo . length << ") = '" 
+                 << string ( p_bases + matchinfo . position, matchinfo . length ) << "'" 
+                 << endl;
+        }
     }
     return ret;
 }
@@ -145,7 +155,7 @@ NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional ) 
     rc_t rc = NucStrstrMake ( &m_nss, m_positional ? 1 : 0, m_query . c_str (), m_query . size () );
     if ( rc != 0 )
     {
-        throw ( ErrorMsg ( "NucStrstrMake failed" ) );
+        throw ( ErrorMsg ( "NucStrstrMake() failed" ) );
     }
 }
 
@@ -222,49 +232,43 @@ NucStrstrSearch :: ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLe
 SmithWatermanSearch :: SmithWatermanSearch ( const string& p_query, uint8_t p_minScorePct )
 :   m_query ( p_query . c_str() ),
     m_querySize ( p_query . size() ),
-    m_matrix ( 0 ),
     m_matrixSize ( 0 ),
     m_minScorePct ( p_minScorePct )        
 {
+    rc_t rc = SmithWatermanMake ( &m_sw, p_query . c_str() );
+    if ( rc != 0 )
+    {
+        throw ( ErrorMsg ( "SmithWatermanMake() failed" ) );
+    }
 }
 
 SmithWatermanSearch :: ~SmithWatermanSearch ()
 {
-    delete [] m_matrix;
+    SmithWatermanWhack ( m_sw );
 }    
     
 bool
-SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
-{
-    const size_t Rows = p_size + 1;
-    const size_t Cols = m_querySize + 1;
-    const size_t MatrixSize = Rows * Cols;
-    if ( MatrixSize > m_matrixSize )
-    {
-        delete [] m_matrix;
-        m_matrix = new int [ MatrixSize ];
-        m_matrixSize = MatrixSize;
-    }
-    int maxScore = -1;
-    rc_t rc = calculate_similarity_matrix ( p_bases, p_size, m_query, m_querySize, m_matrix, true, & maxScore ); 
-    if ( rc != 0 )
-    {
-        throw ( ErrorMsg ( "calculate_similarity_matrix failed" ) );
-    }
-    unsigned int scoreThreshold = ( m_querySize * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
-    bool ret = maxScore >= scoreThreshold;
-    if ( ret && VdbSearch :: logResults )
-    {
-        cout << "Pattern='" << m_query << "' " 
-                << "Score=" << maxScore 
-                << " scoreThreshold=" << scoreThreshold 
-                << endl;
-    }
-    return ret;
-}
-
-bool
 SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg )
 {
-    throw ( ErrorMsg ( "SmithWatermanSearch: blob-based search is not supported" ) );
+    SmithWatermanMatch matchinfo;
+    unsigned int scoreThreshold = ( m_querySize * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
+    rc_t rc = SmithWatermanFindFirst ( m_sw, scoreThreshold, p_bases, p_size, & matchinfo );     
+    if ( rc == 0 )
+    {
+        if ( VdbSearch :: logResults )
+        {
+            cout << "Pattern='" << m_query << "' " 
+                    << "Score=" << matchinfo . score 
+                    << " scoreThreshold=" << scoreThreshold 
+                    << endl;
+        }
+        p_hitStart = matchinfo . position;
+        p_hitEnd = p_hitStart + matchinfo . length;
+        return true;        
+    }
+    else if ( GetRCObject ( rc ) == rcQuery && GetRCState ( rc ) == rcNotFound )
+    {
+        return false;
+    }
+    throw ( ErrorMsg ( "SmithWatermanFindFirst() failed" ) );
 }

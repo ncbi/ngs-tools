@@ -130,14 +130,9 @@ TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE_THROW ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) ); // currently not supported; need to discuss with Alex
-}
-
-TEST_CASE ( SearchSmithWaterman_NoCoords )
-{
-    SmithWatermanSearch sb ( "CTA", 100 );
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size() ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) ); 
+    REQUIRE_EQ ( (uint64_t)5, hitStart );
+    REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
 
 // VdbSearch 
@@ -223,7 +218,7 @@ FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.3" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR1.3" ), NextFragmentId () );
 }
-
+#if 0
 FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture )
 {
     const string Accession = "ALWZ01";
@@ -399,7 +394,6 @@ FIXTURE_TEST_CASE ( AgrepMyersUnltd_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
 }
 
-#if TALK_TO_ALEX_ABOUT_CHANGES_IN_SW_SCORING_FUNCTION
 FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
 {   // SW scoring function is different from Agrep's, so the results are slightly different
 // Lately the SW scoring functuion seems to have changed, and the results are very, very different 
@@ -408,7 +402,6 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.183" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
-#endif
 
 #if TOO_SLOW_FOR_A_UNIT_TEST
 FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
@@ -669,7 +662,7 @@ TEST_CASE ( VdbReadCollection_WGS_RowInfo )
 }    
 
 //TODO: accessing blob without a call to nextBlob()
-
+#endif
 int
 main( int argc, char *argv [] )
 {

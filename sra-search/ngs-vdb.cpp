@@ -151,9 +151,10 @@ VdbReadCollection :: VdbReadCollection ( const String & spec ) throw ()
 {
     m_coll = NGS_VDB_ReadCollectionMake ( spec.c_str() );
 }
-
+#include <iostream>
 VdbReadCollection :: ~ VdbReadCollection () throw ()            
 {
+std::cout << "~ VdbReadCollection" << std::endl;    
     NGS_VDB_ReadCollectionRelease ( m_coll );
 }
 

@@ -204,17 +204,38 @@ public:
     {
         do
         {
+            if ( VdbSearch :: logResults )
+            {
+                cout << "m_startInBlob=" << m_startInBlob << endl;
+            }
+            
             uint64_t hitStart;
             uint64_t hitEnd;
             while ( m_searchBlock -> FirstMatch ( m_blobIt . Data () + m_startInBlob, m_blobIt . Size () - m_startInBlob, hitStart, hitEnd  ) )
             {
+                // convert to offsets from the strat of the blob
+                hitStart += m_startInBlob;
+                hitEnd += hitEnd;
+                
                 int64_t rowId;
                 uint64_t rowEnd;
-                m_blobIt . GetRowInfo ( m_startInBlob + hitStart, rowId, rowEnd );
-                if ( hitEnd < rowEnd || // inside a row, report and move to the next row
-                     m_searchBlock -> FirstMatch ( m_blobIt . Data () + m_startInBlob + hitStart, rowEnd - hitStart  ) ) // result crosses row boundary, retry within the row
+                m_blobIt . GetRowInfo ( hitStart, rowId, rowEnd );
+                if ( VdbSearch :: logResults )
                 {
-                    m_startInBlob = rowEnd;
+                    cout << "rowId=" << rowId << " rowEnd=" << rowEnd << endl;
+                }
+                if ( hitEnd < rowEnd || // inside a row, report and move to the next row
+                     m_searchBlock -> FirstMatch ( m_blobIt . Data () + hitStart, rowEnd - hitStart  ) ) // result crosses row boundary, retry within the row
+                {
+                    if ( VdbSearch :: logResults )
+                    {
+                        cout << "secondary startInBlob=" << hitStart << endl;
+                    }
+                    m_startInBlob = rowEnd; // search will resume with the next row
+                    if ( VdbSearch :: logResults )
+                    {
+                        cout << "updated startInBlob=" << m_startInBlob << endl;
+                    }
                     p_fragmentId = m_blobIt . RowIdToFragId ( rowId )/* . toString()*/;
                     return true;
                 }
@@ -236,7 +257,7 @@ private:
 //////////////////// VdbSearch
 
 bool VdbSearch :: logResults = false;
-bool VdbSearch :: useBlobSearch = false;
+bool VdbSearch :: useBlobSearch = true;
 
 void 
 VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )

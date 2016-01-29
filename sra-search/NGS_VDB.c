@@ -36,6 +36,7 @@
 #include <kfc/rsrc.h>
 
 #include <klib/printf.h>
+#include <klib/rc.h>
 
 #include <vdb/database.h>
 #include <vdb/cursor.h>
@@ -50,7 +51,6 @@ extern "C"
 
 struct NGS_VDB_ReadCollection {
     char*               name;
-    const VDatabase*    db;
     VCursor*            curs;    
     uint32_t            read_col_idx;    
 };
@@ -83,9 +83,47 @@ NGS_VDB_ReadCollectionMake ( const char * spec )
                 ret -> name = string_dup_measure ( spec, NULL );
                 if ( ret -> name != NULL )
                 {
-                    ret -> db = db;
                     ret -> curs = NULL;
-                    return ret;
+                    
+                    {   /* open cursor */
+                        VTable* tbl;
+                        rc_t rc = VDatabaseOpenTableRead ( db, (const VTable**)&tbl, "SEQUENCE" );
+                        if ( rc == 0 )
+                        {
+                            rc = VTableCreateCursorRead ( tbl, (const VCursor**)&ret->curs );
+                            if ( rc == 0 )
+                            {
+                                rc = VCursorAddColumn ( ret->curs, &ret->read_col_idx, "READ" );
+                                if ( rc == 0 )
+                                {
+                                    rc = VCursorOpen ( ret->curs );
+                                    if ( rc == 0 )
+                                    {
+                                        VTableRelease ( tbl );
+                                        VDatabaseRelease ( db );
+                                        return ret;
+                                    }
+                                    INTERNAL_ERROR ( xcUnexpected, "VCursorOpen() rc = %R", rc );            
+                                }
+                                else
+                                {
+                                    INTERNAL_ERROR ( xcUnexpected, "VCursorAddColumn() rc = %R", rc );            
+                                }
+                                VCursorRelease ( ret->curs );
+                                ret->curs = NULL;
+                            }
+                            else
+                            {
+                                INTERNAL_ERROR ( xcUnexpected, "VTableCreateCursorRead() rc = %R", rc );            
+                            }
+                            VTableRelease ( tbl );
+                        }
+                        else
+                        {
+                            INTERNAL_ERROR ( xcUnexpected, "VDatabaseOpenTableRead(SEQUENCE) rc = %R", rc );            
+                        }
+                    }
+                    free ( ret -> name );
                 }
                 SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection -> name ( '%s' )", spec );
                 free ( ret );
@@ -101,16 +139,46 @@ void
 NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollection * self )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
+    free ( self -> name );
     if ( self->curs != NULL )
     {
         VCursorRelease ( self->curs );
     }
-    if ( self->db != NULL )
-    {
-        VDatabaseRelease ( self->db );
-    }
-    free ( self -> name );
     free ( self );
+}
+
+static
+struct VBlob*
+NGS_VDB_ReadCollectionGetBlob ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_t p_rowId )
+{
+    FUNC_ENTRY ( ctx, rcSRA, rcDatabase, rcConstructing );
+    
+    VCursorCloseRow ( self->curs );
+    rc_t rc = VCursorSetRowId ( self->curs, p_rowId );
+    if ( rc == 0 )
+    {
+        rc = VCursorOpenRow ( self->curs );
+        if ( rc == 0 )
+        {
+            struct VBlob *ret = NULL;
+            rc = VCursorGetBlob ( self->curs, (const VBlob**)&ret, self->read_col_idx );
+            if ( rc == 0 || 
+                GetRCObject ( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
+            {
+                return ret;
+            }
+            INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
+        }                            
+        else
+        {
+            INTERNAL_ERROR ( xcUnexpected, "VCursorOpenRow() rc = %R", rc );            
+        }
+    }
+    else
+    {
+        INTERNAL_ERROR ( xcUnexpected, "VCursorSetRowId() rc = %R", rc );            
+    }
+    return NULL;
 }
 
 struct VBlob* 
@@ -118,72 +186,19 @@ NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob* p_
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     if ( p_blob == NULL )
-    {   /* open cursor, retrieve the first blob */
-        VTable* tbl;
-        rc_t rc = VDatabaseOpenTableRead ( self->db, (const VTable**)&tbl, "SEQUENCE" );
-        if ( rc == 0 )
+    {
+        return NGS_VDB_ReadCollectionGetBlob ( ctx, self, 1 );
+    }
+    else
+    {
+        int64_t first;
+        uint64_t count;
+        rc_t rc = VBlobIdRange ( p_blob, &first, &count );
+        if ( rc == 0  )
         {
-            rc = VTableCreateCursorRead ( tbl, (const VCursor**)&self->curs );
-            if ( rc == 0 )
-            {
-                rc = VCursorAddColumn ( self->curs, &self->read_col_idx, "READ" );
-                if ( rc == 0 )
-                {
-                    rc = VCursorOpen ( self->curs );
-                    if ( rc == 0 )
-                    {
-                        rc = VCursorSetRowId ( self->curs, 1 );
-                        if ( rc == 0 )
-                        {
-                            rc = VCursorOpenRow ( self->curs );
-                            if ( rc == 0 )
-                            {
-                                struct VBlob *blob;
-                                rc = VCursorGetBlob ( self->curs, (const VBlob**)&blob, self->read_col_idx );
-                                if ( rc == 0 )
-                                {
-                                    VTableRelease ( tbl );
-                                    return blob;
-                                }
-                                else
-                                {
-                                    INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
-                                }
-                            }                            
-                            else
-                            {
-                                INTERNAL_ERROR ( xcUnexpected, "VCursorOpenRow() rc = %R", rc );            
-                            }
-                        }
-                        else
-                        {
-                            INTERNAL_ERROR ( xcUnexpected, "VCursorSetRowId() rc = %R", rc );            
-                        }
-                    }
-                    else
-                    {
-                        INTERNAL_ERROR ( xcUnexpected, "VCursorOpen() rc = %R", rc );            
-                    }
-                }
-                else
-                {
-                    INTERNAL_ERROR ( xcUnexpected, "VCursorAddColumn() rc = %R", rc );            
-                }
-                VCursorRelease ( self->curs );
-                self->curs = NULL;
-            }
-            else
-            {
-                INTERNAL_ERROR ( xcUnexpected, "VTableCreateCursorRead() rc = %R", rc );            
-            }
-            
-            VTableRelease ( tbl );
+            return NGS_VDB_ReadCollectionGetBlob ( ctx, self, first + count );
         }
-        else
-        {
-            INTERNAL_ERROR ( xcUnexpected, "VDatabaseOpenTableRead(SEQUENCE) rc = %R", rc );            
-        }
-        
+        INTERNAL_ERROR ( xcUnexpected, "VBlobIdRange() rc = %R", rc );            
     }
     return NULL;    
 }
@@ -215,7 +230,6 @@ void
 NGS_VDB_BlobRowInfo ( struct VBlob* p_blob,  uint64_t p_offset, int64_t* p_rowId, uint64_t* p_nextRowStart )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
-    
     *p_rowId = 0;
     *p_nextRowStart = 0;
     
@@ -224,8 +238,9 @@ NGS_VDB_BlobRowInfo ( struct VBlob* p_blob,  uint64_t p_offset, int64_t* p_rowId
     rc_t rc = VBlobIdRange ( p_blob, &first, &count );
     if ( rc == 0  )
     {
+    
         PageMapIterator pmIt;
-        rc = PageMapNewIterator ( (const PageMap*)p_blob->pm, &pmIt, 0,count );
+        rc = PageMapNewIterator ( (const PageMap*)p_blob->pm, &pmIt, 0, count );
         if ( rc == 0 )
         {
             row_count_t rowInBlob = 0;

@@ -32,6 +32,7 @@
 struct Fgrep;
 struct Agrep;
 union NucStrstr;
+struct SmithWaterman;
 
 //////////////////// VdbSearch :: SearchBlock subclasses
 
@@ -85,15 +86,14 @@ public:
     SmithWatermanSearch ( const std::string& p_query, uint8_t p_minScorePct );
     virtual ~SmithWatermanSearch ();
     
-    virtual bool FirstMatch ( const char* p_bases, uint64_t p_size ) throw ( ngs :: ErrorMsg );  
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );  
 
 private:
-    const char*     m_query;
-    size_t          m_querySize;
-    int*            m_matrix;
-    size_t          m_matrixSize;
-    uint8_t         m_minScorePct;
+    const char*             m_query;
+    size_t                  m_querySize;
+    size_t                  m_matrixSize;
+    uint8_t                 m_minScorePct;
+    struct SmithWaterman*   m_sw;
 };
 
 #endif
