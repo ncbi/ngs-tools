@@ -48,7 +48,7 @@ namespace ngs
                 throw ();
             
             // row map lookup
-            void GetRowInfo ( uint64_t offset, int64_t& rowId, uint64_t& nextRowStart )
+            void GetRowInfo ( uint64_t offset, int64_t& rowId, uint64_t& nextRowStart ) const
                 throw ( ErrorMsg );
                 
             //StringRef RowIdToFragId ( int64_t rowId ) //TODO: return StringRef

@@ -38,10 +38,17 @@
 #include <klib/printf.h>
 #include <klib/rc.h>
 
+#include <kfg/kfg-priv.h>
+#include <kfg/repository.h>
+
 #include <vdb/database.h>
 #include <vdb/cursor.h>
 #include <vdb/table.h>
 #include <vdb/blob.h>
+
+#include <sra/sraschema.h>
+
+#include <stdio.h>
 
 extern "C"
 {
@@ -55,6 +62,84 @@ struct NGS_VDB_ReadCollection {
     uint32_t            read_col_idx;    
 };
 
+static 
+VTable*
+GetTable ( ctx_t ctx, const char * spec )
+{
+    FUNC_ENTRY ( ctx, rcSRA, rcDatabase, rcConstructing );
+    
+    rc_t rc;
+    const VDatabase *db;
+    VTable* ret;
+
+    const VDBManager * mgr = ctx -> rsrc -> vdb;
+    assert ( mgr != NULL );
+
+    /* try as VDB database */
+    rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", spec );
+    if ( rc == 0 )
+    {
+        rc_t rc = VDatabaseOpenTableRead ( db, (const VTable**)&ret, "SEQUENCE" );
+        if ( rc == 0 )
+        {
+            VDatabaseRelease ( db );
+            return ret;
+        }
+        INTERNAL_ERROR ( xcUnimplemented, "Cannot open accession '%s' as an SRA database.", spec );
+    }
+    else 
+    {   /* try as VDB table */
+        VSchema *sra_schema;
+        rc = VDBManagerMakeSRASchema ( mgr, & sra_schema );
+        if ( rc != 0 )
+            INTERNAL_ERROR ( xcUnexpected, "failed to make default SRA schema: rc = %R", rc );
+        else
+        {
+            rc = VDBManagerOpenTableRead ( mgr, (const VTable**)&ret, sra_schema, "%s", spec );
+            VSchemaRelease ( sra_schema );
+
+            if ( rc == 0 )
+            {   /* VDB-2641: examine the schema name to make sure this is an SRA table */
+                char ts_buff[1024];
+                rc = VTableTypespec ( ret, ts_buff, sizeof ( ts_buff ) );
+                if ( rc != 0 )
+                {
+                    INTERNAL_ERROR ( xcUnexpected, "VTableTypespec failed: rc = %R", rc );
+                }
+                else
+                {
+                    const char SRA_PREFIX[] = "NCBI:SRA:";
+                    size_t pref_size = sizeof ( SRA_PREFIX ) - 1;
+                    if ( string_match ( SRA_PREFIX, pref_size, ts_buff, string_size ( ts_buff ), pref_size, NULL ) == pref_size )
+                    {
+                        return ret;
+                    }
+                    INTERNAL_ERROR ( xcUnimplemented, "Cannot open accession '%s' as an SRA table.", spec );
+                }
+                VTableRelease ( ret );
+            }
+            else
+            {
+                KConfig* kfg = NULL;
+                const KRepositoryMgr* repoMgr = NULL;
+                if ( KConfigMakeLocal ( & kfg, NULL ) != 0 || 
+                        KConfigMakeRepositoryMgrRead ( kfg, & repoMgr ) != 0 ||
+                        KRepositoryMgrHasRemoteAccess ( repoMgr ) )
+                {
+                    INTERNAL_ERROR ( xcUnimplemented, "Cannot open accession '%s'.", spec );
+                }
+                else
+                {
+                    INTERNAL_ERROR ( xcUnimplemented, "Cannot open accession '%s'. Note: remote access is disabled in the configuration.", spec );
+                }
+                KRepositoryMgrRelease ( repoMgr );
+                KConfigRelease ( kfg );
+            }
+        }
+    }
+    return NULL;
+} 
+
 NGS_VDB_ReadCollection * 
 NGS_VDB_ReadCollectionMake ( const char * spec )
 {
@@ -67,69 +152,53 @@ NGS_VDB_ReadCollectionMake ( const char * spec )
     else
     {
         rc_t rc;
-        const VDatabase *db;
-
-        /* the first order of work is to determine what type of object is in "spec" */
-        const VDBManager * mgr = ctx -> rsrc -> vdb;
-        assert ( mgr != NULL );
-
-        /* try as VDB database */
-        rc = VDBManagerOpenDBRead ( mgr, & db, NULL, "%s", spec );
-        if ( rc == 0 ) 
-        {   // WGS
-            NGS_VDB_ReadCollection * ret = (NGS_VDB_ReadCollection *) malloc ( sizeof ( NGS_VDB_ReadCollection ) );
-            if ( ret != NULL )
+        TRY ( VTable* tbl = GetTable ( ctx, spec ) )
+        {   /* open cursor */
+            VCursor* curs;
+            rc = VTableCreateCursorRead ( tbl, (const VCursor**) & curs );
+            VTableRelease ( tbl );
+            if ( rc == 0 )
             {
-                ret -> name = string_dup_measure ( spec, NULL );
-                if ( ret -> name != NULL )
+                uint32_t read_col_idx;
+                rc = VCursorAddColumn ( curs, &read_col_idx, "READ" );
+                if ( rc == 0 )
                 {
-                    ret -> curs = NULL;
-                    
-                    {   /* open cursor */
-                        VTable* tbl;
-                        rc_t rc = VDatabaseOpenTableRead ( db, (const VTable**)&tbl, "SEQUENCE" );
-                        if ( rc == 0 )
+                    rc = VCursorOpen ( curs );
+                    if ( rc == 0 )
+                    {
+                        NGS_VDB_ReadCollection * ret = (NGS_VDB_ReadCollection *) malloc ( sizeof ( NGS_VDB_ReadCollection ) );
+                        if ( ret != NULL )
                         {
-                            rc = VTableCreateCursorRead ( tbl, (const VCursor**)&ret->curs );
-                            if ( rc == 0 )
+                            ret -> name = string_dup_measure ( spec, NULL );
+                            if ( ret -> name != NULL )
                             {
-                                rc = VCursorAddColumn ( ret->curs, &ret->read_col_idx, "READ" );
-                                if ( rc == 0 )
-                                {
-                                    rc = VCursorOpen ( ret->curs );
-                                    if ( rc == 0 )
-                                    {
-                                        VTableRelease ( tbl );
-                                        VDatabaseRelease ( db );
-                                        return ret;
-                                    }
-                                    INTERNAL_ERROR ( xcUnexpected, "VCursorOpen() rc = %R", rc );            
-                                }
-                                else
-                                {
-                                    INTERNAL_ERROR ( xcUnexpected, "VCursorAddColumn() rc = %R", rc );            
-                                }
-                                VCursorRelease ( ret->curs );
-                                ret->curs = NULL;
+                                ret -> curs = curs;
+                                ret -> read_col_idx = read_col_idx; 
+                                return ret;
                             }
-                            else
-                            {
-                                INTERNAL_ERROR ( xcUnexpected, "VTableCreateCursorRead() rc = %R", rc );            
-                            }
-                            VTableRelease ( tbl );
+                            SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection -> name ( '%s' )", spec );
+                            free ( ret );
                         }
                         else
                         {
-                            INTERNAL_ERROR ( xcUnexpected, "VDatabaseOpenTableRead(SEQUENCE) rc = %R", rc );            
+                            SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection ( '%s' )", spec );
                         }
                     }
-                    free ( ret -> name );
+                    else
+                    {
+                        INTERNAL_ERROR ( xcUnexpected, "VCursorOpen() rc = %R", rc );            
+                    }
                 }
-                SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection -> name ( '%s' )", spec );
-                free ( ret );
+                else
+                {
+                    INTERNAL_ERROR ( xcUnexpected, "VCursorAddColumn() rc = %R", rc );            
+                }
+                VCursorRelease ( curs );
             }
-            VDatabaseRelease ( db );
-            SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection ( '%s' )", spec );
+            else
+            {
+                INTERNAL_ERROR ( xcUnexpected, "VTableCreateCursorRead() rc = %R", rc );            
+            }
         }
     }
     return NULL;
@@ -213,21 +282,21 @@ NGS_VDB_ReadCollectionRowIdToFragmentId ( NGS_VDB_ReadCollection * self, int64_t
 
 
 const void*     
-NGS_VDB_BlobData ( struct VBlob* p_blob )
+NGS_VDB_BlobData ( const struct VBlob* p_blob )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     return p_blob->data.base;
 }
 
 uint64_t        
-NGS_VDB_BlobSize ( struct VBlob* p_blob )
+NGS_VDB_BlobSize ( const struct VBlob* p_blob )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     return KDataBufferBytes ( &p_blob->data );
 }
 
 void            
-NGS_VDB_BlobRowInfo ( struct VBlob* p_blob,  uint64_t p_offset, int64_t* p_rowId, uint64_t* p_nextRowStart )
+NGS_VDB_BlobRowInfo ( const struct VBlob* p_blob,  uint64_t p_offset, int64_t* p_rowId, uint64_t* p_nextRowStart )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     *p_rowId = 0;

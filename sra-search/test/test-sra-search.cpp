@@ -218,7 +218,7 @@ FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.3" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR1.3" ), NextFragmentId () );
 }
-#if 0
+
 FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture )
 {
     const string Accession = "ALWZ01";
@@ -627,6 +627,25 @@ FIXTURE_TEST_CASE ( BlobSearch_FgrepDumb, VdbBlobFixture )
 
 using namespace ngs::vdb;
 
+static
+bool VerifyRowInfo ( const FragmentBlob& p_blob, uint64_t p_offset, int64_t p_rowId,  uint64_t p_nextRowStart )
+{
+    int64_t rowId = 0;
+    uint64_t nextRowStart = 0;
+    p_blob . GetRowInfo ( p_offset, rowId, nextRowStart );
+    if ( p_rowId != rowId )
+    {
+        cout << "rowId expected = " << p_rowId << ", actual = " << rowId << endl;
+        return false;
+    }
+    if ( p_nextRowStart != nextRowStart )
+    {
+        cout << "nextRowStart expected = " << p_nextRowStart << ", actual = " << nextRowStart << endl;
+        return false;
+    }
+    return true;
+}
+
 TEST_CASE ( VdbReadCollection_WGS_Construct )
 {
     VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "ALWZ01" );
@@ -642,27 +661,73 @@ TEST_CASE ( VdbReadCollection_WGS_RowInfo )
     VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "ALWZ01" );
     FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
     REQUIRE ( fragIt . nextBlob () );
-    
-    uint64_t offset = 0;
-    int64_t rowId = 0;
-    uint64_t nextRowStart = 0;
-    fragIt . GetRowInfo ( offset, rowId, nextRowStart );
-    REQUIRE_EQ ( (int64_t)1, rowId );
-    REQUIRE_EQ ( (uint64_t)227, nextRowStart );
-    
-    offset = nextRowStart - 1;
-    fragIt . GetRowInfo ( offset, rowId, nextRowStart );
-    REQUIRE_EQ ( (int64_t)1, rowId );
-    REQUIRE_EQ ( (uint64_t)227, nextRowStart );
-    
-    offset = nextRowStart;
-    fragIt . GetRowInfo ( offset, rowId, nextRowStart );
-    REQUIRE_EQ ( (int64_t)2, rowId );
-    REQUIRE_EQ ( (uint64_t)227+245, nextRowStart );
+    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 227 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 226, 1, 227 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 227, 2, 227+245 ) );
 }    
 
+TEST_CASE ( VdbReadCollection_SRAtable_Construct )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR000123" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE_EQ ( (size_t)858, fragIt . Size () );
+    const string BeginsWith = "TCAGTTTCG"; 
+    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+}
+
+TEST_CASE ( VdbReadCollection_SRAtable_RowInfo )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR000123" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 157 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 156, 1, 157 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 157, 2, 157+280 ) );
+}
+
+TEST_CASE ( VdbReadCollection_SRAdatabase_Construct )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR600096" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE_EQ ( (size_t)5600, fragIt . Size () );
+    const string BeginsWith = "TACGGAGGGGGCTA"; 
+    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+}
+
+TEST_CASE ( VdbReadCollection_SRAdatabase_RowInfo )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR600096" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 350 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 349, 1, 350 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 350, 2, 350+350 ) );
+}
+
+TEST_CASE ( VdbReadCollection_CSRA1_Construct )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR1063272" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE_EQ ( (size_t)808, fragIt . Size () );
+    const string BeginsWith = "ACTCGACATTCTGCC"; 
+    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+}
+
+TEST_CASE ( VdbReadCollection_CSRA1_RowInfo )
+{
+    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR1063272" );
+    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
+    REQUIRE ( fragIt . nextBlob () );
+    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 202 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 201, 1, 202 ) );
+    REQUIRE ( VerifyRowInfo ( fragIt, 202, 2, 202+202 ) );
+}
+
 //TODO: accessing blob without a call to nextBlob()
-#endif
+
 int
 main( int argc, char *argv [] )
 {

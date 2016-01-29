@@ -89,6 +89,8 @@ test-cmdline:
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run              --rc 1 --args AGCT
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 2.2-missing-algorithm   --rc 1 --args "AGCT SRR000001 -a"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 2.3-bad-algorithm       --rc 1 --args "--algorithm bad AGCT SRR000001"
+	@ # single run
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01"
 	@ # query expressions
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression 	--args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm FgrepDumb --expression  SRR000001" --rc 1 
 	@ # imperfect match
@@ -111,7 +113,6 @@ slowtest-cmdline:
 	@ echo "Slow-Testing $(BINDIR)/sra-search"
 	@ # single run
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         --args "AGCTAGCTAGCT -a FgrepDumb SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001"
@@ -139,6 +140,6 @@ slowtest-cmdline:
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS        --args "AGCTAGCTA ALAI01"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01 --blobs"
     
 .PHONY: test-wb test-cmdline onetest

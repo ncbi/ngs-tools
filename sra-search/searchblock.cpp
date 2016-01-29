@@ -266,7 +266,7 @@ SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t
         p_hitEnd = p_hitStart + matchinfo . length;
         return true;        
     }
-    else if ( GetRCObject ( rc ) == rcQuery && GetRCState ( rc ) == rcNotFound )
+    else if ( GetRCObject ( rc ) == (RCObject)rcQuery  && GetRCState ( rc ) == rcNotFound )
     {
         return false;
     }

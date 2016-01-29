@@ -75,7 +75,7 @@ FragmentBlob :: Size() const throw ()
 }
 
 void 
-FragmentBlob :: GetRowInfo ( uint64_t p_offset, int64_t& p_rowId, uint64_t& p_nextRowStart ) throw ( ErrorMsg )
+FragmentBlob :: GetRowInfo ( uint64_t p_offset, int64_t& p_rowId, uint64_t& p_nextRowStart ) const throw ( ErrorMsg )
 {
     if ( m_self == 0 ) 
     {
@@ -147,14 +147,16 @@ VdbReadCollection :: VdbReadCollection ( ReadCollectionRef ref ) throw ()
 }
 
 VdbReadCollection :: VdbReadCollection ( const String & spec ) throw ()
-: m_coll ( 0 )
+: m_coll ( NGS_VDB_ReadCollectionMake ( spec.c_str() ) )
 {
-    m_coll = NGS_VDB_ReadCollectionMake ( spec.c_str() );
+    if ( m_coll == 0 )
+    {
+        throw ( ErrorMsg ( " VdbReadCollection :: NGS_VDB_ReadCollectionMake failed " ) );
+    }
 }
-#include <iostream>
+
 VdbReadCollection :: ~ VdbReadCollection () throw ()            
 {
-std::cout << "~ VdbReadCollection" << std::endl;    
     NGS_VDB_ReadCollectionRelease ( m_coll );
 }
 

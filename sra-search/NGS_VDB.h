@@ -43,9 +43,9 @@ void                        NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollecti
 struct VBlob*               NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob* );
 const char*                 NGS_VDB_ReadCollectionRowIdToFragmentId ( NGS_VDB_ReadCollection * self, int64_t rowId );
 
-const void*     NGS_VDB_BlobData ( struct VBlob* );
-uint64_t        NGS_VDB_BlobSize ( struct VBlob* );
-void            NGS_VDB_BlobRowInfo ( struct VBlob*,  uint64_t offset, int64_t* rowId, uint64_t* nextRowStart );
+const void*     NGS_VDB_BlobData ( const struct VBlob* );
+uint64_t        NGS_VDB_BlobSize ( const struct VBlob* );
+void            NGS_VDB_BlobRowInfo ( const struct VBlob*,  uint64_t offset, int64_t* rowId, uint64_t* nextRowStart );
 void            NGS_VDB_BlobRelease ( struct VBlob* );
 
 #ifdef __cplusplus

@@ -173,6 +173,10 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
             }
+            else if ( arg == "--blobs" ) // for testing (search in fragments vs blobs); undocumented for now
+            {
+                VdbSearch :: useBlobSearch = true;
+            }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );

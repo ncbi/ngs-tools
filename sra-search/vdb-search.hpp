@@ -107,7 +107,7 @@ private:
     {
     public:
         MatchIterator ( SearchBlock*, const std::string& accession );
-        ~MatchIterator ();
+        virtual ~MatchIterator ();
         
         virtual bool NextMatch ( std::string& fragmentId ) = 0;
         

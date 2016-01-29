@@ -157,7 +157,7 @@ public:
     {
         m_readIt . nextRead ();
     }
-    ~FragmentMatchIterator ()
+    virtual ~FragmentMatchIterator ()
     {
     }
     
@@ -196,7 +196,7 @@ public:
     {
         m_blobIt . nextBlob ();        
     }
-    ~BlobMatchIterator ()
+    virtual ~BlobMatchIterator ()
     {
     }
     
@@ -213,6 +213,11 @@ public:
             uint64_t hitEnd;
             while ( m_searchBlock -> FirstMatch ( m_blobIt . Data () + m_startInBlob, m_blobIt . Size () - m_startInBlob, hitStart, hitEnd  ) )
             {
+                if ( VdbSearch :: logResults )
+                {
+                    cout << "hitStart=" << hitStart << " hitEnd=" << hitEnd << endl;
+                }
+                
                 // convert to offsets from the strat of the blob
                 hitStart += m_startInBlob;
                 hitEnd += hitEnd;
@@ -257,7 +262,7 @@ private:
 //////////////////// VdbSearch
 
 bool VdbSearch :: logResults = false;
-bool VdbSearch :: useBlobSearch = true;
+bool VdbSearch :: useBlobSearch = false;
 
 void 
 VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )
