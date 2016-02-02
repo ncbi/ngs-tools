@@ -341,7 +341,7 @@ struct {
     VdbSearch :: Algorithm value;
 } Algorithms[] = {
 #define ALG(n) { #n, VdbSearch :: n }
-    ALG ( FgrepDumb ),
+    { "FgrepStandard", VdbSearch :: FgrepDumb },
     ALG ( FgrepBoyerMoore ),
     ALG ( FgrepAho ),
     ALG ( AgrepDP ),
