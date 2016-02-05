@@ -29,6 +29,8 @@
 
 #include <ngs/ReadCollection.hpp>
 
+#include <string>
+
 struct NGS_VDB_ReadCollection;
 struct VBlob;
 
@@ -47,17 +49,9 @@ namespace ngs
             uint64_t Size() const
                 throw ();
             
-            // row map lookup
-            void GetRowInfo ( uint64_t offset, int64_t& rowId, uint64_t& nextRowStart ) const
+            void GetFragmentInfo ( uint64_t offset, std::string& p_fragId, uint64_t& p_nextFragStart, bool& biological ) const
                 throw ( ErrorMsg );
                 
-            //StringRef RowIdToFragId ( int64_t rowId ) //TODO: return StringRef
-            std::string RowIdToFragId ( int64_t rowId )
-                throw ( ErrorMsg );        
-            
-            //TODO:
-            // RowIdRange etc.    
-        
         public:
 
             // C++ support

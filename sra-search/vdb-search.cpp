@@ -222,30 +222,33 @@ public:
                 hitStart += m_startInBlob;
                 hitEnd += hitEnd;
                 
-                int64_t rowId;
-                uint64_t rowEnd;
-                m_blobIt . GetRowInfo ( hitStart, rowId, rowEnd );
+                uint64_t fragEnd;
+                bool biological;
+                m_blobIt . GetFragmentInfo ( hitStart, p_fragmentId, fragEnd, biological );
                 if ( VdbSearch :: logResults )
                 {
-                    cout << "rowId=" << rowId << " rowEnd=" << rowEnd << endl;
+                    cout << "fragId=" << p_fragmentId << " fragEnd=" << fragEnd << " biological=" << ( biological ? "true" : "false" ) << endl;
                 }
-                if ( hitEnd < rowEnd || // inside a row, report and move to the next row
-                     m_searchBlock -> FirstMatch ( m_blobIt . Data () + hitStart, rowEnd - hitStart  ) ) // result crosses row boundary, retry within the row
+                // TODO: if not biological, resume search from fragEnd
+                if ( biological )
                 {
-                    if ( VdbSearch :: logResults )
+                    if ( hitEnd < fragEnd || // inside a fragment, report and move to the next fragment
+                        m_searchBlock -> FirstMatch ( m_blobIt . Data () + hitStart, fragEnd - hitStart  ) ) // result crosses fragment boundary, retry within the fragment
                     {
-                        cout << "secondary startInBlob=" << hitStart << endl;
+                        if ( VdbSearch :: logResults )
+                        {
+                            cout << "secondary startInBlob=" << hitStart << endl;
+                        }
+                        m_startInBlob = fragEnd; // search will resume with the next fragment
+                        if ( VdbSearch :: logResults )
+                        {
+                            cout << "updated startInBlob=" << m_startInBlob << endl;
+                        }
+                        return true;
                     }
-                    m_startInBlob = rowEnd; // search will resume with the next row
-                    if ( VdbSearch :: logResults )
-                    {
-                        cout << "updated startInBlob=" << m_startInBlob << endl;
-                    }
-                    p_fragmentId = m_blobIt . RowIdToFragId ( rowId )/* . toString()*/;
-                    return true;
                 }
-                // false hit, move on to the next row
-                m_startInBlob = rowEnd;
+                // false hit, move on to the next fragment
+                m_startInBlob = fragEnd;
             }
             m_startInBlob = 0;
         }

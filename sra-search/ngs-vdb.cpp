@@ -26,8 +26,11 @@
 
 #include "ngs-vdb.hpp"
 
+#include <ngs/itf/ErrBlock.hpp>
+
 using namespace ngs;
 using namespace ngs::vdb;
+using namespace std;
 
 #include "NGS_VDB.h"
 
@@ -75,21 +78,19 @@ FragmentBlob :: Size() const throw ()
 }
 
 void 
-FragmentBlob :: GetRowInfo ( uint64_t p_offset, int64_t& p_rowId, uint64_t& p_nextRowStart ) const throw ( ErrorMsg )
+FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string& p_fragId, uint64_t& p_nextFragStart, bool& p_biological ) const throw ( ErrorMsg )
 {
     if ( m_self == 0 ) 
     {
         throw ( ErrorMsg ( " FragmentBlob :: GetRowInfo(NULL) " ) );
     }
-    NGS_VDB_BlobRowInfo ( m_self, p_offset, &p_rowId, &p_nextRowStart );
+    const char* fragId;
+    ErrBlock err;
+    NGS_VDB_BlobRowInfo ( m_coll, m_self, p_offset, &fragId, &p_nextFragStart, &p_biological, & err );
+    err . Check ();
+    p_fragId = fragId ? string ( fragId ) : string ();
 }
     
-std::string 
-FragmentBlob :: RowIdToFragId ( int64_t p_rowId ) throw ( ErrorMsg )
-{
-    return std::string ( NGS_VDB_ReadCollectionRowIdToFragmentId ( m_coll, p_rowId ) );
-}        
-
 FragmentBlob :: FragmentBlob ( struct NGS_VDB_ReadCollection* p_coll )
 :   m_self ( 0 ),
     m_coll ( p_coll )
@@ -123,7 +124,9 @@ FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) throw ( 
 bool 
 FragmentBlobIterator :: nextBlob () throw ( ErrorMsg )
 {
-    struct VBlob* next = NGS_VDB_ReadCollectionNextBlob ( m_coll, m_self );
+    ErrBlock err;
+    struct VBlob* next = NGS_VDB_ReadCollectionNextBlob ( m_coll, m_self, &err );
+    err . Check ();
     NGS_VDB_BlobRelease ( m_self );
     m_self = next; 
     return m_self != 0;
@@ -147,17 +150,16 @@ VdbReadCollection :: VdbReadCollection ( ReadCollectionRef ref ) throw ()
 }
 
 VdbReadCollection :: VdbReadCollection ( const String & spec ) throw ()
-: m_coll ( NGS_VDB_ReadCollectionMake ( spec.c_str() ) )
 {
-    if ( m_coll == 0 )
-    {
-        throw ( ErrorMsg ( " VdbReadCollection :: NGS_VDB_ReadCollectionMake failed " ) );
-    }
+    ErrBlock err;
+    m_coll = NGS_VDB_ReadCollectionMake ( spec.c_str(), & err );
+    err . Check ();
 }
 
 VdbReadCollection :: ~ VdbReadCollection () throw ()            
 {
-    NGS_VDB_ReadCollectionRelease ( m_coll );
+    ErrBlock err;
+    NGS_VDB_ReadCollectionRelease ( m_coll, & err );
 }
 
 VdbReadCollection & 

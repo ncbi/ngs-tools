@@ -54,12 +54,19 @@ extern "C"
 {
     #include <../libs/vdb/blob-priv.h>
     #include <../libs/vdb/page-map.h>
+    
+    #include <../libs/ngs/NGS_Id.h>
+    #include <../libs/ngs/NGS_String.h>
+    #include <../libs/ngs/NGS_Cursor.h>
+    #include <../libs/ngs/NGS_ErrBlock.h>
+    
+    #include <../libs/ngs/SRA_Read.h>
 }
 
 struct NGS_VDB_ReadCollection {
-    char*               name;
-    VCursor*            curs;    
-    uint32_t            read_col_idx;    
+    NGS_String*         name;
+    const NGS_Cursor*   curs;    
+    NGS_String*         last_frag_id;
 };
 
 static 
@@ -141,7 +148,7 @@ GetTable ( ctx_t ctx, const char * spec )
 } 
 
 NGS_VDB_ReadCollection * 
-NGS_VDB_ReadCollectionMake ( const char * spec )
+NGS_VDB_ReadCollectionMake ( const char * spec, NGS_VDB_ErrBlock * err  )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
 
@@ -151,69 +158,49 @@ NGS_VDB_ReadCollectionMake ( const char * spec )
         USER_ERROR ( xcStringEmpty, "empty read-collection specification string" );
     else
     {
-        rc_t rc;
         TRY ( VTable* tbl = GetTable ( ctx, spec ) )
         {   /* open cursor */
-            VCursor* curs;
-            rc = VTableCreateCursorRead ( tbl, (const VCursor**) & curs );
-            VTableRelease ( tbl );
-            if ( rc == 0 )
+            TRY ( const NGS_Cursor* curs = NGS_CursorMake ( ctx, tbl, sequence_col_specs, seq_NUM_COLS ) )
             {
-                uint32_t read_col_idx;
-                rc = VCursorAddColumn ( curs, &read_col_idx, "READ" );
-                if ( rc == 0 )
+                VTableRelease ( tbl );
+                NGS_VDB_ReadCollection * ret = (NGS_VDB_ReadCollection *) malloc ( sizeof ( NGS_VDB_ReadCollection ) );
+                if ( ret != NULL )
                 {
-                    rc = VCursorOpen ( curs );
-                    if ( rc == 0 )
+                    ret -> name = NGS_StringMakeCopy ( ctx, spec, string_size ( spec ) );
+                    if ( ret -> name != NULL )
                     {
-                        NGS_VDB_ReadCollection * ret = (NGS_VDB_ReadCollection *) malloc ( sizeof ( NGS_VDB_ReadCollection ) );
-                        if ( ret != NULL )
-                        {
-                            ret -> name = string_dup_measure ( spec, NULL );
-                            if ( ret -> name != NULL )
-                            {
-                                ret -> curs = curs;
-                                ret -> read_col_idx = read_col_idx; 
-                                return ret;
-                            }
-                            SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection -> name ( '%s' )", spec );
-                            free ( ret );
-                        }
-                        else
-                        {
-                            SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection ( '%s' )", spec );
-                        }
+                        ret -> curs = curs;
+                        ret -> last_frag_id = NULL;
+                        return ret;
                     }
-                    else
-                    {
-                        INTERNAL_ERROR ( xcUnexpected, "VCursorOpen() rc = %R", rc );            
-                    }
+                    SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection -> name ( '%s' )", spec );
+                    free ( ret );
                 }
                 else
                 {
-                    INTERNAL_ERROR ( xcUnexpected, "VCursorAddColumn() rc = %R", rc );            
+                    SYSTEM_ERROR ( xcNoMemory, "allocating NGS_VDB_ReadCollection ( '%s' )", spec );
                 }
-                VCursorRelease ( curs );
+                NGS_CursorRelease ( curs, ctx );
             }
-            else
-            {
-                INTERNAL_ERROR ( xcUnexpected, "VTableCreateCursorRead() rc = %R", rc );            
-            }
+            VTableRelease ( tbl );
         }
     }
+    NGS_ErrBlockThrow ( err, ctx );
     return NULL;
 }
 
 void 
-NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollection * self )
+NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollection * self, NGS_VDB_ErrBlock * err  )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
-    free ( self -> name );
-    if ( self->curs != NULL )
+    if ( self -> last_frag_id != NULL )
     {
-        VCursorRelease ( self->curs );
+        NGS_StringRelease ( self -> last_frag_id, ctx );
     }
+    NGS_StringRelease ( self -> name, ctx );
+    NGS_CursorRelease ( self -> curs, ctx );
     free ( self );
+    NGS_ErrBlockThrow ( err, ctx );
 }
 
 static
@@ -222,41 +209,44 @@ NGS_VDB_ReadCollectionGetBlob ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_
 {
     FUNC_ENTRY ( ctx, rcSRA, rcDatabase, rcConstructing );
     
-    VCursorCloseRow ( self->curs );
-    rc_t rc = VCursorSetRowId ( self->curs, p_rowId );
-    if ( rc == 0 )
+    TRY ( const struct VCursor* vcurs = NGS_CursorGetVCursor ( self -> curs ) )
     {
-        rc = VCursorOpenRow ( self->curs );
+        rc_t rc = VCursorSetRowId ( vcurs, p_rowId );
         if ( rc == 0 )
         {
-            struct VBlob *ret = NULL;
-            rc = VCursorGetBlob ( self->curs, (const VBlob**)&ret, self->read_col_idx );
-            if ( rc == 0 || 
-                GetRCObject ( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
+            rc = VCursorOpenRow ( vcurs );
+            if ( rc == 0 )
             {
-                return ret;
+                struct VBlob *ret = NULL;
+                rc = VCursorGetBlob ( vcurs, (const VBlob**)&ret, NGS_CursorGetColumnIndex ( self -> curs, ctx, seq_READ ) );
+                if ( rc == 0 || 
+                    GetRCObject ( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
+                {
+                    return ret;
+                }
+                INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
+            }                            
+            else
+            {
+                INTERNAL_ERROR ( xcUnexpected, "VCursorOpenRow() rc = %R", rc );            
             }
-            INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
-        }                            
+        }
         else
         {
-            INTERNAL_ERROR ( xcUnexpected, "VCursorOpenRow() rc = %R", rc );            
+            INTERNAL_ERROR ( xcUnexpected, "VCursorSetRowId() rc = %R", rc );            
         }
-    }
-    else
-    {
-        INTERNAL_ERROR ( xcUnexpected, "VCursorSetRowId() rc = %R", rc );            
     }
     return NULL;
 }
 
 struct VBlob* 
-NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob* p_blob )
+NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob* p_blob, NGS_VDB_ErrBlock * err )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
+    struct VBlob* ret = NULL;
     if ( p_blob == NULL )
     {
-        return NGS_VDB_ReadCollectionGetBlob ( ctx, self, 1 );
+        ret = NGS_VDB_ReadCollectionGetBlob ( ctx, self, 1 );
     }
     else
     {
@@ -265,43 +255,132 @@ NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob* p_
         rc_t rc = VBlobIdRange ( p_blob, &first, &count );
         if ( rc == 0  )
         {
-            return NGS_VDB_ReadCollectionGetBlob ( ctx, self, first + count );
+            ret = NGS_VDB_ReadCollectionGetBlob ( ctx, self, first + count );
         }
-        INTERNAL_ERROR ( xcUnexpected, "VBlobIdRange() rc = %R", rc );            
+        else
+        {
+            INTERNAL_ERROR ( xcUnexpected, "VBlobIdRange() rc = %R", rc );            
+        }
     }
-    return NULL;    
+    NGS_ErrBlockThrow ( err, ctx );
+    return ret;    
 }
-
-const char*
-NGS_VDB_ReadCollectionRowIdToFragmentId ( NGS_VDB_ReadCollection * self, int64_t rowId )
-{   // WGS only for now
-    static char buf[1024]; 
-    string_printf ( buf, sizeof ( buf ), NULL, "%s.FR0.%li", self -> name, rowId );
-    return buf;
-}
-
 
 const void*     
 NGS_VDB_BlobData ( const struct VBlob* p_blob )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     return p_blob->data.base;
 }
 
 uint64_t        
 NGS_VDB_BlobSize ( const struct VBlob* p_blob )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     return KDataBufferBytes ( &p_blob->data );
 }
 
+static
+void 
+GetFragment ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_t p_rowId, uint64_t p_offsetInRow, uint32_t* p_bioFragNum, uint32_t* p_nextFragStart, bool* p_biological )
+{   
+    FUNC_ENTRY ( ctx, rcSRA, rcDatabase, rcConstructing );
+    uint32_t elem_bits; 
+    const void *base;
+    uint32_t boff; 
+    uint32_t row_len;
+    TRY ( NGS_CursorCellDataDirect ( self -> curs, 
+                                     ctx,
+                                     p_rowId,
+                                     seq_READ_LEN, 
+                                     & elem_bits, 
+                                     & base,
+                                     & boff, 
+                                     & row_len ) )
+    {
+        uint32_t i = 0 ; 
+        uint64_t offset = 0;
+        uint32_t bioFragNum = 0;
+        assert ( base != NULL ); 
+        assert ( elem_bits % 8 == 0 );
+        assert ( boff == 0 );
+        
+        while ( i < row_len )
+        {
+            uint64_t frag_length;
+            switch ( elem_bits )
+            {
+                case 64:
+                {
+                    frag_length = ( (const uint64_t*)base ) [ i ];
+                    break;
+                }
+                case 32:
+                {
+                    frag_length = ( (const uint32_t*)base ) [ i ];
+                    break;
+                }
+                case 16:
+                {
+                    frag_length = ( (const uint16_t*)base ) [ i ];
+                    break;
+                }
+                case 8:
+                {
+                    frag_length = ( (const uint8_t*)base ) [ i ];
+                    break;
+                }
+                default:
+                {
+                    INTERNAL_ERROR ( xcUnexpected, "Unexpected elem_bits: %u", elem_bits );
+                    return;
+                }
+            }
+            
+            {
+                uint32_t frag_type_elem_bits; 
+                const void *frag_type_base;
+                uint32_t frag_type_boff; 
+                uint32_t frag_type_row_len;
+                TRY ( NGS_CursorCellDataDirect ( self -> curs, 
+                                                ctx,
+                                                p_rowId,
+                                                seq_READ_TYPE, 
+                                                & frag_type_elem_bits, 
+                                                & frag_type_base,
+                                                & frag_type_boff, 
+                                                & frag_type_row_len ) )
+                {
+                    const uint8_t* frag_types = (const uint8_t*)frag_type_base;
+                    bool isBiological; 
+                    assert ( frag_type_row_len == row_len );
+                    assert ( frag_type_base != NULL ); 
+                    assert ( frag_type_elem_bits == 8 );
+                    assert ( frag_type_boff == 0 );
+                    isBiological = frag_types [ i ] & READ_TYPE_BIOLOGICAL;
+                    if ( p_offsetInRow < offset + frag_length )
+                    {
+                        *p_nextFragStart = offset + frag_length;
+                        *p_biological = isBiological;
+                        *p_bioFragNum = *p_biological ? bioFragNum : 0;
+                        return;
+                    }
+                    
+                    if ( isBiological )
+                    {
+                        ++ bioFragNum;
+                    }
+                }
+            }
+            offset += frag_length;
+            ++i;
+        }
+        INTERNAL_ERROR ( xcUnexpected, "Invalid READ_LEN, SEQUENCE.rowdId = %li, offset = %lu", p_rowId, p_offsetInRow );
+    } 
+}
+
 void            
-NGS_VDB_BlobRowInfo ( const struct VBlob* p_blob,  uint64_t p_offset, int64_t* p_rowId, uint64_t* p_nextRowStart )
+NGS_VDB_BlobRowInfo ( NGS_VDB_ReadCollection * self, const struct VBlob* p_blob, uint64_t p_offset, const char** p_fragId, uint64_t* p_nextFragStart, bool* p_biological, NGS_VDB_ErrBlock * err  )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
-    *p_rowId = 0;
-    *p_nextRowStart = 0;
-    
     int64_t first;
     uint64_t count;
     rc_t rc = VBlobIdRange ( p_blob, &first, &count );
@@ -321,9 +400,35 @@ NGS_VDB_BlobRowInfo ( const struct VBlob* p_blob,  uint64_t p_offset, int64_t* p
                 
                 if ( p_offset < offset + length * repeat )
                 {
-                    *p_rowId = first + rowInBlob + ( p_offset - offset ) / length; 
-                    *p_nextRowStart = offset + length; 
-                    return;
+                    int64_t rowId = first + rowInBlob + ( p_offset - offset ) / length;
+                    uint32_t bioFragNum;
+                    uint32_t nextFragStart;
+                    bool biological;
+                    TRY ( GetFragment ( ctx, self, rowId, p_offset - offset, & bioFragNum, & nextFragStart, & biological ) )
+                    {
+                        if ( self -> last_frag_id != NULL )
+                        {
+                            NGS_StringRelease ( self -> last_frag_id, ctx );
+                            self -> last_frag_id = NULL;
+                        }
+                        if ( biological )
+                        {
+                            ON_FAIL ( self -> last_frag_id = NGS_IdMakeFragment ( ctx, self -> name, false, rowId, bioFragNum ) ) 
+                            {
+                                break;
+                            }
+                            *p_fragId = NGS_StringData ( self -> last_frag_id , ctx );                
+                        }
+                        else
+                        {
+                            *p_fragId = NULL;
+                        }
+                        /* recalculate nextFragStart from relative to fragment to relative to blob */
+                        *p_nextFragStart =  offset + nextFragStart; 
+                        *p_biological = biological;
+                        return;
+                    } 
+                    break;            
                 }       
                 ++rowInBlob;
             }
@@ -339,14 +444,11 @@ NGS_VDB_BlobRowInfo ( const struct VBlob* p_blob,  uint64_t p_offset, int64_t* p
         INTERNAL_ERROR ( xcUnexpected, "VBlobIdRange() rc = %R", rc );            
     }
     
-    *p_rowId = 0;
-    *p_nextRowStart = 0;
-    // TODO: how to report an error?         
+    NGS_ErrBlockThrow ( err, ctx );
 }    
 
 void 
 NGS_VDB_BlobRelease ( struct VBlob* p_blob )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcDatabase, rcConstructing );
     VBlobRelease ( p_blob );    
 }

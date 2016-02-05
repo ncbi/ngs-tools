@@ -42,10 +42,10 @@ clean:
 # sra-search
 #
 SRA_SEARCH_SRC = \
-	vdb-search \
-    searchblock \
-    ngs-vdb \
     NGS_VDB \
+    ngs-vdb \
+    searchblock \
+	vdb-search \
 	main \
 
 SRA_SEARCH_OBJ = \

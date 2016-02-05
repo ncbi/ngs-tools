@@ -487,243 +487,123 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
 
 //TODO: stop multi-threaded search before the end 
 
-/////////////////// Search directly in Blobs ( this should go to ncbi-vdb/test/search )
-
-class VdbBlobFixture
-{
-public:
-    VdbBlobFixture()
-    : mgr(0), curs(0), col_idx(~0)
-    {
-        if ( VDBManagerMakeRead(&mgr, NULL) != 0 )
-            throw logic_error ( "VdbBlobFixture: VDBManagerMakeRead failed" );
-    }
-    
-    ~VdbBlobFixture()
-    {
-        if ( mgr && VDBManagerRelease ( mgr ) != 0 )
-            throw logic_error ( "~VdbBlobFixture: VDBManagerRelease failed" );
-        if ( curs && VCursorRelease ( curs ) != 0 )
-            throw logic_error ( "~VdbBlobFixture: VCursorRelease failed" );
-    }
-    
-    rc_t Setup( const char * acc )
-    {
-        const VDatabase *db = NULL;
-        rc_t rc = VDBManagerOpenDBRead ( mgr, &db, NULL, acc );
-        rc_t rc2;
-
-        const VTable *tbl = NULL;
-        if (rc == 0) 
-        {
-            rc = VDatabaseOpenTableRead ( db, &tbl, "SEQUENCE" );
-        }
-        else 
-        {
-            rc = VDBManagerOpenTableRead ( mgr, &tbl, NULL, acc );
-            if (rc != 0) 
-            {
-                VSchema *schema = NULL;
-                rc = VDBManagerMakeSRASchema(mgr, &schema);
-                if ( rc != 0 )
-                {
-                    return rc;
-                }
-                    
-                rc = VDBManagerOpenTableRead ( mgr, &tbl, schema, acc );
-                
-                rc2 = VSchemaRelease ( schema );
-                if ( rc == 0 )
-                    rc = rc2;
-            }
-        }
-
-        if ( rc == 0 )
-        {
-            rc = VTableCreateCursorRead(tbl, &curs);
-            if ( rc == 0 )
-            {
-                col_idx = ~0;
-                rc = VCursorAddColumn ( curs, &col_idx, "READ" );
-                if ( rc == 0 )
-                {
-                    rc = VCursorOpen(curs);
-                }
-            }
-        }
-        
-        rc2 = VTableRelease ( tbl );
-        if ( rc == 0 )
-            rc = rc2;
-        
-        if ( db != NULL )
-        {
-            rc2 = VDatabaseRelease ( db );
-            if ( rc == 0 )
-               rc = rc2;
-        }
-            
-        return rc;
-    }
-    
-    const VDBManager * mgr;
-    const VCursor * curs;
-    uint32_t col_idx;
-};
-
-
-FIXTURE_TEST_CASE ( BlobSearch_FgrepDumb, VdbBlobFixture )
-{
-    const string Accession = "SRR000001";
-    const char* query[] = { "TCAGA" };
-    
-    REQUIRE_RC ( Setup ( Accession.c_str() ) );
-    REQUIRE_RC ( VCursorOpen (curs ) );
-    
-    REQUIRE_RC ( VCursorSetRowId (curs, 1 ) );
-    REQUIRE_RC ( VCursorOpenRow (curs ) );
-    
-    struct VBlob *blob;
-    REQUIRE_RC ( VCursorGetBlob ( curs, (const VBlob**)&blob, col_idx ) );
-    
-    int64_t first;
-    uint64_t count;
-    REQUIRE_RC ( VBlobIdRange ( blob, &first, &count ) );
-    REQUIRE_EQ ( (int64_t)1, first );    
-    REQUIRE_EQ ( (uint64_t)4, count );
-
-    struct Fgrep* fgrep;
-    REQUIRE_RC ( FgrepMake ( & fgrep, FGREP_MODE_ASCII | FGREP_ALG_DUMB, &query[0], 1 ) );
-    
-    size_t blobLength = BlobBufferBytes ( blob );
-    FgrepMatch matchinfo;
-    
-    int32_t curStart = 0; 
-    REQUIRE_EQ ( (uint32_t)1, FgrepFindFirst ( fgrep, ((const char*)blob->data.base) + curStart, blobLength - curStart, & matchinfo ) );
-
-    REQUIRE_EQ ( (int32_t)0,                matchinfo.position );
-    REQUIRE_EQ ( (int32_t)strlen(query[0]), matchinfo.length );
-
-    curStart += matchinfo.position + matchinfo.length; 
-    REQUIRE_EQ ( (uint32_t)1, FgrepFindFirst ( fgrep, ((const char*)blob->data.base) + curStart, blobLength - curStart, & matchinfo ) );
-    
-    REQUIRE_EQ ( (int32_t)792,              matchinfo.position );
-    REQUIRE_EQ ( string ( query[0] ), string ( ((const char*)blob->data.base) + curStart + matchinfo.position, matchinfo.length ) );
-    
-    curStart += matchinfo.position + matchinfo.length;
-    REQUIRE_EQ ( (uint32_t)0, FgrepFindFirst ( fgrep, ((const char*)blob->data.base) + curStart, blobLength - curStart, & matchinfo ) );
-    
-    //TODO: convert positions into rowIds
-    
-    FgrepFree ( fgrep );
-
-    REQUIRE_RC ( VCursorCloseRow (curs ) );
-    REQUIRE_RC ( VBlobRelease ( blob ) );
-}
-
 //////////////////////////////////////////// ngs-vdb ( migrate these tests to wherever ngs-vdb code moves, eventually )
 
 #include <ngs-vdb.hpp>
 
 using namespace ngs::vdb;
 
-static
-bool VerifyRowInfo ( const FragmentBlob& p_blob, uint64_t p_offset, int64_t p_rowId,  uint64_t p_nextRowStart )
+static const string AccessionWGS            = "ALWZ01";
+static const string AccessionSRA_table      = "SRR000123";
+static const string AccessionSRA_database   = "SRR600096";
+static const string AccessionCSRA1          = "SRR1063272";
+
+class BlobIteratorHelper 
 {
-    int64_t rowId = 0;
-    uint64_t nextRowStart = 0;
-    p_blob . GetRowInfo ( p_offset, rowId, nextRowStart );
-    if ( p_rowId != rowId )
+public:    
+    BlobIteratorHelper ( const string& p_accession )
+    :   coll ( ncbi :: NGS_VDB :: openVdbReadCollection ( p_accession ) ),
+        fragIt ( coll.getFragmentBlobs() )
     {
-        cout << "rowId expected = " << p_rowId << ", actual = " << rowId << endl;
-        return false;
+        if ( ! fragIt . nextBlob () )
+        {
+            throw logic_error ( "BlobIteratorHelper : nextBlob() failed" );
+        }
     }
-    if ( p_nextRowStart != nextRowStart )
+    
+    bool VerifyFragInfo ( uint64_t p_offset, const string& p_fragId,  uint64_t p_nextFragmentStart, bool p_biological = true )
     {
-        cout << "nextRowStart expected = " << p_nextRowStart << ", actual = " << nextRowStart << endl;
-        return false;
+        string fragId;
+        uint64_t nextFragmentStart = 0;
+        bool biological;
+        fragIt . GetFragmentInfo ( p_offset, fragId, nextFragmentStart, biological );
+        if ( p_fragId != fragId )
+        {
+            cout << "fragId expected = " << p_fragId << ", actual = " << fragId << endl;
+            return false;
+        }
+        if ( p_nextFragmentStart != nextFragmentStart )
+        {
+            cout << "nextFragmentStart expected = " << p_nextFragmentStart << ", actual = " << nextFragmentStart << endl;
+            return false;
+        }
+        if ( p_biological != biological )
+        {
+            cout << "biological expected = " << p_biological << ", actual = " << biological << endl;
+            return false;
+        }
+        return true;
     }
-    return true;
-}
+
+    VdbReadCollection coll;
+    FragmentBlobIterator fragIt;    
+};
 
 TEST_CASE ( VdbReadCollection_WGS_Construct )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "ALWZ01" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE_EQ ( (size_t)948, fragIt . Size () );
+    BlobIteratorHelper bit ( AccessionWGS );
+    REQUIRE_EQ ( (size_t)948, bit . fragIt . Size () );
     const string BeginsWith = "GCCTCTCTCTC"; 
-    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith . size() ) );
 }
 
 TEST_CASE ( VdbReadCollection_WGS_RowInfo )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "ALWZ01" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 227 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 226, 1, 227 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 227, 2, 227+245 ) );
+    BlobIteratorHelper bit ( AccessionWGS );
+    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionWGS + ".FR0.1", 227 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 226, AccessionWGS + ".FR0.1", 227 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 227, AccessionWGS + ".FR0.2", 227+245 ) );
 }    
 
 TEST_CASE ( VdbReadCollection_SRAtable_Construct )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR000123" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE_EQ ( (size_t)858, fragIt . Size () );
+    BlobIteratorHelper bit ( AccessionSRA_table );
+    REQUIRE_EQ ( (size_t)858, bit . fragIt . Size () );
     const string BeginsWith = "TCAGTTTCG"; 
-    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
 
 TEST_CASE ( VdbReadCollection_SRAtable_RowInfo )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR000123" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 157 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 156, 1, 157 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 157, 2, 157+280 ) );
+    BlobIteratorHelper bit ( AccessionSRA_table );
+    REQUIRE ( bit . VerifyFragInfo ( 0, "", 4, false ) );
+    REQUIRE ( bit . VerifyFragInfo ( 4,       AccessionSRA_table + ".FR0.1", 157, true ) );
+    REQUIRE ( bit . VerifyFragInfo ( 156,     AccessionSRA_table + ".FR0.1", 157, true ) );
+    REQUIRE ( bit . VerifyFragInfo ( 157, "", 157+4, false ) );
+    REQUIRE ( bit . VerifyFragInfo ( 157+4,   AccessionSRA_table + ".FR0.2", 157+4+276, true ) );
 }
 
 TEST_CASE ( VdbReadCollection_SRAdatabase_Construct )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR600096" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE_EQ ( (size_t)5600, fragIt . Size () );
+    BlobIteratorHelper bit ( AccessionSRA_database );
+    REQUIRE_EQ ( (size_t)5600, bit . fragIt . Size () );
     const string BeginsWith = "TACGGAGGGGGCTA"; 
-    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
 
 TEST_CASE ( VdbReadCollection_SRAdatabase_RowInfo )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR600096" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 350 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 349, 1, 350 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 350, 2, 350+350 ) );
+    BlobIteratorHelper bit ( AccessionSRA_database );
+    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionSRA_database + ".FR0.1", 175 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 174, AccessionSRA_database + ".FR0.1", 175 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 175, AccessionSRA_database + ".FR1.1", 350 ) ); 
 }
 
 TEST_CASE ( VdbReadCollection_CSRA1_Construct )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR1063272" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE_EQ ( (size_t)808, fragIt . Size () );
+    BlobIteratorHelper bit ( AccessionCSRA1 );
+    REQUIRE_EQ ( (size_t)808, bit . fragIt . Size () );
     const string BeginsWith = "ACTCGACATTCTGCC"; 
-    REQUIRE_EQ ( BeginsWith, string ( fragIt . Data (), BeginsWith.size() ) );
+    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
 
 TEST_CASE ( VdbReadCollection_CSRA1_RowInfo )
 {
-    VdbReadCollection coll = ncbi :: NGS_VDB :: openVdbReadCollection ( "SRR1063272" );
-    FragmentBlobIterator fragIt = coll.getFragmentBlobs();    
-    REQUIRE ( fragIt . nextBlob () );
-    REQUIRE ( VerifyRowInfo ( fragIt, 0, 1, 202 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 201, 1, 202 ) );
-    REQUIRE ( VerifyRowInfo ( fragIt, 202, 2, 202+202 ) );
+    BlobIteratorHelper bit ( AccessionCSRA1 );
+    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionCSRA1 + ".FR0.1", 101 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 100, AccessionCSRA1 + ".FR0.1", 101 ) );
+    REQUIRE ( bit . VerifyFragInfo ( 101, AccessionCSRA1 + ".FR1.1", 202 ) ); 
+    REQUIRE ( bit . VerifyFragInfo ( 202, AccessionCSRA1 + ".FR0.2", 202+101 ) ); 
 }
 
 //TODO: accessing blob without a call to nextBlob()

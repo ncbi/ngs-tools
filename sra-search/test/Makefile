@@ -92,12 +92,12 @@ test-cmdline:
 	@ # single run
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01"
 	@ # query expressions
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression 	--args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm FgrepDumb --expression  SRR000001" --rc 1 
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 5.1-run-not-nucstrstr-with-expression 	--args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm FgrepStandard --expression  SRR000001" --rc 1 
 	@ # imperfect match
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.0.1-imperfect-match-no-arg           --args "AGCTAGCTAGCT SRR000001 -S" --rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.0.2-imperfect-match-bad-arg          --args "AGCTAGCTAGCT SRR000001 -S qq" --rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.0.3-imperfect-match-default          --args "AGCTAGCTAGCT -S 90 SRR000001" --rc 1 
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.1-imperfect-match-fgrep-dumb         --args "AGCTAGCTAGCT --score 90 -a FgrepDumb SRR000001" --rc 1 
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.1-imperfect-match-fgrep-standard     --args "AGCTAGCTAGCT --score 90 -a FgrepStandard SRR000001" --rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.2-imperfect-match-fgrep-boyer-moore  --args "AGCTAGCTAGCT --score 90 --algorithm FgrepBoyerMoore    SRR000001" --rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.3-imperfect-match-fgrep-aho          --args "AGCTAGCTAGCT --score 90 --algorithm FgrepAho           SRR000001" --rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.8-imperfect-match-nucstrstr          --args "AGCTAGCTAGCT --score 90 --algorithm NucStrstr          SRR000001" --rc 1 
@@ -113,7 +113,7 @@ slowtest-cmdline:
 	@ echo "Slow-Testing $(BINDIR)/sra-search"
 	@ # single run
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-dumb         --args "AGCTAGCTAGCT -a FgrepDumb SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT -a FgrepStandard SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001"
