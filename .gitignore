@@ -1,0 +1,6 @@
+# CMake binary directories
+Debug/
+Release/
+
+# transient test results
+actual/
