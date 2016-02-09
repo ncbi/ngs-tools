@@ -104,7 +104,6 @@ test-cmdline:
 	@ # multi-threading
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.0.1-threads-no-arg   --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 -T"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.0.2-threads-bad-arg  --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 --threads -1"
-	@ # 
 	@ echo
 
 slowtest-cmdline: 
@@ -134,12 +133,15 @@ slowtest-cmdline:
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001"
 	@ # multi-threading
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099"
+	@ # nothing found 
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001"
 	@ # 
 	@ echo
 
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C ..
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01 --blobs"
+	#@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01 --blobs"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001"
     
 .PHONY: test-wb test-cmdline onetest
