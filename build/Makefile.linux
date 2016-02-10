@@ -22,49 +22,53 @@
 #
 # ===========================================================================
 
-default: std
 
-TOP = $(abspath ..)
-MODULE = sra-search
+# default compiler
+ifeq (,$(COMP))
+	COMP = gcc
+endif
 
-include $(TOP)/build/Makefile.env
+# handle attempts to set cross-compilation architecture
+# note that if your installation is set up for cross compilation,
+# you can try to enable it on your own.
+ifeq (i386,$(ARCH))
+i386:
+	@ true
+x86_64:
+	@ echo "Linux builds do not support cross-compilation to this architecture"
+endif
 
-std: $(BINDIR)/sra-search
+ifeq (x86_64,$(ARCH))
+i386:
+	@ echo "Linux builds do not support cross-compilation to this architecture"
+x86_64:
+	@ true
+endif
 
-clean: 
-	echo "clean" && rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search
-	$(MAKE) -C test clean 
+.PHONY: i386 x86_64
 
-runtests: test
 
-.PHONY: clean 
+# library prefix
+LPFX = lib
 
-#-------------------------------------------------------------------------------
-# sra-search
-#
-SRA_SEARCH_SRC = \
-    NGS_VDB \
-    ngs-vdb \
-    searchblock \
-	vdb-search \
-	main \
+# file extensions
+OBJX = o
+LOBX = pic.o
+LIBX = a
+SHLX = so
 
-SRA_SEARCH_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
+# compilation defines
+DEFINES	:= -DLINUX -DUNIX -D_GNU_SOURCE -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DPKGNAME=linux$(BITS)
 
-SRA_SEARCH_LIBS = \
-    -L$(NGS_LIBDIR) \
-    -L$(VDB_LIBDIR) \
-    -lncbi-ngs-c++    \
-	-lncbi-vdb-static \
-	-lngs-c++         \
-    
-$(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(LD) --exe -o $@ $^ $(SRA_SEARCH_LIBS)
+# linux is a Unix variant
+OS_DAD = unix
 
-#-------------------------------------------------------------------------------
-# test
-#
-test: std
-	$(MAKE) -C test
+# flex+bison: on Mac, use source-controlled generated .c/.h files
+YACC = @ true
+LEX = @ true
 
+# build matrix
+COMPILERS = GCC # ICC
+
+# copy without following symlinks
+COPY = cp -P

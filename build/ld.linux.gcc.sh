@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,49 +23,28 @@
 #
 # ===========================================================================
 
-default: std
+# define linker params
+LD_EXPORT_GLOBAL="-Wl,--export-dynamic"
+LD_MULTIPLE_DEFS="-Wl,-zmuldefs"
+LD_STATIC="-Wl,-Bstatic"
+LD_DYNAMIC="-Wl,-Bdynamic"
+LD_ALL_SYMBOLS="-Wl,-whole-archive"
+LD_REF_SYMBOLS="-Wl,-no-whole-archive"
 
-TOP = $(abspath ..)
-MODULE = sra-search
+# build command
+DLIB_CMD="$LD -shared"
+EXE_CMD="$LD -static-libstdc++ -static-libgcc"
+EXE_STATIC_CMD="$EXE_CMD"
+#EXE_CMD="$LD"
+#EXE_STATIC_CMD="$LD -static"
 
-include $(TOP)/build/Makefile.env
-
-std: $(BINDIR)/sra-search
-
-clean: 
-	echo "clean" && rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search
-	$(MAKE) -C test clean 
-
-runtests: test
-
-.PHONY: clean 
-
-#-------------------------------------------------------------------------------
-# sra-search
-#
-SRA_SEARCH_SRC = \
-    NGS_VDB \
-    ngs-vdb \
-    searchblock \
-	vdb-search \
-	main \
-
-SRA_SEARCH_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
-
-SRA_SEARCH_LIBS = \
-    -L$(NGS_LIBDIR) \
-    -L$(VDB_LIBDIR) \
-    -lncbi-ngs-c++    \
-	-lncbi-vdb-static \
-	-lngs-c++         \
-    
-$(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(LD) --exe -o $@ $^ $(SRA_SEARCH_LIBS)
-
-#-------------------------------------------------------------------------------
-# test
-#
-test: std
-	$(MAKE) -C test
-
+# versioned output
+if [ "$VERS" = "" ]
+then
+    DLIB_CMD="$DLIB_CMD -o $TARG"
+    EXE_CMD="$EXE_CMD -o $TARG"
+else
+    set-vers $(echo $VERS | tr '.' ' ')
+    DLIB_CMD="$DLIB_CMD -o $OUTDIR/$NAME$DBGAP.so.$VERS -Wl,-soname,$NAME.so.$MAJ"
+    EXE_CMD="$EXE_CMD -o $OUTDIR/$NAME$DBGAP.$VERS"
+fi
