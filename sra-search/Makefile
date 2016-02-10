@@ -29,15 +29,24 @@ MODULE = sra-search
 
 include $(TOP)/build/Makefile.env
 
-std: $(BINDIR)/sra-search
+std: vers-includes $(BINDIR)/sra-search
 
 clean: 
-	echo "clean" && rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search
+	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search
 	$(MAKE) -C test clean 
 
 runtests: test
 
+slowtests: slow
+
 .PHONY: clean 
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
+
+.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # sra-search
@@ -60,11 +69,11 @@ SRA_SEARCH_LIBS = \
 	-lngs-c++         \
     
 $(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(LD) --exe -o $@ $^ $(SRA_SEARCH_LIBS)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_SEARCH_LIBS)
 
 #-------------------------------------------------------------------------------
-# test
+# testing
 #
-test: std
-	$(MAKE) -C test
+test slow: std
+	$(MAKE) -C test $@
 

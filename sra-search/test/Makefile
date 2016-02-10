@@ -27,16 +27,19 @@ default: std
 TOP = $(abspath ../..)
 MODULE = sra-search/test
 
-# the location of Makefile.env is likely to change, for now take it from the parent project's directory
-include ../Makefile.env
+include $(TOP)/build/Makefile.env
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR)
 
-runtests std: 
+runtests std: makedirs test
+
+test:
 	@ $(MAKE) --no-print-directory test-whitebox
 	@ $(MAKE) --no-print-directory test-cmdline
 	
-slowtests: runtests
+slowtests: slow
+
+slow:
 	@ $(MAKE) --no-print-directory slowtest-cmdline
 
 clean: 
@@ -64,7 +67,7 @@ TEST_SRA_SEARCH_LIBS = \
 
 $(TEST_BINDIR)/test-sra-search: $(TEST_SRA_SEARCH_OBJ)
 	$(MAKE) -C $(SRCDIR)/..
-	$(CP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS) $(LDFLAGS)
+	$(LP) --exe -o $@ $^ $(TEST_SRA_SEARCH_LIBS)
 
 test-whitebox: $(TEST_BINDIR)/test-sra-search    
 	@ echo
