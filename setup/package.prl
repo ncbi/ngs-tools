@@ -1,9 +1,9 @@
 ################################################################################
-sub PACKAGE      { 'sra-tools' }
-sub VERSION      { '2.5.8' }
+sub PACKAGE      { 'ngs-tools' }
+sub VERSION      { '1.0.0' }
 sub PACKAGE_TYPE { 'B' }
-sub PACKAGE_NAME { 'SRA-TOOLS' }
-sub PACKAGE_NAMW { 'SRATOOLS' }
+sub PACKAGE_NAME { 'NGS-TOOLS' }
+sub PACKAGE_NAMW { 'NGSTOOLS' }
 sub CONFIG_OUT   { '.' }
 sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
