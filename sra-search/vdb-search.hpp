@@ -47,13 +47,13 @@ public:
     public:
         virtual ~SearchBlock () {}
         
-        virtual bool FirstMatch ( const char* p_bases, uint64_t p_size ) throw ( ngs :: ErrorMsg )
+        virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
         {
             uint64_t hitStart;
             uint64_t hitEnd;
             return FirstMatch ( p_bases, p_size, hitStart, hitEnd );
         }
-        virtual bool FirstMatch ( const char* p_bases, uint64_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) throw ( ngs :: ErrorMsg ) = 0;
+        virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) throw ( ngs :: ErrorMsg ) = 0;
     };
     
 public:
