@@ -24,15 +24,17 @@
 
 default: std
 
-TOP = $(abspath ..)
+TOP ?= $(abspath ..)
 MODULE = sra-search
 
-include $(TOP)/build/Makefile.env
+include $(TOP)/Makefile.config
 
-std: vers-includes $(BINDIR)/sra-search
+INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
+
+std: $(BINDIR)/sra-search
 
 clean: 
-	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search
+	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
 	$(MAKE) -C test clean 
 
 runtests: test
@@ -62,18 +64,22 @@ SRA_SEARCH_OBJ = \
 	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
 
 SRA_SEARCH_LIBS = \
-    -L$(NGS_LIBDIR) \
-    -L$(VDB_LIBDIR) \
-    -lncbi-ngs-c++    \
-	-lncbi-vdb-static \
-	-lngs-c++         \
-    
+    -L$(NGS_LIBDIR)     \
+    -L$(VDB_LIBDIR)     \
+    -lncbi-ngs-c++      \
+	-lncbi-vdb-static   \
+	-lngs-c++           \
+    -lpthread           \
+    -ldl
+
 $(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_SEARCH_LIBS)
+	$(LP) -o $@$(VERSION_EXEX) $^ $(SRA_SEARCH_LIBS)
+	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
+	ln -sf $(@F)$(MAJVERS_EXEX) $@
 
 #-------------------------------------------------------------------------------
 # testing
 #
 test slow: std
-	$(MAKE) -C test $@
+	$(MAKE) TOP=$(TOP) MODPATH=$(MODPATH)/test -C test $@
 
