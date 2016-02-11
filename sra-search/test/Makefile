@@ -34,7 +34,8 @@ INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(O
 runtests std: test
 
 test:
-	@ $(MAKE) test-whitebox
+	@ mkdir -p $(OBJDIR)
+	@ $(MAKE) --no-print-directory test-whitebox
 	@ $(MAKE) --no-print-directory test-cmdline
 
 slowtests: slow
@@ -79,7 +80,7 @@ test-whitebox: $(BINDIR)/test-sra-search
 vg-whitebox: $(BINDIR)/test-sra-search    
 	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress --leak-check=full $^
 
-TIME = `which time` -f"%E"
+#TIME = `which time` -f"%E"
 
 test-cmdline: 
 	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
