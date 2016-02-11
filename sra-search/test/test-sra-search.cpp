@@ -542,7 +542,7 @@ public:
 TEST_CASE ( VdbReadCollection_WGS_Construct )
 {
     BlobIteratorHelper bit ( AccessionWGS );
-    REQUIRE_EQ ( (size_t)948, bit . fragIt . Size () );
+    REQUIRE_EQ ( (uint64_t)948, bit . fragIt . Size () );
     const string BeginsWith = "GCCTCTCTCTC"; 
     REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith . size() ) );
 }
@@ -558,7 +558,7 @@ TEST_CASE ( VdbReadCollection_WGS_RowInfo )
 TEST_CASE ( VdbReadCollection_SRAtable_Construct )
 {
     BlobIteratorHelper bit ( AccessionSRA_table );
-    REQUIRE_EQ ( (size_t)858, bit . fragIt . Size () );
+    REQUIRE_EQ ( (uint64_t)858, bit . fragIt . Size () );
     const string BeginsWith = "TCAGTTTCG"; 
     REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
@@ -576,7 +576,7 @@ TEST_CASE ( VdbReadCollection_SRAtable_RowInfo )
 TEST_CASE ( VdbReadCollection_SRAdatabase_Construct )
 {
     BlobIteratorHelper bit ( AccessionSRA_database );
-    REQUIRE_EQ ( (size_t)5600, bit . fragIt . Size () );
+    REQUIRE_EQ ( (uint64_t)5600, bit . fragIt . Size () );
     const string BeginsWith = "TACGGAGGGGGCTA"; 
     REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
@@ -592,7 +592,7 @@ TEST_CASE ( VdbReadCollection_SRAdatabase_RowInfo )
 TEST_CASE ( VdbReadCollection_CSRA1_Construct )
 {
     BlobIteratorHelper bit ( AccessionCSRA1 );
-    REQUIRE_EQ ( (size_t)808, bit . fragIt . Size () );
+    REQUIRE_EQ ( (uint64_t)808, bit . fragIt . Size () );
     const string BeginsWith = "ACTCGACATTCTGCC"; 
     REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
 }
