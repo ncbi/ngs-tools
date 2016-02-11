@@ -34,19 +34,19 @@ include $(TOP)/build/Makefile.shell
 # default
 #
 SUBDIRS = \
-	tools \
+	sra-search \
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets
 
 default: $(SUBDIRS)
 
-test: $(SUBDIRS)
+test: $(SUBDIRS) runtests
 
-$(SUBDIRS) test:
+$(SUBDIRS):
 	@ $(MAKE) -C $@
 
-.PHONY: default $(SUBDIRS) test
+.PHONY: default $(SUBDIRS)
 
 #-------------------------------------------------------------------------------
 # all
@@ -72,38 +72,12 @@ uninstall:
 .PHONY: install uninstall
 
 #-------------------------------------------------------------------------------
-# clean
-#
-clean: clean_test
-
-clean_test:
-	@ $(MAKE) -s -C test clean
-
-#-------------------------------------------------------------------------------
-# runtests
-#
-runtests: runtests_test
-
-runtests_test:
-	@ $(MAKE) -s -C test runtests
-
-#	@ $(MAKE) -s -C ngs runtests
-
-#-------------------------------------------------------------------------------
-# slowtests
-#
-slowtests: slowtests_test
-
-slowtests_test:
-	@ $(MAKE) -s -C test slowtests
-
-#-------------------------------------------------------------------------------
 # pass-through targets
 #
-COMPILERS = GCC ICC VC++ CLANG
-ARCHITECTURES = i386 x86_64 sparc32 sparc64
-CONFIG = debug profile release
-PUBLISH = scm pubtools
+COMPILERS = GCC CLANG
+ARCHITECTURES = i386 x86_64
+CONFIG = debug release
+PUBLISH = 
 REPORTS = bindir targdir osdir config compilers architecture architectures
 PASSTHRUS = \
 	out \
@@ -111,13 +85,8 @@ PASSTHRUS = \
 	$(ARCHITECTURES) \
 	$(CONFIG) $(PUBLISH) \
 	purify purecov \
-	local static dynamic
-
-$(RHOSTS):
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env local
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env require-proxy-exec
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env $@
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env rebuild-dirlinks config
+	local static dynamic \
+    slowtests
 
 $(PASSTHRUS):
 	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env $@

@@ -50,18 +50,15 @@
 
 #include <stdio.h>
 
-extern "C"
-{
-    #include <../libs/vdb/blob-priv.h>
-    #include <../libs/vdb/page-map.h>
-    
-    #include <../libs/ngs/NGS_Id.h>
-    #include <../libs/ngs/NGS_String.h>
-    #include <../libs/ngs/NGS_Cursor.h>
-    #include <../libs/ngs/NGS_ErrBlock.h>
-    
-    #include <../libs/ngs/SRA_Read.h>
-}
+#include <../libs/vdb/blob-priv.h>
+#include <../libs/vdb/page-map.h>
+
+#include <../libs/ngs/NGS_Id.h>
+#include <../libs/ngs/NGS_String.h>
+#include <../libs/ngs/NGS_Cursor.h>
+#include <../libs/ngs/NGS_ErrBlock.h>
+
+#include <../libs/ngs/SRA_Read.h>
 
 struct NGS_VDB_ReadCollection {
     NGS_String*         name;
@@ -79,7 +76,7 @@ GetTable ( ctx_t ctx, const char * spec )
     const VDatabase *db;
     VTable* ret;
 
-    const VDBManager * mgr = ctx -> rsrc -> vdb;
+    const struct VDBManager * mgr = ctx -> rsrc -> vdb;
     assert ( mgr != NULL );
 
     /* try as VDB database */

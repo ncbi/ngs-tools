@@ -24,25 +24,28 @@
 
 default: std
 
-TOP = $(abspath ../..)
+TOP ?= $(abspath ../..)
 MODULE = sra-search/test
 
-# the location of Makefile.env is likely to change, for now take it from the parent project's directory
-include ../Makefile.env
+include $(TOP)/Makefile.config
 
-INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR)
+INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-runtests std: 
-	@ $(MAKE) --no-print-directory test-whitebox
+runtests std: test
+
+test:
+	@ $(MAKE) test-whitebox
 	@ $(MAKE) --no-print-directory test-cmdline
-	
-slowtests: runtests
+
+slowtests: slow
+
+slow:
 	@ $(MAKE) --no-print-directory slowtest-cmdline
 
 clean: 
-	rm -f $(TEST_SRA_SEARCH_OBJ) $(TEST_BINDIR)/test-sra-search
+	rm -f $(TEST_SRA_SEARCH_OBJ) $(BINDIR)/test-sra-search
 
-.PHONY: clean 
+.PHONY: clean test slow
 
 #-------------------------------------------------------------------------------
 # test-sra-search
@@ -61,24 +64,25 @@ TEST_SRA_SEARCH_LIBS = \
     -L$(VDB_LIBDIR)     \
 	-lncbi-vdb-static   \
 	-lngs-c++           \
+    -lpthread           \
+    -ldl
 
-$(TEST_BINDIR)/test-sra-search: $(TEST_SRA_SEARCH_OBJ)
-	$(MAKE) -C $(SRCDIR)/..
-	$(CP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS) $(LDFLAGS)
+$(BINDIR)/test-sra-search: $(TEST_SRA_SEARCH_OBJ)
+	$(LP) -o $@ $^ $(TEST_SRA_SEARCH_LIBS)
 
-test-whitebox: $(TEST_BINDIR)/test-sra-search    
+test-whitebox: $(BINDIR)/test-sra-search    
 	@ echo
 	@ echo "Unit-testing $(BINDIR)/sra-search"
 	@ $^
 	@ echo
 
-vg-whitebox: $(TEST_BINDIR)/test-sra-search    
+vg-whitebox: $(BINDIR)/test-sra-search    
 	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress --leak-check=full $^
 
 TIME = `which time` -f"%E"
 
 test-cmdline: 
-	@ $(MAKE) --no-print-directory -C ..
+	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
 	@ echo
 	@ echo "Testing $(BINDIR)/sra-search"
 	@ # help
@@ -107,7 +111,7 @@ test-cmdline:
 	@ echo
 
 slowtest-cmdline: 
-	@ $(MAKE) --no-print-directory -C ..
+	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
 	@ echo
 	@ echo "Slow-Testing $(BINDIR)/sra-search"
 	@ # single run
@@ -140,8 +144,8 @@ slowtest-cmdline:
 
 
 onetest: 
-	@ $(MAKE) --no-print-directory -C ..
+	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
 	#@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01 --blobs"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001"
     
-.PHONY: test-wb test-cmdline onetest
+.PHONY: test-whitebox vg-whitebox test-cmdline slowtest-cmdline onetest

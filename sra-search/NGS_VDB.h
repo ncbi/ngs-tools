@@ -28,6 +28,7 @@
 #define _h_ngs_vdb_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 struct VBlob;
 struct NGS_ErrBlock_v1;

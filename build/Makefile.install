@@ -35,51 +35,14 @@ include $(TOP)/build/Makefile.$(OS)
 # install
 # 
 TOOLS_TO_INSTALL = \
-    abi-dump        \
-    abi-load        \
-    align-info      \
-    bam-load        \
-    cache-mgr       \
-    cg-load         \
-    fastq-dump      \
-    fastq-load      \
-    helicos-load    \
-    illumina-dump   \
-    illumina-load   \
-    kar             \
-    kdbmeta         \
-    latf-load       \
-    prefetch        \
-    rcexplain       \
-    sam-dump        \
-    sff-dump        \
-    sff-load        \
-    sra-pileup      \
-    sra-sort        \
-    sra-stat        \
-    srapath         \
-    srf-load        \
-    test-sra        \
-    vdb-config      \
-    vdb-copy        \
-    vdb-decrypt     \
-    vdb-dump        \
-    vdb-encrypt     \
-    vdb-lock        \
-    vdb-passwd      \
-    vdb-unlock      \
-    vdb-validate    \
-
-#    remote-fuser    \
-#    blastn_vdb      \
-#    tblastn_vdb     \
+    sra-search      \
 
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:
 #ROOT = ~/root
 
 EXE_TARGET = $(INST_BINDIR)
-PROFILE_FILE = $(ROOT)/etc/profile.d/sra-tools
+PROFILE_FILE = $(ROOT)/etc/profile.d/ngs-tools
 
 installexes: 
 	@ echo "Installing executables to $(INST_BINDIR)/..."
@@ -101,29 +64,19 @@ endif
 
 install: installexes
 ifeq (true, $(LINUX_ROOT))
-	@ # install configuration file(s)
-	@ echo "Installing configuration files to $(ROOT)/etc/ncbi/"
-	@ mkdir -p $(ROOT)/etc/ncbi/
-	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi/
-	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
-	@ echo -e \
+	@ printf \
 "#version $(VERSION)\n"\
 "if ! echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
 "then export PATH=$(EXE_TARGET):\$$PATH\n"\
 "fi" \
         >$(PROFILE_FILE).sh && chmod 644 $(PROFILE_FILE).sh || true;
-	@ echo -e \
+	@ printf \
 "#version $(VERSION)\n"\
 "echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
 "if ( \$$status ) setenv PATH $(EXE_TARGET):\$$PATH\n"\
         >$(PROFILE_FILE).csh && chmod 644 $(PROFILE_FILE).csh || true;
 	@ #TODO: check version of the files above
-else    
-	@ # install configuration file(s)
-	@ echo "Installing configuration files to $(INST_BINDIR)/ncbi/"
-	@ mkdir -p $(INST_BINDIR)/ncbi/
-	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/
 endif
 
 #-------------------------------------------------------------------------------
@@ -131,10 +84,10 @@ endif
 # 
 
 TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL)))
-TO_UNINSTALL_AS_ROOT = $(ROOT)/etc/ncbi/vdb-copy.kfg $(PROFILE_FILE).sh $(PROFILE_FILE).csh
+TO_UNINSTALL_AS_ROOT = $(PROFILE_FILE).sh $(PROFILE_FILE).csh
 
 uninstall:
-	@ echo "Uninstalling sra-tools from $(INST_BINDIR)..."
+	@ echo "Uninstalling ngs-tools from $(INST_BINDIR)..."
 	rm -rf $(TO_UNINSTALL)
 ifeq (true, $(LINUX_ROOT))
 	@ echo "Uninstalling $(TO_UNINSTALL_AS_ROOT) ..."
@@ -142,4 +95,4 @@ ifeq (true, $(LINUX_ROOT))
 endif
 	@ echo "done."
 
-.PHONY: install installexes uninstall
+.PHONY: install installexes uninstall $(TOOLS_TO_INSTALL)
