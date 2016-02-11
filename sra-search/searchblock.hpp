@@ -69,7 +69,7 @@ public:
     NucStrstrSearch ( const std::string& p_query, bool p_positional = false ) throw ( ngs :: ErrorMsg );
     virtual ~NucStrstrSearch ();
     
-    virtual bool FirstMatch ( const char* p_bases, uint64_t p_size ) throw ( ngs :: ErrorMsg );  
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg );  
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg ); // will throw if not positional
     
 private:
