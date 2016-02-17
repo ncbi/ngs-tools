@@ -31,16 +31,21 @@ include $(TOP)/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-runtests std: test
+$(OBJDIR)/test:
+	mkdir -p $@
 
-test:
-	@ mkdir -p $(OBJDIR)
-	@ $(MAKE) --no-print-directory test-whitebox
+std: $(OBJDIR)/test
+	$(MAKE) $(BINDIR)/test-sra-search
+    
+runtests: std test
+
+slowtests: std slow
+
+test: std
+	@ $(MAKE) test-whitebox
 	@ $(MAKE) --no-print-directory test-cmdline
 
-slowtests: slow
-
-slow:
+slow: std
 	@ $(MAKE) --no-print-directory slowtest-cmdline
 
 clean: 

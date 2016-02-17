@@ -31,7 +31,8 @@ include $(TOP)/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-std: $(BINDIR)/sra-search
+std: $(OBJDIR) $(BINDIR) 
+	$(MAKE) $(BINDIR)/sra-search
 
 clean: 
 	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
