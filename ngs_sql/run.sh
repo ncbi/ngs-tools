@@ -19,7 +19,7 @@ submit_remote()
 	# !!! after job has been run : qdel <jobid>
 	JOBID="3561173"
 
-	export YARN_CONF_DIR=/home/raetzw/hadoop/conf.3561173
+	export YARN_CONF_DIR="$HOME/hadoop/conf.3561173"
 	export HADOOP_CONF_DIR=$YARN_CONF_DIR
 	spark-submit --class $MAINCLASS --master yarn-client $MAINJAR $ARGS
 }

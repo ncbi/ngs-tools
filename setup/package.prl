@@ -1,0 +1,44 @@
+################################################################################
+sub PACKAGE      { 'ngs-tools' }
+sub VERSION      { '1.0.0' }
+sub PACKAGE_TYPE { 'B' }
+sub PACKAGE_NAME { 'NGS-TOOLS' }
+sub PACKAGE_NAMW { 'NGSTOOLS' }
+sub CONFIG_OUT   { '.' }
+sub PKG { ( LNG   => 'C',
+            OUT   => 'ncbi-outdir',
+            LOCOUT=> '../../OUTDIR',
+            PATH  => '/usr/local/ncbi/sra-tools',
+            UPATH =>      '$HOME/ncbi/sra-tools', ) }
+sub DEPENDS {()}
+sub REQ { (
+            { name    => 'ngs-sdk',
+              aname   => 'NGS',
+              option  => 'with-ngs-sdk-prefix',
+              origin  => 'I',
+              type    => 'L',
+              srcpath => '../ngs/ngs-sdk',
+              pkgpath => '/usr/local/ngs/ngs-sdk',
+              usrpath =>      '$HOME/ngs/ngs-sdk',
+              bldpath => '$HOME/ncbi-outdir/ngs-sdk',
+              locbldpath=>'$Bin/../../OUTDIR/ngs-sdk',
+              include => 'ngs/itf/Refcount.h',
+              lib     => 'libngs-c++.a',
+            },
+            { name    => 'ncbi-vdb',
+              aname   => 'VDB',
+              option  => 'with-ncbi-vdb-sources',
+              boption => 'with-ncbi-vdb-build',
+              origin  => 'I',
+              type    => 'SB',
+              srcpath => '../ncbi-vdb',
+              pkgpath => '/usr/local/ncbi/ncbi-vdb',
+              usrpath =>      '$HOME/ncbi/ncbi-vdb',
+              bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
+              locbldpath=>'$Bin/../../OUTDIR/ncbi-vdb',
+              include => 'klib/rc.h',
+              lib     => 'libncbi-vdb.a',
+              ilib    => 'libkapp.a',
+            },
+        ) }
+1

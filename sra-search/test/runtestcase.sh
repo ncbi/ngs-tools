@@ -125,7 +125,7 @@ if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/$CASEID.stdout.diff  >&2
     echo "command executed:"
     echo $CMD
-    exit 4
+    exit 3
 fi    
 
 if [ -f $EXPECTED_STDERR ] 

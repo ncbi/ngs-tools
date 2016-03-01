@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8)
 
 project ( sra-search )
 
-add_executable ( sra-search main.cpp vdb-search.cpp )
+add_executable ( sra-search main.cpp vdb-search.cpp ngs-vdb.cpp searchblock.cpp NGS_VDB.c )
 
 add_dependencies ( sra-search ngs ncbi-vdb ) 
 

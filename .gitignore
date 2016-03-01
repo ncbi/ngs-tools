@@ -1,3 +1,32 @@
 actual/
 Debug/
 Release/
+# mac os x meta-files
+.DS_Store
+._*
+*~
+\#*
+.\#*
+# transient test results
+actual/
+
+*.d
+*.db
+*.o
+*.pyc
+/bin64
+/build/BUILD.*
+/build/COMP.mac
+/centos
+/ilib64
+/lib64
+/mac
+/Makefile.config.*
+/Makefile.config
+/reconfigure
+/schema
+/test-bin64
+/win
+
+/build/cmake
+OUTDIR.*

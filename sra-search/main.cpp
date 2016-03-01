@@ -36,7 +36,8 @@ using namespace std;
 
 typedef vector < string > Runs;
 
-void 
+static
+bool 
 DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, unsigned int p_minScore, unsigned int p_threads  )
 {
     VdbSearch s ( p_alg, p_query, p_isExpr, p_minScore, p_threads );
@@ -48,10 +49,13 @@ DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool 
     
     string acc;
     string fragId;
+    bool ret = false;
     while ( s . NextMatch ( acc, fragId ) )
     {
         cout << fragId << endl;
+        ret = true;
     }
+    return ret;
 }
 
 static void handle_help ( const char * appName )
@@ -102,6 +106,7 @@ int
 main( int argc, char *argv [] )
 {
     int rc = -1;
+    bool found;
     
     try
     {
@@ -173,6 +178,10 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
             }
+            else if ( arg == "--blobs" ) // for testing (search in fragments vs blobs); undocumented for now
+            {
+                VdbSearch :: useBlobSearch = true;
+            }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );
@@ -186,7 +195,7 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        DoSearch ( query, runs, alg, is_expr, (unsigned int)score, (unsigned int)threads );
+        found = DoSearch ( query, runs, alg, is_expr, (unsigned int)score, (unsigned int)threads );
 
         rc = 0;
     }
@@ -205,6 +214,11 @@ main( int argc, char *argv [] )
     {
         cerr << endl << "ERROR: "<< argv [ 0 ] << ": unknown" << endl;
         rc = 3;
+    }
+    
+    if ( rc == 0 && ! found )
+    {
+        rc = 1;
     }
 
     return rc;
