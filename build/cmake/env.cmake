@@ -112,7 +112,7 @@ if (WIN32)
     ExternalProject_Add ( ngs 
         SOURCE_DIR ${NGS_ROOT}
         GIT_REPOSITORY https://github.com/ncbi/ngs.git
-        UPDATE_COMMAND git checkout engineering
+        GIT_TAG engineering
         CONFIGURE_COMMAND ""
         BUILD_COMMAND msbuild ${NGS_ROOT}/ngs-sdk/win/ngs-sdk.sln /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Debug
               COMMAND msbuild ${NGS_ROOT}/ngs-sdk/win/ngs-sdk.sln /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Release 
@@ -124,7 +124,7 @@ if (WIN32)
         DEPENDS ngs
         SOURCE_DIR ${VDB_ROOT}
         GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
-        UPDATE_COMMAND git checkout engineering
+        GIT_TAG engineering
         CONFIGURE_COMMAND ""
         BUILD_COMMAND msbuild ${VDB_ROOT}/build/MSVC/2010/ncbi-vdb.sln /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Debug 
               COMMAND msbuild ${VDB_ROOT}/build/MSVC/2010/ncbi-vdb.sln /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Release
@@ -136,7 +136,7 @@ else()
     ExternalProject_Add ( ngs 
         SOURCE_DIR ${NGS_ROOT}
         GIT_REPOSITORY https://github.com/ncbi/ngs.git
-        UPDATE_COMMAND git checkout engineering
+        GIT_TAG engineering
         CONFIGURE_COMMAND ${NGS_ROOT}/configure --prefix=${CMAKE_INSTALL_PREFIX} --build-prefix=${OUTDIR} ${CONFIGURE_FLAGS}
         BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java 
         INSTALL_COMMAND make -C ${NGS_ROOT}/ngs-sdk install COMMAND make -C ${NGS_ROOT}/ngs-java install
@@ -146,7 +146,7 @@ else()
         DEPENDS ngs
         SOURCE_DIR ${VDB_ROOT}
         GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
-        UPDATE_COMMAND git checkout engineering
+        GIT_TAG engineering
         CONFIGURE_COMMAND ${VDB_ROOT}/configure --prefix=${CMAKE_INSTALL_PREFIX} --build-prefix=${OUTDIR} ${CONFIGURE_FLAGS}
         BUILD_COMMAND make -C ${VDB_ROOT}
         INSTALL_COMMAND make -C ${VDB_ROOT} install
