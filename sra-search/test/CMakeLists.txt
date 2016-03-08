@@ -5,7 +5,7 @@ project ( test-sra-search )
 include_directories ("..")
 
 add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../ngs-vdb.cpp ../searchblock.cpp ../NGS_VDB.c)
-add_dependencies ( test-sra-search sra-search ngs ncbi-vdb ) 
+add_dependencies ( test-sra-search sra-search ) 
 
 target_link_libraries ( test-sra-search 
 	${SYS_LIBRARIES}
