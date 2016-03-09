@@ -21,7 +21,7 @@ if (UNIX)
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( OS mac )
         set ( COMPILER clang )
-        set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6" )
+        set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6 -stdlib=libstdc++" )
         # on Mac, we may need some gcc headers in addition to clang's
         include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
         include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
