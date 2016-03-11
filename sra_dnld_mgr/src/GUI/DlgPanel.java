@@ -54,7 +54,7 @@ class DlgPanel extends JPanel
 
     public JComboBox<String> make_combo_box( boolean enabled )
     {
-        JComboBox<String> res = new JComboBox<>();
+        JComboBox<String> res = new JComboBox<String>();
         res.setPreferredSize( new Dimension( 100, 5 ) );
         ( ( JLabel )res.getRenderer() ).setHorizontalAlignment( SwingConstants.CENTER );
         res.setEnabled( enabled );
@@ -64,7 +64,7 @@ class DlgPanel extends JPanel
 
     public JComboBox<String> make_combo_box( final String[] list )
     {
-        JComboBox<String> res = new JComboBox<>( list );
+        JComboBox<String> res = new JComboBox<String>( list );
         res.setPreferredSize( new Dimension( 100, 5 ) );
         ( ( JLabel )res.getRenderer() ).setHorizontalAlignment( SwingConstants.CENTER );
         res.setEnabled( true );

@@ -232,8 +232,12 @@ public class CLogger
     private LogTask my_task;
     private Thread my_thread;
 
-    private static final CLogger INSTANCE = new CLogger();
-    public static CLogger getInstance() { return INSTANCE; }
+    private static CLogger INSTANCE = null;
+    public static CLogger getInstance()
+    {
+        if ( INSTANCE == null ) INSTANCE = new CLogger();
+        return INSTANCE;
+    }
 
     /**
      * the main functionality: log this string...
@@ -333,7 +337,7 @@ public class CLogger
         for ( int i = 0; i < h.length; ++i )
             global_logger.getParent().removeHandler( h[ i ] );
         
-        log_lines_queue = new LinkedBlockingQueue<>();
+        log_lines_queue = new LinkedBlockingQueue<String>();
         my_task = null;
         my_thread = null;
     }
