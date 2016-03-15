@@ -81,7 +81,7 @@ public class BioVerifier
     
     public List<String> extract_spotgroups( final String source )
     {
-        List<String> res = new ArrayList<>();
+        List<String> res = new ArrayList<String>();
         if ( supported_and_valid( source ) )
         {
             try

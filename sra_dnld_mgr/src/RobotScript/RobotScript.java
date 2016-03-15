@@ -134,8 +134,9 @@ public class RobotScript
     {
         if ( robot != null )
         {
-            try( BufferedReader br = new BufferedReader( new FileReader( filename ) ) )
+            try
             {
+                BufferedReader br = new BufferedReader( new FileReader( filename ) );
                 for ( String line; ( line = br.readLine() ) != null; )
                 {
                     if ( !line.isEmpty() && !line.startsWith( "#" ) )

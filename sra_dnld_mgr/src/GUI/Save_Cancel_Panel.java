@@ -90,7 +90,7 @@ public class Save_Cancel_Panel extends JPanel implements ActionListener
     public Save_Cancel_Panel()
     {
         super();
-        this.btn_handlers = new ArrayList<>();
+        this.btn_handlers = new ArrayList<SaveCancelEventHandler>();
         
         setMaximumSize( new Dimension( Short.MAX_VALUE, 50 ) );
         setLayout( new BoxLayout( this, BoxLayout.LINE_AXIS ) );
