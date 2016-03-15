@@ -112,6 +112,7 @@ endif()
 include(ExternalProject)
 
 set ( EXTERNAL_PROJECTS "" )
+set ( MSBUILD  "msbuild /m /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/" )
 
 if (NOT EXISTS ${NGS_ROOT})
     if (WIN32)
@@ -121,8 +122,8 @@ if (NOT EXISTS ${NGS_ROOT})
             GIT_TAG ${GIT_BRANCH_NGS}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild /m ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Debug
-                  COMMAND msbuild /m ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Release 
+            BUILD_COMMAND ${MSBUILD} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:Configuration=Debug
+                  COMMAND ${MSBUILD} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:Configuration=Release 
                   COMMAND ant -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OUTDIR}/ngs-java jar
             INSTALL_COMMAND ""
         )
@@ -142,8 +143,8 @@ else()
         ExternalProject_Add ( ngs 
             SOURCE_DIR ${NGS_ROOT}
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild /m ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Debug
-                  COMMAND msbuild /m ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /m /p:Platform=x64 /p:Configuration=Release 
+            BUILD_COMMAND ${MSBUILD} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:Configuration=Debug
+                  COMMAND ${MSBUILD} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:Configuration=Release 
                   COMMAND ant -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OUTDIR}/ngs-java jar
             INSTALL_COMMAND ""
         )
@@ -166,8 +167,12 @@ if (NOT EXISTS ${VDB_ROOT})
             GIT_TAG ${GIT_BRANCH_VDB}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild /m ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Debug 
-                  COMMAND msbuild /m ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Release
+            BUILD_COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /p:Configuration=Debug
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /p:Configuration=Release 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj /p:Configuration=Debug 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj /p:Configuration=Release 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj /p:Configuration=Debug 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj /p:Configuration=Release 
             INSTALL_COMMAND ""
         )
     else()
@@ -188,8 +193,12 @@ else ()
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild /m ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Debug 
-                  COMMAND msbuild /m ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /tv:${TOOLS_VERSION} /p:NGS_OUTDIR=${OUTDIR}/ngs-sdk/ /p:VDB_OUTDIR=${OUTDIR}/ncbi-vdb/ /m /p:Platform=x64 /p:Configuration=Release
+            BUILD_COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /p:Configuration=Debug
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj /p:Configuration=Release 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj /p:Configuration=Debug 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj /p:Configuration=Release 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj /p:Configuration=Debug 
+                  COMMAND ${MSBUILD} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj /p:Configuration=Release 
             INSTALL_COMMAND ""
         )
     else()
