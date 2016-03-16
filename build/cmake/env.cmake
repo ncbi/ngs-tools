@@ -12,9 +12,10 @@ set ( GIT_BRANCH "master" )
 set ( GIT_BRANCH_NGS ${GIT_BRANCH} CACHE STRING "git branch to use for ngs repository" )
 set ( GIT_BRANCH_VDB ${GIT_BRANCH} CACHE STRING "git branch to use for ncbi-vdb repository" )
 
-#/////////////////////////////////////////////////////////////////////////////////////////////
-
 set ( PLATFORM x86_64 )
+set ( WIN_PLATFORM x64 )
+
+#/////////////////////////////////////////////////////////////////////////////////////////////
 
 if (UNIX)
 
@@ -112,7 +113,7 @@ endif()
 include(ExternalProject)
 
 set ( EXTERNAL_PROJECTS "" )
-set ( MSBUILD_OPTIONS  /m /tv:${TOOLS_VERSION} )
+set ( MSBUILD_OPTIONS  /m /tv:${TOOLS_VERSION} /p:Platform=${WIN_PLATFORM} )
 
 if (NOT EXISTS ${NGS_ROOT})
     if (WIN32)
