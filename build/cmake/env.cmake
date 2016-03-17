@@ -174,6 +174,10 @@ if (NOT EXISTS ${VDB_ROOT})
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
             INSTALL_COMMAND ""
         )
     else()
@@ -200,6 +204,10 @@ else ()
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
             INSTALL_COMMAND ""
         )
     else()
