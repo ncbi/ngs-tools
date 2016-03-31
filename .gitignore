@@ -28,5 +28,5 @@ actual/
 /test-bin64
 /win
 
-/build/cmake
+/build/cmake/*/
 OUTDIR.*

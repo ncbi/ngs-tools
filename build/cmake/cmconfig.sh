@@ -46,12 +46,12 @@ HELP='\n
 
 if [ "$1" = "-h" ]
 then
-    echo $HELP
+    echo -e $HELP
     exit 0
 fi
 if [ "$1" = "--help" ]
 then
-    echo $HELP
+    echo -e $HELP
     exit 0
 fi
 

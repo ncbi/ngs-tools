@@ -1,0 +1,24 @@
+Linux/Mac:
+
+To configure CMake for the first time, cd to the directory where you want CMake to generate project files and binaries and execute 
+
+cmake -DCMAKE_BUILD_TYPE=<Debug or Release> -DCMAKE_INSTALL_PREFIX:PATH=<path to install ngs-tools binaries> <path to the root of ngs-tools sources>
+
+As a convenience, you can cd into this directory (ngs-tools/build/cmake) and run ./makedebug.sh or ./makerelease.sh; this will configure a Debug or Release version in a subdirectory. 
+
+Once configured, run make from the new directory. Run "make help" for the list of available targets.
+
+Windows:
+
+Run CMake GUI. Populate ""Where is the source code" and "Where to build the binaries", click on Configure. 
+Choose the required generator (supported: VS 12 2013, VS 12 2013 Win64, VS 10 2010, VS 10 2010 Win64).
+
+(This step is only required until theses changes are merged into master:) In the pane of Name/Value pairs, replace "master" with "VDB-2807-CMake-for-ngs-tools", 2 times.
+
+In the pane of Name/Value pairs update value for CMAKE_INSTALL_PREFIX path to install ngs-tools binaries.
+If NGS and NCBI-VDB sources are already checkout out, you may specify their locations as values for NGS_ROOT and VDB_ROOT.
+
+Click on Generate.
+
+Open ngs-tools.sln, located in the "Where to build the binaries" directory, in the version of Visual Studio corresponding to the generator chosen above, and build/run as usual.
+
