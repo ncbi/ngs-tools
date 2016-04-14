@@ -103,6 +103,8 @@ namespace fastrq
             << "Options:\n"
             << '\n'
             ;
+
+        exit ( 0 );
     }
 
     static
@@ -150,46 +152,43 @@ namespace fastrq
                 argv [ ++ settings . num_accessions ] = arg;
             }
             else do switch ( ( ++ arg ) [ 0 ] )
-                    {
-                    case 'h':
-                    case '?':
-                        handle_help ( appName );
-                        return;
-                    case 'l':
-                    case 'L': // Get the minimum spot_id length
-                        ++ arg;
-                        settings . min_length = ( size_t ) smart_atoi ( nextArg ( arg, i, argc, argv ) );
-                        break;
-                    case 'n':
-                    case 'N':
-                        ++ arg;
-                        settings . n_count = ( uint32_t ) smart_atoi ( nextArg ( arg, i, argc, argv ) );
-                        break;
-                    case '-':
-                        ++ arg;
-                        if ( strcmp ( arg, "fasta"  ) == 0 )
-                            settings . fmt = fmt_fasta;
-                        else if ( strcmp ( arg, "spot_id_length"  ) == 0 )
-                            settings . min_length = ( size_t ) atoi ( nextArg ( i, argc, argv ) );
-                        else if ( strcmp ( arg, "max_n_count" ) == 0 )
-                            settings . n_count = ( uint32_t ) atoi ( nextArg ( i, argc, argv ) );
-                        else if ( strcmp ( arg, "help"  ) == 0 )
-                        {
-                            handle_help ( appName );
-                            return;
-                        }
-                        else
-                        {
-                            throw "Invalid Argument";
-                        }
+            {
+            case 'h':
+            case '?':
+                handle_help ( appName );
+                break;
+            case 'l':
+            case 'L': // Get the minimum spot_id length
+                ++ arg;
+                settings . min_length = ( size_t ) smart_atoi ( nextArg ( arg, i, argc, argv ) );
+                break;
+            case 'n':
+            case 'N':
+                ++ arg;
+                settings . n_count = ( uint32_t ) smart_atoi ( nextArg ( arg, i, argc, argv ) );
+                break;
+            case '-':
+                ++ arg;
+                if ( strcmp ( arg, "fasta"  ) == 0 )
+                    settings . fmt = fmt_fasta;
+                else if ( strcmp ( arg, "spot_id_length"  ) == 0 )
+                    settings . min_length = ( size_t ) atoi ( nextArg ( i, argc, argv ) );
+                else if ( strcmp ( arg, "max_n_count" ) == 0 )
+                    settings . n_count = ( uint32_t ) atoi ( nextArg ( i, argc, argv ) );
+                else if ( strcmp ( arg, "help"  ) == 0 )
+                    handle_help ( appName );
+                else
+                {
+                    throw "Invalid Argument";
+                }
             
-                        arg = "\0";
-            
-                        break;
-                    default:
-                        throw "Invalid argument";
-                    }
-                while ( arg [ 1 ] != 0 );
+                arg = "\0";
+                
+                break;
+            default:
+                throw "Invalid argument";
+            }
+            while ( arg [ 1 ] != 0 );
         }
     }
 
@@ -232,11 +231,7 @@ using namespace ngs;
 
 int main ( int argc, char const *argv[] )
 {
-    if ( argc < 2 )
-    {
-        std :: cerr << "Invalid arguments. -h or help \n";
-    }
-    else try
+    try
     {
         return fastrq :: run ( argc, argv );
     }
@@ -248,6 +243,11 @@ int main ( int argc, char const *argv[] )
     catch ( std :: exception & x )
     {
         std :: cerr <<  x.what () << '\n';
+        return -1;
+    }
+    catch ( const char x [] )
+    {
+        std :: cerr <<  x << '\n';
         return -1;
     }
     catch ( ... )
