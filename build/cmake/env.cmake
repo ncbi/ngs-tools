@@ -168,16 +168,16 @@ if (NOT EXISTS ${VDB_ROOT})
             GIT_TAG ${GIT_BRANCH_VDB}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
+            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR} /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
             INSTALL_COMMAND ""
         )
     else()
@@ -198,17 +198,17 @@ else ()
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Debug 
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:NGS_OUTDIR=${OUTDIR}/ncbi-vdb/ /p:Configuration=Release 
-            INSTALL_COMMAND ""
+            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
+                  INSTALL_COMMAND ""
         )
     else()
         ExternalProject_Add ( ncbi-vdb 
