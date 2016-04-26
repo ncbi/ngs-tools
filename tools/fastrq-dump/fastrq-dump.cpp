@@ -103,8 +103,6 @@ namespace fastrq
             << "Options:\n"
             << '\n'
             ;
-
-        exit ( 0 );
     }
 
     static
@@ -139,7 +137,7 @@ namespace fastrq
     }
 
     static
-    void parse_cmdline ( int argc, const char *argv [], FastRQSettings &settings )
+    bool parse_cmdline ( int argc, const char *argv [], FastRQSettings &settings )
     {
         const char *appName = argv [ 0 ];
         
@@ -156,7 +154,7 @@ namespace fastrq
             case 'h':
             case '?':
                 handle_help ( appName );
-                break;
+                return true;
             case 'l':
             case 'L': // Get the minimum spot_id length
                 ++ arg;
@@ -176,7 +174,10 @@ namespace fastrq
                 else if ( strcmp ( arg, "max_n_count" ) == 0 )
                     settings . n_count = ( uint32_t ) atoi ( nextArg ( i, argc, argv ) );
                 else if ( strcmp ( arg, "help"  ) == 0 )
+                {
                     handle_help ( appName );
+                    return true;
+                }
                 else
                 {
                     throw "Invalid Argument";
@@ -190,6 +191,8 @@ namespace fastrq
             }
             while ( arg [ 1 ] != 0 );
         }
+
+        return false;
     }
 
     static
@@ -197,7 +200,8 @@ namespace fastrq
     {
         FastRQSettings settings;
 
-        parse_cmdline ( argc, argv, settings );
+        if ( parse_cmdline ( argc, argv, settings ) )
+            return 0;
 
         settings.validate ();
 
