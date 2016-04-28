@@ -206,7 +206,7 @@ public:
         {
             if ( VdbSearch :: logResults )
             {
-                cout << "m_startInBlob=" << m_startInBlob << endl;
+                cout << "m_startInBlob=" << m_startInBlob << " size=" << ( m_blobIt . Size () - m_startInBlob ) << endl;
             }
             
             uint64_t hitStart;
@@ -220,14 +220,14 @@ public:
                 
                 // convert to offsets from the strat of the blob
                 hitStart += m_startInBlob;
-                hitEnd += hitEnd;
+                hitEnd += m_startInBlob;
                 
                 uint64_t fragEnd;
                 bool biological;
                 m_blobIt . GetFragmentInfo ( hitStart, p_fragmentId, fragEnd, biological );
                 if ( VdbSearch :: logResults )
                 {
-                    cout << "fragId=" << p_fragmentId << " fragEnd=" << fragEnd << " biological=" << ( biological ? "true" : "false" ) << endl;
+                    cout << "fragId=" << p_fragmentId << " hitStart=" << hitStart << " hitEnd=" << hitEnd << " fragEnd=" << fragEnd << " biological=" << ( biological ? "true" : "false" ) << endl;
                 }
                 // TODO: if not biological, resume search from fragEnd
                 if ( biological )
@@ -265,7 +265,6 @@ private:
 //////////////////// VdbSearch
 
 bool VdbSearch :: logResults = false;
-bool VdbSearch :: useBlobSearch = false;
 
 void 
 VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )
@@ -289,11 +288,17 @@ VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) t
     }
 }
 
-VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct, unsigned int p_threads )  
+VdbSearch :: VdbSearch ( Algorithm          p_algorithm, 
+                         const std::string& p_query, 
+                         bool               p_isExpression, 
+                         bool               p_useBlobSearch, 
+                         unsigned int       p_minScorePct, 
+                         unsigned int       p_threads )  
     throw ( invalid_argument )
 :   m_algorithm ( p_algorithm ),
     m_query ( p_query ),
     m_isExpression ( p_isExpression ),
+    m_useBlobSearch ( p_useBlobSearch ),
     m_minScorePct ( p_minScorePct ),
     m_threads ( p_threads ),
     m_output ( 0 ),
@@ -302,10 +307,16 @@ VdbSearch :: VdbSearch ( Algorithm p_algorithm, const std::string& p_query, bool
     CheckArguments ( p_isExpression, p_minScorePct );
 }
 
-VdbSearch :: VdbSearch ( const string& p_algorithm, const std::string& p_query, bool p_isExpression, unsigned int p_minScorePct, unsigned int p_threads )  
+VdbSearch :: VdbSearch ( const string&      p_algorithm, 
+                         const std::string& p_query, 
+                         bool               p_isExpression, 
+                         bool               p_useBlobSearch, 
+                         unsigned int       p_minScorePct, 
+                         unsigned int       p_threads )  
     throw ( invalid_argument )
 :   m_query ( p_query ),
     m_isExpression ( p_isExpression ),
+    m_useBlobSearch ( p_useBlobSearch ),
     m_minScorePct ( p_minScorePct ),
     m_threads ( p_threads ),
     m_output ( 0 ),
@@ -385,8 +396,8 @@ VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
 void 
 VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
 {
-    SearchBlock* sb = SearchBlockFactory ( m_query, m_isExpression, m_algorithm, m_minScorePct );
-    if ( useBlobSearch )
+    SearchBlock* sb = SearchBlockFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct );
+    if ( m_useBlobSearch && sb -> CanUseBlobs() )
     {
         m_searches . push ( new BlobMatchIterator ( sb, p_accession ) );
     }
@@ -474,7 +485,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
 //////////////////// SearchBlock factory
 
 VdbSearch :: SearchBlock* 
-VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Algorithm p_algorithm, unsigned int p_minScorePct )
+VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, bool p_useBlobSearch, Algorithm p_algorithm, unsigned int p_minScorePct )
 {
     switch ( p_algorithm )
     {
@@ -490,7 +501,7 @@ VdbSearch :: SearchBlockFactory ( const string& p_query, bool p_isExpression, Al
             return new AgrepSearch ( p_query, p_algorithm, p_minScorePct );
         
         case VdbSearch :: NucStrstr:
-            return new NucStrstrSearch ( p_query, p_isExpression );
+            return new NucStrstrSearch ( p_query, p_isExpression, p_useBlobSearch );
             
         case VdbSearch :: SmithWaterman:
             return new SmithWatermanSearch ( p_query, p_minScorePct );

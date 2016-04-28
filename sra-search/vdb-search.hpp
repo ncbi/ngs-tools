@@ -47,6 +47,8 @@ public:
     public:
         virtual ~SearchBlock () {}
         
+        virtual bool CanUseBlobs () const { return true; }
+    
         virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
         {
             uint64_t hitStart;
@@ -58,7 +60,6 @@ public:
     
 public:
     static bool logResults;
-    static bool useBlobSearch;
 
 public:
     // Search algorithms supported by this class
@@ -84,11 +85,13 @@ public:
     VdbSearch ( Algorithm, 
                 const std::string& query, 
                 bool isExpression, 
+                bool p_useBlobSearch, 
                 unsigned int p_minScorePct = 100, 
                 unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     VdbSearch ( const std :: string& algorithm, 
                 const std::string& query, 
                 bool isExpression, 
+                bool p_useBlobSearch, 
                 unsigned int p_minScorePct = 100, 
                 unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     
@@ -135,6 +138,7 @@ private:
     
     static SearchBlock* SearchBlockFactory ( const std :: string& p_query, 
                                              bool p_isExpression, 
+                                             bool p_useBlobSearch, 
                                              Algorithm p_algorithm, 
                                              unsigned int m_minScorePct );
                                              
@@ -142,7 +146,8 @@ private:
 
 private:
     std::string     m_query;
-    bool            m_isExpression; 
+    bool            m_isExpression;
+    bool            m_useBlobSearch;  
     Algorithm       m_algorithm;
     unsigned int    m_minScorePct;
     unsigned int    m_threads;

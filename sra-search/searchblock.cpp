@@ -148,11 +148,11 @@ AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
     return ret;
 }
 
-NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional ) throw ( ngs :: ErrorMsg )
-:   m_positional ( p_positional ),
+NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional, bool p_useBlobSearch ) throw ( ngs :: ErrorMsg )
+:   m_positional ( p_positional || p_useBlobSearch ), // always use positional mode when searching blob-by-blob since it is the only one reporting position of the match
     m_query ( p_query )
 {
-    rc_t rc = NucStrstrMake ( &m_nss, m_positional ? 1 : 0, m_query . c_str (), m_query . size () );
+    rc_t rc = NucStrstrMake ( &m_nss, m_positional ? 1 : 0, m_query . c_str (), m_query . size () ); 
     if ( rc != 0 )
     {
         throw ( ErrorMsg ( "NucStrstrMake() failed" ) );
@@ -162,8 +162,8 @@ NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional ) 
 NucStrstrSearch ::  ~NucStrstrSearch ()
 {
     NucStrstrWhack ( m_nss );
-}    
-    
+}
+
 bool 
 NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
 {
@@ -182,8 +182,8 @@ bool
 NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg )
 {
     if ( ! m_positional )
-    {
-        throw ( ErrorMsg ( "NucStrstrMake: non-positional search is not supported" ) );
+    {   // Should not land here since NucStrstrSearch::CanUseBlobs() returns false.
+        throw ( ErrorMsg ( "NucStrstrSearch: non-positional search in a blob is not supported" ) );
     }
     
     // convert p_bases to 2na packed since nucstrstr works with that format only
@@ -246,7 +246,14 @@ SmithWatermanSearch :: ~SmithWatermanSearch ()
 {
     SmithWatermanWhack ( m_sw );
 }    
-    
+
+bool
+SmithWatermanSearch :: CanUseBlobs () const 
+{ 
+    // As blob size grows, SW quickly becomes unusable (VDB-3019)
+    return false; 
+}
+
 bool
 SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg )
 {

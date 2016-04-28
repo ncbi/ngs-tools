@@ -219,7 +219,15 @@ NGS_VDB_ReadCollectionGetBlob ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_
                 if ( rc == 0 || 
                     GetRCObject ( rc ) == rcRow && GetRCState( rc ) == rcNotFound )
                 {
-                    return ret;
+                    rc = VCursorCloseRow ( vcurs );
+                    if ( rc == 0 )
+                    {
+                        return ret;                
+                    }
+                }
+                else
+                {
+                    VCursorCloseRow ( vcurs );
                 }
                 INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
             }                            

@@ -160,9 +160,7 @@ public:
         delete m_s;
         m_s = 0;
         
-        VdbSearch :: useBlobSearch = p_blobBased;
-        
-        m_s = new VdbSearch ( p_algorithm, p_query, p_expression, 100, p_threads );
+        m_s = new VdbSearch ( p_algorithm, p_query, p_expression, p_blobBased, 100, p_threads );
         m_s -> AddAccession ( p_accession );
     }
     void SetupWithScore ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, unsigned int p_minScore, bool p_blobBased = false )
@@ -170,9 +168,7 @@ public:
         delete m_s;
         m_s = 0;
         
-        VdbSearch :: useBlobSearch = p_blobBased;
-        
-        m_s = new VdbSearch ( p_algorithm, p_query, false, p_minScore  );
+        m_s = new VdbSearch ( p_algorithm, p_query, false, p_blobBased, p_minScore  );
         m_s -> AddAccession ( p_accession );
     }
     
@@ -195,7 +191,7 @@ public:
 
 FIXTURE_TEST_CASE ( Create_Destroy, VdbSearchFixture )
 {
-    m_s = new VdbSearch ( VdbSearch :: FgrepDumb, "ACGT", false );
+    m_s = new VdbSearch ( VdbSearch :: FgrepDumb, "ACGT", false, false );
     REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s -> GetAlgorithm () ); 
     delete m_s;
     m_s = 0;
