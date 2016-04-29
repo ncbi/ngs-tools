@@ -222,14 +222,16 @@ NGS_VDB_ReadCollectionGetBlob ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_
                     rc = VCursorCloseRow ( vcurs );
                     if ( rc == 0 )
                     {
-                        return ret;                
+                        return ret;
                     }
+                    VBlobRelease ( ret );
+                    INTERNAL_ERROR ( xcUnexpected, "VCursorCloseRow() rc = %R", rc );            
                 }
                 else
                 {
-                    VCursorCloseRow ( vcurs );
+                    INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
                 }
-                INTERNAL_ERROR ( xcUnexpected, "VCursorGetBlob() rc = %R", rc );            
+                VCursorCloseRow ( vcurs );
             }                            
             else
             {
