@@ -81,6 +81,9 @@ elseif (WIN32)
 
     include_directories ("${NGS_ROOT}/ngs-sdk/win")
     
+    # use miltiple processors
+	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MP")
+
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
 
