@@ -36,8 +36,8 @@ public class QConnect< EntryType >
     
     public QConnect( final int max_created )
     {
-        active = new ConcurrentLinkedQueue<>();
-        stock = new ConcurrentLinkedQueue<>();
+        active = new ConcurrentLinkedQueue<EntryType>();
+        stock = new ConcurrentLinkedQueue<EntryType>();
         created = 0;
         this.max_created = max_created;
     }

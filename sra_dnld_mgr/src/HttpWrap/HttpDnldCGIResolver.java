@@ -52,13 +52,15 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
             HttpURLConnection conn = make_connection( "POST" );
             conn.setUseCaches( false );
             conn.setDoOutput( true );
-            try ( DataOutputStream wr = new DataOutputStream( conn.getOutputStream() ) )
+            try
             {
+                DataOutputStream wr = new DataOutputStream( conn.getOutputStream() );
                 wr.writeBytes( parameters );
 
                 InputStream is = conn.getInputStream();
-                try ( BufferedReader rd = new BufferedReader( new InputStreamReader( is ) ) )
+                try
                 {
+                    BufferedReader rd = new BufferedReader( new InputStreamReader( is ) );
                     boolean done = false;                   
                     while ( !done )
                     {
@@ -71,6 +73,7 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
                         }
                     }
                 }
+                catch ( IOException ex ) { CLogger.log( ex.toString() ); }
             }
             catch ( IOException ex ) { CLogger.log( ex.toString() ); }
         }
@@ -126,14 +129,14 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
             Lines lines = post( sb.toString() );
             if ( lines.count > 1 )
             {
-                switch ( lines.lines[ 0 ] )
+                String sel = lines.lines[ 0 ];
+                if ( sel.startsWith( "#1.0" ) )
                 {
-                    case "#1.0":
-                        found = split_1_0( lines.lines[ 1 ], r );
-                        break;
-                    case "#1.1":
-                        found = split_1_1( lines.lines[ 1 ], r );
-                        break;
+                    found = split_1_0( lines.lines[ 1 ], r );
+                }
+                else if ( sel.startsWith( "#1.1" ) )
+                {
+                    found = split_1_1( lines.lines[ 1 ], r );
                 }
             }
         }

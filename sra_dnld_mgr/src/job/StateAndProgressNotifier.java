@@ -137,8 +137,8 @@ public class StateAndProgressNotifier
                                      final long elapsed )
     {
         super( 50 );
-        progress_listeners = new ArrayList<>();
-        state_listeners = new ArrayList<>();
+        progress_listeners = new ArrayList<ProgressListenerInterface>();
+        state_listeners = new ArrayList<ProgressListenerInterface>();
         this.progress = progress;
         this.maximum = maximum;
         this.elapsed_time = elapsed;

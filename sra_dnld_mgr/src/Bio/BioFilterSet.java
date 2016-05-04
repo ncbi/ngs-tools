@@ -89,6 +89,6 @@ public class BioFilterSet
     
     public BioFilterSet()
     {
-        filters = new ArrayList<>();
+        filters = new ArrayList<BioFilter>();
     }
 }

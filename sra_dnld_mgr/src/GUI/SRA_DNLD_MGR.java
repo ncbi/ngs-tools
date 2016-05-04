@@ -38,12 +38,10 @@ class main_window_runner implements Runnable
             //UIManager.setLookAndFeel( UIManager.getCrossPlatformLookAndFeelClassName() );
             UIManager.setLookAndFeel( UIManager.getSystemLookAndFeelClassName() );
         }
-        catch ( ClassNotFoundException | 
-                InstantiationException | 
-                IllegalAccessException | 
-                UnsupportedLookAndFeelException e )
-        {
-        }
+        catch ( ClassNotFoundException ex )  {  }
+        catch ( InstantiationException ex )  {  }
+        catch ( IllegalAccessException ex )  {  }
+        catch ( UnsupportedLookAndFeelException ex ) {  }
     }
 
     @Override public void run()
