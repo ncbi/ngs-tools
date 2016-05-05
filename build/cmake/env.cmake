@@ -171,7 +171,7 @@ if (NOT EXISTS ${VDB_ROOT})
             GIT_TAG ${GIT_BRANCH_VDB}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR} /p:Configuration=Debug
+            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
