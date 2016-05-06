@@ -66,7 +66,7 @@ public class JobWindow extends DlgWithMaxSize
     private final TextInputPanel rejected = new TextInputPanel( "rejected", false );
     private final ButtonPanel preview =  new ButtonPanel( "preview", "preview FASTQ/FASTA",
                     on_preview, ResourceImages.get_preview_img() );
-    private final ButtonPanel filter = new ButtonPanel( "preview", "filter FASTQ/FASTA",
+    private final ButtonPanel filter = new ButtonPanel( "filter", "filter FASTQ/FASTA",
                     on_filter, ResourceImages.get_filter_img() );
     private final ButtonPanel refs = new ButtonPanel( "references", "show used references",
                     on_references, null );

@@ -48,6 +48,8 @@ public class MainWindow extends JFrame
     private final JToolBar toolbar = make_toolbar();
     private final JPanel jobs = new JPanel();
     
+    private String to_test = "";
+
     private class on_settings implements ActionListener
     {
         @Override public void actionPerformed( ActionEvent ae ) { SettingsWindow.edit(); }
@@ -92,11 +94,10 @@ public class MainWindow extends JFrame
     {
         @Override public void on_state_progress_event( StateAndProgressEvent ev )
         {
-            if ( Settings.getInstance().get_autostart() && 
-                 ev.type == StateAndProgressType.STATE &&
+            if ( ev.type == StateAndProgressType.STATE &&
                  ev.prev_state == JobState.RUNNING &&
                  ev.new_state == JobState.DONE )
-                    start_download_jobs();
+                job_has_finished();
         }
     }
 
@@ -215,8 +216,7 @@ public class MainWindow extends JFrame
         CLogger.log( "start_stop()" );
         
         JobPanel p = get_active_panel();
-        boolean res = ( p != null );
-        if ( res )
+        if ( p != null )
         {
             if ( p.is_running() )
                 p.pause();
@@ -228,7 +228,7 @@ public class MainWindow extends JFrame
                     p.start();
             }
         }
-        return res;
+        return ( p != null );
     }
     
     public boolean on_key( final KeyEvent ke )
@@ -371,12 +371,25 @@ public class MainWindow extends JFrame
         }
     }
 
-    public void start_download_jobs()
+    public final void start_download_jobs()
     {
         start_loop( Settings.getInstance().get_maxdownloads() - running_downloads() );
     }
+
+    public final void job_has_finished()
+    {
+        if ( to_test.length() > 0 )
+        {
+            on_exit();
+        }
+        else
+        {
+            if ( Settings.getInstance().get_autostart() )
+                start_download_jobs();
+        }
+    }
     
-    public void stop_all_threads()
+    public final void stop_all_threads()
     {
         int i, n_panels = jobs.getComponentCount();
         for ( i = 0; i < n_panels; ++i )
@@ -479,21 +492,43 @@ public class MainWindow extends JFrame
         
         pane.add( scroll, BorderLayout.CENTER );
 
-        JobList jl = new JobList( Settings.getInstance().get_jobpath() );
-        for ( String filename : jl.make_list() )
+        if ( to_test.length() == 0 )
         {
-            new_visible_job( new JobData( filename ) );
+            /* no job to execute from cmd-line: read jobs from path */
+            JobList jl = new JobList( Settings.getInstance().get_jobpath() );
+            for ( String filename : jl.make_list() )
+            {
+                new_visible_job( new JobData( filename ) );
+            }
+        }
+        else
+        {
+            /* we have a job to execute from cmd-line: */
+            JobData nj = new JobData( to_test );
+            /* reset the job in any case... */
+            nj.set_runtime( 0 );
+            nj.set_rejected( 0 );
+            nj.change_job_state( JobState.READY );
+            nj.set_progress( 0, true );            
+            new_visible_job( nj );
         }
 
         add( StatusBar.getInstance(), BorderLayout.SOUTH );
         
-        if ( Settings.getInstance().get_autostart() )
+        if ( to_test.length() == 0 && Settings.getInstance().get_autostart() )
             start_download_jobs();
     }
     
-    public MainWindow()
+    public MainWindow( String to_test )
     {
         super( "SRA download" );
+        
+        if ( to_test.length() > 0 )
+        {
+            this.to_test = to_test;
+            this.setTitle( "SRA download testing: " + to_test );
+        }
+        
         this.setIconImage( ResourceImages.get_logo_img().getImage() );
         
         setJMenuBar( new TheMenuBar( this ) );
@@ -511,6 +546,8 @@ public class MainWindow extends JFrame
         setDefaultCloseOperation( JFrame.DO_NOTHING_ON_CLOSE );
         addWindowListener( window_close_event );
         enable_key_processor( true );
-        setVisible( true );
+        
+        if ( to_test.length() == 0 )
+            setVisible( true );
     }
 }
