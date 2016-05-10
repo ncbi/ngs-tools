@@ -114,7 +114,7 @@ GetTable ( ctx_t ctx, const char * spec )
                 {
                     const char SRA_PREFIX[] = "NCBI:SRA:";
                     size_t pref_size = sizeof ( SRA_PREFIX ) - 1;
-                    if ( string_match ( SRA_PREFIX, pref_size, ts_buff, string_size ( ts_buff ), pref_size, NULL ) == pref_size )
+                    if ( string_match ( SRA_PREFIX, pref_size, ts_buff, string_size ( ts_buff ), ( uint32_t ) pref_size, NULL ) == pref_size )
                     {
                         return ret;
                     }
@@ -159,8 +159,8 @@ NGS_VDB_ReadCollectionMake ( const char * spec, NGS_VDB_ErrBlock * err  )
         {   /* open cursor */
             TRY ( const NGS_Cursor* curs = NGS_CursorMake ( ctx, tbl, sequence_col_specs, seq_NUM_COLS ) )
             {
-                VTableRelease ( tbl );
                 NGS_VDB_ReadCollection * ret = (NGS_VDB_ReadCollection *) malloc ( sizeof ( NGS_VDB_ReadCollection ) );
+                VTableRelease ( tbl );
                 if ( ret != NULL )
                 {
                     ret -> name = NGS_StringMakeCopy ( ctx, spec, string_size ( spec ) );
@@ -365,7 +365,7 @@ GetFragment ( ctx_t ctx, NGS_VDB_ReadCollection * self, int64_t p_rowId, uint64_
                     isBiological = frag_types [ i ] & READ_TYPE_BIOLOGICAL;
                     if ( p_offsetInRow < offset + frag_length )
                     {
-                        *p_nextFragStart = offset + frag_length;
+                        *p_nextFragStart = ( uint32_t ) ( offset + frag_length );
                         *p_biological = isBiological;
                         *p_bioFragNum = *p_biological ? bioFragNum : 0;
                         return;

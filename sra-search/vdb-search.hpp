@@ -47,8 +47,6 @@ public:
     public:
         virtual ~SearchBlock () {}
         
-        virtual bool CanUseBlobs () const { return true; }
-    
         virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
         {
             uint64_t hitStart;
@@ -104,13 +102,38 @@ public:
     bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
     
 private:
-    // a VDB-agnostic iterator bound to an accession and an engine-side algorithm; 
-    // subclasses implement different styles of retrieval (row/blob based, SRA/WGS schema)
-    class MatchIterator 
+
+    // create search blocks corresponding to current configuration
+    class SearchBlockFactory
     {
     public:
-        MatchIterator ( SearchBlock*, const std::string& accession );
-        virtual ~MatchIterator ();
+        SearchBlockFactory ( const std :: string&   p_query, 
+                             bool                   p_isExpression, 
+                             bool                   p_useBlobSearch, 
+                             Algorithm              p_algorithm, 
+                             unsigned int           p_minScorePct );
+                             
+        bool CanUseBlobs () const;
+                             
+        SearchBlock* MakeSearchBlock () const;
+        
+    private:
+        const std :: string&    m_query; 
+        bool                    m_isExpression;
+        bool                    m_useBlobSearch; 
+        Algorithm               m_algorithm; 
+        unsigned int            m_minScorePct;
+    };
+    
+private:
+
+    // A buffer that can be searched for one or more matches, bound to an accession and an engine-side algorithm;
+    // Subclasses implement fragment-based (1 hit) or blob-based (multiple hits) search 
+    class SearchBuffer
+    {
+    public:
+        SearchBuffer ( SearchBlock*, const std::string& accession );
+        virtual ~SearchBuffer();
         
         virtual bool NextMatch ( std::string& fragmentId ) = 0;
         
@@ -121,28 +144,44 @@ private:
         std::string m_accession; 
     };
     
+    class FragmentSearchBuffer;
+    class BlobSearchBuffer; 
+
+private:
+
+    // a VDB-agnostic iterator. Subclasses implement different styles of retrieval (fragment/blob based, SRA/WGS schema)
+    class MatchIterator 
+    {
+    public:
+        MatchIterator ( SearchBlockFactory&, const std::string& accession );
+        virtual ~MatchIterator ();
+        
+        virtual SearchBuffer* NextBuffer () = 0;
+        
+    protected:
+        const SearchBlockFactory&   m_factory; 
+        std::string                 m_accession;
+    };
+    
     class FragmentMatchIterator; // fragment-based search
     class BlobMatchIterator; // blob-based search
     
+private:
+
     typedef std::queue < MatchIterator* > SearchQueue;
-    
-    struct SearchThreadBlock;
-    
-    class OutputQueue;
-    
     typedef std :: vector < KThread* > ThreadPool;
     
+    struct SearchThreadBlock;
+    class OutputQueue;
+    
+    static rc_t CC SearchAccPerThread ( const struct KThread *self, void *data );
+    static rc_t CC SearchBlobPerThread ( const struct KThread *self, void *data );
+
+private:
+
     void CheckArguments ( bool isExpression, unsigned int minScorePct) throw ( std :: invalid_argument );
     
     bool SetAlgorithm ( const std :: string& p_algStr );
-    
-    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, 
-                                             bool p_isExpression, 
-                                             bool p_useBlobSearch, 
-                                             Algorithm p_algorithm, 
-                                             unsigned int m_minScorePct );
-                                             
-    static rc_t CC SearchThread ( const struct KThread *self, void *data );
 
 private:
     std::string     m_query;
@@ -151,6 +190,9 @@ private:
     Algorithm       m_algorithm;
     unsigned int    m_minScorePct;
     unsigned int    m_threads;
+    bool            m_blobPerThread;  
+    
+    SearchBlockFactory m_sbFactory;    
 
     SearchQueue     m_searches;
         

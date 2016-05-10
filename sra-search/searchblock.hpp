@@ -86,8 +86,6 @@ public:
     SmithWatermanSearch ( const std::string& p_query, uint8_t p_minScorePct );
     virtual ~SmithWatermanSearch ();
     
-    virtual bool CanUseBlobs () const;
-
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );  
 
 private:

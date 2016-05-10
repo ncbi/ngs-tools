@@ -48,23 +48,23 @@ namespace fastrq
 
     void FastRQOperation :: run ( ngs :: ReadCollection & run, const FastRQFilter * filter, const FastRQFormatter * fmt ) const
     {
-        throw __PRETTY_FUNCTION__;
+        throw __FUNCTION__;
     }
 
     void FastRQOperation :: run ( ngs :: ReadCollection & run, uint64_t start_row, uint64_t num_rows,
                                   const FastRQFilter * filter, const FastRQFormatter * fmt ) const
     {
-        throw  __PRETTY_FUNCTION__;
+        throw  __FUNCTION__;
     }
 
     void FastRQOperation :: run ( ngs :: ReferenceSequence & ref, const FastRQFilter * filter, const FastRQFormatter * fmt ) const
     {
-        throw  __PRETTY_FUNCTION__;
+        throw  __FUNCTION__;
     }
     void FastRQOperation :: run ( ngs :: ReferenceSequence & ref, uint64_t start_row, uint64_t num_rows,
                                   const FastRQFilter * filter, const FastRQFormatter * fmt ) const
     {
-        throw  __PRETTY_FUNCTION__;
+        throw  __FUNCTION__;
     }
 
      /*======================================================================

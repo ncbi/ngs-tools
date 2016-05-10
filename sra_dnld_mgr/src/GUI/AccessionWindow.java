@@ -81,7 +81,15 @@ public class AccessionWindow extends DlgWithMaxSize
             {
                 spec.copy( checker.get() );
             }
-            catch ( InterruptedException | ExecutionException | CancellationException ex )
+            catch ( InterruptedException ex )
+            {
+                spec.set_type( BioAccessionType.INVALID );
+            }
+            catch ( ExecutionException ex)
+            {
+                spec.set_type( BioAccessionType.INVALID );
+            }
+            catch ( CancellationException ex )
             {
                 spec.set_type( BioAccessionType.INVALID );
             }

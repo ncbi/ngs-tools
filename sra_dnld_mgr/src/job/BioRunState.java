@@ -64,7 +64,7 @@ public class BioRunState extends QConnect< BioRead >
     public BioRunState( int max_created )
     {
         super( max_created );
-        empty_records = new ConcurrentLinkedQueue<>();
+        empty_records = new ConcurrentLinkedQueue<BioRecord>();
         running = false;
     }
     

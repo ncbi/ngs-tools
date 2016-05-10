@@ -47,7 +47,7 @@ public class BioRead
 
     public BioRead()
     {
-        q = new LinkedList<>(); 
+        q = new LinkedList< BioRecord >();
         read_id = 0;
     }
 }

@@ -73,7 +73,7 @@ SRA_SEARCH_LIBS = \
     -lpthread           \
     -ldl
 
-$(BINDIR)/sra-search: $(BINDIR) $(OBJDIR) $(SRA_SEARCH_OBJ)
+$(BINDIR)/sra-search: $(OBJDIR) $(BINDIR) $(SRA_SEARCH_OBJ)
 	$(LP) -o $@$(VERSION_EXEX) $(SRA_SEARCH_OBJ) $(SRA_SEARCH_LIBS)
 	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
 	ln -sf $(@F)$(MAJVERS_EXEX) $@

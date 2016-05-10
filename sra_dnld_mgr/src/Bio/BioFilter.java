@@ -40,7 +40,7 @@ public interface BioFilter
 
     /**
      * pass
-     * @param obj fragment iterator to inspect
+     * @param frag_obj fragment iterator to inspect
      * @param bases bases to inspect
      * @return boolean if obj has passed this filter
      */

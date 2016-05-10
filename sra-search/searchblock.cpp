@@ -182,7 +182,7 @@ bool
 NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg )
 {
     if ( ! m_positional )
-    {   // Should not land here since NucStrstrSearch::CanUseBlobs() returns false.
+    {   
         throw ( ErrorMsg ( "NucStrstrSearch: non-positional search in a blob is not supported" ) );
     }
     
@@ -246,13 +246,6 @@ SmithWatermanSearch :: ~SmithWatermanSearch ()
 {
     SmithWatermanWhack ( m_sw );
 }    
-
-bool
-SmithWatermanSearch :: CanUseBlobs () const 
-{ 
-    // As blob size grows, SW quickly becomes unusable (VDB-3019)
-    return false; 
-}
 
 bool
 SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg )
