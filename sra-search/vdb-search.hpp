@@ -194,6 +194,8 @@ private:
     
     SearchBlockFactory m_sbFactory;    
 
+    SearchBuffer*   m_buf;
+
     SearchQueue     m_searches;
         
     // used with multi-threading        

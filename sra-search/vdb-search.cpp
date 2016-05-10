@@ -305,7 +305,6 @@ public:
         m_coll ( ncbi :: NGS_VDB :: openVdbReadCollection ( p_accession ) ), 
         m_blobIt ( m_coll . getFragmentBlobs() )
     {
-        m_blobIt . nextBlob ();        
     }
     virtual ~BlobMatchIterator ()
     {
@@ -366,7 +365,8 @@ VdbSearch :: VdbSearch ( Algorithm          p_algorithm,
     m_threads ( p_threads ),
     m_blobPerThread ( false ),
     m_sbFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct ),
-    m_output ( 0 ),
+    m_buf(0),
+    m_output(0),
     m_searchBlock ( 0 )
 {
     CheckArguments ( p_isExpression, p_minScorePct );
@@ -386,6 +386,7 @@ VdbSearch :: VdbSearch ( const string&      p_algorithm,
     m_threads ( p_threads ),
     m_blobPerThread ( false ),
     m_sbFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct ),
+    m_buf ( 0 ),
     m_output ( 0 ),
     m_searchBlock ( 0 )
 {
@@ -411,6 +412,7 @@ VdbSearch :: ~VdbSearch ()
         KThreadWait  ( *i, 0 );
         KThreadRelease ( *i );
     }
+    delete m_buf;
     delete m_searchBlock;
     delete m_output;    
 }
@@ -513,6 +515,7 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
 rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
 {
     assert ( false );
+    return 0;
 }
 
 bool 
@@ -545,13 +548,22 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
     {   // no threads, return one result at a time
         while ( ! m_searches . empty () )
         {
-            SearchBuffer* buf = m_searches . front () -> NextBuffer();
-            if ( buf -> NextMatch ( p_fragmentId ) )
+            if (m_buf == 0)
             {
-                p_accession = buf -> AccessionName ();
-                return true;
+                m_buf = m_searches.front()->NextBuffer();
             }
-            delete buf;
+
+            while (m_buf != 0)
+            {
+                if (m_buf->NextMatch(p_fragmentId))
+                {
+                    p_accession = m_buf->AccessionName();
+                    return true;
+                }
+                delete m_buf;
+                m_buf = m_searches.front()->NextBuffer();
+            }
+
             delete m_searches . front ();
             m_searches . pop ();
         }
