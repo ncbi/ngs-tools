@@ -149,7 +149,7 @@ VdbSearch :: SearchBuffer :: ~SearchBuffer ()
 class VdbSearch :: FragmentSearchBuffer : public VdbSearch :: SearchBuffer 
 {
 public:
-    FragmentSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, Fragment& p_fragment )
+    FragmentSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, const Fragment& p_fragment )
     :   SearchBuffer ( p_sb, p_accession ),
         m_fragment ( p_fragment ),
         m_done ( false )
@@ -172,7 +172,7 @@ public:
     }
     
 private:
-    Fragment m_fragment;
+    const Fragment& m_fragment;
     bool m_done;
 }; 
 
@@ -235,6 +235,7 @@ public:
             m_startInBlob = fragEnd;
         }
         m_startInBlob = 0;
+        return false;
     }
     
 private:
@@ -365,8 +366,8 @@ VdbSearch :: VdbSearch ( Algorithm          p_algorithm,
     m_threads ( p_threads ),
     m_blobPerThread ( false ),
     m_sbFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct ),
-    m_buf(0),
-    m_output(0),
+    m_buf ( 0 ),
+    m_output ( 0 ),
     m_searchBlock ( 0 )
 {
     CheckArguments ( p_isExpression, p_minScorePct );
@@ -379,7 +380,8 @@ VdbSearch :: VdbSearch ( const string&      p_algorithm,
                          unsigned int       p_minScorePct, 
                          unsigned int       p_threads )  
     throw ( invalid_argument )
-:   m_query ( p_query ),
+:   m_algorithm ( Algorithm ( 0 ) ),
+    m_query ( p_query ),
     m_isExpression ( p_isExpression ),
     m_useBlobSearch ( p_useBlobSearch ),
     m_minScorePct ( p_minScorePct ),
@@ -394,6 +396,7 @@ VdbSearch :: VdbSearch ( const string&      p_algorithm,
     {
         throw invalid_argument ( string ( "unrecognized algorithm: " ) + p_algorithm );
     }
+    m_sbFactory . SetAllgorithm ( m_algorithm );
     CheckArguments ( p_isExpression, p_minScorePct );
 }
 
@@ -496,13 +499,13 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
         
         string fragmentId;
         SearchBuffer* buf = it -> NextBuffer();
-        while ( it != 0 )
+        while ( buf != 0 )
         {
             while ( buf -> NextMatch ( fragmentId ) )
             {
                 sb . m_output . Push ( buf -> AccessionName (), fragmentId );
             }
-            buf = it -> NextBuffer();;
+            buf = it -> NextBuffer();
         }
         delete buf;
         delete it;
@@ -531,7 +534,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
             for ( unsigned  int i = 0 ; i != threadNum; ++i )
             {
                 KThread* t;
-                rc_t rc = KThreadMake ( &t, m_blobPerThread ? SearchAccPerThread : SearchBlobPerThread, m_searchBlock );
+                rc_t rc = KThreadMake ( &t, m_blobPerThread ? SearchBlobPerThread : SearchAccPerThread, m_searchBlock );
                 if ( rc != 0 )
                 {
                     throw ( ErrorMsg ( "KThreadMake failed" ) );
