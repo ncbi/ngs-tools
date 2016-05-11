@@ -114,6 +114,7 @@ private:
                              unsigned int           p_minScorePct );
                              
         bool CanUseBlobs () const;
+        void SetAllgorithm ( Algorithm p_algorithm) { m_algorithm = p_algorithm; }
                              
         SearchBlock* MakeSearchBlock () const;
         
@@ -193,6 +194,8 @@ private:
     bool            m_blobPerThread;  
     
     SearchBlockFactory m_sbFactory;    
+
+    SearchBuffer*   m_buf;
 
     SearchQueue     m_searches;
         
