@@ -137,6 +137,7 @@ private:
         virtual ~SearchBuffer();
         
         virtual bool NextMatch ( std::string& fragmentId ) = 0;
+        virtual std::string BufferId () const  = 0;
         
         std::string AccessionName () const { return m_accession; }
         

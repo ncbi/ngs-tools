@@ -38,20 +38,20 @@ namespace ngs
 {
     namespace vdb
     {
-        typedef struct VBlob * BlobRef;        
-        
+        typedef struct VBlob * BlobRef;
+
         class FragmentBlob
         {
         public:
-            const char* Data() const    
+            const char* Data() const
                 throw ();
-            
+
             uint64_t Size() const
                 throw ();
-            
+
             void GetFragmentInfo ( uint64_t offset, std::string& p_fragId, uint64_t& p_nextFragStart, bool& biological ) const
                 throw ( ErrorMsg );
-                
+
         public:
 
             // C++ support
@@ -75,12 +75,12 @@ namespace ngs
         protected:
 
             BlobRef m_self;
-            struct NGS_VDB_ReadCollection * m_coll; // not owned here
-            
+            NGS_VDB_ReadCollection* m_coll; // not owned here
+
         protected: // temporary for prototyping
             FragmentBlob (struct NGS_VDB_ReadCollection* );
         };
-        
+
         /*----------------------------------------------------------------------
         * FragmentBlobIterator
         *  iterates across a list of blobs of read fFragments
@@ -98,7 +98,7 @@ namespace ngs
             */
             bool nextBlob ()
                 throw ( ErrorMsg );
-                
+
         public:
 
             // C++ support
@@ -113,7 +113,7 @@ namespace ngs
 
             ~ FragmentBlobIterator ()
                 throw ();
-                
+
         public: // temporary
             FragmentBlobIterator ( struct NGS_VDB_ReadCollection* );
 
@@ -121,17 +121,17 @@ namespace ngs
 
             FragmentBlob & operator = ( const FragmentBlob & obj ) // copied from ReadIterator; why do we need this here?
                 throw ( ErrorMsg );
-                
+
             FragmentBlobIterator & operator = ( BlobRef ref )
                 throw ();
         };
-        
+
         class VdbReadCollection //: public ngs :: ReadCollection
         {
         public:
             FragmentBlobIterator getFragmentBlobs () const
-                throw ( ErrorMsg );        
-        
+                throw ( ErrorMsg );
+
         public:
 
             // C++ support
@@ -147,20 +147,20 @@ namespace ngs
                 throw ();
 
             ~ VdbReadCollection ()
-                throw ();            
-                
+                throw ();
+
         // temporary for prototyping
         public:
             VdbReadCollection ( const String & spec )
                 throw ();
 
-        private:                
-            struct NGS_VDB_ReadCollection * m_coll; 
+        private:
+            struct NGS_VDB_ReadCollection * m_coll;
         };
     }
 } // namespace ngs
 
-///////////////////////////////////// Engine 
+///////////////////////////////////// Engine
 
 #include <ngs/ncbi/NGS.hpp>
 
@@ -175,10 +175,10 @@ namespace ncbi
         *  "spec" may be a path to an object
         *  or may be an id, accession, or URL
         */
-        static 
+        static
         ngs :: vdb :: VdbReadCollection openVdbReadCollection ( const String & spec )
             throw ( ErrorMsg );
-    };        
+    };
 }
 
 #endif // _hpp_ngs_vdb_

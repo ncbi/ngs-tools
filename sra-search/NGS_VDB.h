@@ -32,7 +32,7 @@
 
 struct VBlob;
 struct NGS_ErrBlock_v1;
-typedef struct NGS_ErrBlock_v1 NGS_VDB_ErrBlock; 
+typedef struct NGS_ErrBlock_v1 NGS_VDB_ErrBlock;
 
 typedef struct NGS_VDB_ReadCollection NGS_VDB_ReadCollection;
 
@@ -47,14 +47,16 @@ void                        NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollecti
 struct VBlob*               NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob*, NGS_VDB_ErrBlock * err  );
 
 /* sets *fragId to NULL for technical fragments */
-void                        NGS_VDB_BlobRowInfo ( NGS_VDB_ReadCollection * self, const struct VBlob*,  uint64_t offset, const char** fragId, uint64_t* nextFragStart, bool* biological, NGS_VDB_ErrBlock * err  );
+/* fragId is NULL-terminated, to be free()d by the caller */
+void                        NGS_VDB_BlobRowInfo ( NGS_VDB_ReadCollection * self, const struct VBlob*,  uint64_t offset, char** fragId, uint64_t* nextFragStart, bool* biological, NGS_VDB_ErrBlock * err  );
 
 const void*     NGS_VDB_BlobData ( const struct VBlob* );
 uint64_t        NGS_VDB_BlobSize ( const struct VBlob* );
+void            NGS_VDB_BlobAddRef ( struct VBlob* );
 void            NGS_VDB_BlobRelease ( struct VBlob* );
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif 
+#endif
