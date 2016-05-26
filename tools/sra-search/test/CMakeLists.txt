@@ -1,7 +1,3 @@
-cmake_minimum_required (VERSION 2.8)
-
-project ( test-sra-search )
-
 include_directories ("..")
 
 add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../ngs-vdb.cpp ../searchblock.cpp ../NGS_VDB.c)
