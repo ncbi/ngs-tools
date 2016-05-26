@@ -40,7 +40,7 @@ namespace ncbi
     {
         namespace vdb
         {
-            class VdbReadCollection : private :: ngs :: ReadCollection
+            class VdbReadCollection : protected :: ngs :: ReadCollection
             {
             public:
 

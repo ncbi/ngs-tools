@@ -62,11 +62,21 @@ VdbReadCollection :: ~ VdbReadCollection () throw ()
 {
 }
 
+class VdbReadCollectionItf : public ngs::ReadCollectionItf
+{
+public:
+    inline NGS_ReadCollection * Self ()
+    {
+        return reinterpret_cast<NGS_ReadCollection*> ( ReadCollectionItf::Self() );
+    }
+};
+
 FragmentBlobIterator
 VdbReadCollection :: getFragmentBlobs() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<NGS_ReadCollection*> ( self -> Self() ), ctx ) )
+
+    TRY ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) )
     {
         return FragmentBlobIterator ( iter );
     }
