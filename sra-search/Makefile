@@ -31,7 +31,8 @@ include $(TOP)/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-std: $(BINDIR)/sra-search
+std: $(OBJDIR) $(BINDIR) 
+	$(MAKE) $(BINDIR)/sra-search
 
 clean: 
 	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
@@ -72,8 +73,8 @@ SRA_SEARCH_LIBS = \
     -lpthread           \
     -ldl
 
-$(BINDIR)/sra-search: $(SRA_SEARCH_OBJ)
-	$(LP) -o $@$(VERSION_EXEX) $^ $(SRA_SEARCH_LIBS)
+$(BINDIR)/sra-search: $(OBJDIR) $(BINDIR) $(SRA_SEARCH_OBJ)
+	$(LP) -o $@$(VERSION_EXEX) $(SRA_SEARCH_OBJ) $(SRA_SEARCH_LIBS)
 	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
 	ln -sf $(@F)$(MAJVERS_EXEX) $@
 

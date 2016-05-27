@@ -1,3 +1,6 @@
+actual/
+Debug/
+Release/
 # mac os x meta-files
 .DS_Store
 ._*
@@ -25,5 +28,5 @@ actual/
 /test-bin64
 /win
 
-/build/cmake
+/build/cmake/*/
 OUTDIR.*
