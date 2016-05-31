@@ -1,9 +1,10 @@
 include_directories ("..")
 
-add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../ngs-vdb.cpp ../searchblock.cpp ../NGS_VDB.c)
-add_dependencies ( test-sra-search sra-search )
+add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../searchblock.cpp)
+add_dependencies ( test-sra-search sra-search ngs-vdb )
 
 target_link_libraries ( test-sra-search
+    ngs-vdb
 	${SYS_LIBRARIES}
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
 )
@@ -109,11 +110,11 @@ if ( NOT WIN32)
 	add_test ( NAME SraSearchSlow-7.1-threads-unsorted WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099" )
 	# single run, thread per blob
-	add_test ( NAME SraSearchSlow-7.2-threads-unsorted WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 7.2-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 --blobs SRR600094" )
+	add_test ( NAME SraSearchSlow-7.2-threads-single WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 7.2-threads-single --sort --args "ACGTAGGGTCC --threads 4 --blobs SRR600094" )
 	# multiple runs, thread per blob
-	add_test ( NAME SraSearchSlow-7.3-threads-unsorted WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 7.3-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 --blobs SRR600094 SRR600095 SRR600096 SRR600099" )
+	add_test ( NAME SraSearchSlow-7.3-threads-multiple WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 7.3-threads-multiple --sort --args "ACGTAGGGTCC --threads 4 --blobs SRR600094 SRR600095 SRR600096 SRR600099" )
 
 	# nothing found
 	add_test ( NAME SraSearchSlow-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh

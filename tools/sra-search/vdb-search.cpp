@@ -34,11 +34,14 @@
 #include <kproc/thread.h>
 #include <kproc/lock.h>
 
+#include <ngs-vdb/inc/NGS-VDB.hpp>
+#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
+
 #include "searchblock.hpp"
-#include "ngs-vdb.hpp"
 
 using namespace std;
 using namespace ngs;
+using namespace ncbi::ngs::vdb;
 
 //////////////////// VdbSearch :: OutputQueue
 
@@ -50,7 +53,7 @@ public:
     OutputQueue ( unsigned int p_producers ) throw ( ErrorMsg )
     {
         atomic32_set ( & m_producers, p_producers );
-        rc_t rc = KLockMake ( & m_lock );
+        rc_t rc = KLockMake ( & m_outputQueueLock );
         if ( rc != 0 )
         {
             throw ( ErrorMsg ( "KLockMake failed" ) );
@@ -61,7 +64,7 @@ public:
         queue < Item > empty;
         swap( m_queue, empty );
 
-        KLockRelease ( m_lock );
+        KLockRelease ( m_outputQueueLock );
     }
 
     void ProducerDone () // called by the producers
@@ -72,9 +75,9 @@ public:
 
     void Push (const string& p_accession, const string& p_fragmentId) // called by the producers
     {
-        KLockAcquire ( m_lock );
+        KLockAcquire ( m_outputQueueLock );
         m_queue . push ( Item ( p_accession , p_fragmentId ) );
-        KLockUnlock ( m_lock );
+        KLockUnlock ( m_outputQueueLock );
     }
 
     // called by the consumer; will block until items become available or the last producer goes away
@@ -89,11 +92,11 @@ public:
 
         if ( m_queue . size () > 0 )
         {
-            KLockAcquire ( m_lock );
+            KLockAcquire ( m_outputQueueLock );
             p_accession = m_queue . front () . first;
             p_fragmentId = m_queue . front () . second;
             m_queue.pop();
-            KLockUnlock ( m_lock );
+            KLockUnlock ( m_outputQueueLock );
             return true;
         }
 
@@ -105,7 +108,7 @@ private:
     typedef pair < string, string > Item;
     queue < Item > m_queue;
 
-    KLock* m_lock;
+    KLock* m_outputQueueLock;
 
     atomic32_t m_producers;
 };
@@ -114,14 +117,14 @@ private:
 
 struct VdbSearch :: SearchThreadBlock
 {
-    KLock* m_lock;
+    KLock* m_searchQueueLock;
     VdbSearch :: SearchQueue& m_search;
     VdbSearch :: OutputQueue& m_output;
 
     SearchThreadBlock ( SearchQueue& p_search, OutputQueue& p_output )
     : m_search ( p_search ), m_output ( p_output )
     {
-        rc_t rc = KLockMake ( & m_lock );
+        rc_t rc = KLockMake ( & m_searchQueueLock );
         if ( rc != 0 )
         {
             throw ( ErrorMsg ( "KLockMake failed" ) );
@@ -129,7 +132,7 @@ struct VdbSearch :: SearchThreadBlock
     }
     ~SearchThreadBlock ()
     {
-        KLockRelease ( m_lock );
+        KLockRelease ( m_searchQueueLock );
     }
 };
 
@@ -184,9 +187,10 @@ private:
 class VdbSearch :: BlobSearchBuffer : public VdbSearch :: SearchBuffer
 {
 public:
-    BlobSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, const vdb::FragmentBlob& p_blob )
+    BlobSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, KLock* p_lock, const FragmentBlob& p_blob )
     :   SearchBuffer ( p_sb, p_accession ),
-        m_blob(p_blob),
+        m_dbLock ( p_lock ),
+        m_blob ( p_blob ),
         m_startInBlob ( 0 )
     {
     }
@@ -198,12 +202,11 @@ public:
         {
             cout << BufferId() << ": m_startInBlob=" << m_startInBlob << " size=" << ( m_blob . Size () - m_startInBlob ) << endl;
         }
-        assert ( id == BufferId() );
+
         uint64_t hitStart;
         uint64_t hitEnd;
         while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, hitStart, hitEnd  ) )
         {
-        assert ( id == BufferId() );
             if ( VdbSearch :: logResults )
             {
                 cout << "hitStart=" << hitStart << " hitEnd=" << hitEnd << endl;
@@ -213,9 +216,16 @@ public:
             hitStart += m_startInBlob;
             hitEnd += m_startInBlob;
 
+            uint64_t startInBlob;
+            uint64_t lengthInBases;
             uint64_t fragEnd;
             bool biological;
-            m_blob . GetFragmentInfo ( hitStart, p_fragmentId, fragEnd, biological );
+
+            KLockAcquire ( m_dbLock );
+            m_blob . GetFragmentInfo ( hitStart, p_fragmentId, startInBlob, lengthInBases, biological );
+            KLockUnlock ( m_dbLock );
+
+            fragEnd = startInBlob + lengthInBases;
             if ( VdbSearch :: logResults )
             {
                 cout << "fragId=" << p_fragmentId << " hitStart=" << hitStart << " hitEnd=" << hitEnd << " fragEnd=" << fragEnd << " biological=" << ( biological ? "true" : "false" ) << endl;
@@ -241,7 +251,6 @@ public:
             // move on to the next fragment
             m_startInBlob = fragEnd;
         }
-        assert ( id == BufferId() );
         m_startInBlob = 0;
         return false;
     }
@@ -249,15 +258,21 @@ public:
     virtual std::string BufferId () const
     {   // return the Id of the first fragment
         string fragId;
-        uint64_t nextFragStart;
+        uint64_t startInBlob;
+        uint64_t lengthInBases;
         bool biological;
-        m_blob.GetFragmentInfo ( 0, fragId, nextFragStart, biological );
+
+        KLockAcquire ( m_dbLock );
+        m_blob.GetFragmentInfo ( 0, fragId, startInBlob, lengthInBases, biological );
+        KLockUnlock ( m_dbLock );
+
         return fragId;
     }
 
 private:
-    vdb::FragmentBlob m_blob;
-    uint64_t m_startInBlob;
+    KLock*          m_dbLock;
+    FragmentBlob    m_blob;
+    uint64_t        m_startInBlob;
 };
 
 //////////////////// VdbSearch :: MatchIterator
@@ -320,31 +335,38 @@ class VdbSearch :: BlobMatchIterator : public VdbSearch :: MatchIterator
 public:
     BlobMatchIterator ( SearchBlockFactory& p_factory, const std::string& p_accession )
     :   MatchIterator ( p_factory, p_accession ),
-        m_coll ( ncbi :: NGS_VDB :: openVdbReadCollection ( p_accession ) ),
+        m_coll ( NGS_VDB :: openVdbReadCollection ( p_accession ) ),
         m_blobIt ( m_coll . getFragmentBlobs() )
     {
+        rc_t rc = KLockMake ( & m_accessionLock );
+        if ( rc != 0 )
+        {
+            throw ( ErrorMsg ( "KLockMake failed" ) );
+        }
     }
     virtual ~BlobMatchIterator ()
     {
+        KLockRelease ( m_accessionLock );
     }
 
     virtual SearchBuffer* NextBuffer ()
     {
-        if ( m_blobIt . nextBlob () )
+        if ( m_blobIt . hasMore () )
         {
-            return new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_blobIt );
+            return new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
         }
         return 0;
     }
 
 private:
-    ngs::vdb::VdbReadCollection      m_coll;
-    ngs::vdb::FragmentBlobIterator   m_blobIt;
+    VdbReadCollection       m_coll;
+    KLock*                  m_accessionLock;
+    FragmentBlobIterator    m_blobIt;
 };
 
 //////////////////// VdbSearch
 
-bool VdbSearch :: logResults = true;
+bool VdbSearch :: logResults = false;
 
 void
 VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )
@@ -499,21 +521,21 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
 {
     assert ( data );
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
-    assert ( sb . m_lock );
+    assert ( sb . m_searchQueueLock );
 
     while ( true )
     {
-        KLockAcquire ( sb . m_lock );
+        KLockAcquire ( sb . m_searchQueueLock );
         if ( sb . m_search . empty () )
         {
-            KLockUnlock ( sb . m_lock );
+            KLockUnlock ( sb . m_searchQueueLock );
             break;
         }
 
         MatchIterator* it = sb . m_search . front ();
         sb . m_search . pop ();
 
-        KLockUnlock ( sb . m_lock );
+        KLockUnlock ( sb . m_searchQueueLock );
 
         string fragmentId;
         SearchBuffer* buf = it -> NextBuffer();
@@ -537,17 +559,17 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
 {
     assert ( data );
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
-    assert ( sb . m_lock );
+    assert ( sb . m_searchQueueLock );
     if ( VdbSearch :: logResults && ! sb . m_search . empty () )
     {
-        KLockAcquire ( sb . m_lock );
+        KLockAcquire ( sb . m_searchQueueLock );
         cout << "Thread " << (void*)self << " sb=" << (void*)sb . m_search . front () << endl;
-        KLockUnlock ( sb . m_lock );
+        KLockUnlock ( sb . m_searchQueueLock );
     }
 
     while ( true )
     {
-        KLockAcquire ( sb . m_lock );
+        KLockAcquire ( sb . m_searchQueueLock );
         if ( VdbSearch :: logResults )
         {
             cout << "Thread " << (void*)self << " locked" << endl;
@@ -576,37 +598,33 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
                 buf = sb . m_search . front () -> NextBuffer();
             }
         }
-
-        if ( VdbSearch :: logResults )
-        {
-            cout << "Thread " << (void*)self << " unlocking " << ( buf ? buf->BufferId() : "done" ) << endl;
-        }
-        string id;
-        if ( buf != 0 )
-        {
-            id = buf->BufferId();
-        }
-        KLockUnlock ( sb . m_lock );
+        KLockUnlock ( sb . m_searchQueueLock );
         if ( buf == 0 )
         {
+            if ( VdbSearch :: logResults )
+            {
+                cout << "Thread " << (void*)self << " done" << endl;
+            }
             break;
+        }
+
+        string id;
+        id = buf->BufferId();
+        if ( VdbSearch :: logResults )
+        {
+            cout << "Thread " << (void*)self << " unlocked " << id << endl;
         }
 
         string fragmentId;
         while ( buf -> NextMatch ( fragmentId ) )
         {
-            assert (id == buf->BufferId());
             sb . m_output . Push ( buf -> AccessionName (), fragmentId );
         }
-        assert (id == buf->BufferId());
 
         if ( VdbSearch :: logResults )
         {
-            KLockAcquire ( sb . m_lock );
-            cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << buf->BufferId()  << " deleted" << endl;
-            KLockUnlock ( sb . m_lock );
+            cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " deleted" << endl;
         }
-        assert (id == buf->BufferId());
         delete buf;
     }
 
