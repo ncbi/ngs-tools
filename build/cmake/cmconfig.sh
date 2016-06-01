@@ -32,8 +32,8 @@ HELP='\n
  $2 - output directory (will be created if necessary)\n
 \n
  Options:\n
- -h|--help                 print usage\n 
- -b|--build Debug|Release  (default Debug) build type\n 
+ -h|--help                 print usage\n
+ -b|--build Debug|Release  (default Debug) build type\n
  -a|--args <string>        additional arguments to pass to CMake\n
 \n
  return codes:\n
@@ -102,10 +102,11 @@ do
                 echo "for --build, specify Debug or Release"
                 exit 1
             fi
+            shift
             ;;
         -a|--args)
             ARGS="$2"
-            shift 
+            shift
             ;;
         *)
             echo "unknown option " $key
