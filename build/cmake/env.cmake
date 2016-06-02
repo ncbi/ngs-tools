@@ -82,7 +82,7 @@ elseif (WIN32)
     include_directories ("${NGS_ROOT}/ngs-sdk/win")
     
     # use miltiple processors
-	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MP")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
@@ -171,7 +171,7 @@ if (NOT EXISTS ${VDB_ROOT})
             GIT_TAG ${GIT_BRANCH_VDB}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR} /p:Configuration=Debug
+            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OUTDIR}/ /p:Configuration=Release
