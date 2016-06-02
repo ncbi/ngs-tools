@@ -37,16 +37,16 @@ using namespace std;
 typedef vector < string > Runs;
 
 static
-bool 
+bool
 DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, bool p_blobs, unsigned int p_minScore, unsigned int p_threads  )
 {
     VdbSearch s ( p_alg, p_query, p_isExpr, p_blobs, p_minScore, p_threads );
-    
+
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
         s . AddAccession ( *i );
     }
-    
+
     string acc;
     string fragId;
     bool ret = false;
@@ -67,22 +67,22 @@ static void handle_help ( const char * appName )
         fileName = fileName . substr ( filePos + 1 );
     }
 
-    cout << endl 
-        << "Usage:" << endl 
-        << "  " << fileName << " [Options] query accession ..." << endl 
-        << endl 
+    cout << endl
+        << "Usage:" << endl
+        << "  " << fileName << " [Options] query accession ..." << endl
+        << endl
         << "Summary:" << endl
         << "  Searches all reads in the accessions and prints Ids of all the fragments that contain a match." << endl
-        << endl 
+        << endl
         << "Example:" << endl
         << "  sra-search ACGT SRR000001 SRR000002" << endl
         << "  sra-search \"CGTA||ACGT\" -e -a NucStrstr SRR000002" << endl
-        << endl 
-        << "Options:" << endl 
+        << endl
+        << "Options:" << endl
         << "  -h|--help                 Output brief explanation of the program." << endl
         << "  -a|--algorithm <alg>      Search algorithm, one of:" << endl
         ;
-        
+
     const VdbSearch :: SupportedAlgorithms algs = VdbSearch :: GetSupportedAlgorithms ();
     for ( VdbSearch :: SupportedAlgorithms :: const_iterator i = algs . begin (); i != algs . end (); ++i )
     {
@@ -96,9 +96,11 @@ static void handle_help ( const char * appName )
     cout << "  -e|--expression <expr>    Query is an expression (currently only supported for NucStrstr)" << endl
          << "  -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);" << endl
          << "                            supported for all variants of Agrep and SmithWaterman." << endl
-         << "  -T|--threads <number>     The number of threads to use; no threads by deafult" << endl
+         << "  -T|--threads <number>     The number of threads to use; 2 by deafult" << endl
+         << "  --nothreads               Single-threaded mode" << endl
+         << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          ;
-    
+
     cout << endl;
 }
 
@@ -107,23 +109,23 @@ main( int argc, char *argv [] )
 {
     int rc = -1;
     bool found;
-    
+
     try
     {
         string query;
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         bool is_expr = false;
-        bool useBlobSearch = false;
+        bool useBlobSearch = true;
         int score = 100;
-        int threads = 0;
-        
+        int threads = 2;
+
         unsigned int i = 1;
         while ( i < argc )
         {
             string arg = argv [ i ];
             if ( arg [ 0 ] != '-' )
-            {   
+            {
                 if ( query . empty () )
                 {
                     query = arg;
@@ -179,18 +181,22 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
             }
-            else if ( arg == "--blobs" ) // for testing (search in fragments vs blobs); undocumented for now
+            else if ( arg == "--nothreads" )
             {
-                useBlobSearch = true;
+                threads = 0;
+            }
+            else if ( arg == "--threadperacc" )
+            {
+                useBlobSearch = false;
             }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );
             }
-            
+
             ++i;
         }
-        
+
         if ( query . empty () || runs . size () == 0 )
         {
             throw invalid_argument ( "Missing arguments" );
@@ -216,7 +222,7 @@ main( int argc, char *argv [] )
         cerr << endl << "ERROR: "<< argv [ 0 ] << ": unknown" << endl;
         rc = 3;
     }
-    
+
     if ( rc == 0 && ! found )
     {
         rc = 1;
