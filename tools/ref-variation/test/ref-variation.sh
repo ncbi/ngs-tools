@@ -11,7 +11,8 @@ else
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c -t 1 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061 SRR867131 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c --count-strand counteraligned -t 1 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061 SRR867131 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c -r CM000671.1 -p 136131022 --query "T" -l 1 SRR1601768 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
-	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c -r NC_000001.11 -p 136131022 --query "T" -l 1 SRR1601768 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
+	# the following run generates warnings from KDyldLoad; no idea why, filtering them out
+	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c -r NC_000001.11 -p 136131022 --query "T" -l 1 SRR1601768 2>&1 | grep -v KDyldLoad | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -t 16 -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -vv -r NC_000002.11 -p 73613030 --query "AT[1-3]" -l 3 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -v -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
@@ -24,6 +25,6 @@ else
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L err -v -c -t 1 -r NC_000002.11 -p 73613067 --query "-" -l 3 -i ref-variation.in >> ref-variation.out 2>&1
 	diff expected/ref-variation.out ref-variation.out
 	EXIT_CODE=$?
-	rm ref-variation.out
+	#rm ref-variation.out
 	exit $EXIT_CODE
 fi
