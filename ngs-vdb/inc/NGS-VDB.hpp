@@ -62,4 +62,4 @@ namespace ncbi
 
 } // ncbi
 
-#endif // _hpp_ngs_tools_NGS_VDB_
+#endif

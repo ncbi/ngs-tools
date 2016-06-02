@@ -5,7 +5,7 @@
 *
 *  This software/database is a "United States Government Work" under the
 *  terms of the United States Copyright Act.  It was written as part of
-*  the author's official duties as a United States Government employee and
+*  the author'm_s official duties as a United States Government employee and
 *  thus cannot be copyrighted.  This software/database is freely available
 *  to the public for use. The National Library of Medicine and the U.S.
 *  Government have not placed any restriction on its use or reproduction.
@@ -24,48 +24,52 @@
 *
 */
 
-#ifndef _hpp_VdbReadCollection_hpp_
-#define _hpp_VdbReadCollection_hpp_
+#include <ngs-vdb/inc/VdbAlignment.hpp>
 
+#define __mod__     "NGS_VDB"
+#define __file__    "VdbAlignment"
+#define __fext__    "cpp"
+#include <kfc/ctx.h>
 
-#ifndef _hpp_ngs_read_collection_
-#include <ngs/ReadCollection.hpp>
-#endif
+#include <kfc/except.h>
 
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
+#include <ngs/itf/ErrBlock.hpp>
+#include <ngs/itf/AlignmentItf.hpp>
 
-namespace ncbi
+#include <../libs/ngs/NGS_Alignment.h>
+#include <../libs/ngs/NGS_ErrBlock.h>
+
+using namespace ncbi :: ngs :: vdb;
+
+VdbAlignment :: VdbAlignment ( :: ngs :: Alignment dad ) throw ()
+: Alignment ( dad )
 {
-    namespace ngs
+}
+
+VdbAlignment :: ~ VdbAlignment () throw ()
+{
+}
+
+class VdbAlignmentItf : public ngs::AlignmentItf
+{
+public:
+    inline NGS_Alignment * Self ()
     {
-        namespace vdb
-        {
-            class VdbReadCollection : protected :: ngs :: ReadCollection
-            {
-            public:
-
-                :: ngs :: ReadCollection toReadCollection () const { return *this; }
-
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
-
-            public:
-
-                // C++ support
-
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
-                    throw ();
-
-                VdbReadCollection & operator = ( const VdbReadCollection & obj )
-                    throw ();
-                VdbReadCollection ( const VdbReadCollection & obj )
-                    throw ();
-
-                ~ VdbReadCollection ()
-                    throw ();
-
-            };
-        };
+        return reinterpret_cast<NGS_Alignment*> ( AlignmentItf::Self() );
     }
-} // ncbi
+};
 
-#endif
+bool
+VdbAlignment :: IsFirst () const throw ()
+{
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    bool ret = false;
+    ON_FAIL ( ret = NGS_AlignmentIsFirst ( reinterpret_cast < VdbAlignmentItf * > ( self ) -> Self (), ctx ) )
+    {
+        :: ngs :: ErrBlock err;
+        NGS_ErrBlockThrow ( &err, ctx );
+        err.Throw();
+    }
+    return ret;
+}
+

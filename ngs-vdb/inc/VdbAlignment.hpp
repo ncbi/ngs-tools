@@ -24,12 +24,10 @@
 *
 */
 
-#ifndef _hpp_FragmentBlobIterator_hpp_
-#define _hpp_FragmentBlobIterator_hpp_
+#ifndef _hpp_VdbAlignment_hpp_
+#define _hpp_VdbAlignment_hpp_
 
-#include <ngs-vdb/inc/FragmentBlob.hpp>
-
-typedef struct NGS_FragmentBlobIterator* FragmentBlobIteratorRef;
+#include <ngs/Alignment.hpp>
 
 namespace ncbi
 {
@@ -37,36 +35,26 @@ namespace ncbi
     {
         namespace vdb
         {
-
-            class FragmentBlobIterator
+            class VdbAlignment : protected :: ngs :: Alignment
             {
             public:
 
-                bool hasMore() const throw ( :: ngs :: ErrorMsg );
+                :: ngs :: Alignment toAlignment () const { return *this; }
 
-                FragmentBlob nextBlob() throw ( :: ngs :: ErrorMsg );
+                bool IsFirst () const
+                    throw ();
 
             public:
 
                 // C++ support
 
-                FragmentBlobIterator ( FragmentBlobIteratorRef ref )
+                VdbAlignment ( :: ngs :: Alignment dad )
                     throw ();
 
-                FragmentBlobIterator & operator = ( const FragmentBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
-                FragmentBlobIterator ( const FragmentBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
-
-                ~ FragmentBlobIterator ()
+                ~ VdbAlignment ()
                     throw ();
-
-            private:
-                FragmentBlobIterator () throw ();
-
-                FragmentBlobIteratorRef self;
             };
-        }
+        };
     }
 } // ncbi
 
