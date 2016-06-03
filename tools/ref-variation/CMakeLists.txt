@@ -5,6 +5,7 @@ add_executable ( ref-variation common.cpp helper.cpp ref-variation.cpp  )
 # add_dependencies ( ref-variation ngs-vdb )
 
 target_link_libraries ( ref-variation
+    ngs-vdb
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${CMAKE_STATIC_LIBRARY_PREFIX}load${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${SYS_LIBRARIES}
