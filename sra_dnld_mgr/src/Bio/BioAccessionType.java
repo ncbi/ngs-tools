@@ -38,7 +38,20 @@ public enum BioAccessionType
     private static final BioAccessionType[] allValues = values();
 
     public static BioAccessionType from_ordinal( int i ) { return allValues[ i ]; }
+    public static BioAccessionType from_string( String s )
+    {
+        if ( s.equals( READ_COLLECTION_UNALIGNED.txt ) )
+            return READ_COLLECTION_UNALIGNED;
+        else if ( s.equals( READ_COLLECTION_ALIGNED.txt ) )
+            return READ_COLLECTION_ALIGNED;
+        else if ( s.equals( REF_SEQUENCE.txt ) )
+            return REF_SEQUENCE;
+        return INVALID;
+    }    
+    
     public int to_ordinal() { return value; }
+    public String to_string() { return txt; }
+    
     public Color get_color() { return color; }
     
     public static String[] to_StringList()

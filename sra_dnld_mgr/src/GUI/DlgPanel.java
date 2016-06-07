@@ -72,10 +72,10 @@ class DlgPanel extends JPanel
         return res;
     }
 
-    public JTextField make_input( boolean editable )
+    public JTextField make_input( boolean editable, int w )
     {
         JTextField res = new JTextField();
-        res.setPreferredSize( new Dimension( 100, 5 ) );
+        res.setPreferredSize( new Dimension( w, 5 ) );
         res.setEditable( editable );
         res.setEnabled( editable );
         res.setHorizontalAlignment( JTextField.CENTER );

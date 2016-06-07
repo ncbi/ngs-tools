@@ -28,17 +28,19 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.text.*;
 
-public final class IntInputPanel extends DlgPanel implements ActionListener
+public final class IntRangePanel extends DlgPanel implements ActionListener
 {
     static final long serialVersionUID = 1;
-    private final JTextField tf;
     private final JCheckBox checkbox;
-    private final JLabel unit_label;
+    private final JTextField tf_start;
+    private final JTextField tf_count;
  
     @Override public void actionPerformed( ActionEvent event )
     {
-        tf.setEditable( checkbox.isSelected() );
-        tf.setEnabled( checkbox.isSelected() );
+        tf_start.setEditable( checkbox.isSelected() );
+        tf_start.setEnabled( checkbox.isSelected() );
+        tf_count.setEditable( checkbox.isSelected() );
+        tf_count.setEnabled( checkbox.isSelected() );
     }
 
     @Override public JCheckBox make_checkbox( boolean enabled )
@@ -53,14 +55,17 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
         JTextField res = super.make_input( editable, w );
         
         PlainDocument doc = (PlainDocument) res.getDocument();
-        doc.setDocumentFilter( new MyIntFilter() );
+        doc.setDocumentFilter( new MyRangeFilter() );
         
         return res;
     }
 
-    public int get_value() { return Integer.parseInt( tf.getText() ); }
-    public void set_value( int value ) { tf.setText( Integer.toString( value ) ); }
+    public long get_start_value() { return Long.parseLong( tf_start.getText() ); }
+    public void set_start_value( long value ) { tf_start.setText( Long.toString( value ) ); }
     
+    public long get_count_value() { return Long.parseLong(tf_count.getText() ); }
+    public void set_count_value( long value ) { tf_count.setText( Long.toString( value ) ); }
+
     public boolean is_editable()
     {
         if ( checkbox != null )
@@ -72,18 +77,37 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
     {
         if ( checkbox != null )
             checkbox.setSelected( value );
-        tf.setEditable( value );
-        tf.setEnabled( value );
+        tf_start.setEditable( value );
+        tf_start.setEnabled( value );
+        tf_count.setEditable( value );
+        tf_count.setEnabled( value );        
     }
     
     public void set_enabled( boolean value )
     {
         if ( checkbox != null )
             checkbox.setEnabled( value );
-        tf.setEnabled( value );
+        tf_start.setEnabled( value );
+        tf_count.setEnabled( value );
     }
 
-    public IntInputPanel( final String caption, final String unit,
+    private JPanel make_labeled( JTextField tf, String label, int w )
+    {
+        JPanel p = new JPanel( new BorderLayout() );
+        p.add( make_label( label, w ), BorderLayout.LINE_START );
+        p.add( tf, BorderLayout.LINE_END );
+        return p;
+    }
+    
+    private JPanel make_range( JTextField tfs, JTextField tfc, int w )
+    {
+        JPanel p = new JPanel( new BorderLayout() );
+        p.add( make_labeled( tfs, "start=", w ) , BorderLayout.LINE_START );
+        p.add( make_labeled( tfc, "count=", w ), BorderLayout.LINE_END );
+        return p;
+    }
+
+    public IntRangePanel( final String caption, final String unit,
                           boolean editable, boolean show_enabled )
     {
         super( caption, DFLT_PANEL_WIDTH, 0 );
@@ -100,18 +124,18 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
             checkbox = null;
         }
         
-        tf = make_input( editable, 100 );
-        p.add( tf, BorderLayout.CENTER );
+        tf_start = make_input( editable, 80 );
+        tf_count = make_input( editable, 80 );
         
+        p.add( make_range( tf_start, tf_count, 45 ), BorderLayout.CENTER );
         add( p, BorderLayout.CENTER );
         
-        unit_label = make_label( unit, 50 );
-        add( unit_label, BorderLayout.LINE_END );
+        add( make_label( unit, 50 ), BorderLayout.LINE_END );
     }
 }
 
 
-class MyIntFilter extends DocumentFilter
+class MyRangeFilter extends DocumentFilter
 {
     @Override public void insertString( FilterBypass fb,
            int offset, String string,
@@ -136,7 +160,7 @@ class MyIntFilter extends DocumentFilter
     private boolean test( String text )
     {
         boolean res = true;
-        try { Integer.parseInt( text ); }
+        try { Long.parseLong( text ); }
         catch ( NumberFormatException e ) { res = false; }
         return res;
     }

@@ -29,7 +29,7 @@ import javax.swing.*;
 
 public class ButtonPanel extends DlgPanel
 {
-    private final JTextField tf = make_input( false );
+    private final JTextField tf = make_input( false, 100 );
     private final JButton b;
     private final on_button button_event = new on_button();
     private ActionListener relay;

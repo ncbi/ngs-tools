@@ -212,6 +212,7 @@ class LogTask implements Runnable
             if ( console_handler_used )
                 my_logger.addHandler( console_handler );
         
+            my_logger.setUseParentHandlers( false );
             LogManager my_log_manager = LogManager.getLogManager();
             my_log_manager.addLogger( my_logger );
             
@@ -281,8 +282,10 @@ public class CLogger
             
     /**
      * starts the logging task ( constructor does not! )
-     * @param filename .... file to write log into
-     * @param info ........ info string to be written into log
+     * @param filename ....... file to write log into
+     * @param info ........... info string to be written into log
+     * @param log_to_file .... enable logging to file 'filename'
+     * @param log_to_cons .... enable logging to debug-console
      * 
      */
     public static void start( final String filename, final String info,
@@ -333,10 +336,22 @@ public class CLogger
     public CLogger()
     {
         Logger global_logger = Logger.getGlobal();
-        Handler[] h = global_logger.getParent().getHandlers();
-        for ( int i = 0; i < h.length; ++i )
-            global_logger.getParent().removeHandler( h[ i ] );
-        
+        if ( global_logger != null )
+        {
+            Logger l = global_logger.getParent();
+            if ( l != null )
+            {
+                Handler[] h = l.getHandlers();
+                for ( int i = 0; i < h.length; ++i )
+                    l.removeHandler( h[ i ] );
+            }
+            else
+            {
+                Handler[] h = global_logger.getHandlers();
+                for ( int i = 0; i < h.length; ++i )
+                    global_logger.removeHandler( h[ i ] );
+            }
+        }
         log_lines_queue = new LinkedBlockingQueue<String>();
         my_task = null;
         my_thread = null;

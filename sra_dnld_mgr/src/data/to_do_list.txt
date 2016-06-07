@@ -33,3 +33,18 @@
 ( ) private repositories
 ( ) provide ASPERA downloads
 ( ) switch LAF through settings
+
+Testing:
+
+find a small plain SRR-table and cSRA-database for testing
+
+obj.-type        | example     | Download  |  FASTQ (full/frag)   |  FASTA (full frag )
+---------------------------------------------------------------------------------------
+plain SRA-table  | SRR000001   |
+                 | SRR835964   |
+                 |             |
+cSRA-database    | SRR341578   |
+                 | SRR1192619  |
+                 |             |
+RefSeq-accession | NC_011748.1 |
+

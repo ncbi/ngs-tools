@@ -118,7 +118,7 @@ public class BioDumperFactory
             }
             if ( formatter != null )
             {
-                res = new BioRefDumper( ref, formatter, job.get_short_source(), current );
+                res = new BioRefDumper( ref, formatter, job, current );
                 res.set_read_count_or_size( ref.getLength() );
             }
         }

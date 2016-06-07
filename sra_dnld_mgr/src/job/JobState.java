@@ -36,7 +36,22 @@ public enum JobState
     private final String txt;
     private static final JobState[] allValues = values();
     
-    public static JobState from_ordinal( int n ) { return allValues[ n ]; }    
+    public static JobState from_ordinal( int n ) { return allValues[ n ]; } 
+    public static JobState from_string( String s )
+    {
+        if ( s.equals( READY.txt ) )
+            return READY;
+        else if ( s.equals( RUNNING.txt ) )
+            return RUNNING;
+        else if ( s.equals( PAUSED.txt ) )
+            return PAUSED;
+        else if ( s.equals( ERROR.txt ) )
+            return ERROR;
+        else if ( s.equals( DONE.txt ) )
+            return DONE;
+        return INVALID;
+    }    
+    
     public int to_ordinal() { return value; }
     public String to_string() { return txt; }
     

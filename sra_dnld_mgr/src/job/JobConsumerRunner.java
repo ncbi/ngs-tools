@@ -24,8 +24,6 @@
 
 package job;
 
-import Bio.BioSpec;
-import Bio.BioVerifier;
 import data.*;
 
 public class JobConsumerRunner
@@ -45,7 +43,7 @@ public class JobConsumerRunner
     
     private boolean perform_start()
     {
-        boolean res = false;
+        boolean res ;
         JobFormat job_fmt = data.job.get_format();
         switch( job_fmt )
         {

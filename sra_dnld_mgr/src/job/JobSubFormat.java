@@ -38,9 +38,22 @@ public enum JobSubFormat
     {
         if ( i < 0 || i > 3 ) i = 0;
         return allValues[ i ];
+    }
+    
+    public static JobSubFormat from_string( String s )
+    {
+        if ( s.equals( SPOT.txt ) )
+            return SPOT;
+        else if ( s.equals( FRAGMENTS.txt ) )
+            return FRAGMENTS;
+        else if ( s.equals( FRAGMENTS_SPLITED.txt ) )
+            return FRAGMENTS_SPLITED;
+        return INVALID;
     }    
-    public int to_ordinal() { return value; }
 
+    public int to_ordinal() { return value; }
+    public String to_string() { return txt; }
+    
     public static String[] to_StringList()
     {
         String[] res = new String[ allValues.length ];

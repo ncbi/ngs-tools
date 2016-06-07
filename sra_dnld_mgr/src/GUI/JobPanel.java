@@ -56,7 +56,9 @@ public class JobPanel extends JPanel
     class ProgressListener implements ProgressListenerInterface
     {
         @Override public void on_state_progress_event( StateAndProgressEvent ev )
-        { on_progress_event( ev ); }
+        {
+            on_progress_event( ev );
+        }
     }
     
     // needed by MainWindow to count how many jobs are running

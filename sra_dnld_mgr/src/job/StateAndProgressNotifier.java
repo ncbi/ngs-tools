@@ -23,6 +23,7 @@
 =========================================================================== */
 package job;
 
+import data.CLogger;
 import data.QConnect;
 import java.awt.EventQueue;
 import java.util.ArrayList;
@@ -99,7 +100,17 @@ public class StateAndProgressNotifier
 
     final public void put_state( final JobState prev_state, final JobState new_state )
     {
-        put_ev( StateAndProgressType.STATE );
+        StateAndProgressEvent ev = get_from_stock();
+        if ( ev != null )
+        {
+            ev.type = StateAndProgressType.STATE;
+            ev.value = 0;
+            ev.elapsed_time = elapsed_time;
+            ev.prev_state = prev_state;
+            ev.new_state = new_state;
+            put( ev );
+            EventQueue.invokeLater( this ); // call run() in the context of the gui-task
+        }
     }
     
     @Override public void run()
@@ -110,14 +121,16 @@ public class StateAndProgressNotifier
             if ( ev != null )
             {
                 // notify all listeners...
-                
+               
                 if ( ev.type == StateAndProgressType.STATE )
                 {
+                    /* CLogger.log( "StateAndProgressNotifier.run( STATE )" ); */
                     for ( ProgressListenerInterface li : state_listeners )
                         li.on_state_progress_event( ev );
                 }
                 else
                 {
+                    /* CLogger.log( "StateAndProgressNotifier.run( PROGRESS )" ); */
                     for ( ProgressListenerInterface li : progress_listeners )
                         li.on_state_progress_event( ev );
                 }
