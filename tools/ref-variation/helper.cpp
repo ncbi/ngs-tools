@@ -33,7 +33,7 @@
 #include <stdio.h>
 #endif
 
-#include <vdb/vdb-priv.h>
+//#include <vdb/vdb-priv.h>
 #include <klib/rc.h>
 
 #include <kdb/table.h>
@@ -365,7 +365,7 @@ namespace VDBObjects
     CVTable::CVTable() : m_pSelf(NULL)
     {
     }
-    
+
     CVTable::~CVTable()
     {
         Release();
@@ -584,7 +584,7 @@ namespace VDBObjects
         printf ("CLONING VSchema %p\n", m_pSelf);
 #endif
     }
-    
+
     void CVSchema::VSchemaParseFile ( char const* pszFilePath )
     {
         rc_t rc = ::VSchemaParseFile ( m_pSelf, pszFilePath );
@@ -718,7 +718,7 @@ namespace KDBObjects
     CKIndex::CKIndex() : m_pSelf(NULL)
     {
     }
-    
+
     CKIndex::~CKIndex()
     {
         Release();
@@ -778,7 +778,7 @@ namespace KDBObjects
     CKTable::CKTable() : m_pSelf(NULL)
     {
     }
-    
+
     CKTable::~CKTable()
     {
         Release();
@@ -1153,7 +1153,7 @@ namespace KSearch
     {
         if ( m_pSelf == NULL )
             throw Utils::CErrorMsg("GetSearchQuery on uninitialized RefVariation");
-        
+
         if ( m_query == NULL )
         {
             rc_t rc = ::RefVariationGetIUPACSearchQuery ( m_pSelf, & m_query, & m_query_len, & m_query_start );
@@ -1219,7 +1219,7 @@ namespace KSearch
     {
         if ( m_pSelf == NULL )
             throw Utils::CErrorMsg("GetAllele on uninitialized RefVariation");
-        
+
         if ( m_allele == NULL )
         {
             rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
@@ -1234,7 +1234,7 @@ namespace KSearch
     {
         if ( m_pSelf == NULL )
             throw Utils::CErrorMsg("GetAllele on uninitialized RefVariation");
-        
+
         if ( m_allele_start == KSearch::UNINITIALIZED_POSITION )
         {
             rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
@@ -1254,7 +1254,7 @@ namespace KSearch
     {
         if ( m_pSelf == NULL )
             throw Utils::CErrorMsg("GetAlleleSize on uninitialized RefVariation");
-        
+
         if ( m_allele_len == KSearch::UNINITIALIZED_POSITION )
         {
             rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
