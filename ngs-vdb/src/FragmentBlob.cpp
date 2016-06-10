@@ -146,3 +146,15 @@ FragmentBlob :: GetFragmentInfo ( uint64_t offset, std::string& fragId, uint64_t
         lengthInBases = baseCount;
     }
 }
+
+void
+FragmentBlob :: GetRowRange ( int64_t& first, uint64_t& count ) const throw ( :: ngs :: ErrorMsg )
+{
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    ON_FAIL ( NGS_FragmentBlobRowRange ( self, ctx,  &first, &count ) )
+    {
+        :: ngs :: ErrBlock err;
+        NGS_ErrBlockThrow ( &err, ctx );
+        err.Throw();
+    }
+}

@@ -65,25 +65,25 @@ if ( NOT WIN32)
     # Slow tests (have to have "Slow" in the name, run without: "ctest -E Slow", run only: "ctest -R Slow"
 	# single run, single threaded
 	add_test ( NAME SraSearchSlow-3.0-single-run-default WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001" )
+				${SRA_SEARCH} 3.0-single-run-default            --sort --args "AGCTAGCTAGCT SRR000001" )
 	add_test ( NAME SraSearchSlow-3.1-single-run-fgrep-standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT -a FgrepStandard SRR000001" )
+				${SRA_SEARCH} 3.1-single-run-fgrep-standard     --sort --args "AGCTAGCTAGCT -a FgrepStandard SRR000001" )
 	add_test ( NAME SraSearchSlow-3.2-single-run-fgrep-boyer-moore WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001" )
+				${SRA_SEARCH} 3.2-single-run-fgrep-boyer-moore  --sort --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001" )
 	add_test ( NAME SraSearchSlow-3.3-single-run-fgrep-aho WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.3-single-run-fgrep-aho         --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001" )
+				${SRA_SEARCH} 3.3-single-run-fgrep-aho          --sort --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001" )
 	add_test ( NAME SraSearchSlow-3.4-single-run-agrep-dp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001" )
+				${SRA_SEARCH} 3.4-single-run-agrep-dp           --sort --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001" )
 	add_test ( NAME SraSearchSlow-3.5-single-run-agrep-wumanber WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.5-single-run-agrep-wumanber     --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001" )
+				${SRA_SEARCH} 3.5-single-run-agrep-wumanber     --sort --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001" )
 	add_test ( NAME SraSearchSlow-3.6-single-run-agrep-myers WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.6-single-run-agrep-myers        --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001" )
+				${SRA_SEARCH} 3.6-single-run-agrep-myers        --sort --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001" )
 	add_test ( NAME SraSearchSlow-3.7-single-run-agrep-myers-unltd WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.7-single-run-agrep-myers-unltd  --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001" )
+				${SRA_SEARCH} 3.7-single-run-agrep-myers-unltd  --sort --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001" )
 	add_test ( NAME SraSearchSlow-3.8-single-run-nucstrstr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001" )
+				${SRA_SEARCH} 3.8-single-run-nucstrstr          --sort --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001" )
 	add_test ( NAME SraSearchSlow-3.9-single-run-smith-waterman WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001" )
+				${SRA_SEARCH} 3.9-single-run-smith-waterman     --sort --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001" )
 
 	# multiple runs, single threaded
 	add_test ( NAME SraSearchSlow-4.0-multiple-runs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
@@ -91,19 +91,19 @@ if ( NOT WIN32)
 
 	# query expressions
 	add_test ( NAME SraSearchSlow-5.0-run-nucstrstr-with-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 5.0-run-nucstrstr-with-expression --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001" )
+				${SRA_SEARCH} 5.0-run-nucstrstr-with-expression --sort --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001" )
 
 	# imperfect match
 	add_test ( NAME SraSearchSlow-6.4-imperfect-match-agrep-dp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001" )
+				${SRA_SEARCH} 6.4-imperfect-match-agrep-dp           --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001" )
 	add_test ( NAME SraSearchSlow-6.5-imperfect-match-agrep-wumanber WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.5-imperfect-match-agrep-wumanber     --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001" )
+				${SRA_SEARCH} 6.5-imperfect-match-agrep-wumanber     --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001" )
 	add_test ( NAME SraSearchSlow-6.6-imperfect-match-agrep-myers WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.6-imperfect-match-agrep-myers        --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001" )
+				${SRA_SEARCH} 6.6-imperfect-match-agrep-myers        --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001" )
 	add_test ( NAME SraSearchSlow-6.7-imperfect-match-agrep-myers-unltd WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001" )
+				${SRA_SEARCH} 6.7-imperfect-match-agrep-myers-unltd  --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001" )
 	add_test ( NAME SraSearchSlow-6.9-imperfect-match-smith-waterman WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001" )
+				${SRA_SEARCH} 6.9-imperfect-match-smith-waterman     --sort --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001" )
 
 	# multi-threading
 	# multiple runs, single-threaded
@@ -118,6 +118,10 @@ if ( NOT WIN32)
 	# multiple runs, thread per blob
 	add_test ( NAME SraSearchSlow-7.3-threads-multiple WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.3-threads-multiple --sort --args "ACGTAGGGTCC --threads 2 SRR600094 SRR600095 SRR600096 SRR600099" )
+
+	# sorting the output
+	add_test ( NAME SraSearchSlow-7.4-threads-sort WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 7.4-threads-sort --args "ACGTAGGGTCC --threads 4 SRR600096 SRR600095 --sort" )
 
 	# nothing found
 	add_test ( NAME SraSearchSlow-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh

@@ -47,6 +47,9 @@ namespace ncbi
                 uint64_t Size() const
                     throw ();
 
+                void GetRowRange ( int64_t& first, uint64_t& count ) const
+                    throw ( :: ngs :: ErrorMsg );
+
                 void GetFragmentInfo ( uint64_t offset, std::string& fragId, uint64_t& startInBlob, uint64_t& lengthInBases, bool& biological ) const
                     throw ( :: ngs :: ErrorMsg );
 

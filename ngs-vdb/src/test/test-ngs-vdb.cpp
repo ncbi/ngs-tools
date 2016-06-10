@@ -178,6 +178,26 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetFragmentInfo_Biological, KfcFixture )
     EXIT;
 }
 
+FIXTURE_TEST_CASE ( FragmentBlob_GetRowRange, KfcFixture )
+{
+    ENTRY;
+    MakeIterator ( SRA_Accession, ctx );
+
+    FragmentBlob b ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
+    int64_t first=0;
+    uint64_t count=0;
+    b . GetRowRange ( first, count );
+    REQUIRE_EQ ( (int64_t)1, first );
+    REQUIRE_EQ ( (uint64_t)4, count );
+
+    b = NGS_FragmentBlobIteratorNext ( m_iter, ctx );
+    b . GetRowRange ( first, count );
+    REQUIRE_EQ ( (int64_t)5, first );
+    REQUIRE_EQ ( (uint64_t)4, count );
+
+    EXIT;
+}
+
 /// FragmentBlobIterator
 
 FIXTURE_TEST_CASE ( FragmentBlobIterator_Create, KfcFixture )
