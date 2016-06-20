@@ -78,7 +78,6 @@ setting 'offset' or 'quality' options.
 import sys
 import array
 from enum import Enum
-import GeneralWriter
 import logging
 import os
 import re
@@ -86,6 +85,12 @@ import string
 import copy
 import gzip
 import time
+
+saveSysPath = sys.path
+sys.path.append(os.path.abspath("../../shared/python"))
+import GeneralWriter
+sys.path = saveSysPath
+
 #import bz2
 #import shutil
 #import tempfile

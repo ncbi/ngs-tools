@@ -64,12 +64,16 @@ import os, subprocess, tempfile
 if __debug__:
     import traceback
 
+saveSysPath = sys.path
+sys.path.append(os.path.abspath("../../shared/python"))
+import GeneralWriter
+sys.path = saveSysPath
+
 import time
 import array
 import tarfile
 import h5py
 import poretools
-import GeneralWriter
 
 
 workDir = tempfile.mkdtemp(suffix='.tmp', prefix='pore-load.', dir=tmpdir)
