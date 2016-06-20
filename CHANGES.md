@@ -9,4 +9,5 @@
   **ngs-engine**: ncbi-ngs engine was updated: fixed a bug that made NGS read iterator return 0 reads on WGS accessions.
   **ngs-tools**: now uses CMake as the primary build tool
   **sra-search**: now supports near matches and gapped matches.
+  **vdb, ngs-engine**: Fixed a bound on memory cache that would never flush under certain access modes
 
