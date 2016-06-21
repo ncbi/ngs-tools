@@ -337,7 +337,7 @@ def ProcessTar(tar):
     global nextReport
 
     for f in tar:
-        if f.name.endswith('.fast5'):
+        if f.isfile() and f.name.endswith('.fast5'):
             i = tar.extractfile(f)
             try:
                 ExtractAndProcess(i, os.path.basename(f.name))
