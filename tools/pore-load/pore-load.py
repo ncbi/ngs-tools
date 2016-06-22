@@ -165,6 +165,14 @@ gw = GeneralWriter.GeneralWriter(
     , tbl)
 
 
+def safeHas2D(f5):
+    try:
+        if f5.has_2D():
+            return True
+    except:
+        pass
+    return False
+
 class FastQData:
     """ To hold FastQ data """
     
@@ -243,12 +251,15 @@ class FastQData:
         f5 = poretools.Fast5File(fname)
         try:
             channel = int(f5.get_channel_number())
-            readno = int(f5.get_read_number())
+            try:
+                readno = int(f5.get_read_number())
+            except:
+                readno = 0
             sequence_2d = None
             quality_2d = None
             hiQ = False
 
-            if f5.has_2D():
+            if safeHas2D(f5):
                 twoD = f5.get_fastqs("2D")[0]
                 sequence_2d = twoD.seq
                 quality_2d = twoD.qual
@@ -330,6 +341,13 @@ processCounter = 0
 processStart = time.clock()
 nextReport = (processStart + showProgress) if showProgress > 0 else None
 
+def shouldProcess(tarinfo):
+    if not tarinfo.isfile():
+        return False
+    if not tarinfo.name.endswith('.fast5'):
+        return False
+    return True
+
 def ProcessTar(tar):
     """ Extract and process all fast5 files
     """
@@ -337,7 +355,7 @@ def ProcessTar(tar):
     global nextReport
 
     for f in tar:
-        if f.isfile() and f.name.endswith('.fast5'):
+        if shouldProcess(f):
             i = tar.extractfile(f)
             try:
                 ExtractAndProcess(i, os.path.basename(f.name))
