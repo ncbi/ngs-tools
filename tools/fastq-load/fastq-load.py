@@ -55,6 +55,8 @@ Options:
 
     schema:        Set vdb schema to use during load
 
+    xml-log:       XML version of stderr output
+
     h|help:        Displays this message
 
 Multi-line sequence and quality for a spot must occupy the same number of lines
@@ -76,17 +78,13 @@ setting 'offset' or 'quality' options.
 import sys
 import array
 from enum import Enum
+import GeneralWriter
 import logging
 import os
 import re
 import copy
 import gzip
-
-saveSysPath = sys.path
-sys.path.append(os.path.abspath("../../shared/python"))
-import GeneralWriter
-sys.path = saveSysPath
-
+import datetime
 #import time
 #import bz2
 #import shutil
@@ -131,6 +129,7 @@ Usage: fastq-load.py\n
           [ --maxErrorCount=<count>   (optional) ]
           [ --mixedDeflines           (optional) ]
           [ --schema=<string>         (optional) ]
+          [ --xml-log=<string>        (optional) ]
           [ -h|--help                 (optional) ]
           [ fastq-file(s)                        ]
 
@@ -140,6 +139,87 @@ Usage: fastq-load.py\n
     sys.stderr.write(usageMessage)
     sys.stderr.write(__doc__)
     exit(state)
+
+############################################################
+# Defline StatusWriter class
+############################################################
+
+class StatusWriter:
+    """ Outputs status to stderr and optionally to an xml log file """
+    def __init__(self):
+        self.xmlLogHandle = None
+        self.pid = os.getpid()
+        self.vers = "1.0.0"
+        
+    ############################################################
+    # Open xml log file if provided
+    ############################################################
+    
+    def setXmlLog ( self, xmlLogFile ):
+        xmlLogFile = xmlLogFile.strip()
+        try:
+            self.xmlLogHandle = open(xmlLogFile, 'w')
+            self.xmlLogHandle.write("<Log>\n")
+        except OSError:
+            sys.exit( "\nFailed to open {} for writing\n\n".format(xmlLogFile) )
+
+    ############################################################
+    # Close Xml Log file
+    ############################################################
+    def closeXmlLog ( self ):
+        self.xmlLogHandle.write("</Log>\n")
+        self.xmlLogHandle.close()
+        
+    ############################################################
+    # Output status message
+    ############################################################
+    def outputInfo ( self, message ):
+        if self.xmlLogHandle:
+            self.xmlLogHandle.write('<info app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.flush()
+        sys.stderr.write("Info: {}\n".format(message) )
+        sys.stderr.flush()
+
+    ############################################################
+    # Output status message
+    ############################################################
+    def outputWarning ( self, message ):
+        if self.xmlLogHandle:
+            self.xmlLogHandle.write('<warning app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.flush()
+        sys.stderr.write("Warning: {}\n".format(message) )
+        sys.stderr.flush()
+
+    ############################################################
+    # Output status message and exit
+    ############################################################
+    def outputErrorAndExit (self, message):
+        if self.xmlLogHandle:
+            self.xmlLogHandle.write('<error app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.flush()
+            self.closeXmlLog()
+        sys.exit( "\nError: {}\n\n".format(message) )
+
+    ############################################################
+    # Escape message (wrote my own instead of importing sax escape)
+    ############################################################
+    @staticmethod
+    def escape(message):
+        message = message.replace('&', '&amp;')
+        message = message.replace('"', '&quot;')
+        message = message.replace("'", '&apos;')
+        message = message.replace('<', '&lt;')
+        message = message.replace('>', '&gt;')
+        return message
+
+    ############################################################
+    # Get formatted date time
+    ############################################################
+    @staticmethod
+    def getTime():
+        now = datetime.datetime.utcnow()
+        now = now.replace(microsecond=0)
+        return now.isoformat()
 
 ############################################################
 # Define Platform and convert platform to SRA enum
@@ -260,6 +340,7 @@ class Defline:
         self.tagType = ''
         self.suffix = ''
         self.abiTitle = ''
+        self.statusWriter = None
 
         self.illuminaNew = re.compile("@([!-~]+?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|[_\|])([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
         self.illuminaNewNoPrefix = re.compile("@([!-~]*?)(:?)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|_)([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
@@ -1258,9 +1339,9 @@ class Defline:
                     elif re.search( re.escape(".complement."), self.filename):
                         self.poreRead = "complement"
                     else:
-                        sys.exit( "\nUnable to determine nanopore read type ... " + self.deflineString + "\n" )
+                        self.statusWriter.outputErrorAndExit( "Unable to determine nanopore read type ... {}".format(self.deflineString) )
                 else:
-                    sys.exit( "\nUnable to determine nanopore read type ... " + self.deflineString + "\n" )
+                    self.statusWriter.outputErrorAndExit( "Unable to determine nanopore read type ... {}".format(self.deflineString) )
             elif ( self.poreRead == "_twodirections" or
                    self.poreRead == "-2D"):
                 self.poreRead = "2D"
@@ -1353,7 +1434,7 @@ class Defline:
             elif self.dir[0] in ('r', 'R'):
                 self.readNum = '2'
             else:
-                sys.exit( "\nUnexpected sanger read dir value ... " + self.deflineString + "\n" )
+                self.statusWriter.outputErrorAndExit( "Unexpected sanger read dir value ... {}".format(self.deflineString) )
 
             # Retain defline type if desired
 
@@ -1620,7 +1701,7 @@ class Qual:
                     self.length += 1
                     if ( self.minQual > 100 or
                          self.maxQual > 100 ):
-                        sys.exit( "\nNumerical quality is too high  ... {}".format(self.qual) )
+                        sys.exit( "Numerical quality is too high  ... {}".format(self.qual) )
                 else:
                     self.length = 0
                     break
@@ -1709,6 +1790,7 @@ class FastqReader:
         self.savedDeflineStringSeq = ''
         self.savedDeflineStringQual = ''
         self.outputStatus = False
+        self.statusWriter = None
         self.headerLineCount = self.processHeader(handle,self.defline)
         self.deflineCheck = copy.copy(self.defline) # Putting here in case abiTitle is set; Use for multiline qual
 
@@ -1801,7 +1883,7 @@ class FastqReader:
 
                 else:
                     if self.outputStatus:
-                        sys.stderr.write("Discarding this line in readSeq while looking for a valid complete spot near spot {} in file {} ... {}\n".format(self.spotCount,self.filename,self.seqOrig.strip() ) )
+                        self.statusWriter.outputWarning("Discarding this line in readSeq while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.seqOrig.strip() ))
                     self.findValidDefline(True)
                     
                     if self.isMultiLine:
@@ -1853,7 +1935,7 @@ class FastqReader:
 
                 else:
                     if self.outputStatus:
-                        sys.stderr.write("Discarding this line in readQual while looking for a valid complete spot near spot {} in file {} ... {}\n".format(self.spotCount,self.filename,self.qual) )
+                        self.statusWriter.outputWarning("Discarding this line in readQual while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.qual) )
                     self.findValidDefline(True)
                     self.length = self.readSeq()
                     self.processQualDefline(handle)
@@ -1900,7 +1982,7 @@ class FastqReader:
                 return ''
 
             elif self.seqLineCount > 20000:
-                sys.exit("Exceeded 20000 sequence lines between deflines near spot {} in file {}\n".format(self.spotCount,self.filename))
+                self.statusWriter.outputErrorAndExit("Exceeded 20000 sequence lines between deflines near spot {} in file {}".format(self.spotCount,self.filename) )
 
             # Check for defline
 
@@ -1933,7 +2015,7 @@ class FastqReader:
                 return ''
 
             elif self.qualLineCount > 20000:
-                sys.exit("Exceeded 20000 quality lines between deflines near spot {} in file {}\n".format(self.spotCount,self.filename))
+                self.statusWriter.outputErrorAndExit("Exceeded 20000 quality lines between deflines near spot {} in file {}\n".format(self.spotCount,self.filename))
                 
             # Check for next seq or qual defline
             
@@ -1955,7 +2037,7 @@ class FastqReader:
         while True:
             count += 1
             if self.outputStatus:
-                sys.stderr.write("Discarding this line in findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}\n".format(self.spotCount,self.filename,self.defline.deflineString) )
+                self.statusWriter.outputWarning("Discarding this line in findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.defline.deflineString) )
 
             deflineStringSeqOrig = self.handle.readline()
             self.deflineStringSeq = deflineStringSeqOrig.strip()
@@ -1968,7 +2050,7 @@ class FastqReader:
                 break
             elif ( count == 1000 or
                    not deflineStringSeqOrig ):
-                sys.exit( "\nUnable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}\n".format( self.defline.deflineString,self.filename,str(self.spotCount) ) )
+                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}".format( self.defline.deflineString,self.filename,str(self.spotCount) ) )
 
     ############################################################
     # Discard defline type if mixed deflines in a single file
@@ -2081,7 +2163,7 @@ class FastqReader:
              
         elif ( maxSeqLineCount > 20000 or
                maxQualLineCount > 20000 ):
-            sys.exit( "\nDistance between fastq deflines exceeds 20000 lines in file ... {}\n".format(self.filename) )
+            self.statusWriter.outputErrorAndExit( "Distance between fastq deflines exceeds 20000 lines in file ... {}".format(self.filename) )
 
         else:
             return False
@@ -2123,7 +2205,8 @@ class SeqQualFastqReader (FastqReader):
         
         self.defline.parseDeflineString ( self.deflineStringSeq )
         if not self.defline.isValid:
-            sys.exit( "\nUnable to parse defline ... filename,spotCount,deflineString\t{},{},{}\n".format(self.filename,self.spotCount,self.defline.deflineString))
+            if self.outputStatus:
+                self.statusWriter.outputErrorAndExit("Unable to parse defline ... filename,spotCount,deflineString\t{},{},{}".format(self.filename,self.spotCount,self.defline.deflineString))
 
     ############################################################
     # Process qual defline
@@ -2133,7 +2216,7 @@ class SeqQualFastqReader (FastqReader):
         self.deflineStringQual = handle.readline().strip()
         self.deflineQual.parseDeflineString( self.deflineStringQual )
         if not self.deflineQual.isValid:
-            sys.exit( "\nUnable to parse quality defline ... filename,spotCount,deflineString\t{},{},{}\n".format(self.qualFilename,self.spotCount,self.deflineQual.deflineString) )
+            self.statusWriter.outputErrorAndExit( "Unable to parse quality defline ... filename,spotCount,deflineString\t{},{},{}".format(self.qualFilename,self.spotCount,self.deflineQual.deflineString) )
         if self.defline.name != self.deflineQual.name:
             self.seqQualDeflineMismatch = True
 
@@ -2143,6 +2226,7 @@ class SeqQualFastqReader (FastqReader):
     
     def isSeqQualFastq (self):
         self.restart()
+        self.checkSeqQual = False
         self.read()
         self.restart()
 
@@ -2258,7 +2342,7 @@ class FastaFastqReader (FastqReader):
             return True
 
         elif maxSeqLineCount > 20000:
-            sys.exit( "\nDistance between fasta deflines exceeds 20000 lines in file ... {}\n".format(self.filename) )
+            self.statusWriter.outputErrorAndExit( "Distance between fasta deflines exceeds 20000 lines in file ... {}".format(self.filename) )
 
         else:
             return False
@@ -2358,7 +2442,7 @@ class SingleLineFastqReader (FastqReader):
         while True:
             count += 1
             if self.outputStatus:
-                sys.stderr.write("Discarding this line in SingleLineFastqReader findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}\n".format(self.spotCount,self.filename,self.fileString) )
+                self.statusWriter.outputWarning("Discarding this line in SingleLineFastqReader findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.fileString) )
             fileStringOrig = self.handle.readline()
             self.fileString = fileStringOrig.strip()
             self.deflineChunks = self.fileString.split( self.delim )
@@ -2370,7 +2454,7 @@ class SingleLineFastqReader (FastqReader):
                 break
             elif ( count == 1000 or
                    not fileStringOrig ):
-                sys.exit( "\nUnable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}\n".format(self.defline.deflineString,self.filename,self.spotCount) )
+                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}".format(self.defline.deflineString,self.filename,self.spotCount) )
 
     ############################################################
     # Check if fastq file contains single line fastq
@@ -2378,6 +2462,7 @@ class SingleLineFastqReader (FastqReader):
     
     def isSingleLineFastq (self):
         self.restart()
+        self.checkSeqQual = False
         self.read()
         self.restart()
         parsedSeq = Seq(self.seq)
@@ -2462,8 +2547,10 @@ class FastqSpotWriter():
         self.db = 'NCBI:SRA:GenericFastq:db'
         self.schema = 'sra/generic-fastq.vschema'
         self.maxErrorCount = 100000
+        self.infoSizeForSpotCount = 100000
         self.profile = False
         self.checkSeqQual = True
+        self.statusWriter = None
 
         ############################################################
         # Define SEQUENCE table components for general loader
@@ -2778,8 +2865,7 @@ class FastqSpotWriter():
             if fastq2 :
                 if ( not self.ignoreNames and
                      fastq1.defline.name != fastq2.defline.name ):
-                    sys.stderr.write("Error: Expected paired deflines but encountered name mismatch ... {},{}\n".format(fastq1.defline.name,fastq2.defline.name) )
-                    sys.exit( "\nExpected paired deflines but encountered name mismatch. Reload with '--orphanReads' specified \n" )
+                    self.statusWriter.outputErrorAndExit("Expected paired deflines but encountered name mismatch ... {},{}".format(fastq1.defline.name,fastq2.defline.name) )
                 else:
                     self.processPairFastqSpot ( fastq1, fastq2 )
 
@@ -2806,8 +2892,8 @@ class FastqSpotWriter():
         
             # Output spotcount
 
-            if fastq1.spotCount % 100000 == 0:
-                sys.stderr.write("Info: Wrote spot number {} from {}\n".format(fastq1.spotCount,fastq1.filename) )
+            if fastq1.spotCount % self.infoSizeForSpotCount == 0:
+                self.outputCount(fastq1,False)
 
             # Edge case where one seq in a pair is an empty string (very sparse)
 
@@ -2941,8 +3027,8 @@ class FastqSpotWriter():
             if fastq2 :
                 self.processUnpairedPoreRead ( fastq2, None ) # 2D read in fastq3 handled/cached by prior call
 
-        if fastq1.spotCount % 100000 == 0:
-            sys.stderr.write("Info: Reading spot number {} from {}\n".format(fastq1.spotCount,fastq1.filename) )
+        if fastq1.spotCount % self.infoSizeForSpotCount == 0:
+            self.outputCount(fastq1,True)
 
     ############################################################
     # If a read is unpaired then check for prior encounter with
@@ -2987,8 +3073,8 @@ class FastqSpotWriter():
             self.writeFakeTemplateRead ( fastq1 )
             self.writeNanopore2Dread ( fastq1, None )
             
-        if fastq1.spotCount % 100000 == 0:
-            sys.stderr.write("Info: Reading spot number {} again from {}\n".format(fastq1.spotCount,fastq1.filename) )
+        if fastq1.spotCount % self.infoSizeForSpotCount == 0:
+            self.outputCount(fastq1,True)
         
     ############################################################
     # Write actual or fake 2D read
@@ -3042,8 +3128,8 @@ class FastqSpotWriter():
         self.gw.write( self.dst2D )
         if self.nanopore2Donly:
             self.spotCount += 1
-            if fastq.spotCount % 100000 == 0:
-                sys.stderr.write("Info: Wrote spot number {} from {}\n".format(fastq.spotCount,fastq.filename) )
+            if fastq.spotCount % self.infoSizeForSpotCount == 0:
+                self.outputCount(fastq,False )
 
     ############################################################
     # Write technical nanopore template read to SEQUENCE table using
@@ -3093,8 +3179,8 @@ class FastqSpotWriter():
             if fastq2 :
                 self.processUnpairedRead ( fastq2 )
 
-        if fastq1.spotCount % 100000 == 0:
-            sys.stderr.write("Info: Reading spot number {} from {}\n".format(fastq1.spotCount,fastq1.filename) )
+        if fastq1.spotCount % self.infoSizeForSpotCount == 0:
+            self.outputCount (fastq1,True)
 
     ############################################################
     # Write spot when read matches up with previously encountered reads
@@ -3254,8 +3340,8 @@ class FastqSpotWriter():
         if ( fastq1.defline.name in self.pairedRead1 or
              fastq1.defline.name in self.pairedRead2 ):
             self.writeMixedOrphan ( fastq1 )
-        if fastq1.spotCount % 100000 == 0:
-            sys.stderr.write("Info: Reading spot number {} again from {}\n".format(fastq1.spotCount,fastq1.filename) )
+        if fastq1.spotCount % self.infoSizeForSpotCount == 0:
+            self.outputCount(fastq1,True)
 
     ############################################################
     # Set name to be written in archive
@@ -3287,7 +3373,7 @@ class FastqSpotWriter():
         elif fastq.defline.spotGroup:
             if ( fastq2 and
                  fastq.defline.spotGroup != fastq2.defline.spotGroup ):
-                sys.exit( "\nPaired reads haved different barcodes. Perhaps reload with '--spotGroup' specified\n" )
+                self.statusWriter.outputErrorAndExit( "Paired reads haved different barcodes. Perhaps reload with '--spotGroup' specified" )
             dst['SPOT_GROUP']['data'] = fastq.defline.spotGroup.encode('ascii')
         else:
             dst['SPOT_GROUP']['data'] = ''.encode('ascii')
@@ -3342,8 +3428,7 @@ class FastqSpotWriter():
         if ( offset != 0 and
              offset != 33 and
              offset != 64 ):
-            sys.exit( "\nInvalid offset determined or specified. Allowed values are 0 (numerical quality), 33, or 64 ... "
-                      + offset + "\n" )
+            self.statusWriter.outputErrorAndExit( "Invalid offset determined or specified. Allowed values are 0 (numerical quality), 33, or 64 ... {}".format(offset) )
         else:
             self.offset = offset
 
@@ -3362,7 +3447,7 @@ class FastqSpotWriter():
 
             elif ( self.offset == 33 and
                    self.logOdds ):
-                sys.exit( "\nCombining 33 offset with log odds is not yet supported\n" )
+                self.statusWriter.outputErrorAndExit( "\nCombining 33 offset with log odds is not yet supported" )
     
             if provided :
                 self.offsetProvided = True
@@ -3377,9 +3462,7 @@ class FastqSpotWriter():
         readLenCount = len(readLens)
         if self.readCount != 0:
             if readLenCount != self.readCount:
-                sys.exit( "\nRead count disagreement between provided read lengths, "
-                          + str(readLenCount) + ", and prior argument read count, "
-                          + str(self.readCount) + "\n" )
+                self.statusWriter.outputErrorAndExit( "\nRead count disagreement between provided read lengths, {}, and prior argument read count, {}".format(str(readLenCount),str(self.readCount)))
         else:
             self.readCount = readLenCount
 
@@ -3397,7 +3480,7 @@ class FastqSpotWriter():
                 self.readStarts[readIndex] = readStart
                 readStart += int(readLen)
             else:
-                sys.exit( "\nNon-integer length specified ... " + readLen + "\n")
+                self.statusWriter.outputErrorAndExit( "Non-integer length specified ... {}".format(readLen))
         self.lengthsProvided = True
 
     ############################################################
@@ -3409,15 +3492,13 @@ class FastqSpotWriter():
         transType = str.maketrans('', '', "BT")
         empty = readTypeString.translate(transType)
         if len(empty) != 0:
-            sys.exit( "\nInvalid read type specified (only B or T allowed) ... " + readTypeString + "\n" )
+            self.statusWriter.outputErrorAndExit( "Invalid read type specified (only B or T allowed) ... {}".format(readTypeString) )
 
         else:
             typeCount = len(readTypeString)
             if self.readCount != 0:
                 if typeCount != self.readCount:
-                    sys.exit( "\nRead count disagreement between provided read types, "
-                              + str(typeCount) + ", and prior argument read count, "
-                              + str(self.readCount) + "\n" )
+                    self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read types, {}, and prior argument read count, {}".format(typeCount,self.readCount))
             else:
                 self.readCount = typeCount
 
@@ -3440,9 +3521,7 @@ class FastqSpotWriter():
         labelCount = len(labels)
         if self.readCount != 0:
             if labelCount != self.readCount:
-                sys.exit( "\nRead count disagreement between provided read labels, "
-                          + str(labelCount) + ", and prior argument read count, "
-                          + str(self.readCount) + "\n" )
+                self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read labels, {}, and prior argument read count, {}".format(labelCount,self.readCount))
         else:
             self.readCount = labelCount
 
@@ -3478,7 +3557,7 @@ class FastqSpotWriter():
         platformString.strip()
         platform = Platform.convertPlatformString(platformString)
         if platform is None :
-            sys.exit( "\nUnrecognized platform was specified ... " + platformString + "\n" )
+            self.statusWriter.outputErrorAndExit( "\nUnrecognized platform was specified ... {}".format(platformString) )
         else:
             self.platform = array.array('B', [platform.value] )
             self.platformString = platformString
@@ -3546,7 +3625,17 @@ class FastqSpotWriter():
     def setNanoporeColumns ( fastq, dst ):
         dst['READ_NO']['data'] = array.array( 'I', [ int(fastq.defline.readNo) ] )
         dst['CHANNEL']['data'] = array.array( 'I', [ int(fastq.defline.channel) ] )
-        
+
+    ############################################################
+    # Outputs spot count
+    ############################################################
+
+    def outputCount ( self, fastq, readCount ):
+        if readCount:
+            self.statusWriter.outputInfo("Reading spot number {} from {}".format(fastq.spotCount,fastq.filename) )
+        else:
+            self.statusWriter.outputInfo("Wrote spot number {} from {}".format(fastq.spotCount,fastq.filename) )
+
 ############################################################
 # Process command line arguments
 ############################################################
@@ -3592,8 +3681,8 @@ def processArguments():
                 sw.mixedDeflines = True
             elif arg[2:9] == 'schema=':
                 sw.setSchema ( arg[9:] )
-##            elif arg[2:] == 'checkSeqQual':
-##                sw.checkSeqQual = True
+            elif arg[2:10] == 'xml-log=':
+                statusWriter.setXmlLog( arg[10:] )
 ##            elif arg[2:] == 'setClips':
 ##                sw.setClips = True
 ##            elif arg[2:] == 'eightLine':
@@ -3743,9 +3832,9 @@ def setFileTypes ():
             fastq = SingleLineFastqReader (filename,handle)
             if fastq.isSingleLineFastq():
                 fileTypes[filename] = "singleLine"
-                sys.stderr.write("Info: File {} is identified as single line fastq\n".format(filename) )
+                statusWriter.outputInfo("File {} is identified as single line fastq".format(filename) )
             else:
-                sys.exit( "\nDefline without > or @ and not recognizable as single line fastq ... " + file1DeflineString )
+                statusWriter.outputErrorAndExit( "Defline without > or @ and not recognizable as single line fastq ... {}".format(file1DeflineString) )
 
         # Check for '8 line' fastq
 
@@ -3760,7 +3849,7 @@ def setFileTypes ():
                     fileTypes[filename] = "multiLineEightLine"
                 else:
                     fileTypes[filename] = "multiLine"
-                sys.stderr.write("Info: File {} is identified as {} \n".format(filename, fileTypes[filename]) )
+                statusWriter.outputInfo("File {} is identified as {}".format(filename, fileTypes[filename]) )
             elif ( sw.isEightLine or
                      ( not sw.ignoreNames and
                        isEightLineFastq ( filename, handle, False ) ) ):
@@ -3816,8 +3905,8 @@ def setFileTypes ():
                                     else:
                                         fileTypes[filename] = "eightLineSeqQual"
 
-                                sys.stderr.write("Info: File {} is identified as {} (seq file is {})\n".format(filename2,fileTypes[filename],filename) )
-                                sys.stderr.write("Info: File {} is identified as {} \n".format(filename,fileTypes[filename] ) )
+                                statusWriter.outputInfo("File {} is identified as {} (seq file is {})".format(filename2,fileTypes[filename],filename) )
+                                statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename] ) )
 
                             # 'filename2' contains seq, 'filename' contains qual
 
@@ -3842,8 +3931,8 @@ def setFileTypes ():
                                     else:
                                         fileTypes[filename2] = "eightLineSeqQual"
                                 
-                                sys.stderr.write("Info: File {} is identified as {} (seq file is {})\n".format(filename,fileTypes[filename2],filename2) )
-                                sys.stderr.write("Info: File {} is identified as {}\n".format(filename2,fileTypes[filename2]) )
+                                statusWriter.outputInfo("File {} is identified as {} (seq file is {})".format(filename,fileTypes[filename2],filename2) )
+                                statusWriter.outputInfo("File {} is identified as {}".format(filename2,fileTypes[filename2]) )
 
                     handle2.seek(0)
 
@@ -3870,19 +3959,19 @@ def setFileTypes ():
                         else:
                             fileTypes[filename] = "eightLineFasta"
                             
-                    sys.stderr.write("Info: File {} is identified as {}\n".format(filename,fileTypes[filename]) )
+                    statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename]) )
 
                 else:
                     parsedQual = Qual(fastq.seq)
                     if parsedQual.isValid :
-                        sys.exit( "\nUnable to associate seq file with this qual file ... " + filename )
+                        statusWriter.outputErrorAndExit( "Unable to associate seq file with this qual file ... {}".format(filename) )
                     else:
-                        sys.exit( "\nFile with '>' defline character is unrecognized as containing sequence or quality ... " + filename )
+                        statusWriter.outputErrorAndExit( "File with '>' defline character is unrecognized as containing sequence or quality ... {}".format(filename) )
 
         if ( filename not in fileTypes and
              filename not in fileSkip ):
             fileTypes[filename] = "normal"
-            sys.stderr.write("Info: File {} is identified as {}\n".format(filename,fileTypes[filename]) )
+            statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename]) )
 
         handle.seek(0)
 
@@ -3892,6 +3981,7 @@ def setFileTypes ():
 ############################################################
 
 def getFastqInstance (filename):
+    reader = None
     if ( fileTypes[filename] == "normal" or
          fileTypes[filename] == "eightLine" ):
         reader = FastqReader (filename,fileHandles[filename])
@@ -3918,7 +4008,7 @@ def getFastqInstance (filename):
     elif fileTypes[filename] == "singleLine":
         reader = SingleLineFastqReader (filename,fileHandles[filename])
     else:
-        sys.exit( "\nUnable to determine file type for ... " + filename )
+        statusWriter.outputErrorAndExit( "Unable to determine file type for ... {}".format(filename) )
 
     # These values may not be set yet but if they are, pass them on
     
@@ -3927,7 +4017,12 @@ def getFastqInstance (filename):
     reader.extraQualForCSkey = sw.extraQualForCSkey
     reader.checkSeqQual = sw.checkSeqQual
     reader.setClips = sw.setClips
-    
+    reader.statusWriter = statusWriter
+    reader.defline.statusWriter = statusWriter
+    reader.deflineCheck.statusWriter = statusWriter
+    if reader.deflineQual:
+        reader.deflineQual.statusWriter = statusWriter
+        
     return reader
 
 ############################################################
@@ -3996,7 +4091,7 @@ def setFilePairs ():
             read1Count+=1
             if fastq1.defline.name in file1Reads:
                 sw.orphanReads = True
-                sys.stderr.write("Info: {} is eight line fastq with orphan reads\n".format(filename1) )
+                statusWriter.outputInfo("File {} is eight line fastq with orphan reads".format(filename1) )
                 fileReadPairs[filename1] = filename1
                 
                 if fileTypes[filename1] == "normal":
@@ -4019,7 +4114,7 @@ def setFilePairs ():
                        fileTypes[filename1] == "multiLineEightLineFasta" ):
                     pass
                 else:
-                    sys.exit ("\nUnsupported eight line fastq file with orphan reads ... {}\n\n".format(filename1) )
+                    statusWriter.outputErrorAndExit ("Unsupported eight line fastq file with orphan reads ... {}".format(filename1) )
                 
                 if fastq1.defline.poreRead:
                     defline1 = Defline(file1Reads[fastq1.defline.name])
@@ -4068,7 +4163,7 @@ def setFilePairs ():
                             isPairedDeflines = Defline.isPairedDeflines ( fastq1.defline, fastq2.defline, False )
                             if isPairedDeflines:
                                 sw.orphanReads = True
-                                sys.stderr.write("Info: {} and {} are paired with orphan reads\n".format(filename1,filename2) )
+                                statusWriter.outputInfo("Files {} and {} are paired with orphan reads".format(filename1,filename2) )
                                 processPairedDeflines ( filename1, filename2, fastq1.defline, fastq2.defline, isPairedDeflines )
                                 if ( ( filename1 in fileReadPairs and
                                        ( not fastq1.defline.poreRead or
@@ -4154,7 +4249,7 @@ def processPairedDeflines ( filename1, filename2, defline1, defline2, isPairedDe
             elif defline2.poreRead == "2D":
                 filePore2D[filename1] = filename2
             else:
-                sys.exit ("\nUnrecognized poreRead type2 ... {}\n\n".format(defline2.poreRead) )
+                statusWriter.outputErrorAndExit("Unrecognized poreRead type2 ... {}".format(defline2.poreRead) )
         else:
             fileSkip[filename1] = 1
             if defline1.poreRead == "complement":
@@ -4162,7 +4257,7 @@ def processPairedDeflines ( filename1, filename2, defline1, defline2, isPairedDe
             elif defline1.poreRead == "2D":
                 filePore2D[filename2] = filename1
             else:
-                sys.exit ("\nUnrecognized poreRead type2 ... {}\n\n".format(defline1.poreRead) )
+                statusWriter.outputErrorAndExit ("Unrecognized poreRead type1 ... {}".format(defline1.poreRead) )
 
     # Process paired files other than nanopore
                 
@@ -4181,9 +4276,7 @@ def processPairedDeflines ( filename1, filename2, defline1, defline2, isPairedDe
         type1 = fileTypes[filename1]
         type2 = fileTypes[filename2]
         if type1 != type2:
-            sys.exit( "\nPaired files have different file types ... "
-                      + filename1 + " is " + type1 + ", "
-                      + filename2 + " is " + type2 + "\n" )
+            statusWriter.outputErrorAndExit( "Paired files have different file types ... {} is {}, {} is {}".format(filename1,type1,filename2,type2) )
 
 ############################################################
 # Check for nanopore files that contain all three read types that were
@@ -4237,7 +4330,7 @@ def checkForColorSpaceOrNanoporeFiles():
         elif fastq.defline.poreRead:
             if sw.platformString:
                 if sw.platformString != "NANOPORE":
-                    sys.exit ("\nUnable to mix nanopore reads with other platforms\n\n")
+                    statusWriter.outputErrorAndExit("Unable to mix nanopore reads with other platforms")
             else:
                 sw.setPlatform("NANOPORE")
                 
@@ -4303,11 +4396,10 @@ def updateQualRangeAndClipStatus ( fastq1, fastq2 ):
 
     if ( sw.isNumQual and
          not qual.isNumQual ):
-        sys.stderr.write("Info: fastq1.qual ...  {}\n".format(fastq1.qual) )
         if fastq2:
-            sys.exit( "\nPossible mixed numerical and non-numerical quality  ... {}, {}".format(fastq1.filename,fastq2.filename) )
+            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}, {}".format(fastq1.filename,fastq2.filename) )
         else:
-            sys.exit( "\nPossible mixed numerical and non-numerical quality  ... {}".format(fastq1.filename) )
+            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}".format(fastq1.filename) )
     else:
         sw.isNumQual = qual.isNumQual
 
@@ -4317,9 +4409,9 @@ def updateQualRangeAndClipStatus ( fastq1, fastq2 ):
            ( fastq2 and
              fastq2.seq != fastq2.seqOrig.strip() ) ) ):
         if fastq2:
-            sys.stderr.write("Info: Setting left and right clips based on {} or {}\n".format(fastq1.filename,fastq2.filename) )
+            statusWriter.outputInfo("Setting left and right clips based on {} or {}".format(fastq1.filename,fastq2.filename) )
         else:
-            sys.stderr.write("Info: Setting left and right clips based on {}\n".format(fastq1.filename) )
+            statusWriter.outputInfo("Setting left and right clips based on {}".format(fastq1.filename) )
         sw.setClips = True
 
 ############################################################
@@ -4345,7 +4437,7 @@ def checkFastqLengths ( fastq ):
                     fastq.qual = " 30" * (fastq.length - 1)
                 else:
                     fastq.qual = "?" * fastq.length
-                sys.stderr.write("Warn: qual not present for spot {} in {} - created qual containing all '?'s\n".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual not present for spot {} in {} - created qual containing all ?s".format(fastq.defline.name,fastq.filename) )
 
             # Addresses seq length > qual length
             
@@ -4355,7 +4447,7 @@ def checkFastqLengths ( fastq ):
                     fastq.qual += " 30" * delta
                 else:
                     fastq.qual += "?" * delta
-                sys.stderr.write("Warn: qual length < seq length for spot {} in {} - extended qual to seq length with '?'s\n".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual length < seq length for spot {} in {} - extended qual to seq length with ?s".format(fastq.defline.name,fastq.filename) )
 
             # Addresses qual length > seq length
             
@@ -4366,7 +4458,7 @@ def checkFastqLengths ( fastq ):
                     fastq.qual = delim.join(qualChunks[0:fastq.length])
                 else:
                     fastq.qual = fastq.qual[0:fastq.length]
-                sys.stderr.write("Warn: qual length > seq length for spot {} in {} - truncated qual to seq length\n".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual length > seq length for spot {} in {} - truncated qual to seq length".format(fastq.defline.name,fastq.filename) )
                 
             fastq.lengthQual = fastq.length
             return True
@@ -4389,16 +4481,16 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
             fastq1.read()
             if ( fastq1.qualHandle and
                  fastq1.seqQualDeflineMismatch ):
-                sys.exit( "\nMismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}\n"
-                          .format(fastq1.filename,fastq1.spotCount,fastq1.defline.deflineString,fastq1.deflineQual.deflineString))
+                statusWriter.outputErrorAndExit( "Mismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}"
+                                            .format(fastq1.filename,fastq1.spotCount,fastq1.defline.deflineString,fastq1.deflineQual.deflineString))
 
         if ( fastq2 and
              not fastq2.eof ):
             fastq2.read()
             if ( fastq2.qualHandle and
                  fastq2.seqQualDeflineMismatch ):
-                sys.exit( "\nMismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}\n"
-                          .format(fastq2.filename,fastq2.spotCount,fastq2.defline.deflineString,fastq2.deflineQual.deflineString))
+                statusWriter.outputErrorAndExit( "Mismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}"
+                                            .format(fastq2.filename,fastq2.spotCount,fastq2.defline.deflineString,fastq2.deflineQual.deflineString))
 
         # Nanopore 2D fastq - Assuming this will end sooner than fastq1 or fastq2
         # Could all be the same file, too.
@@ -4437,9 +4529,9 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
                  fastq1.defline.name != fastq2.defline.name ):
                 sw.orphanReads = True
                 if fastq1.filename == fastq2.filename:
-                    sys.stderr.write("Info: {} contains paired reads with orphan reads\n".format(fastq1.filename) )
+                    statusWriter.outputInfo("File {} contains paired reads with orphan reads".format(fastq1.filename) )
                 else:
-                    sys.stderr.write("Info: {} and {} are paired with orphan reads\n".format(fastq1.filename,fastq2.filename) )
+                    statusWriter.outputInfo("File {} and {} are paired with orphan reads".format(fastq1.filename,fastq2.filename) )
 
 
             # If fastq2 and at end of fastq2, set fastq2 to None
@@ -4474,7 +4566,7 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
                 errorCount += 1
             
             if errorCount > sw.maxErrorCount:
-                sys.exit( "\nToo many errors occurred\n" )
+                statusWriter.outputErrorAndExit( "Too many errors occurred" )
             
             # Write spot to archive
 
@@ -4505,7 +4597,7 @@ def processFiles (determineOffsetAndClip):
             fastq1 = getFastqInstance(filename1)
             if not determineOffsetAndClip:
                 fastq1.read()
-                sys.stderr.write("Info: File {} platform based on defline is {}\n".format(filename1,fastq1.defline.platform) )
+                statusWriter.outputInfo("File {} platform based on defline is {}".format(filename1,fastq1.defline.platform) )
                 fastq1.restart()
                 fastq1.outputStatus = True
             
@@ -4517,14 +4609,14 @@ def processFiles (determineOffsetAndClip):
                 filename2 = fileReadPairs[filename1]
                 fastq2 = getFastqInstance(filename2)
                 if not determineOffsetAndClip:
-                    sys.stderr.write("Info: File {} platform based on defline is {}\n".format(filename2,fastq1.defline.platform) )
+                    statusWriter.outputInfo("File {} platform based on defline is {}".format(filename2,fastq1.defline.platform) )
                     fastq2.outputStatus = True
 
             if filename1 in filePore2D:
                 filename3 = filePore2D[filename1]
                 fastq3 = getFastqInstance(filename3)
                 if not determineOffsetAndClip:
-                    sys.stderr.write("Info: File {} platform based on defline is {}\n".format(filename3,fastq1.defline.platform) )
+                    statusWriter.outputInfo("File {} platform based on defline is {}".format(filename3,fastq1.defline.platform) )
                     fastq3.outputStatus = True
                 
             # Reset fastq1 and set unchanging values for some optimization for archive generation
@@ -4582,18 +4674,18 @@ def processFiles (determineOffsetAndClip):
             if determineOffsetAndClip:
                 if ( not filename2 or
                      filename1 == filename2 ):
-                    sys.stderr.write ( "Info: Qual range using 0 or 33 offset for file {} is {},{}\n".format(filename1,sw.minQual,sw.maxQual) )
+                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for file {} is {},{}".format(filename1,sw.minQual,sw.maxQual) )
                 else :
-                    sys.stderr.write ( "Info: Qual range using 0 or 33 offset for files {} and {} is {},{}\n".format(filename1,filename2,sw.minQual,sw.maxQual) )
+                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for files {} and {} is {},{}".format(filename1,filename2,sw.minQual,sw.maxQual) )
 
             # Indicate end of files for archive generation
 
             elif ( not filename2 or
                    filename1 == filename2 ):
-                sys.stderr.write ( "Info: End of file {}\n".format(filename1) )
-                
+                statusWriter.outputInfo( "End of file {}".format(filename1) )
+               
             else:
-                sys.stderr.write ( "Info: End of files {} and {}\n".format(filename1,filename2) )
+                statusWriter.outputInfo( "End of files {} and {}".format(filename1,filename2) )
 
     if determineOffsetAndClip:
         if sw.isNumQual:
@@ -4608,12 +4700,12 @@ def processFiles (determineOffsetAndClip):
             
             if sw.minQual < 0:
                 sw.logOdds = True
-                sys.stderr.write ( "Info: Logodds quality type\n" )
+                statusWriter.outputInfo( "Logodds quality type" )
 
             # Set offset to 0
 
             sw.setQualityOffset ( 0, False )
-            sys.stderr.write ( "Info: Quality values are numeric\n" )
+            statusWriter.outputInfo( "Quality values are numeric" )
             
         elif ( ( sw.minQual > 25 and
                  sw.maxQual > 45 ) ) :
@@ -4622,16 +4714,16 @@ def processFiles (determineOffsetAndClip):
             
             if ( sw.minQual + 33 - 64 ) < 0 :
                 sw.logOdds = True
-                sys.stderr.write ( "Info: Logodds quality type2\n" )
+                statusWriter.outputInfo( "Logodds quality type2" )
 
             # Set offset to 64
 
             sw.setQualityOffset ( 64, False )
-            sys.stderr.write ( "Info: Quality values are in an ascii form with an offset of 64\n" )
+            statusWriter.outputInfo( "Quality values are in an ascii form with an offset of 64" )
             
         else:
             sw.setQualityOffset ( 33, False )
-            sys.stderr.write ( "Info: Quality values are in an ascii form with an offset of 33\n" )
+            statusWriter.outputInfo( "Quality values are in an ascii form with an offset of 33" )
 
     else:
         sw.gw = None # close stream and flush
@@ -4646,7 +4738,7 @@ def generateArchive():
 
     for filename in filePaths:
         if filename.endswith(".gz"):
-            fileHandles[filename] = gzip.open ( filePaths[filename] )
+            fileHandles[filename] = gzip.open ( filePaths[filename], 'rt' )
         else:
             fileHandles[filename] = open ( filePaths[filename] )
 
@@ -4671,9 +4763,7 @@ def generateArchive():
             type1 = fileTypes[filename1]
             type2 = fileTypes[filename2]
             if type1 != type2:
-                sys.exit( "\nPaired files have different file types ... "
-                          + filename1 + " is " + type1 + ", "
-                          + filename2 + " is " + type2 + "\n" )
+                statusWriter.outputErrorAndExit( "Paired files have different file types ... {} is {}, {} is {}".format(filename1,type1,filename2,type2) )
 
     # Check for properly characterized absolid or nanopore files
 
@@ -4695,6 +4785,8 @@ def generateArchive():
 profile = False
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'wb')
 sw = FastqSpotWriter()
+statusWriter = StatusWriter()
+sw.statusWriter = statusWriter
 processArguments()
 
 if sw.profile:
@@ -4709,4 +4801,6 @@ if sw.profile:
 else:
     generateArchive()
 
-sys.stderr.write("Info: Load complete\n")
+statusWriter.outputInfo("Load complete")
+if statusWriter.xmlLogHandle:
+    statusWriter.closeXmlLog()
