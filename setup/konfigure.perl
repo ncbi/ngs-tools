@@ -203,6 +203,14 @@ unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
     exit 1;
 }
 
+my $OS_DISTRIBUTOR = '';
+if ($OS eq 'linux') {
+    print "checking OS distributor... " unless ($AUTORUN);
+    $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
+    chomp $OS_DISTRIBUTOR;
+    println $OS_DISTRIBUTOR unless ($AUTORUN);
+}
+
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
 unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
@@ -424,6 +432,11 @@ if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
     $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
 }
 
+my $STATIC_LIBSTDCPP = '';
+if ($TOOLS =~ /gcc$/) {
+    $STATIC_LIBSTDCPP = check_static_libstdcpp();
+}
+
 my @dependencies;
 
 my %DEPEND_OPTIONS;
@@ -464,7 +477,8 @@ foreach my $href (@REQ) {
     $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
 
     # found directories
-    my ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar);
+    my
+      ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar, $found_src);
 
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
@@ -477,8 +491,8 @@ foreach my $href (@REQ) {
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
     my $need_jar = $a{type} =~ /J/;
 
-    my ($bin, $inc, $lib, $ilib)
-        = ($a{bin}, $a{include}, $a{lib}); # file names to check
+    my ($bin, $inc, $lib, $ilib, $src)
+        = ($a{bin}, $a{include}, $a{lib}, undef, $a{src}); # file names to check
     $lib = '' unless ($lib);
     $lib = expand($lib);
 
@@ -520,7 +534,8 @@ foreach my $href (@REQ) {
                     undef $il;
                     ++$has_option{sources};
                 }
-                my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                my ($fi, $fl, $fil)
+                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -541,7 +556,8 @@ foreach my $href (@REQ) {
     }
     if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
         my $try = $a{srcpath};
-        ($found_itf) = find_in_dir($try, $inc);
+        ($found_itf, undef, undef, $found_src)
+            = find_in_dir($try, $inc, undef, undef, undef, undef, $src);
     }
     if (! $has_option{prefix}) {
         my $try = $a{pkgpath};
@@ -668,6 +684,11 @@ foreach my $href (@REQ) {
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
             println "includes: $found_itf";
         }
+        if ($found_src) {
+            $found_src = abs_path($found_src);
+            push(@dependencies, "$a{aname}_SRCDIR = $found_src");
+            println "sources: $found_src";
+        }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
             if ($a{aname} eq 'NGS' || $a{aname} eq 'VDB') {
@@ -711,6 +732,14 @@ if ($OS ne 'win' && ! $OPT{'status'}) {
         println "configure: creating '$COMP' ($TOOLS)" unless ($AUTORUN);
         open F, ">$COMP" or die "cannot open $COMP to write";
         print F "$TOOLS\n";
+        close F;
+    }
+
+    if ($TOOLS =~ /gcc$/) {
+        my $EXECMDF = File::Spec->catdir(CONFIG_OUT(), 'ld.linux.exe_cmd.sh');
+        println "configure: creating '$EXECMDF'" unless ($AUTORUN);
+        open F, ">$EXECMDF" or die "cannot open $EXECMDF to write";
+        print F "EXE_CMD=\"\$LD $STATIC_LIBSTDCPP -static-libgcc\"\n";
         close F;
     }
 
@@ -773,6 +802,7 @@ BUILD = $BUILD
 # target OS
 OS    = $OS
 OSINC = $OSINC
+OS_DISTRIBUTOR = $OS_DISTRIBUTOR
 
 # prefix string for system libraries
 LPFX = $LPFX
@@ -972,6 +1002,14 @@ EndText
         L($F, 'include $(wildcard $(CLSDIR)/*.d)');
     }
     L($F, $_) foreach (@dependencies);
+    L($F);
+
+    # pass HAVE_XML2 to build scripts
+    L($F, 'ifeq (,$(HAVE_XML2))');
+    L($F, '    HAVE_XML2=0');
+    L($F, 'endif');
+    L($F, 'CONFIGURE_FOUND_XML2=$(HAVE_XML2)');
+    L($F, 'export CONFIGURE_FOUND_XML2');
     L($F);
 
     if ($OS eq 'linux' || $OS eq 'mac') {
@@ -1254,15 +1292,12 @@ sub expand_path {
 }
 
 sub find_in_dir {
-    my ($dir, $include, $lib, $ilib, $jar, $bin) = @_;
+    my ($dir, $include, $lib, $ilib, $jar, $bin, $src) = @_;
     unless (-d $dir) {
-#       println "no" unless ($AUTORUN);
         println "\t\tnot found $dir" if ($OPT{'debug'});
         return;
     }
-#   print "\t$dir... " unless ($AUTORUN);
-#   print "[found] " if ($OPT{'debug'});
-    my ($found_inc, $found_lib, $found_ilib);
+    my ($found_inc, $found_lib, $found_ilib, $found_src);
     if ($include) {
         print "\tincludes... " unless ($AUTORUN);
         if (-e "$dir/$include") {
@@ -1280,7 +1315,6 @@ sub find_in_dir {
         }
     }
     if ($lib || $ilib) {
-#       print "\n\t" if ($nl && !$AUTORUN);
         print "\tlibraries... " unless ($AUTORUN);
         if ($lib) {
             my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
@@ -1372,7 +1406,15 @@ sub find_in_dir {
             $found_lib = $try;
         }
     }
-    return ($found_inc, $found_lib, $found_ilib);
+    if ($src) {
+        print "\tsrc... " unless ($AUTORUN);
+        my $try = "$dir/$src";
+        if (-e "$try") {
+            println $dir unless ($AUTORUN);
+            $found_src = $dir;
+        }
+    }
+    return ($found_inc, $found_lib, $found_ilib, $found_src);
 }
 
 sub reverse_build {
@@ -1410,6 +1452,15 @@ sub check_no_array_bounds {
     check_compiler('O', '-Wno-array-bounds');
 }
 
+sub check_static_libstdcpp {
+    my $option = '-static-libstdc++';
+    my $save = $TOOLS;
+    $TOOLS = $CPP;
+    $_ = check_compiler('O', $option);
+    $TOOLS = $save;
+    $_ ? $option : ''
+}
+
 sub find_lib {
     check_compiler('L', @_);
 }
@@ -1421,7 +1472,7 @@ sub check_compiler {
     if ($t eq 'L') {
         print "checking for $n library... ";
     } elsif ($t eq 'O') {
-        if ($tool && $tool =~ /gcc$/) {
+        if ($tool && ($tool =~ /gcc$/ || $tool =~ /g\+\+$/)) {
             print "checking whether $tool accepts $n... ";
         } else {
             return;
@@ -1452,7 +1503,8 @@ sub check_compiler {
             $library = '-lmagic';
             $log = '#include <magic.h> \n int main() { magic_open     (0); }\n'
         } elsif ($n eq 'xml2') {
-            $library = '-lxml2';
+            $library  = '-lxml2';
+            $library .=       ' -liconv' if ($OS eq 'mac');
             $log = '#include <libxml/xmlreader.h>\n' .
                                          'int main() { xmlInitParser  ( ); }\n'
         } else {
