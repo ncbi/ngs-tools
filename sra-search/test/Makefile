@@ -27,7 +27,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = sra-search/test
 
-include $(TOP)/Makefile.config
+include $(TOP)/build/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
