@@ -267,7 +267,7 @@ class FastQData:
 
             fwd = f5.get_fastqs("fwd")[0]
             rev = f5.get_fastqs("rev")[0]
-            if fwd != None or rev != None:
+            if fwd != None or rev != None or (sequence_2d != None and quality_2d != None):
                 return FastQData(fname
                     , array.array('I', [ len(fwd.seq) if fwd != None else 0, len(rev.seq) if rev != None else 0 ])
                     , (fwd.seq  if fwd != None else '') + (rev.seq  if rev != None else '')
@@ -315,10 +315,16 @@ def isHDF5(fname):
 
 
 notRemoved = [] # because of errors
+goodCounter = 0
+skipCounter = 0
+badCounter = 0
 
 def ExtractAndProcess(f, source):
     """ Extract file to the working directory and process it
     """
+    global goodCounter
+    global badCounter
+
     fname = os.path.join(workDir, source)
     with open(fname, 'wb') as output:
         output.write(f.read())
@@ -328,7 +334,10 @@ def ExtractAndProcess(f, source):
         errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
         gw.errorMessage(errMsg)
         sys.stderr.write(errMsg+"\n")
-    elif not ProcessFast5(fname):
+    elif ProcessFast5(fname):
+        goodCounter = goodCounter + 1
+    else:
+        badCounter = badCounter + 1
         keep = __debug__
     
     if keep:
@@ -346,6 +355,8 @@ def shouldProcess(tarinfo):
         return False
     if not tarinfo.name.endswith('.fast5'):
         return False
+    if os.path.basename(os.path.dirname(tarinfo.name)) == 'fail':
+        return False
     return True
 
 def ProcessTar(tar):
@@ -353,6 +364,15 @@ def ProcessTar(tar):
     """
     global processCounter
     global nextReport
+    global goodCounter
+    global skipCounter
+    global badCounter
+
+    (saveGoodCounter, goodCounter) = (goodCounter, 0)
+    (saveSkipCounter, skipCounter) = (skipCounter, 0)
+    (saveBadCounter, badCounter) = (badCounter, 0)
+
+    count = 0
 
     for f in tar:
         if shouldProcess(f):
@@ -368,10 +388,18 @@ def ProcessTar(tar):
                 nextReport = nextReport + showProgress
                 sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
                     format(processCounter, processCounter/(now - processStart)))
-    
+        else:
+            skipCounter = skipCounter + 1
+
+        count = count + 1
+
+    if count > 0:
+        sys.stderr.write("Progress: {} good ({}%), {} skipped ({}%), {} bad ({}%)\n".
+                         format(goodCounter, int(goodCounter * 100 / count), skipCounter, int(skipCounter * 100 / count), badCounter, int(badCounter * 100 / count)))
     elapsed = time.clock() - processStart
     sys.stderr.write("Progress: processed {} spots in {} secs, {} per sec.\n".
-        format(processCounter, elapsed, processCounter/elapsed))
+                     format(processCounter, elapsed, processCounter/elapsed))
+    (goodCounter, badCounter, skipCounter) = (goodCounter + saveGoodCounter, badCounter + saveBadCounter, skipCounter + saveSkipCounter)
 
 
 def which(f):
