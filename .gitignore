@@ -9,7 +9,7 @@ Release/
 .\#*
 # transient test results
 actual/
-
+core
 *.d
 *.db
 *.o

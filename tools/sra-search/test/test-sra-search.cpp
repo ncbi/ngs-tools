@@ -157,18 +157,35 @@ public:
     void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, bool p_expression = false, unsigned int p_threads = 0, bool p_blobBased = false )
     {
         delete m_s;
-        m_s = 0;
-
-        m_s = new VdbSearch ( p_algorithm, p_query, p_expression, p_blobBased, 100, p_threads );
-        m_s -> AddAccession ( p_accession );
+        VdbSearch :: Settings s;
+        s . m_algorithm = p_algorithm;
+        s . m_query = p_query;
+        s . m_accessions . push_back ( p_accession );
+        s . m_isExpression = p_expression;
+        s . m_threads = p_threads;
+        s . m_useBlobSearch = p_blobBased;
+        m_s = new VdbSearch ( s );
+    }
+    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const vector < string > & p_accessions, unsigned int p_threads = 0 )
+    {
+        delete m_s;
+        VdbSearch :: Settings s;
+        s . m_algorithm = p_algorithm;
+        s . m_query = p_query;
+        s . m_accessions = p_accessions;
+        s . m_threads = p_threads;
+        m_s = new VdbSearch ( s );
     }
     void SetupWithScore ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, unsigned int p_minScore, bool p_blobBased = false )
     {
         delete m_s;
-        m_s = 0;
-
-        m_s = new VdbSearch ( p_algorithm, p_query, false, p_blobBased, p_minScore  );
-        m_s -> AddAccession ( p_accession );
+        VdbSearch :: Settings s;
+        s . m_algorithm = p_algorithm;
+        s . m_query = p_query;
+        s . m_accessions . push_back ( p_accession );
+        s . m_minScorePct =  p_minScore;
+        s . m_useBlobSearch = p_blobBased;
+        m_s = new VdbSearch ( s );
     }
 
     const string& NextFragmentId ()
@@ -190,10 +207,9 @@ public:
 
 FIXTURE_TEST_CASE ( Create_Destroy, VdbSearchFixture )
 {
-    m_s = new VdbSearch ( VdbSearch :: FgrepDumb, "ACGT", false, false );
-    REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s -> GetAlgorithm () );
-    delete m_s;
-    m_s = 0;
+    VdbSearch :: Settings s;
+    s . m_query = "ACGT";
+    m_s = new VdbSearch ( s );
 }
 
 FIXTURE_TEST_CASE ( SupportedAlgorithms, VdbSearchFixture )
@@ -317,11 +333,12 @@ FIXTURE_TEST_CASE ( SingleAccession_HitsInsideOneFragment, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( MultipleAccessions, VdbSearchFixture )
 {
-
     const string Sra1 = "SRR600096";
     const string Sra2 = "SRR000001";
-    Setup ( "ACGTACG", VdbSearch :: NucStrstr, Sra1 );
-    m_s -> AddAccession ( Sra2 );
+    vector<string> acc;
+    acc. push_back(Sra1);
+    acc. push_back(Sra2);
+    Setup ( "ACGTACG", VdbSearch :: NucStrstr, acc );
 
     REQUIRE_EQ ( Sra1 + ".FR1.5", NextFragmentId () );
     REQUIRE_EQ ( Sra2 + ".FR0.26",   NextFragmentId () );

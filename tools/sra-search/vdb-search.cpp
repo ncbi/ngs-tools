@@ -362,20 +362,65 @@ private:
     FragmentBlobIterator    m_blobIt;
 };
 
+//////////////////// VdbSearch :: Settings
+
+static
+const
+struct {
+    const char* name;
+    VdbSearch :: Algorithm value;
+} Algorithms[] = {
+#define ALG(n) { #n, VdbSearch :: n }
+    { "FgrepStandard", VdbSearch :: FgrepDumb },
+    ALG ( FgrepBoyerMoore ),
+    ALG ( FgrepAho ),
+    ALG ( AgrepDP ),
+    ALG ( AgrepWuManber ),
+    ALG ( AgrepMyers ),
+    ALG ( AgrepMyersUnltd ),
+    ALG ( NucStrstr ),
+    ALG ( SmithWaterman ),
+#undef ALG
+};
+
+VdbSearch :: Settings :: Settings ()
+:   m_algorithm ( VdbSearch :: FgrepDumb ),
+    m_isExpression ( false ),
+    m_minScorePct ( 100 ),
+    m_threads ( 2 ),
+    m_useBlobSearch ( true )
+{
+}
+
+bool
+VdbSearch :: Settings :: SetAlgorithm ( const std :: string& p_algStr )
+{
+    for ( size_t i = 0 ; i < sizeof ( Algorithms ) / sizeof ( Algorithms [ 0 ] ); ++i )
+    {
+        if ( string ( Algorithms [ i ] . name ) == p_algStr )
+        {
+            m_algorithm = Algorithms [ i ] . value;
+            return true;
+        }
+    }
+    return false;
+}
+
 //////////////////// VdbSearch
 
 bool VdbSearch :: logResults = false;
 
+static
 void
-VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) throw ( invalid_argument )
+CheckArguments ( const VdbSearch :: Settings& p_settings ) throw ( invalid_argument )
 {
-    if ( p_isExpression && m_algorithm != NucStrstr )
+    if ( p_settings . m_isExpression && p_settings . m_algorithm != VdbSearch :: NucStrstr )
     {
         throw invalid_argument ( "query expressions are only supported for NucStrstr" );
     }
-    if ( p_minScorePct != 100 )
+    if ( p_settings . m_minScorePct != 100 )
     {
-        switch ( m_algorithm )
+        switch ( p_settings . m_algorithm )
         {
             case VdbSearch :: FgrepDumb:
             case VdbSearch :: FgrepBoyerMoore:
@@ -388,53 +433,27 @@ VdbSearch :: CheckArguments ( bool p_isExpression, unsigned int p_minScorePct) t
     }
 }
 
-VdbSearch :: VdbSearch ( Algorithm          p_algorithm,
-                         const std::string& p_query,
-                         bool               p_isExpression,
-                         bool               p_useBlobSearch,
-                         unsigned int       p_minScorePct,
-                         unsigned int       p_threads )
+VdbSearch :: VdbSearch ( const Settings& p_settings )
     throw ( invalid_argument )
-:   m_algorithm ( p_algorithm ),
-    m_query ( p_query ),
-    m_isExpression ( p_isExpression ),
-    m_useBlobSearch ( p_useBlobSearch ),
-    m_minScorePct ( p_minScorePct ),
-    m_threads ( p_threads ),
-    m_blobPerThread ( false ),
-    m_sbFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct ),
+:   m_settings ( p_settings ),
+    m_sbFactory ( p_settings ),
     m_buf ( 0 ),
     m_output ( 0 ),
     m_searchBlock ( 0 )
 {
-    CheckArguments ( p_isExpression, p_minScorePct );
-}
+    CheckArguments ( m_settings );
 
-VdbSearch :: VdbSearch ( const string&      p_algorithm,
-                         const std::string& p_query,
-                         bool               p_isExpression,
-                         bool               p_useBlobSearch,
-                         unsigned int       p_minScorePct,
-                         unsigned int       p_threads )
-    throw ( invalid_argument )
-:   m_algorithm ( Algorithm ( 0 ) ),
-    m_query ( p_query ),
-    m_isExpression ( p_isExpression ),
-    m_useBlobSearch ( p_useBlobSearch ),
-    m_minScorePct ( p_minScorePct ),
-    m_threads ( p_threads ),
-    m_blobPerThread ( false ),
-    m_sbFactory ( m_query, m_isExpression, m_useBlobSearch, m_algorithm, m_minScorePct ),
-    m_buf ( 0 ),
-    m_output ( 0 ),
-    m_searchBlock ( 0 )
-{
-    if ( ! SetAlgorithm ( p_algorithm ) )
+    for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
-        throw invalid_argument ( string ( "unrecognized algorithm: " ) + p_algorithm );
+        if ( m_settings . m_useBlobSearch )
+        {
+            m_searches . push ( new BlobMatchIterator ( m_sbFactory, *i ) );
+        }
+        else
+        {
+            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i ) );
+        }
     }
-    m_sbFactory . SetAllgorithm ( m_algorithm );
-    CheckArguments ( p_isExpression, p_minScorePct );
 }
 
 VdbSearch :: ~VdbSearch ()
@@ -457,25 +476,6 @@ VdbSearch :: ~VdbSearch ()
     delete m_output;
 }
 
-static
-const
-struct {
-    const char* name;
-    VdbSearch :: Algorithm value;
-} Algorithms[] = {
-#define ALG(n) { #n, VdbSearch :: n }
-    { "FgrepStandard", VdbSearch :: FgrepDumb },
-    ALG ( FgrepBoyerMoore ),
-    ALG ( FgrepAho ),
-    ALG ( AgrepDP ),
-    ALG ( AgrepWuManber ),
-    ALG ( AgrepMyers ),
-    ALG ( AgrepMyersUnltd ),
-    ALG ( NucStrstr ),
-    ALG ( SmithWaterman ),
-#undef ALG
-};
-
 VdbSearch :: SupportedAlgorithms
 VdbSearch :: GetSupportedAlgorithms ()
 {
@@ -485,34 +485,6 @@ VdbSearch :: GetSupportedAlgorithms ()
         ret . push_back ( Algorithms [ i ] . name );
     }
     return ret;
-}
-
-bool
-VdbSearch :: SetAlgorithm ( const std :: string& p_algStr )
-{
-    for ( size_t i = 0 ; i < sizeof ( Algorithms ) / sizeof ( Algorithms [ 0 ] ); ++i )
-    {
-        if ( string ( Algorithms [ i ] . name ) == p_algStr )
-        {
-            m_algorithm = Algorithms [ i ] . value;
-            return true;
-        }
-    }
-    return false;
-}
-
-void
-VdbSearch :: AddAccession ( const string& p_accession ) throw ( ErrorMsg )
-{
-    if ( m_useBlobSearch && m_sbFactory . CanUseBlobs() )
-    {
-        m_searches . push ( new BlobMatchIterator ( m_sbFactory, p_accession ) );
-        m_blobPerThread = m_threads > 0; // in threaded mode, always blob per thread - for now
-    }
-    else
-    {
-        m_searches . push ( new FragmentMatchIterator ( m_sbFactory, p_accession ) );
-    }
 }
 
 rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
@@ -633,13 +605,13 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
 bool
 VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( ErrorMsg )
 {
-    if ( m_threads > 0 )
+    if ( m_settings . m_threads > 0 )
     {
         if ( m_output == 0 ) // first call to NextMatch() - set up
         {
-            size_t threadNum = m_threads;
+            size_t threadNum = m_settings . m_threads;
 
-            if ( ! m_blobPerThread && threadNum > m_searches . size () )
+            if ( ! m_settings . m_useBlobSearch && threadNum > m_searches . size () )
             {   // in thread-per-accession mode, no need for more threads than there are accessions
                 threadNum = m_searches . size ();
             }
@@ -649,7 +621,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
             for ( unsigned  int i = 0 ; i != threadNum; ++i )
             {
                 KThread* t;
-                rc_t rc = KThreadMake ( &t, m_blobPerThread ? SearchBlobPerThread : SearchAccPerThread, m_searchBlock );
+                rc_t rc = KThreadMake ( &t, m_settings . m_useBlobSearch ? SearchBlobPerThread : SearchAccPerThread, m_searchBlock );
                 if ( rc != 0 )
                 {
                     throw ( ErrorMsg ( "KThreadMake failed" ) );
@@ -692,43 +664,36 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
 
 //////////////////// SearchBlockFactory
 
-VdbSearch :: SearchBlockFactory :: SearchBlockFactory ( const string& p_query, bool p_isExpression, bool p_useBlobSearch, Algorithm p_algorithm, unsigned int p_minScorePct )
-:   m_query ( p_query ),
-    m_isExpression ( p_isExpression ),
-    m_useBlobSearch ( p_useBlobSearch ),
-    m_algorithm ( p_algorithm ),
-    m_minScorePct ( p_minScorePct )
+VdbSearch :: SearchBlockFactory :: SearchBlockFactory ( const VdbSearch :: Settings& p_settings )
+:   m_settings ( p_settings )
 {
+    if ( m_settings . m_useBlobSearch && m_settings . m_algorithm == VdbSearch :: SmithWaterman )
+    {
+        m_settings . m_useBlobSearch = false; // SW takes too long on big buffers
+    }
 }
-
-bool
-VdbSearch :: SearchBlockFactory :: CanUseBlobs () const
-{
-    return m_algorithm != VdbSearch :: SmithWaterman;
-}
-
 
 VdbSearch :: SearchBlock*
 VdbSearch :: SearchBlockFactory :: MakeSearchBlock () const
 {
-    switch ( m_algorithm )
+    switch ( m_settings . m_algorithm )
     {
         case VdbSearch :: FgrepDumb:
         case VdbSearch :: FgrepBoyerMoore:
         case VdbSearch :: FgrepAho:
-            return new FgrepSearch ( m_query, m_algorithm );
+            return new FgrepSearch ( m_settings . m_query, m_settings . m_algorithm );
 
         case VdbSearch :: AgrepDP:
         case VdbSearch :: AgrepWuManber:
         case VdbSearch :: AgrepMyers:
         case VdbSearch :: AgrepMyersUnltd:
-            return new AgrepSearch ( m_query, m_algorithm, m_minScorePct );
+            return new AgrepSearch ( m_settings . m_query, m_settings . m_algorithm, m_settings . m_minScorePct );
 
         case VdbSearch :: NucStrstr:
-            return new NucStrstrSearch ( m_query, m_isExpression, m_useBlobSearch );
+            return new NucStrstrSearch ( m_settings . m_query, m_settings . m_isExpression, m_settings . m_useBlobSearch );
 
         case VdbSearch :: SmithWaterman:
-            return new SmithWatermanSearch ( m_query, m_minScorePct );
+            return new SmithWatermanSearch ( m_settings . m_query, m_settings . m_minScorePct );
 
         default:
             throw ( ErrorMsg ( "SearchBlockFactory: unsupported algorithm" ) );
