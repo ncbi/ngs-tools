@@ -398,6 +398,19 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
+///////// Multi threading
+FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
+{
+    Setup ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001", false, 4, true ); // 4 blob-based threads on one run
+
+    unsigned int count = 0;
+    while (  m_s -> NextMatch ( m_accession, m_fragment ) )  // used to have a random crash inside VDB
+    {
+        ++count;
+    }
+    REQUIRE_EQ ( 12u, count );
+}
+
 #if TOO_SLOW_FOR_A_UNIT_TEST
 FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 {

@@ -27,6 +27,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cerrno>
+#include <set>
 
 #include <strtol.h>
 
@@ -36,9 +37,61 @@ using namespace std;
 
 typedef vector < string > Runs;
 
+struct FragmentId_Less
+{
+    bool operator() ( const string& p_a, const string& p_b ) const
+    {
+        string accA;
+        uint32_t fragA;
+        int64_t readA;
+        Parse ( p_a, accA, fragA, readA );
+        string accB;
+        uint32_t fragB;
+        int64_t readB;
+        Parse ( p_b, accB, fragB, readB );
+        if ( accA == accB )
+        {
+            if ( readA == readB )
+            {
+                return fragA < fragB;
+            }
+            return readA < readB;
+        }
+        return accA < accB;
+    }
+
+    static void Parse ( const string& p_id, string& p_acc, uint32_t& p_frag, int64_t& p_read )
+    {
+        size_t firstDot = p_id . find ( ".FR", 0 );
+        if ( firstDot == string :: npos )
+        {
+            p_acc = p_id;
+            p_frag = 0;
+            p_read = 0;
+        }
+        else
+        {
+            p_acc = p_id . substr ( 0, firstDot );
+            size_t secondDot = p_id . find ( '.', firstDot + 3 );
+            if ( secondDot == string :: npos )
+            {
+                p_frag = strtol ( p_id . substr ( firstDot + 3 ) . c_str (), NULL, 10 );
+                p_read = 0;
+            }
+            else
+            {
+                p_frag = strtol ( p_id . substr ( firstDot + 3, secondDot - firstDot - 3 ) . c_str (), NULL, 10 );
+                p_read = strtol ( p_id . substr ( secondDot + 1 ) . c_str (), NULL, 10 );
+            }
+        }
+    }
+};
+
+typedef set < string, FragmentId_Less > Results;
+
 static
 bool
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, bool p_blobs, unsigned int p_minScore, unsigned int p_threads  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, bool p_blobs, unsigned int p_minScore, unsigned int p_threads, bool p_sortOutput  )
 {
     VdbSearch s ( p_alg, p_query, p_isExpr, p_blobs, p_minScore, p_threads );
 
@@ -50,10 +103,26 @@ DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool 
     string acc;
     string fragId;
     bool ret = false;
-    while ( s . NextMatch ( acc, fragId ) )
+    if ( p_sortOutput )
     {
-        cout << fragId << endl;
-        ret = true;
+        Results results;
+        while ( s . NextMatch ( acc, fragId ) )
+        {
+            results . insert ( fragId );
+        }
+        for ( Results::const_iterator i = results.begin(); i != results.end(); ++i)
+        {
+            cout << *i << endl;
+        }
+        ret = results . size () > 0;
+    }
+    else
+    {
+        while ( s . NextMatch ( acc, fragId ) )
+        {
+            cout << fragId << endl;
+            ret = true;
+        }
     }
     return ret;
 }
@@ -99,6 +168,7 @@ static void handle_help ( const char * appName )
          << "  -T|--threads <number>     The number of threads to use; 2 by deafult" << endl
          << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
+         << "  --sort                    Sort output by accession/read/fragment" << endl
          ;
 
     cout << endl;
@@ -119,6 +189,7 @@ main( int argc, char *argv [] )
         bool useBlobSearch = true;
         int score = 100;
         int threads = 2;
+        bool sortOutput = false;
 
         unsigned int i = 1;
         while ( i < argc )
@@ -189,6 +260,10 @@ main( int argc, char *argv [] )
             {
                 useBlobSearch = false;
             }
+            else if ( arg == "--sort" )
+            {
+                sortOutput = true;
+            }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );
@@ -202,7 +277,7 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        found = DoSearch ( query, runs, alg, is_expr, useBlobSearch, (unsigned int)score, (unsigned int)threads );
+        found = DoSearch ( query, runs, alg, is_expr, useBlobSearch, (unsigned int)score, (unsigned int)threads, sortOutput );
 
         rc = 0;
     }

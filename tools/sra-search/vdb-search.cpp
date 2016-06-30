@@ -26,6 +26,8 @@
 
 #include "vdb-search.hpp"
 
+#include <sstream>
+
 #include <ngs/ncbi/NGS.hpp>
 #include <atomic32.h>
 
@@ -200,7 +202,7 @@ public:
         string id = BufferId();
         if ( VdbSearch :: logResults )
         {
-            cout << BufferId() << ": m_startInBlob=" << m_startInBlob << " size=" << ( m_blob . Size () - m_startInBlob ) << endl;
+            cout << id << ": m_startInBlob=" << m_startInBlob << " size=" << ( m_blob . Size () - m_startInBlob ) << endl;
         }
 
         uint64_t hitStart;
@@ -256,17 +258,13 @@ public:
     }
 
     virtual std::string BufferId () const
-    {   // return the Id of the first fragment
-        string fragId;
-        uint64_t startInBlob;
-        uint64_t lengthInBases;
-        bool biological;
-
-        KLockAcquire ( m_dbLock );
-        m_blob.GetFragmentInfo ( 0, fragId, startInBlob, lengthInBases, biological );
-        KLockUnlock ( m_dbLock );
-
-        return fragId;
+    {   // identify by row Id range
+        int64_t first;
+        uint64_t count;
+        m_blob . GetRowRange ( first, count );
+        ostringstream ret;
+        ret << first << "-" << ( first + count - 1 );
+        return ret.str();
     }
 
 private:
@@ -612,7 +610,7 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
         id = buf->BufferId();
         if ( VdbSearch :: logResults )
         {
-            cout << "Thread " << (void*)self << " unlocked " << id << endl;
+            cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " unlocked " << id << endl;
         }
 
         string fragmentId;
@@ -639,7 +637,13 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
     {
         if ( m_output == 0 ) // first call to NextMatch() - set up
         {
-            size_t threadNum = min<size_t> ( m_threads, m_searches . size () );
+            size_t threadNum = m_threads;
+
+            if ( ! m_blobPerThread && threadNum > m_searches . size () )
+            {   // in thread-per-accession mode, no need for more threads than there are accessions
+                threadNum = m_searches . size ();
+            }
+
             m_output = new OutputQueue ( threadNum );
             m_searchBlock = new SearchThreadBlock ( m_searches, *m_output );
             for ( unsigned  int i = 0 ; i != threadNum; ++i )
