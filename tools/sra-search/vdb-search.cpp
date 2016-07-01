@@ -45,6 +45,8 @@ using namespace std;
 using namespace ngs;
 using namespace ncbi::ngs::vdb;
 
+bool VdbSearch :: logResults = false;
+
 //////////////////// VdbSearch :: OutputQueue
 
 class VdbSearch :: OutputQueue
@@ -388,7 +390,8 @@ VdbSearch :: Settings :: Settings ()
     m_isExpression ( false ),
     m_minScorePct ( 100 ),
     m_threads ( 2 ),
-    m_useBlobSearch ( true )
+    m_useBlobSearch ( true ),
+    m_referenceDriven ( false )
 {
 }
 
@@ -407,8 +410,6 @@ VdbSearch :: Settings :: SetAlgorithm ( const std :: string& p_algStr )
 }
 
 //////////////////// VdbSearch
-
-bool VdbSearch :: logResults = false;
 
 static
 void
@@ -431,16 +432,25 @@ CheckArguments ( const VdbSearch :: Settings& p_settings ) throw ( invalid_argum
                 break;
         }
     }
+    if ( p_settings . m_referenceDriven )
+    {
+        throw invalid_argument ( "reference mode is not implemented" );
+    }
 }
 
 VdbSearch :: VdbSearch ( const Settings& p_settings )
     throw ( invalid_argument )
 :   m_settings ( p_settings ),
-    m_sbFactory ( p_settings ),
+    m_sbFactory ( m_settings ),
     m_buf ( 0 ),
     m_output ( 0 ),
     m_searchBlock ( 0 )
 {
+    if ( m_settings . m_useBlobSearch && m_settings . m_algorithm == VdbSearch :: SmithWaterman )
+    {
+        m_settings . m_useBlobSearch = false; // SW takes too long on big buffers
+    }
+
     CheckArguments ( m_settings );
 
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
@@ -667,10 +677,6 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
 VdbSearch :: SearchBlockFactory :: SearchBlockFactory ( const VdbSearch :: Settings& p_settings )
 :   m_settings ( p_settings )
 {
-    if ( m_settings . m_useBlobSearch && m_settings . m_algorithm == VdbSearch :: SmithWaterman )
-    {
-        m_settings . m_useBlobSearch = false; // SW takes too long on big buffers
-    }
 }
 
 VdbSearch :: SearchBlock*

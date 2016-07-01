@@ -187,6 +187,16 @@ public:
         s . m_useBlobSearch = p_blobBased;
         m_s = new VdbSearch ( s );
     }
+    void SetupWithReference ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession )
+    {
+        delete m_s;
+        VdbSearch :: Settings s;
+        s . m_algorithm = p_algorithm;
+        s . m_query = p_query;
+        s . m_accessions . push_back ( p_accession );
+        s . m_referenceDriven = true;
+        m_s = new VdbSearch ( s );
+    }
 
     const string& NextFragmentId ()
     {
@@ -511,6 +521,11 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
 */
 
 //TODO: stop multi-threaded search before the end
+
+FIXTURE_TEST_CASE ( ReferenceDriven, VdbSearchFixture )
+{
+    SetupWithReference ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001" );
+}
 
 int
 main( int argc, char *argv [] )

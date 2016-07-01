@@ -74,6 +74,7 @@ public:
         unsigned int                m_minScorePct;      // default 100
         unsigned int                m_threads;          // default 2
         bool                        m_useBlobSearch;    // default true
+        bool                        m_referenceDriven;  // default false
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );
@@ -112,7 +113,7 @@ private:
         SearchBlock* MakeSearchBlock () const;
 
     private:
-        Settings m_settings;
+        const Settings& m_settings; // not a copy, since the settings may be changed post-creation
     };
 
 private:
