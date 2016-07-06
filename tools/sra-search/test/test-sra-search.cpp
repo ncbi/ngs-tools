@@ -26,7 +26,6 @@
 
 #include "vdb-search.hpp"
 #include "searchblock.hpp"
-#include "ngs-vdb.hpp"
 
 #include <set>
 
@@ -399,210 +398,21 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
-#if TOO_SLOW_FOR_A_UNIT_TEST
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
-
-    set <string> frags;
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // now, let all the threads finish
     while ( m_s -> NextMatch ( m_accession, m_fragment ) )
     {
-        frags.insert(m_fragment);
     }
-
-    set <string> :: const_iterator it = frags . begin ();
-
-    // this is a straight up alphanumerical sort, so the order here is not quite the same as one would expect (accession/read#/frag#)
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",  *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   *it++ );
-
-    REQUIRE ( it == frags . end () );
 }
-#endif
-
-/* TODO
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
-{
-
-    const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
-    // sorted in order accession, read#, frag#
-    // accessions sort in the order they were added (in this case sra2, sra1)
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434",   NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", NextFragmentId () );
-
-
-    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
-}
-*/
 
 //TODO: stop multi-threaded search before the end
-
-//////////////////////////////////////////// ngs-vdb ( migrate these tests to wherever ngs-vdb code moves, eventually )
-
-#include <ngs-vdb.hpp>
-
-using namespace ngs::vdb;
-
-static const string AccessionWGS            = "ALWZ01";
-static const string AccessionSRA_table      = "SRR000123";
-static const string AccessionSRA_database   = "SRR600096";
-static const string AccessionCSRA1          = "SRR1063272";
-
-class BlobIteratorHelper
-{
-public:
-    BlobIteratorHelper ( const string& p_accession )
-    :   coll ( ncbi :: NGS_VDB :: openVdbReadCollection ( p_accession ) ),
-        fragIt ( coll.getFragmentBlobs() )
-    {
-        if ( ! fragIt . nextBlob () )
-        {
-            throw logic_error ( "BlobIteratorHelper : nextBlob() failed" );
-        }
-    }
-
-    bool VerifyFragInfo ( uint64_t p_offset, const string& p_fragId,  uint64_t p_nextFragmentStart, bool p_biological = true )
-    {
-        string fragId;
-        uint64_t nextFragmentStart = 0;
-        bool biological;
-        fragIt . GetFragmentInfo ( p_offset, fragId, nextFragmentStart, biological );
-        if ( p_fragId != fragId )
-        {
-            cout << "fragId expected = " << p_fragId << ", actual = " << fragId << endl;
-            return false;
-        }
-        if ( p_nextFragmentStart != nextFragmentStart )
-        {
-            cout << "nextFragmentStart expected = " << p_nextFragmentStart << ", actual = " << nextFragmentStart << endl;
-            return false;
-        }
-        if ( p_biological != biological )
-        {
-            cout << "biological expected = " << p_biological << ", actual = " << biological << endl;
-            return false;
-        }
-        return true;
-    }
-
-    VdbReadCollection coll;
-    FragmentBlobIterator fragIt;
-};
-
-TEST_CASE ( VdbReadCollection_WGS_Construct )
-{
-    BlobIteratorHelper bit ( AccessionWGS );
-    REQUIRE_EQ ( (uint64_t)948, bit . fragIt . Size () );
-    const string BeginsWith = "GCCTCTCTCTC";
-    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith . size() ) );
-}
-
-TEST_CASE ( VdbReadCollection_WGS_RowInfo )
-{
-    BlobIteratorHelper bit ( AccessionWGS );
-    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionWGS + ".FR0.1", 227 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 226, AccessionWGS + ".FR0.1", 227 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 227, AccessionWGS + ".FR0.2", 227+245 ) );
-}
-
-TEST_CASE ( VdbReadCollection_SRAtable_Construct )
-{
-    BlobIteratorHelper bit ( AccessionSRA_table );
-    REQUIRE_EQ ( (uint64_t)858, bit . fragIt . Size () );
-    const string BeginsWith = "TCAGTTTCG";
-    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
-}
-
-TEST_CASE ( VdbReadCollection_SRAtable_RowInfo )
-{
-    BlobIteratorHelper bit ( AccessionSRA_table );
-    REQUIRE ( bit . VerifyFragInfo ( 0, "", 4, false ) );
-    REQUIRE ( bit . VerifyFragInfo ( 4,       AccessionSRA_table + ".FR0.1", 157, true ) );
-    REQUIRE ( bit . VerifyFragInfo ( 156,     AccessionSRA_table + ".FR0.1", 157, true ) );
-    REQUIRE ( bit . VerifyFragInfo ( 157, "", 157+4, false ) );
-    REQUIRE ( bit . VerifyFragInfo ( 157+4,   AccessionSRA_table + ".FR0.2", 157+4+276, true ) );
-}
-
-TEST_CASE ( VdbReadCollection_SRAdatabase_Construct )
-{
-    BlobIteratorHelper bit ( AccessionSRA_database );
-    REQUIRE_EQ ( (uint64_t)5600, bit . fragIt . Size () );
-    const string BeginsWith = "TACGGAGGGGGCTA";
-    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
-}
-
-TEST_CASE ( VdbReadCollection_SRAdatabase_RowInfo )
-{
-    BlobIteratorHelper bit ( AccessionSRA_database );
-    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionSRA_database + ".FR0.1", 175 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 174, AccessionSRA_database + ".FR0.1", 175 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 175, AccessionSRA_database + ".FR1.1", 350 ) );
-}
-
-TEST_CASE ( VdbReadCollection_CSRA1_Construct )
-{
-    BlobIteratorHelper bit ( AccessionCSRA1 );
-    REQUIRE_EQ ( (uint64_t)808, bit . fragIt . Size () );
-    const string BeginsWith = "ACTCGACATTCTGCC";
-    REQUIRE_EQ ( BeginsWith, string ( bit . fragIt . Data (), BeginsWith.size() ) );
-}
-
-TEST_CASE ( VdbReadCollection_CSRA1_RowInfo )
-{
-    BlobIteratorHelper bit ( AccessionCSRA1 );
-    REQUIRE ( bit . VerifyFragInfo ( 0,   AccessionCSRA1 + ".FR0.1", 101 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 100, AccessionCSRA1 + ".FR0.1", 101 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 101, AccessionCSRA1 + ".FR1.1", 202 ) );
-    REQUIRE ( bit . VerifyFragInfo ( 202, AccessionCSRA1 + ".FR0.2", 202+101 ) );
-}
-
-//TODO: accessing blob without a call to nextBlob()
 
 int
 main( int argc, char *argv [] )

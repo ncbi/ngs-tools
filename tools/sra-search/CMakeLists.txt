@@ -1,8 +1,11 @@
-add_executable ( sra-search main.cpp vdb-search.cpp ngs-vdb.cpp searchblock.cpp NGS_VDB.c )
+add_executable ( sra-search main.cpp vdb-search.cpp searchblock.cpp )
 
-add_dependencies ( sra-search ncbi-vdb )
+include_directories ( ${CMAKE_SOURCE_DIR} )
+
+add_dependencies ( sra-search ngs-vdb )
 
 target_link_libraries ( sra-search
+    ngs-vdb
 	${SYS_LIBRARIES}
 )
 
