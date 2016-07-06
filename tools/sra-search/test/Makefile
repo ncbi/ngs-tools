@@ -86,6 +86,7 @@ vg-whitebox: $(BINDIR)/test-sra-search
 	$(VALGRIND) --suppressions=$(SRCDIR)/valgrind.suppress --leak-check=full $^
 
 TIME = `which time` -f"%E"
+BLOBS = --blobs
 
 test-cmdline: 
 	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
@@ -121,37 +122,37 @@ slowtest-cmdline:
 	@ echo
 	@ echo "Slow-Testing $(BINDIR)/sra-search"
 	@ # single run
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT -a FgrepStandard SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.0-single-run-default            --args "AGCTAGCTAGCT SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT -a FgrepStandard SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.5-single-run-agrep-wumanber     --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.6-single-run-agrep-myers        --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.7-single-run-agrep-myers-unltd  --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001 $(BLOBS)"
 	@ # multiple runs
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs --args "TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 4.0-multiple-runs --args "TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097 $(BLOBS)"
 	@ # query expressions
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression 	    --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 5.0-run-nucstrstr-with-expression --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\|\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001 $(BLOBS)"
 	@ # imperfect match
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.5-imperfect-match-agrep-wumanber     --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.6-imperfect-match-agrep-myers        --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.5-imperfect-match-agrep-wumanber     --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.6-imperfect-match-agrep-myers        --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001 $(BLOBS)"
 	@ # multi-threading
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threads 4 SRR600094 SRR600095 SRR600096 SRR600099 $(BLOBS)"
 	@ # nothing found 
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001 $(BLOBS)"
 	@ # 
 	@ echo
 
 
 onetest: 
 	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..
-	#@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.05-single-run-default-WGS       --args "AGCTAGCTA ALAI01 --blobs"
-	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001"
+	#@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001 $(BLOBS)"
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001 $(BLOBS)"
     
 .PHONY: test-whitebox vg-whitebox test-cmdline slowtest-cmdline onetest

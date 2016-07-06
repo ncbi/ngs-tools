@@ -58,7 +58,6 @@ public:
     
 public:
     static bool logResults;
-    static bool useBlobSearch;
 
 public:
     // Search algorithms supported by this class
@@ -84,11 +83,13 @@ public:
     VdbSearch ( Algorithm, 
                 const std::string& query, 
                 bool isExpression, 
+                bool p_useBlobSearch, 
                 unsigned int p_minScorePct = 100, 
                 unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     VdbSearch ( const std :: string& algorithm, 
                 const std::string& query, 
                 bool isExpression, 
+                bool p_useBlobSearch, 
                 unsigned int p_minScorePct = 100, 
                 unsigned int p_threads = 0 ) throw ( std :: invalid_argument );
     
@@ -101,15 +102,42 @@ public:
     bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
     
 private:
-    // a VDB-agnostic iterator bound to an accession and an engine-side algorithm; 
-    // subclasses implement different styles of retrieval (row/blob based, SRA/WGS schema)
-    class MatchIterator 
+
+    // create search blocks corresponding to current configuration
+    class SearchBlockFactory
     {
     public:
-        MatchIterator ( SearchBlock*, const std::string& accession );
-        virtual ~MatchIterator ();
+        SearchBlockFactory ( const std :: string&   p_query, 
+                             bool                   p_isExpression, 
+                             bool                   p_useBlobSearch, 
+                             Algorithm              p_algorithm, 
+                             unsigned int           p_minScorePct );
+                             
+        bool CanUseBlobs () const;
+        void SetAllgorithm ( Algorithm p_algorithm) { m_algorithm = p_algorithm; }
+                             
+        SearchBlock* MakeSearchBlock () const;
+        
+    private:
+        const std :: string&    m_query; 
+        bool                    m_isExpression;
+        bool                    m_useBlobSearch; 
+        Algorithm               m_algorithm; 
+        unsigned int            m_minScorePct;
+    };
+    
+private:
+
+    // A buffer that can be searched for one or more matches, bound to an accession and an engine-side algorithm;
+    // Subclasses implement fragment-based (1 hit) or blob-based (multiple hits) search 
+    class SearchBuffer
+    {
+    public:
+        SearchBuffer ( SearchBlock*, const std::string& accession );
+        virtual ~SearchBuffer();
         
         virtual bool NextMatch ( std::string& fragmentId ) = 0;
+        virtual std::string BufferId () const  = 0;
         
         std::string AccessionName () const { return m_accession; }
         
@@ -118,34 +146,57 @@ private:
         std::string m_accession; 
     };
     
+    class FragmentSearchBuffer;
+    class BlobSearchBuffer; 
+
+private:
+
+    // a VDB-agnostic iterator. Subclasses implement different styles of retrieval (fragment/blob based, SRA/WGS schema)
+    class MatchIterator 
+    {
+    public:
+        MatchIterator ( SearchBlockFactory&, const std::string& accession );
+        virtual ~MatchIterator ();
+        
+        virtual SearchBuffer* NextBuffer () = 0;
+        
+    protected:
+        const SearchBlockFactory&   m_factory; 
+        std::string                 m_accession;
+    };
+    
     class FragmentMatchIterator; // fragment-based search
     class BlobMatchIterator; // blob-based search
     
+private:
+
     typedef std::queue < MatchIterator* > SearchQueue;
-    
-    struct SearchThreadBlock;
-    
-    class OutputQueue;
-    
     typedef std :: vector < KThread* > ThreadPool;
     
+    struct SearchThreadBlock;
+    class OutputQueue;
+    
+    static rc_t CC SearchAccPerThread ( const struct KThread *self, void *data );
+    static rc_t CC SearchBlobPerThread ( const struct KThread *self, void *data );
+
+private:
+
     void CheckArguments ( bool isExpression, unsigned int minScorePct) throw ( std :: invalid_argument );
     
     bool SetAlgorithm ( const std :: string& p_algStr );
-    
-    static SearchBlock* SearchBlockFactory ( const std :: string& p_query, 
-                                             bool p_isExpression, 
-                                             Algorithm p_algorithm, 
-                                             unsigned int m_minScorePct );
-                                             
-    static rc_t CC SearchThread ( const struct KThread *self, void *data );
 
 private:
     std::string     m_query;
-    bool            m_isExpression; 
+    bool            m_isExpression;
+    bool            m_useBlobSearch;  
     Algorithm       m_algorithm;
     unsigned int    m_minScorePct;
     unsigned int    m_threads;
+    bool            m_blobPerThread;  
+    
+    SearchBlockFactory m_sbFactory;    
+
+    SearchBuffer*   m_buf;
 
     SearchQueue     m_searches;
         

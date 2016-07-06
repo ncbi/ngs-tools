@@ -37,60 +37,70 @@ using namespace std;
 //////// class FragmentBlob
 
 FragmentBlob :: FragmentBlob ( const FragmentBlob & obj ) throw ( ErrorMsg )
+:   m_self ( obj . m_self ),
+    m_coll ( obj . m_coll )
 {
-    throw ( ErrorMsg ( " FragmentBlob :: FragmentBlob ( const FragmentBlob & obj ) not implemented " ) );
+    NGS_VDB_BlobAddRef ( m_self );
 }
-    
+
 FragmentBlob :: FragmentBlob ( BlobRef ref ) throw ()
 {
     throw ( ErrorMsg ( " FragmentBlob :: FragmentBlob ( BlobRef ref ) not implemented " ) );
 }
 
-FragmentBlob & 
+FragmentBlob &
 FragmentBlob :: operator = ( const FragmentBlob & obj ) throw ( ErrorMsg )
 {
     throw ( ErrorMsg ( " FragmentBlob :: operator = not implemented " ) );
-}    
-    
+}
+
 FragmentBlob :: ~ FragmentBlob () throw ()
 {
     NGS_VDB_BlobRelease ( m_self );
 }
-    
-const char* 
+
+const char*
 FragmentBlob :: Data() const throw ()
 {
-    if ( m_self == 0 ) 
+    if ( m_self == 0 )
     {
         throw ( ErrorMsg ( " FragmentBlob :: Data(NULL) " ) );
     }
-    return (const char*)NGS_VDB_BlobData ( m_self );        
-}    
+    return (const char*)NGS_VDB_BlobData ( m_self );
+}
 
-uint64_t 
+uint64_t
 FragmentBlob :: Size() const throw ()
 {
-    if ( m_self == 0 ) 
+    if ( m_self == 0 )
     {
         throw ( ErrorMsg ( " FragmentBlob :: Size(NULL) " ) );
     }
-    return NGS_VDB_BlobSize ( m_self  );        
+    return NGS_VDB_BlobSize ( m_self  );
 }
 
-void 
+void
 FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string& p_fragId, uint64_t& p_nextFragStart, bool& p_biological ) const throw ( ErrorMsg )
 {
-    if ( m_self == 0 ) 
+    if ( m_self == 0 )
     {
         throw ( ErrorMsg ( " FragmentBlob :: GetRowInfo(NULL) " ) );
     }
-    const char* fragId;
+    char* fragId;
     ErrBlock err;
     NGS_VDB_BlobRowInfo ( m_coll, m_self, p_offset, &fragId, &p_nextFragStart, &p_biological, & err );
     err . Check ();
-    p_fragId = fragId ? string ( fragId ) : string ();
+    if ( fragId != 0 )
+    {
+        p_fragId = fragId;
+        free ( fragId );
+    }
+    else
+    {
+        p_fragId = string ();
+    }
 }
-    
+
 FragmentBlob :: FragmentBlob ( struct NGS_VDB_ReadCollection* p_coll )
 :   m_self ( 0 ),
     m_coll ( p_coll )
@@ -104,7 +114,7 @@ FragmentBlobIterator :: FragmentBlobIterator ( BlobRef ref ) throw ( )
 {
     throw ( ErrorMsg ( " FragmentBlobIterator :: FragmentBlobIterator ( BlobRef ref ) not implemented " ) );
 }
-                
+
 FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj ) throw ( ErrorMsg )
 :   FragmentBlob ( obj )
 {
@@ -115,28 +125,28 @@ FragmentBlobIterator :: ~ FragmentBlobIterator () throw ()
 {
 }
 
-FragmentBlobIterator & 
+FragmentBlobIterator &
 FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) throw ( ErrorMsg )
 {
     throw ( ErrorMsg ( " FragmentBlobIterator :: operator = not implemented " ) );
 }
 
-bool 
+bool
 FragmentBlobIterator :: nextBlob () throw ( ErrorMsg )
 {
     ErrBlock err;
     struct VBlob* next = NGS_VDB_ReadCollectionNextBlob ( m_coll, m_self, &err );
     err . Check ();
     NGS_VDB_BlobRelease ( m_self );
-    m_self = next; 
+    m_self = next;
     return m_self != 0;
 }
-                
+
 FragmentBlobIterator :: FragmentBlobIterator ( struct NGS_VDB_ReadCollection* p_coll )
 : FragmentBlob ( p_coll )
 {
 }
-                
+
 //////// class VdbReadCollection
 
 VdbReadCollection :: VdbReadCollection ( const VdbReadCollection & obj ) throw ()
@@ -156,19 +166,19 @@ VdbReadCollection :: VdbReadCollection ( const String & spec ) throw ()
     err . Check ();
 }
 
-VdbReadCollection :: ~ VdbReadCollection () throw ()            
+VdbReadCollection :: ~ VdbReadCollection () throw ()
 {
     ErrBlock err;
     NGS_VDB_ReadCollectionRelease ( m_coll, & err );
 }
 
-VdbReadCollection & 
+VdbReadCollection &
 VdbReadCollection :: operator = ( const VdbReadCollection & obj ) throw ()
 {
     throw ( ErrorMsg ( " VdbReadCollection :: operator = not implemented " ) );
 }
 
-FragmentBlobIterator 
+FragmentBlobIterator
 VdbReadCollection :: getFragmentBlobs () const throw ( ErrorMsg )
 {
     return FragmentBlobIterator ( m_coll );
@@ -176,7 +186,7 @@ VdbReadCollection :: getFragmentBlobs () const throw ( ErrorMsg )
 
 //////// class  ncbi ::  NGS_VDB
 
-VdbReadCollection 
+VdbReadCollection
 ncbi ::  NGS_VDB :: openVdbReadCollection ( const String & spec ) throw ( ErrorMsg )
 {
     return VdbReadCollection ( spec );

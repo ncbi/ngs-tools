@@ -43,7 +43,7 @@ public:
     virtual ~FgrepSearch (); 
     
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );
-
+    
 private:
     struct Fgrep*   m_fgrep;
     const char*     m_query[1];
@@ -66,7 +66,7 @@ private:
 class NucStrstrSearch : public VdbSearch :: SearchBlock
 {   
 public:
-    NucStrstrSearch ( const std::string& p_query, bool p_positional = false ) throw ( ngs :: ErrorMsg );
+    NucStrstrSearch ( const std::string& p_query, bool p_positional, bool p_useBlobSearch = false ) throw ( ngs :: ErrorMsg );
     virtual ~NucStrstrSearch ();
     
     virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg );  

@@ -38,9 +38,9 @@ typedef vector < string > Runs;
 
 static
 bool 
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, unsigned int p_minScore, unsigned int p_threads  )
+DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, bool p_blobs, unsigned int p_minScore, unsigned int p_threads  )
 {
-    VdbSearch s ( p_alg, p_query, p_isExpr, p_minScore, p_threads );
+    VdbSearch s ( p_alg, p_query, p_isExpr, p_blobs, p_minScore, p_threads );
     
     for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
     {
@@ -114,6 +114,7 @@ main( int argc, char *argv [] )
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         bool is_expr = false;
+        bool useBlobSearch = false;
         int score = 100;
         int threads = 0;
         
@@ -180,7 +181,7 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "--blobs" ) // for testing (search in fragments vs blobs); undocumented for now
             {
-                VdbSearch :: useBlobSearch = true;
+                useBlobSearch = true;
             }
             else
             {
@@ -195,7 +196,7 @@ main( int argc, char *argv [] )
             throw invalid_argument ( "Missing arguments" );
         }
 
-        found = DoSearch ( query, runs, alg, is_expr, (unsigned int)score, (unsigned int)threads );
+        found = DoSearch ( query, runs, alg, is_expr, useBlobSearch, (unsigned int)score, (unsigned int)threads );
 
         rc = 0;
     }

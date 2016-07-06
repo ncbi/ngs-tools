@@ -24,37 +24,48 @@
 *
 */
 
-#ifndef _h_ngs_vdb_
-#define _h_ngs_vdb_
+#ifndef _hpp_VdbReadCollection_hpp_
+#define _hpp_VdbReadCollection_hpp_
 
-#include <stdint.h>
-#include <stdbool.h>
 
-struct VBlob;
-struct NGS_ErrBlock_v1;
-typedef struct NGS_ErrBlock_v1 NGS_VDB_ErrBlock; 
-
-typedef struct NGS_VDB_ReadCollection NGS_VDB_ReadCollection;
-
-#ifdef __cplusplus
-extern "C" {
+#ifndef _hpp_ngs_read_collection_
+#include <ngs/ReadCollection.hpp>
 #endif
 
-/* TODO: error reporting */
+#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
 
-NGS_VDB_ReadCollection *    NGS_VDB_ReadCollectionMake ( const char * spec, NGS_VDB_ErrBlock * err );
-void                        NGS_VDB_ReadCollectionRelease ( NGS_VDB_ReadCollection * self, NGS_VDB_ErrBlock * err  );
-struct VBlob*               NGS_VDB_ReadCollectionNextBlob ( NGS_VDB_ReadCollection * self, struct VBlob*, NGS_VDB_ErrBlock * err  );
+namespace ncbi
+{
+    namespace ngs
+    {
+        namespace vdb
+        {
+            class VdbReadCollection : protected :: ngs :: ReadCollection
+            {
+            public:
 
-/* sets *fragId to NULL for technical fragments */
-void                        NGS_VDB_BlobRowInfo ( NGS_VDB_ReadCollection * self, const struct VBlob*,  uint64_t offset, const char** fragId, uint64_t* nextFragStart, bool* biological, NGS_VDB_ErrBlock * err  );
+                :: ngs :: ReadCollection toReadCollection () const { return *this; }
 
-const void*     NGS_VDB_BlobData ( const struct VBlob* );
-uint64_t        NGS_VDB_BlobSize ( const struct VBlob* );
-void            NGS_VDB_BlobRelease ( struct VBlob* );
+                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
 
-#ifdef __cplusplus
-}
-#endif
+            public:
 
-#endif 
+                // C++ support
+
+                VdbReadCollection ( :: ngs :: ReadCollection dad )
+                    throw ();
+
+                VdbReadCollection & operator = ( const VdbReadCollection & obj )
+                    throw ();
+                VdbReadCollection ( const VdbReadCollection & obj )
+                    throw ();
+
+                ~ VdbReadCollection ()
+                    throw ();
+
+            };
+        };
+    }
+} // ncbi
+
+#endif // _hpp_VdbReadCollection_hpp_
