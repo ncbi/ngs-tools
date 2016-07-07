@@ -27,4 +27,5 @@ Options:
   -T|--threads <number>     The number of threads to use; 2 by deafult
   --nothreads               Single-threaded mode
   --threadperacc            One thread per accession mode (by default, multiple threads per accession)
+  --sort                    Sort output by accession/read/fragment
 

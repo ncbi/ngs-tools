@@ -398,6 +398,63 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
+///////// Multi threading
+FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
+{
+    Setup ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001", false, 4, true ); // 4 blob-based threads on one run
+
+    unsigned int count = 0;
+    while (  m_s -> NextMatch ( m_accession, m_fragment ) )  // used to have a random crash inside VDB
+    {
+        ++count;
+    }
+    REQUIRE_EQ ( 12u, count );
+}
+
+#if TOO_SLOW_FOR_A_UNIT_TEST
+FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
+{
+    const string Sra1 = "SRR600094";
+    const string Sra2 = "SRR600095";
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
+    m_s -> AddAccession ( Sra1 );
+
+    set <string> frags;
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        frags.insert(m_fragment);
+    }
+
+    set <string> :: const_iterator it = frags . begin ();
+
+    // this is a straight up alphanumerical sort, so the order here is not quite the same as one would expect (accession/read#/frag#)
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.101991",  *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1053648", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1053650", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1053651", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1053652", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1561682", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.1667877", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.2625526", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.2805749", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR0.324216",  *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR1.1053649", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR1.1053653", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR1.1561683", *it++ );
+    REQUIRE_EQ ( Sra1 + ".FR1.2625553", *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR0.1746431", *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR1.1034389", *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR1.1746425", *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR1.1746434", *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR1.694078",  *it++ );
+    REQUIRE_EQ ( Sra2 + ".FR1.69793",   *it++ );
+
+    REQUIRE ( it == frags . end () );
+}
+#endif
+
 FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
