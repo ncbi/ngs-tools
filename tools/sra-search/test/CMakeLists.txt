@@ -1,6 +1,13 @@
 include_directories ("..")
 
-add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../searchblock.cpp)
+add_executable ( test-sra-search
+    test-sra-search.cpp
+    ../vdb-search.cpp
+    ../searchblock.cpp
+    ../blobmatchiterator.cpp
+    ../fragmentmatchiterator.cpp
+    ../referencematchiterator.cpp
+)
 add_dependencies ( test-sra-search sra-search ngs-vdb )
 
 target_link_libraries ( test-sra-search

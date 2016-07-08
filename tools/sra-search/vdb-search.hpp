@@ -34,9 +34,11 @@
 
 #include <klib/rc.h>
 
-#include <ngs/ReadCollection.hpp>
+#include "searchblock.hpp"
 
 struct KThread;
+class MatchIterator;
+class SearchBuffer;
 
 class VdbSearch
 {
@@ -84,79 +86,7 @@ public:
     VdbSearch ( const Settings& settings ) throw ( std :: invalid_argument );
     ~VdbSearch ();
 
-    bool NextMatch ( std::string& accession, std::string& fragmentId ) throw ( ngs :: ErrorMsg );
-
-public:
-    // base class of a hierarchy implementing various search algorithms
-    class SearchBlock
-    {
-    public:
-        virtual ~SearchBlock () {}
-
-        virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg )
-        {
-            uint64_t hitStart;
-            uint64_t hitEnd;
-            return FirstMatch ( p_bases, p_size, hitStart, hitEnd );
-        }
-        virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) throw ( ngs :: ErrorMsg ) = 0;
-    };
-
-private:
-
-    // create search blocks corresponding to current configuration
-    class SearchBlockFactory
-    {
-    public:
-        SearchBlockFactory ( const Settings& p_settings );
-
-        SearchBlock* MakeSearchBlock () const;
-
-    private:
-        const Settings& m_settings; // not a copy, since the settings may be changed post-creation
-    };
-
-private:
-
-    // A buffer that can be searched for one or more matches, bound to an accession and an engine-side algorithm;
-    // Subclasses implement fragment-based (1 hit) or blob-based (multiple hits) search
-    class SearchBuffer
-    {
-    public:
-        SearchBuffer ( SearchBlock*, const std::string& accession );
-        virtual ~SearchBuffer();
-
-        virtual bool NextMatch ( std::string& fragmentId ) = 0;
-        virtual std::string BufferId () const  = 0;
-
-        std::string AccessionName () const { return m_accession; }
-
-    protected:
-        SearchBlock* m_searchBlock;  // owned here
-        std::string m_accession;
-    };
-
-    class FragmentSearchBuffer;
-    class BlobSearchBuffer;
-
-private:
-
-    // a VDB-agnostic iterator. Subclasses implement different styles of retrieval (fragment/blob based, SRA/WGS schema)
-    class MatchIterator
-    {
-    public:
-        MatchIterator ( SearchBlockFactory&, const std::string& accession );
-        virtual ~MatchIterator ();
-
-        virtual SearchBuffer* NextBuffer () = 0;
-
-    protected:
-        const SearchBlockFactory&   m_factory;
-        std::string                 m_accession;
-    };
-
-    class FragmentMatchIterator; // fragment-based search
-    class BlobMatchIterator; // blob-based search
+    bool NextMatch ( std::string& accession, std::string& fragmentId );
 
 private:
 
@@ -165,6 +95,18 @@ private:
 
     struct SearchThreadBlock;
     class OutputQueue;
+
+    // create search blocks corresponding to current configuration
+    class SearchBlockFactory : public SearchBlock :: Factory
+    {
+    public:
+        SearchBlockFactory ( const Settings& p_settings );
+
+        virtual SearchBlock* MakeSearchBlock () const;
+
+    private:
+        const Settings& m_settings; // not a copy, since the settings may be changed post-creation
+    };
 
     static rc_t CC SearchAccPerThread ( const struct KThread *self, void *data );
     static rc_t CC SearchBlobPerThread ( const struct KThread *self, void *data );

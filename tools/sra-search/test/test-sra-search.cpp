@@ -26,6 +26,8 @@
 
 #include "vdb-search.hpp"
 #include "searchblock.hpp"
+#include "searchbuffer.hpp"
+#include "referencematchiterator.hpp"
 
 #include <set>
 
@@ -54,7 +56,7 @@ TEST_SUITE(SraSearchTestSuite);
 
 TEST_CASE ( FgrepDumb )
 {
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepDumb );
+    FgrepSearch sb ( "CTA", FgrepSearch :: FgrepDumb );
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
@@ -65,7 +67,7 @@ TEST_CASE ( FgrepDumb )
 
 TEST_CASE ( SearchFgrepBoyerMoore )
 {
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepBoyerMoore );
+    FgrepSearch sb ( "CTA", FgrepSearch :: FgrepBoyerMoore );
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
@@ -76,7 +78,7 @@ TEST_CASE ( SearchFgrepBoyerMoore )
 
 TEST_CASE ( SearchFgrepAho )
 {
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepAho );
+    FgrepSearch sb ( "CTA", FgrepSearch :: FgrepAho );
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
@@ -87,7 +89,7 @@ TEST_CASE ( SearchFgrepAho )
 
 TEST_CASE ( SearchAgrepDP )
 {
-    AgrepSearch sb ( "CTA", VdbSearch :: AgrepDP, 100 );
+    AgrepSearch sb ( "CTA", AgrepSearch :: AgrepDP, 100 );
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
@@ -248,7 +250,6 @@ FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture
     REQUIRE_EQ ( string ( "ALWZ01.FR0.1" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "ALWZ01.FR0.2" ), NextFragmentId () );
 }
-
 
 FIXTURE_TEST_CASE ( FgrepDumb_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
@@ -485,7 +486,6 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 /* TODO
 FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
 {
-
     const string Sra1 = "SRR600094";
     const string Sra2 = "SRR600095";
     Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
@@ -522,10 +522,51 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
 
 //TODO: stop multi-threaded search before the end
 
+// Reference-driven mode
+
+class DummySearchBlockFactory : public SearchBlock :: Factory
+{
+public:
+    virtual SearchBlock* MakeSearchBlock () const
+    {
+        return new FgrepSearch ( "", FgrepSearch :: FgrepDumb );
+    }
+};
+
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_Construct, VdbSearchFixture )
+{
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, "SRR600094" );
+    REQUIRE_NOT_NULL ( it .NextBuffer () );
+}
+
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_AccessionName, VdbSearchFixture )
+{
+    string accName ( "SRR600094" );
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, accName );
+    REQUIRE_EQ ( accName, it . NextBuffer () -> AccessionName () );
+}
+
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
+{
+    string accName ( "SRR833251" );
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, accName );
+
+    SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_EQ ( string("gi|169794206|ref|NC_010410.1|"), buf -> BufferId () );
+    delete buf;
+    REQUIRE_NULL ( it . NextBuffer () );
+}
+
 FIXTURE_TEST_CASE ( ReferenceDriven, VdbSearchFixture )
 {
-    SetupWithReference ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001" );
+    SetupWithReference ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+    FAIL("not implemented");
 }
+
+//TODO: reference mode on a non-CSRA object
 
 int
 main( int argc, char *argv [] )

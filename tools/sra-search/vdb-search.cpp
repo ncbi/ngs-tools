@@ -26,9 +26,8 @@
 
 #include "vdb-search.hpp"
 
-#include <sstream>
+#include <iostream>
 
-#include <ngs/ncbi/NGS.hpp>
 #include <atomic32.h>
 
 #include <klib/time.h>
@@ -36,14 +35,15 @@
 #include <kproc/thread.h>
 #include <kproc/lock.h>
 
-#include <ngs-vdb/inc/NGS-VDB.hpp>
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
+#include <ngs/ErrorMsg.hpp>
 
-#include "searchblock.hpp"
+#include "searchbuffer.hpp"
+#include "blobmatchiterator.hpp"
+#include "fragmentmatchiterator.hpp"
+#include "referencematchiterator.hpp"
 
 using namespace std;
 using namespace ngs;
-using namespace ncbi::ngs::vdb;
 
 bool VdbSearch :: logResults = false;
 
@@ -54,7 +54,7 @@ class VdbSearch :: OutputQueue
     // counts producers
     // if there are active producers, Pop will wait for new items to appear or the last producer to go away
 public:
-    OutputQueue ( unsigned int p_producers ) throw ( ErrorMsg )
+    OutputQueue ( unsigned int p_producers )
     {
         atomic32_set ( & m_producers, p_producers );
         rc_t rc = KLockMake ( & m_outputQueueLock );
@@ -140,230 +140,6 @@ struct VdbSearch :: SearchThreadBlock
     }
 };
 
-//////////////////// VdbSearch :: SearchBuffer
-
-VdbSearch :: SearchBuffer :: SearchBuffer ( SearchBlock* p_sb, const std::string& p_accession )
-:   m_searchBlock ( p_sb),
-    m_accession ( p_accession )
-{
-}
-
-VdbSearch :: SearchBuffer :: ~SearchBuffer ()
-{
-    delete m_searchBlock;
-}
-
-class VdbSearch :: FragmentSearchBuffer : public VdbSearch :: SearchBuffer
-{
-public:
-    FragmentSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, const Fragment& p_fragment )
-    :   SearchBuffer ( p_sb, p_accession ),
-        m_fragment ( p_fragment ),
-        m_done ( false )
-    {
-    }
-
-    virtual bool NextMatch ( std::string& p_fragmentId )
-    {
-        if ( ! m_done )
-        {
-            StringRef bases = m_fragment.getFragmentBases();
-            if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
-            {
-                p_fragmentId = m_fragment . getFragmentId () . toString ();
-                m_done = true;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    virtual std::string BufferId () const
-    {
-        return m_fragment . getFragmentId () . toString ();
-    }
-
-private:
-    const Fragment& m_fragment;
-    bool m_done;
-};
-
-class VdbSearch :: BlobSearchBuffer : public VdbSearch :: SearchBuffer
-{
-public:
-    BlobSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, KLock* p_lock, const FragmentBlob& p_blob )
-    :   SearchBuffer ( p_sb, p_accession ),
-        m_dbLock ( p_lock ),
-        m_blob ( p_blob ),
-        m_startInBlob ( 0 )
-    {
-    }
-
-    virtual bool NextMatch ( std::string& p_fragmentId )
-    {
-        string id = BufferId();
-        if ( VdbSearch :: logResults )
-        {
-            cout << id << ": m_startInBlob=" << m_startInBlob << " size=" << ( m_blob . Size () - m_startInBlob ) << endl;
-        }
-
-        uint64_t hitStart;
-        uint64_t hitEnd;
-        while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, hitStart, hitEnd  ) )
-        {
-            if ( VdbSearch :: logResults )
-            {
-                cout << "hitStart=" << hitStart << " hitEnd=" << hitEnd << endl;
-            }
-
-            // convert to offsets from the start of the blob
-            hitStart += m_startInBlob;
-            hitEnd += m_startInBlob;
-
-            uint64_t startInBlob;
-            uint64_t lengthInBases;
-            uint64_t fragEnd;
-            bool biological;
-
-            KLockAcquire ( m_dbLock );
-            m_blob . GetFragmentInfo ( hitStart, p_fragmentId, startInBlob, lengthInBases, biological );
-            KLockUnlock ( m_dbLock );
-
-            fragEnd = startInBlob + lengthInBases;
-            if ( VdbSearch :: logResults )
-            {
-                cout << "fragId=" << p_fragmentId << " hitStart=" << hitStart << " hitEnd=" << hitEnd << " fragEnd=" << fragEnd << " biological=" << ( biological ? "true" : "false" ) << endl;
-            }
-            if ( biological )
-            {
-                if ( hitEnd < fragEnd ||                                                                    // inside a fragment: report and move to the next fragment; or
-                    m_searchBlock -> FirstMatch ( m_blob . Data () + hitStart, fragEnd - hitStart  ) )    // result crosses fragment boundary: retry within the fragment
-                {
-                    if ( VdbSearch :: logResults )
-                    {
-                        cout << "secondary startInBlob=" << hitStart << endl;
-                    }
-                    m_startInBlob = fragEnd; // search will resume with the next fragment
-                    if ( VdbSearch :: logResults )
-                    {
-                        cout << "updated startInBlob=" << m_startInBlob << endl;
-                    }
-                    return true;
-                }
-                // false hit
-            }
-            // move on to the next fragment
-            m_startInBlob = fragEnd;
-        }
-        m_startInBlob = 0;
-        return false;
-    }
-
-    virtual std::string BufferId () const
-    {   // identify by row Id range
-        int64_t first;
-        uint64_t count;
-        m_blob . GetRowRange ( first, count );
-        ostringstream ret;
-        ret << first << "-" << ( first + count - 1 );
-        return ret.str();
-    }
-
-private:
-    KLock*          m_dbLock;
-    FragmentBlob    m_blob;
-    uint64_t        m_startInBlob;
-};
-
-//////////////////// VdbSearch :: MatchIterator
-
-VdbSearch :: MatchIterator :: MatchIterator ( SearchBlockFactory& p_factory, const std::string& p_accession )
-:   m_factory ( p_factory ),
-    m_accession ( p_accession )
-{
-}
-
-VdbSearch :: MatchIterator :: ~MatchIterator ()
-{
-}
-
-// Searches all reads fragment by fragment
-class VdbSearch :: FragmentMatchIterator : public VdbSearch :: MatchIterator
-{
-public:
-    FragmentMatchIterator ( SearchBlockFactory& p_factory, const std::string& p_accession )
-    :   MatchIterator ( p_factory, p_accession ),
-        m_coll ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
-        m_readIt ( m_coll . getReads ( Read :: all ) )
-    {
-        m_readIt . nextRead ();
-    }
-    virtual ~FragmentMatchIterator ()
-    {
-    }
-
-    virtual SearchBuffer* NextBuffer ()
-    {
-        if ( ! m_readIt . nextFragment () )
-        {   // end of read, switch to the next
-            bool haveFragment = false;
-            while ( m_readIt . nextRead () )
-            {
-                if ( m_readIt . nextFragment () )
-                {
-                    haveFragment = true;
-                    break;
-                }
-            }
-            if ( ! haveFragment )
-            {
-                return 0;
-            }
-        }
-        // report one match per fragment
-        return new FragmentSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_readIt );
-    }
-
-private:
-    ngs::ReadCollection m_coll;
-    ngs::ReadIterator   m_readIt;
-};
-
-// Searches blob by blob
-class VdbSearch :: BlobMatchIterator : public VdbSearch :: MatchIterator
-{
-public:
-    BlobMatchIterator ( SearchBlockFactory& p_factory, const std::string& p_accession )
-    :   MatchIterator ( p_factory, p_accession ),
-        m_coll ( NGS_VDB :: openVdbReadCollection ( p_accession ) ),
-        m_blobIt ( m_coll . getFragmentBlobs() )
-    {
-        rc_t rc = KLockMake ( & m_accessionLock );
-        if ( rc != 0 )
-        {
-            throw ( ErrorMsg ( "KLockMake failed" ) );
-        }
-    }
-    virtual ~BlobMatchIterator ()
-    {
-        KLockRelease ( m_accessionLock );
-    }
-
-    virtual SearchBuffer* NextBuffer ()
-    {
-        if ( m_blobIt . hasMore () )
-        {
-            return new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
-        }
-        return 0;
-    }
-
-private:
-    VdbReadCollection       m_coll;
-    KLock*                  m_accessionLock;
-    FragmentBlobIterator    m_blobIt;
-};
-
 //////////////////// VdbSearch :: Settings
 
 static
@@ -413,7 +189,7 @@ VdbSearch :: Settings :: SetAlgorithm ( const std :: string& p_algStr )
 
 static
 void
-CheckArguments ( const VdbSearch :: Settings& p_settings ) throw ( invalid_argument )
+CheckArguments ( const VdbSearch :: Settings& p_settings )
 {
     if ( p_settings . m_isExpression && p_settings . m_algorithm != VdbSearch :: NucStrstr )
     {
@@ -431,10 +207,6 @@ CheckArguments ( const VdbSearch :: Settings& p_settings ) throw ( invalid_argum
             default:
                 break;
         }
-    }
-    if ( p_settings . m_referenceDriven )
-    {
-        throw invalid_argument ( "reference mode is not implemented" );
     }
 }
 
@@ -455,7 +227,11 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
 
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
-        if ( m_settings . m_useBlobSearch )
+        if ( m_settings . m_referenceDriven )
+        {
+            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i ) );
+        }
+        else if ( m_settings . m_useBlobSearch )
         {
             m_searches . push ( new BlobMatchIterator ( m_sbFactory, *i ) );
         }
@@ -613,8 +389,35 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
 }
 
 bool
-VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( ErrorMsg )
+VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
 {
+    if ( m_settings . m_referenceDriven )
+    {   // reference-driven mode, always single threaded for now
+        while ( ! m_searches . empty () )
+        {
+            if (m_buf == 0)
+            {
+                m_buf = m_searches.front()->NextBuffer();
+            }
+
+            while (m_buf != 0)
+            {
+                if (m_buf->NextMatch(p_fragmentId))
+                {
+                    p_accession = m_buf->AccessionName();
+                    return true;
+                }
+                delete m_buf;
+                m_buf = m_searches.front()->NextBuffer();
+            }
+
+            delete m_searches . front ();
+            m_searches . pop ();
+        }
+        return false;
+    }
+
+    // sequence-driven mode
     if ( m_settings . m_threads > 0 )
     {
         if ( m_output == 0 ) // first call to NextMatch() - set up
@@ -672,28 +475,33 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId ) throw ( Err
     }
 }
 
-//////////////////// SearchBlockFactory
+//////////////////// VdbSearch :: SearchBlockFactory
 
 VdbSearch :: SearchBlockFactory :: SearchBlockFactory ( const VdbSearch :: Settings& p_settings )
 :   m_settings ( p_settings )
 {
 }
 
-VdbSearch :: SearchBlock*
+SearchBlock*
 VdbSearch :: SearchBlockFactory :: MakeSearchBlock () const
 {
     switch ( m_settings . m_algorithm )
     {
         case VdbSearch :: FgrepDumb:
+            return new FgrepSearch ( m_settings . m_query, FgrepSearch :: FgrepDumb );
         case VdbSearch :: FgrepBoyerMoore:
+            return new FgrepSearch ( m_settings . m_query, FgrepSearch :: FgrepBoyerMoore );
         case VdbSearch :: FgrepAho:
-            return new FgrepSearch ( m_settings . m_query, m_settings . m_algorithm );
+            return new FgrepSearch ( m_settings . m_query, FgrepSearch :: FgrepAho );
 
         case VdbSearch :: AgrepDP:
+            return new AgrepSearch ( m_settings . m_query, AgrepSearch :: AgrepDP, m_settings . m_minScorePct );
         case VdbSearch :: AgrepWuManber:
+            return new AgrepSearch ( m_settings . m_query, AgrepSearch :: AgrepWuManber, m_settings . m_minScorePct );
         case VdbSearch :: AgrepMyers:
+            return new AgrepSearch ( m_settings . m_query, AgrepSearch :: AgrepMyers, m_settings . m_minScorePct );
         case VdbSearch :: AgrepMyersUnltd:
-            return new AgrepSearch ( m_settings . m_query, m_settings . m_algorithm, m_settings . m_minScorePct );
+            return new AgrepSearch ( m_settings . m_query, AgrepSearch :: AgrepMyersUnltd, m_settings . m_minScorePct );
 
         case VdbSearch :: NucStrstr:
             return new NucStrstrSearch ( m_settings . m_query, m_settings . m_isExpression, m_settings . m_useBlobSearch );
