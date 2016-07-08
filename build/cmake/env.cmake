@@ -14,6 +14,8 @@ set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs            CACHE PATH "ngs source dir
 set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb       CACHE PATH "ncbi-vdb source directory" )
 set ( NGS_SDK_BUILD_PREFIX ${OLD_OUTDIR}/ngs-sdk      CACHE PATH "ngs build directory" )
 set ( VDB_BUILD_PREFIX ${OLD_OUTDIR}/ncbi-vdb         CACHE PATH "ncbi-vdb build directory" )
+set ( NGS_TOOLS_OUTDIR_ENABLED OFF                    CACHE BOOL "enable copying build results into NGS_TOOLS_OUTDIR_PREFIX" ) 
+set ( NGS_TOOLS_OUTDIR_PREFIX ${OLD_OUTDIR}/ngs-tools CACHE PATH "ngs-tools output directory" )
 
 set ( GIT_BRANCH "master" )
 set ( GIT_BRANCH_NGS ${GIT_BRANCH} CACHE STRING "git branch to use for ngs repository" )
@@ -130,6 +132,8 @@ if ( NOT DEFINED ENV{JAVA_HOME} )
 endif () 
 set ( NGSJAR "${OLD_OUTDIR}/ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
+
+include ( functions )
 
 #//////////////////////// External projects
 # if project directory exists, do nothing, assume the user builds the project manually.
