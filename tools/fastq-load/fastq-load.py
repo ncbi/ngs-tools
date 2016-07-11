@@ -1722,8 +1722,7 @@ class Qual:
                     if int(qualSubString) > self.maxQual:
                         self.maxQual = int(qualSubString)
                     self.length += 1
-                    if ( self.minQual > 100 or
-                         self.maxQual > 100 ):
+                    if self.maxQual > 100:
                         sys.exit( "Numerical quality is too high  ... {}".format(self.qual) )
                 else:
                     self.length = 0
@@ -2731,8 +2730,7 @@ class FastqSpotWriter():
         
         if self.platformString == "NANOPORE":
             if self.nanopore2Donly:
-                self.db = 'NCBI:SRA:GenericFastqNanoporeConsensusOnly:db'
-                del self.tbl['SEQUENCE']
+                self.db = 'NCBI:SRA:GenericFastqNanopore:db' # still need sequence table
             else:
                 self.setReadLabels("template,complement")
                 self.orphanReads = True
@@ -2796,6 +2794,9 @@ class FastqSpotWriter():
     ############################################################
     
     def setUnchangingSpotValues(self,fastq1,fastq2):
+
+        if self.platformString:
+            self.dst['PLATFORM']['data'] = self.platform
 
         # Handle recognized nanopore data somewhat differently
         
@@ -3701,21 +3702,10 @@ def processArguments():
                 sw.mixedDeflines = True
             elif arg[2:9] == 'schema=':
                 sw.setSchema ( arg[9:] )
-            elif ( arg[2:10] == 'xml-log=' or
-                   arg[1:] == 'z'):
+            elif arg[2:10] == 'xml-log=':
                 statusWriter.setXmlLog( arg[10:] )
-##            elif arg[2:] == 'setClips':
-##                sw.setClips = True
-##            elif arg[2:] == 'eightLine':
-##                sw.isEightLine = True
-##            elif arg[2:17] == 'read1QualFiles=':
-##                sw.read1QualFiles = arg[17:]
-##            elif arg[2:17] == 'read2QualFiles=':
-##                sw.read2QualFiles = arg[17:]
-##            elif arg[2:14] == 'concatFiles=':
-##                sw.concatFiles = arg[14:]
-##            elif arg[2:11] == 'progress=':
-##                showProgress = eval ( arg[11:] )
+            elif arg[1:2] == 'z=':
+                statusWriter.setXmlLog( arg[2:] )
             elif ( arg[2:] == 'help' or
                    arg[1:] == 'h'):
                 usage(None,0)
