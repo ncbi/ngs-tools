@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.12)
 
 set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
 
@@ -6,11 +6,14 @@ set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
 project ( ngs-tools )
 
 # this has to follow the project() command!
-include ( build/cmake/env.cmake )  
+set(CMAKE_MODULE_PATH
+    ${CMAKE_MODULE_PATH}
+    "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake"
+)
+include ( env )
 
-add_subdirectory(sra-search)
-add_subdirectory(tools/fastrq-dump)
-add_subdirectory(sra_dnld_mgr)
+add_subdirectory(ngs-vdb)
+add_subdirectory(tools)
 
 set ( CPACK_PACKAGE_NAME ngs-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )
