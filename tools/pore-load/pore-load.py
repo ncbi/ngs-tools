@@ -36,6 +36,11 @@
                 Regardless, one progress message will be printed at the end of
                 each input.
 
+    error:      error response, can't be one of
+                keep:   keep the offending file in the scratch space
+                report: report the error but don't keep the file
+                silent: don't report or keep the file
+
     help:       displays this message
     
 Note:
@@ -57,9 +62,10 @@ gzcat = None    # what executable to use for out-of-process decompression
 files = []      # what files to operate on
 tmpdir = "/tmp" # default workspace
 outdir = None
+error = None
 removeWorkDir = True
 showProgress = 10 if __debug__ else 0
-usage = "Usage: {} [ --tmpdir=<path> ] [ --output=<path> ] [ --progress=<number> ] [ --help ] [file ...]\n".format(sys.argv[0])
+usage = "Usage: {} [ --tmpdir=<path> ] [ --output=<path> ] [ --progress=<number> ] [ --error=<keep|report|silent> [ --help ] [file ...]\n".format(sys.argv[0])
 
 for arg in sys.argv[1:]:
     if arg[0:2] == '--':
@@ -69,6 +75,8 @@ for arg in sys.argv[1:]:
             outdir = arg[9:]
         elif arg[2:11] == 'progress=':
             showProgress = eval(arg[11:])
+        elif arg[2:8] == 'error=':
+            error = arg[8:]
         elif arg[2:] == 'help':
             sys.stderr.write(usage)
             sys.stderr.write(__doc__)
@@ -86,6 +94,12 @@ import os, subprocess, tempfile
 
 if __debug__:
     import traceback
+
+if error == None or error == 'silent' or error == 'report' or error == 'keep':
+    pass
+else:
+    sys.stderr.write(usage)
+    exit(1)
 
 saveSysPath = sys.path
 sys.path.append(os.path.abspath("../../shared/python"))
@@ -342,6 +356,32 @@ goodCounter = 0
 skipCounter = 0
 badCounter = 0
 
+
+def eh_Silent(source, fname):
+    if fname: os.remove(fname)
+
+def eh_Report(source, fname):
+    sys.stderr.write("failed to process '{}'\n".format(source))
+    eh_Silent(source, fname)
+
+def eh_Keep(source, fname):
+    notRemoved.append(source)
+
+def eh_None(source, fname):
+    if __debug__:
+        eh_Keep(source, fname)
+    else:
+        eh_Silent(source, fname)
+
+errorHandler = eh_None
+if error == 'silent':
+    errorHandler = eh_Silent
+elif error == 'report':
+    errorHandler = eh_Report
+elif error == 'keep':
+    errorHandler = eh_Keep
+
+
 def ExtractAndProcess(f, source):
     """ Extract file to the working directory and process it
     """
@@ -352,35 +392,33 @@ def ExtractAndProcess(f, source):
     with open(fname, 'wb') as output:
         output.write(f.read())
 
-    keep = False
     if not isHDF5(fname):
         errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
         gw.errorMessage(errMsg)
         sys.stderr.write(errMsg+"\n")
     elif ProcessFast5(fname):
         goodCounter = goodCounter + 1
+        eh_Silent(source, fname)
     else:
         badCounter = badCounter + 1
-        keep = __debug__
-    
-    if keep:
-        notRemoved.append(source)
-    else:
-        os.remove(fname)
+        errorHandler(source, fname)
     
 
 processCounter = 0
 processStart = time.clock()
 nextReport = (processStart + showProgress) if showProgress > 0 else None
 
-def shouldProcess(tarinfo):
-    if not tarinfo.isfile():
-        return False
-    if not tarinfo.name.endswith('.fast5'):
-        return False
-    if os.path.basename(os.path.dirname(tarinfo.name)) == 'fail':
-        return False
-    return True
+def ProcessTarEntry(tar, entry):
+    name = entry.name
+    if entry.isfile() and name.endswith('.fast5'):
+        i = tar.extractfile(entry)
+        if i != None:
+            try:
+                ExtractAndProcess(i, os.path.basename(name))
+                return True
+            except:
+                pass
+    return False
 
 def ProcessTar(tar):
     """ Extract and process all fast5 files
@@ -398,22 +436,16 @@ def ProcessTar(tar):
     count = 0
 
     for f in tar:
-        if shouldProcess(f):
-            i = tar.extractfile(f)
-            try:
-                ExtractAndProcess(i, os.path.basename(f.name))
-            finally:
-                i.close()
-
+        if ProcessTarEntry(tar, f):
             processCounter = processCounter + 1
             now = time.clock()
             if nextReport and now >= nextReport:
                 nextReport = nextReport + showProgress
                 sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
-                    format(processCounter, processCounter/(now - processStart)))
+                                 format(processCounter, processCounter/(now - processStart)))
         else:
+            errorHandler(f.name, None)
             skipCounter = skipCounter + 1
-
         count = count + 1
 
     if count > 0:
