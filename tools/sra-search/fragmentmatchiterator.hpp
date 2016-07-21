@@ -35,7 +35,7 @@ class SearchBuffer;
 class FragmentMatchIterator : public MatchIterator
 {
 public:
-    FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession );
+    FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession, ngs :: Read :: ReadCategory p_categories = ngs :: Read :: all );
 
     virtual ~FragmentMatchIterator ();
 

@@ -30,3 +30,4 @@ core
 
 /build/cmake/*/
 OUTDIR.*
+core

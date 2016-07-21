@@ -39,7 +39,14 @@ struct SmithWaterman;
 class SearchBlock
 {
 public:
+    SearchBlock ( const std :: string& p_query )
+    : m_query ( p_query )
+    {
+    }
     virtual ~SearchBlock () {}
+
+    virtual const std :: string& GetQuery() { return m_query; }
+    virtual unsigned int GetScoreThreshold () { return 100; }
 
     virtual bool FirstMatch ( const char* p_bases, size_t p_size )
     {
@@ -57,6 +64,9 @@ public:
 
         virtual SearchBlock* MakeSearchBlock () const = 0;
     };
+
+protected:
+    std :: string m_query;
 };
 
 //////////////////// SearchBlock subclasses
@@ -79,7 +89,7 @@ public:
 
 private:
     struct Fgrep*   m_fgrep;
-    const char*     m_query[1];
+    const char*     m_queries[1];
 };
 
 class AgrepSearch : public SearchBlock
@@ -97,11 +107,12 @@ public:
     AgrepSearch ( const std::string& p_query, Algorithm p_algorithm, uint8_t p_minScorePct );
     virtual ~AgrepSearch ();
 
+    virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
+
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
 
 private:
     struct Agrep*   m_agrep;
-    const char*     m_query;
     uint8_t         m_minScorePct;
 };
 
@@ -118,7 +129,6 @@ private:
     static void ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLen, unsigned char* pBuf2NA, size_t nBuf2NASize );
 
     bool                m_positional;
-    std::string         m_query;
     union NucStrstr*    m_nss;
 };
 
@@ -128,10 +138,11 @@ public:
     SmithWatermanSearch ( const std::string& p_query, uint8_t p_minScorePct );
     virtual ~SmithWatermanSearch ();
 
+    virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
+
     virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
 
 private:
-    const char*             m_query;
     size_t                  m_querySize;
     size_t                  m_matrixSize;
     uint8_t                 m_minScorePct;

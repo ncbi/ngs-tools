@@ -27,20 +27,30 @@
 #ifndef _hpp_reference_match_iterator_
 #define _hpp_reference_match_iterator_
 
-#include <ngs/ReferenceIterator.hpp>
-#include "matchiterator.hpp"
+#include <vector>
+#include <ngs/ReadCollection.hpp>
+#include "fragmentmatchiterator.hpp"
 
 class ReferenceMatchIterator : public MatchIterator
 {
 public:
-    ReferenceMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession );
+    typedef std :: vector < std :: string > ReferenceNames;
+
+public:
+    ReferenceMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, const ReferenceNames& p_references = ReferenceNames() );
 
     virtual ~ReferenceMatchIterator ();
 
     virtual SearchBuffer* NextBuffer ();
 
 private:
-    ngs :: ReferenceIterator m_iter;
+    ngs :: ReadCollection   m_run;
+
+    ReferenceNames                      m_references;
+    ReferenceNames :: const_iterator    m_refIt;
+
+    FragmentMatchIterator   m_unalignedReadIt;
+    bool                    m_readsDone;
 };
 
 #endif

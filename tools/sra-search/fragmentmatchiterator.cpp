@@ -30,6 +30,7 @@
 
 #include "searchbuffer.hpp"
 
+using namespace std;
 using namespace ngs;
 
 //////////////////// FragmentSearchBuffer
@@ -48,7 +49,7 @@ public:
     {
         if ( ! m_done )
         {
-            StringRef bases = m_fragment.getFragmentBases();
+            StringRef bases = m_fragment . getFragmentBases();
             if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
             {
                 p_fragmentId = m_fragment . getFragmentId () . toString ();
@@ -71,10 +72,10 @@ private:
 
 //////////////////// FragmentMatchIterator
 
-FragmentMatchIterator :: FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession )
+FragmentMatchIterator :: FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, ngs :: Read :: ReadCategory p_categories )
 :   MatchIterator ( p_factory, p_accession ),
     m_coll ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
-    m_readIt ( m_coll . getReads ( Read :: all ) )
+    m_readIt ( m_coll . getReads ( p_categories ) )
 {
     m_readIt . nextRead ();
 }

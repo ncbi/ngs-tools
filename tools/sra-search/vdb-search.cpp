@@ -229,7 +229,7 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         if ( m_settings . m_referenceDriven )
         {
-            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i ) );
+            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references ) );
         }
         else if ( m_settings . m_useBlobSearch )
         {

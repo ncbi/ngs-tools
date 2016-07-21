@@ -77,6 +77,7 @@ public:
         unsigned int                m_threads;          // default 2
         bool                        m_useBlobSearch;    // default true
         bool                        m_referenceDriven;  // default false
+        std::vector < std::string > m_references;   // default empty (all references)
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );

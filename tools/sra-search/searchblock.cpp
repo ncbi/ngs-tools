@@ -42,20 +42,21 @@ using namespace ngs;
 //////////////////// SearchBlock subclasses
 
 FgrepSearch :: FgrepSearch ( const string& p_query, Algorithm p_algorithm )
+: SearchBlock ( p_query )
 {
-    m_query[0] = p_query . c_str(); // this object will not outlive it master who owns the query string
+    m_queries[0] = m_query . c_str();
 
     rc_t rc = 0;
     switch ( p_algorithm )
     {
     case FgrepDumb:
-        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_DUMB, m_query, 1 );
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_DUMB, m_queries, 1 );
         break;
     case FgrepBoyerMoore:
-        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_BOYERMOORE, m_query, 1 );
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_BOYERMOORE, m_queries, 1 );
         break;
     case FgrepAho:
-        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_AHOCORASICK, m_query, 1 );
+        rc = FgrepMake ( & m_fgrep, FGREP_MODE_ACGT | FGREP_ALG_AHOCORASICK, m_queries, 1 );
         break;
     default:
         throw ( ErrorMsg ( "FgrepSearch: unsupported algorithm" ) );
@@ -85,24 +86,23 @@ FgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
 }
 
 AgrepSearch :: AgrepSearch ( const string& p_query, Algorithm p_algorithm, uint8_t p_minScorePct )
-: m_minScorePct ( p_minScorePct )
+:   SearchBlock ( p_query ),
+    m_minScorePct ( p_minScorePct )
 {
-    m_query = p_query . c_str(); // this object will not outlive it master who owns the query string
-
     rc_t rc = 0;
     switch ( p_algorithm )
     {
     case AgrepDP:
-        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_DP, m_query );
+        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_DP, m_query . c_str() );
         break;
     case AgrepWuManber:
-        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_WUMANBER, m_query );
+        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_WUMANBER, m_query . c_str() );
         break;
     case AgrepMyers:
-        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_MYERS, m_query );
+        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_MYERS, m_query . c_str() );
         break;
     case AgrepMyersUnltd:
-        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_MYERS_UNLTD, m_query );
+        rc = AgrepMake ( & m_agrep, AGREP_MODE_ASCII | AGREP_ALG_MYERS_UNLTD, m_query . c_str() );
         break;
     default:
         throw ( ErrorMsg ( "AgrepSearch: unsupported algorithm" ) );
@@ -123,7 +123,7 @@ AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
 {
     AgrepMatch matchinfo;
     bool ret = AgrepFindFirst ( m_agrep,
-                                strlen ( m_query ) * ( 100 - m_minScorePct ) / 100, // 0 = perfect match
+                                m_query . size () * ( 100 - m_minScorePct ) / 100, // 0 = perfect match
                                 p_bases,
                                 p_size,
                                 & matchinfo ) != 0;
@@ -136,8 +136,8 @@ AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
 }
 
 NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional, bool p_useBlobSearch )
-:   m_positional ( p_positional || p_useBlobSearch ), // always use positional mode when searching blob-by-blob since it is the only one reporting position of the match
-    m_query ( p_query )
+:   SearchBlock ( p_query ),
+    m_positional ( p_positional || p_useBlobSearch ) // always use positional mode when searching blob-by-blob since it is the only one reporting position of the match
 {
     rc_t rc = NucStrstrMake ( &m_nss, m_positional ? 1 : 0, m_query . c_str (), m_query . size () );
     if ( rc != 0 )
@@ -217,12 +217,11 @@ NucStrstrSearch :: ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLe
 }
 
 SmithWatermanSearch :: SmithWatermanSearch ( const string& p_query, uint8_t p_minScorePct )
-:   m_query ( p_query . c_str() ),
-    m_querySize ( p_query . size() ),
+:   SearchBlock ( p_query ),
     m_matrixSize ( 0 ),
     m_minScorePct ( p_minScorePct )
 {
-    rc_t rc = SmithWatermanMake ( &m_sw, p_query . c_str() );
+    rc_t rc = SmithWatermanMake ( &m_sw, m_query . c_str() );
     if ( rc != 0 )
     {
         throw ( ErrorMsg ( "SmithWatermanMake() failed" ) );
@@ -238,7 +237,7 @@ bool
 SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd )
 {
     SmithWatermanMatch matchinfo;
-    unsigned int scoreThreshold = ( m_querySize * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
+    unsigned int scoreThreshold = ( m_query . size () * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
     rc_t rc = SmithWatermanFindFirst ( m_sw, scoreThreshold, p_bases, p_size, & matchinfo );
     if ( rc == 0 )
     {
