@@ -312,6 +312,9 @@ class FastQData:
                     , sequence_2d, quality_2d
                     , channel, readno, hiQ)
                         
+            #errMsg = "pore-tools did not read any sequence data from '{}'".format(os.path.basename(fname))
+            #gw.errorMessage(errMsg)
+            #sys.stderr.write(errMsg+"\n")
             return None
         except:
             errMsg = "pore-tools reported an unspecific error while reading '{}'".format(os.path.basename(fname))
@@ -351,110 +354,65 @@ def isHDF5(fname):
         return False
 
 
-notRemoved = [] # because of errors
-goodCounter = 0
-skipCounter = 0
-badCounter = 0
+def ExtractToTemporary(tar, file):
+    extracted = tar.extractfile(file)
+    if extracted:
+        tmpname = os.path.join(workDir, os.path.basename(file.name))
+        try:
+            with open(tmpname, 'wb') as output:
+                output.write(extracted.read())
+            return tmpname
+        except:
+            pass
+    return None
 
-
-def eh_Silent(source, fname):
-    if fname: os.remove(fname)
-
-def eh_Report(source, fname):
-    sys.stderr.write("failed to process '{}'\n".format(source))
-    eh_Silent(source, fname)
-
-def eh_Keep(source, fname):
-    notRemoved.append(source)
-
-def eh_None(source, fname):
-    if __debug__:
-        eh_Keep(source, fname)
-    else:
-        eh_Silent(source, fname)
-
-errorHandler = eh_None
-if error == 'silent':
-    errorHandler = eh_Silent
-elif error == 'report':
-    errorHandler = eh_Report
-elif error == 'keep':
-    errorHandler = eh_Keep
-
-
-def ExtractAndProcess(f, source):
-    """ Extract file to the working directory and process it
-    """
-    global goodCounter
-    global badCounter
-
-    fname = os.path.join(workDir, source)
-    with open(fname, 'wb') as output:
-        output.write(f.read())
-
-    if not isHDF5(fname):
-        errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
-        gw.errorMessage(errMsg)
-        sys.stderr.write(errMsg+"\n")
-    elif ProcessFast5(fname):
-        goodCounter = goodCounter + 1
-        eh_Silent(source, fname)
-    else:
-        badCounter = badCounter + 1
-        errorHandler(source, fname)
-    
-
-processCounter = 0
-processStart = time.clock()
-nextReport = (processStart + showProgress) if showProgress > 0 else None
-
-def ProcessTarEntry(tar, entry):
-    name = entry.name
-    if entry.isfile() and name.endswith('.fast5'):
-        i = tar.extractfile(entry)
-        if i != None:
-            try:
-                ExtractAndProcess(i, os.path.basename(name))
-                return True
-            except:
-                pass
-    return False
 
 def ProcessTar(tar):
     """ Extract and process all fast5 files
     """
-    global processCounter
-    global nextReport
-    global goodCounter
-    global skipCounter
-    global badCounter
-
-    (saveGoodCounter, goodCounter) = (goodCounter, 0)
-    (saveSkipCounter, skipCounter) = (skipCounter, 0)
-    (saveBadCounter, badCounter) = (badCounter, 0)
-
-    count = 0
+    processCounter = 0
+    processStart = time.clock()
+    nextReport = (processStart + showProgress) if showProgress else None
+    results = dict()
 
     for f in tar:
-        if ProcessTarEntry(tar, f):
-            processCounter = processCounter + 1
-            now = time.clock()
-            if nextReport and now >= nextReport:
-                nextReport = nextReport + showProgress
-                sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
-                                 format(processCounter, processCounter/(now - processStart)))
-        else:
-            errorHandler(f.name, None)
-            skipCounter = skipCounter + 1
-        count = count + 1
+        result = None
+        name = f.name
+        if f.isfile() and name.endswith('.fast5'):
+            dir = os.path.dirname(name)
+            if dir not in results:
+                results[dir] = { 'good': [], 'fail': [] }
+            tmpname = ExtractToTemporary(tar, f)
+            if tmpname:
+                try:
+                    if isHDF5(tmpname):
+                        result = False
+                        if ProcessFast5(tmpname):
+                            result = True
+                finally:
+                    os.remove(tmpname)
 
-    if count > 0:
-        sys.stderr.write("Progress: {} good ({}%), {} skipped ({}%), {} bad ({}%)\n".
-                         format(goodCounter, int(goodCounter * 100 / count), skipCounter, int(skipCounter * 100 / count), badCounter, int(badCounter * 100 / count)))
+            if result == True:
+                results[dir]['good'].append(name)
+            else:
+                results[dir]['fail'].append(name)
+
+            now = time.clock()
+            processCounter += 1
+            if showProgress and now >= nextReport:
+                nextReport = now + showProgress
+                sys.stderr.write("Progress: processed {} files; {:0.1f} per sec.\n".
+                                 format(processCounter, processCounter/(now - processStart)))
+
     elapsed = time.clock() - processStart
-    sys.stderr.write("Progress: processed {} spots in {} secs, {} per sec.\n".
+    sys.stderr.write("Progress: processed {} files in {} secs, {:0.1f} per sec.\n".
                      format(processCounter, elapsed, processCounter/elapsed))
-    (goodCounter, badCounter, skipCounter) = (goodCounter + saveGoodCounter, badCounter + saveBadCounter, skipCounter + saveSkipCounter)
+
+    for f in results:
+        resultGood = len(results[f]['good'])
+        resultFail = len(results[f]['fail'])
+        total = resultGood + resultFail
+        sys.stderr.write("{}: pass: {} ({:4.1f}%)\tfail: {} ({:4.1f}%)\n".format(f, resultGood, 100.0 * resultGood / total, resultFail, 100.0 * resultFail / total))
 
 
 def which(f):
@@ -493,17 +451,7 @@ def main():
 
 
 def cleanup():
-    rmd = removeWorkDir
-    if len(notRemoved) != 0:
-        rmd = False
-        sys.stderr.write("Info: these files caused errors and were not removed "
-            "from the work space to aid in debugging:\n"
-            )
-        for f in notRemoved:
-            sys.stderr.write("Info:\t{}\n".format(f))
-
-    if rmd:
-        os.rmdir(workDir)
+    os.rmdir(workDir)
 
 
 main()
