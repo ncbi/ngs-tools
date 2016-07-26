@@ -34,7 +34,8 @@ include $(TOP)/build/Makefile.shell
 # default
 #
 SUBDIRS = \
-	sra-search \
+    ngs-vdb/src \
+	tools/sra-search \
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets
@@ -61,12 +62,12 @@ $(SUBDIRS_STD):
 #-------------------------------------------------------------------------------
 # install
 #
-install: 
+install:
 	@ echo "Checking make status of tools..."
 	@ $(MAKE) -s --no-print-directory TOP=$(CURDIR) std
 	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install install
 
-uninstall:    
+uninstall:
 	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install uninstall
 
 .PHONY: install uninstall
@@ -77,7 +78,7 @@ uninstall:
 COMPILERS = GCC CLANG
 ARCHITECTURES = i386 x86_64
 CONFIG = debug release
-PUBLISH = 
+PUBLISH =
 REPORTS = bindir targdir osdir config compilers architecture architectures
 PASSTHRUS = \
 	out \

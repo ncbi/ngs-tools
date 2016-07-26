@@ -25,18 +25,18 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = sra-search
+MODULE = ngs-vdb
 
 include $(TOP)/build/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-std: $(OBJDIR) $(BINDIR)
-	$(MAKE) $(BINDIR)/sra-search
+std: $(OBJDIR) $(ILIBDIR)
+	$(MAKE) $(ILIBDIR)/ngs-vdb
 
 clean:
-	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
-	$(MAKE) -C test clean
+	rm -f $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX)
+	#$(MAKE) -C test clean
 
 runtests: test
 
@@ -54,29 +54,19 @@ $(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
 #-------------------------------------------------------------------------------
 # sra-search
 #
-SRA_SEARCH_SRC = \
-    searchblock \
-	vdb-search \
-	main \
+NGS_VDB_SRC = \
+    FragmentBlob \
+    FragmentBlobIterator \
+    NGS-VDB \
+	VdbReadCollection \
 
-SRA_SEARCH_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
+NGS_VDB_OBJ = \
+	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(NGS_VDB_SRC)))
 
-SRA_SEARCH_LIBS = \
-    -L$(ILIBDIR)        \
-    -lngs-vdb           \
-    -L$(NGS_LIBDIR)     \
-    -L$(VDB_LIBDIR)     \
-    -lncbi-ngs-c++      \
-	-lncbi-vdb-static   \
-	-lngs-c++           \
-    -lpthread           \
-    -ldl
+$(ILIBDIR)/ngs-vdb: $(NGS_VDB_OBJ)
+	$(AR) $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX) $(NGS_VDB_OBJ)
 
-$(BINDIR)/sra-search: $(OBJDIR) $(BINDIR) $(SRA_SEARCH_OBJ)
-	$(LP) -o $@$(VERSION_EXEX) $(SRA_SEARCH_OBJ) $(SRA_SEARCH_LIBS)
-	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
-	ln -sf $(@F)$(MAJVERS_EXEX) $@
+.PHONY: $(ILIBDIR)/ngs-vdb
 
 #-------------------------------------------------------------------------------
 # testing

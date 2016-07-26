@@ -1,4 +1,29 @@
 #!/opt/python-3.4/bin/python
+#===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+#===========================================================================
+#
+#
 
 """
 fastq-load.py --output=<archive path> <other options> <fastq files> | general-loader
@@ -48,21 +73,22 @@ Options:
 
     platform:      454, Pacbio, Illumina, ABI, etc.
 
-    readLabels:    Rev, Fwd, Barcode, etc., comma-separated
+    readLabels:    Rev, Fwd, Barcode, etc., comma-separated (no whitespaces)
 
     mixedDeflines: Indicates mixed defline types exist in one of the fastq files.
                    Results in slower processing of deflines.
 
     schema:        Set vdb schema to use during load
 
-    xml-log:       XML version of stderr output
+    z|xml-log:     XML version of stderr output
 
     h|help:        Displays this message
 
-Multi-line sequence and quality for a spot must occupy the same number of lines
+    V|version:     Displays version of fastq-load.py
 
-Provide read1 and read2 lists if pairing of files is necessary and orphan reads exist.
-If both reads exist in the same file, put the same filename in both lists.
+You may have to provide read1 and read2 lists if pairing of files is necessary and
+orphan reads exist. If both reads exist in the same file, put the same filename 
+in both lists.
 
 Assumes that first read number is 1
 
@@ -85,13 +111,6 @@ import re
 import copy
 import gzip
 import datetime
-#import time
-#import bz2
-#import shutil
-#import string
-#import tempfile
-##if __debug__:
-##     import traceback
 
 ############################################################
 # Environment globals
@@ -129,8 +148,9 @@ Usage: fastq-load.py\n
           [ --maxErrorCount=<count>   (optional) ]
           [ --mixedDeflines           (optional) ]
           [ --schema=<string>         (optional) ]
-          [ --xml-log=<string>        (optional) ]
+          [ -z|--xml-log=<string>     (optional) ]
           [ -h|--help                 (optional) ]
+          [ -V|--version              (optional) ]
           [ fastq-file(s)                        ]
 
 """
@@ -146,10 +166,10 @@ Usage: fastq-load.py\n
 
 class StatusWriter:
     """ Outputs status to stderr and optionally to an xml log file """
-    def __init__(self):
+    def __init__(self, vers):
+        self.vers = vers
         self.xmlLogHandle = None
         self.pid = os.getpid()
-        self.vers = "1.0.0"
         
     ############################################################
     # Open xml log file if provided
@@ -174,31 +194,34 @@ class StatusWriter:
     # Output status message
     ############################################################
     def outputInfo ( self, message ):
+        dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<info app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.write('<info app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
-        sys.stderr.write("Info: {}\n".format(message) )
+        sys.stderr.write("{} fastq-load.py.{} info: {}\n".format(dateTime,self.vers,message) )
         sys.stderr.flush()
 
     ############################################################
     # Output status message
     ############################################################
     def outputWarning ( self, message ):
+        dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<warning app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.write('<warning app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
-        sys.stderr.write("Warning: {}\n".format(message) )
+        sys.stderr.write("{} fastq-load.py.{} warn: {}\n".format(dateTime,self.vers,message) )
         sys.stderr.flush()
 
     ############################################################
     # Output status message and exit
     ############################################################
     def outputErrorAndExit (self, message):
+        dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<error app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,self.getTime(),self.vers));
+            self.xmlLogHandle.write('<error app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
             self.closeXmlLog()
-        sys.exit( "\nError: {}\n\n".format(message) )
+        sys.exit( "\n{} fastq-load.py.{} Error: {}\n\n".format(dateTime,self.vers,message) )
 
     ############################################################
     # Escape message (wrote my own instead of importing sax escape)
@@ -1699,8 +1722,7 @@ class Qual:
                     if int(qualSubString) > self.maxQual:
                         self.maxQual = int(qualSubString)
                     self.length += 1
-                    if ( self.minQual > 100 or
-                         self.maxQual > 100 ):
+                    if self.maxQual > 100:
                         sys.exit( "Numerical quality is too high  ... {}".format(self.qual) )
                 else:
                     self.length = 0
@@ -2708,8 +2730,7 @@ class FastqSpotWriter():
         
         if self.platformString == "NANOPORE":
             if self.nanopore2Donly:
-                self.db = 'NCBI:SRA:GenericFastqNanoporeConsensusOnly:db'
-                del self.tbl['SEQUENCE']
+                self.db = 'NCBI:SRA:GenericFastqNanopore:db' # still need sequence table
             else:
                 self.setReadLabels("template,complement")
                 self.orphanReads = True
@@ -2773,6 +2794,9 @@ class FastqSpotWriter():
     ############################################################
     
     def setUnchangingSpotValues(self,fastq1,fastq2):
+
+        if self.platformString:
+            self.dst['PLATFORM']['data'] = self.platform
 
         # Handle recognized nanopore data somewhat differently
         
@@ -3371,9 +3395,6 @@ class FastqSpotWriter():
         if self.spotGroupProvided:
             dst['SPOT_GROUP']['data'] = self.spotGroup.encode('ascii')
         elif fastq.defline.spotGroup:
-            if ( fastq2 and
-                 fastq.defline.spotGroup != fastq2.defline.spotGroup ):
-                self.statusWriter.outputErrorAndExit( "Paired reads haved different barcodes. Perhaps reload with '--spotGroup' specified" )
             dst['SPOT_GROUP']['data'] = fastq.defline.spotGroup.encode('ascii')
         else:
             dst['SPOT_GROUP']['data'] = ''.encode('ascii')
@@ -3683,21 +3704,15 @@ def processArguments():
                 sw.setSchema ( arg[9:] )
             elif arg[2:10] == 'xml-log=':
                 statusWriter.setXmlLog( arg[10:] )
-##            elif arg[2:] == 'setClips':
-##                sw.setClips = True
-##            elif arg[2:] == 'eightLine':
-##                sw.isEightLine = True
-##            elif arg[2:17] == 'read1QualFiles=':
-##                sw.read1QualFiles = arg[17:]
-##            elif arg[2:17] == 'read2QualFiles=':
-##                sw.read2QualFiles = arg[17:]
-##            elif arg[2:14] == 'concatFiles=':
-##                sw.concatFiles = arg[14:]
-##            elif arg[2:11] == 'progress=':
-##                showProgress = eval ( arg[11:] )
+            elif arg[1:2] == 'z=':
+                statusWriter.setXmlLog( arg[2:] )
             elif ( arg[2:] == 'help' or
                    arg[1:] == 'h'):
                 usage(None,0)
+            elif ( arg[2:] == 'version' or
+                   arg[1:] == 'V'):
+                sys.stderr.write("\nfastq-load.py.{}\n\n".format(version))
+                exit(0)
             else:
                 usage( "Unrecognized option ... " + arg, 1 )
         else:
@@ -4782,10 +4797,11 @@ def generateArchive():
 # Execute generic fastq loader
 ############################################################
 
+version = "1.0.0"
 profile = False
 sys.stdout = os.fdopen(sys.stdout.fileno(), 'wb')
 sw = FastqSpotWriter()
-statusWriter = StatusWriter()
+statusWriter = StatusWriter(version)
 sw.statusWriter = statusWriter
 processArguments()
 

@@ -487,42 +487,19 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 }
 #endif
 
-/* TODO
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
-    // sorted in order accession, read#, frag#
-    // accessions sort in the order they were added (in this case sra2, sra1)
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434",   NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", NextFragmentId () );
-
-
-    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // now, let all the threads finish
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+    }
 }
-*/
 
 //TODO: stop multi-threaded search before the end
 
