@@ -28,6 +28,8 @@
 #define _hpp_reference_match_iterator_
 
 #include <vector>
+#include <set>
+
 #include <ngs/ReadCollection.hpp>
 #include "fragmentmatchiterator.hpp"
 
@@ -35,6 +37,7 @@ class ReferenceMatchIterator : public MatchIterator
 {
 public:
     typedef std :: vector < std :: string > ReferenceNames;
+    typedef std :: set < std :: string > ReportedFragments;
 
 public:
     ReferenceMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, const ReferenceNames& p_references = ReferenceNames() );
@@ -51,6 +54,8 @@ private:
 
     FragmentMatchIterator   m_unalignedReadIt;
     bool                    m_readsDone;
+
+    ReportedFragments m_reported; // used to eliminate double reports
 };
 
 #endif

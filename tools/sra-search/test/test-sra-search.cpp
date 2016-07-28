@@ -51,7 +51,7 @@ using namespace ncbi::NK;
 using namespace ngs;
 
 TEST_SUITE(SraSearchTestSuite);
-#if 0
+
 // SearchBlock
 
 TEST_CASE ( FgrepDumb )
@@ -135,7 +135,7 @@ TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
-#endif
+
 // VdbSearch
 
 class VdbSearchFixture
@@ -217,7 +217,7 @@ public:
     string m_accession;
     string m_fragment;
 };
-#if 0
+
 //TODO: bad query string
 //TODO: bad accession name
 
@@ -443,65 +443,16 @@ FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
     REQUIRE_EQ ( 12u, count );
 }
 
-#if TOO_SLOW_FOR_A_UNIT_TEST
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
-{
-    const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
-
-    set <string> frags;
-    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
-    {
-        frags.insert(m_fragment);
-    }
-
-    set <string> :: const_iterator it = frags . begin ();
-
-    // this is a straight up alphanumerical sort, so the order here is not quite the same as one would expect (accession/read#/frag#)
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",  *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   *it++ );
-
-    REQUIRE ( it == frags . end () );
-}
-#endif
-
 FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, false );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    CHECK_EQ ( Sra1 + ".FR1.101989",  m_fragment );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
-    // now, let all the threads finish
-    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
-    {
-    }
+    CHECK_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // stop multi-threaded search before the end by destroying the VdbSearch object
 }
-
-//TODO: stop multi-threaded search before the end
 
 // Reference-driven mode
 
@@ -544,9 +495,7 @@ FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
     delete buf;
 }
 
-#endif
-
-FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences, VdbSearchFixture )
+FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates, VdbSearchFixture )
 {
     SetupWithReference ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
 /*
@@ -554,45 +503,19 @@ SRR600094.FR1.101989
 SRR600094.FR0.101990
 SRR600094.FR0.101991
 SRR600094.FR0.324216    Not reported in reference mode b/c matches are in clipped portions of the read
-SRR600094.FR0.1053648
 SRR600094.FR1.1053649
-SRR600094.FR0.1053650
-SRR600094.FR0.1053651
-SRR600094.FR0.1053652
-SRR600094.FR1.1053653
-SRR600094.FR0.1561682
-SRR600094.FR1.1561683
-SRR600094.FR0.1667877   Not reported in reference mode b/c matches are in the clipped portion of the read
-SRR600094.FR0.2625526
-SRR600094.FR1.2625553
-SRR600094.FR0.2805749
+etc
 */
-
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
-            REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment ); //TODO: remove duplicates
-            REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment ); // used to be duplicates
+            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
-            REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
-        REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
-        REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1561682" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1561683" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.2625526" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.2625553" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.2805749" ),  m_fragment );
-
-    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
 }
 
 //TODO: reference mode on a non-CSRA object
-//TODO: no double-reporting of fragments (may be related to how far we advance the refrence position after a match has been found and processed)
 //TODO: circular references
 
 int

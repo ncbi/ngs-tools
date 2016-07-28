@@ -65,7 +65,7 @@ ReverseComplementDNA ( const string& p_source)
 class ReferenceSearchBuffer : public SearchBuffer
 {
 public:
-    ReferenceSearchBuffer ( SearchBlock* p_sb, const string& p_accession, const ReadCollection& p_run, const Reference& p_reference )
+    ReferenceSearchBuffer ( SearchBlock* p_sb, const string& p_accession, const ReadCollection& p_run, const Reference& p_reference, ReferenceMatchIterator :: ReportedFragments& p_reported )
     :   SearchBuffer ( p_sb, p_accession ),
         m_run ( p_run ),
         m_reference ( p_reference ),
@@ -74,7 +74,8 @@ public:
         m_refSearch ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
         m_refSearchReverse ( 0 ),
         m_alIt ( 0 ),
-        m_fragIt ( 0 )
+        m_fragIt ( 0 ),
+        m_reported ( p_reported )
     {
     }
 
@@ -142,8 +143,13 @@ public:
                         // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
                         if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
                         {
-                            p_fragmentId = m_fragIt -> getFragmentId () . toString ();
-                            return true;
+                            string fragId = m_fragIt -> getFragmentId () . toString ();
+                            if ( m_reported . find ( fragId ) == m_reported.end () )
+                            {
+                                m_reported . insert ( fragId );
+                                p_fragmentId = fragId;
+                                return true;
+                            }
                         }
                     }
                     // no (more) matches on this read
@@ -180,6 +186,8 @@ private:
 
     AlignmentIterator* m_alIt;
     FragmentIterator*  m_fragIt;
+
+    ReferenceMatchIterator :: ReportedFragments& m_reported; // all fragments reported for the parent ReferenceMatchIterator, to eliminate double reports
 };
 
 //////////////////// ReferenceMatchIterator
@@ -212,7 +220,7 @@ ReferenceMatchIterator :: NextBuffer ()
     if ( m_refIt != m_references . end () )
     {
         //cout << "Searching on " << *m_refIt << endl;
-        ReferenceSearchBuffer* ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, m_run, m_run . getReference ( *m_refIt ) );
+        ReferenceSearchBuffer* ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, m_run, m_run . getReference ( *m_refIt ), m_reported );
         ++ m_refIt;
         return ret;
     }

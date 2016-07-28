@@ -28,4 +28,5 @@ Options:
   --nothreads               Single-threaded mode
   --threadperacc            One thread per accession mode (by default, multiple threads per accession)
   --sort                    Sort output by accession/read/fragment
+  --reference               Scan references for potential matches
 

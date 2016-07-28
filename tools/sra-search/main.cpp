@@ -162,6 +162,7 @@ static void handle_help ( const char * appName )
          << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
+         << "  --reference               Scan references for potential matches" << endl
          ;
 
     cout << endl;
@@ -255,6 +256,10 @@ main( int argc, char *argv [] )
             else if ( arg == "--sort" )
             {
                 sortOutput = true;
+            }
+            else if ( arg == "--reference" )
+            {
+                settings . m_referenceDriven = true;
             }
             else
             {

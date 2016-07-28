@@ -122,7 +122,6 @@ if ( NOT WIN32)
 	# multiple runs, thread per blob
 	add_test ( NAME SraSearchSlow-7.3-threads-multiple WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.3-threads-multiple --sort --args "ACGTAGGGTCC --threads 2 SRR600094 SRR600095 SRR600096 SRR600099" )
-
 	# sorting the output
 	add_test ( NAME SraSearchSlow-7.4-threads-sort WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.4-threads-sort --args "ACGTAGGGTCC --threads 4 SRR600096 SRR600095 --sort" )
@@ -130,5 +129,9 @@ if ( NOT WIN32)
 	# nothing found
 	add_test ( NAME SraSearchSlow-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC --nothreads SRR000001" )
+
+	# reference mode
+	add_test ( NAME SraSearchSlow-9.0-reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 9.0-reference --args "ACGTAGGGTCC SRR600094 --reference" )
 
 endif ()
