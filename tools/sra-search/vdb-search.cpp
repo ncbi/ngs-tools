@@ -124,9 +124,12 @@ struct VdbSearch :: SearchThreadBlock
     KLock* m_searchQueueLock;
     VdbSearch :: SearchQueue& m_search;
     VdbSearch :: OutputQueue& m_output;
+    bool m_quitting;
 
     SearchThreadBlock ( SearchQueue& p_search, OutputQueue& p_output )
-    : m_search ( p_search ), m_output ( p_output )
+    :   m_search ( p_search ),
+        m_output ( p_output ),
+        m_quitting ( false )
     {
         rc_t rc = KLockMake ( & m_searchQueueLock );
         if ( rc != 0 )
@@ -167,7 +170,8 @@ VdbSearch :: Settings :: Settings ()
     m_minScorePct ( 100 ),
     m_threads ( 2 ),
     m_useBlobSearch ( true ),
-    m_referenceDriven ( false )
+    m_referenceDriven ( false ),
+    m_maxMatches ( 0 )
 {
 }
 
@@ -216,7 +220,8 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     m_sbFactory ( m_settings ),
     m_buf ( 0 ),
     m_output ( 0 ),
-    m_searchBlock ( 0 )
+    m_searchBlock ( 0 ),
+    m_matchCount ( 0 )
 {
     if ( m_settings . m_useBlobSearch && m_settings . m_algorithm == VdbSearch :: SmithWaterman )
     {
@@ -244,21 +249,26 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
 
 VdbSearch :: ~VdbSearch ()
 {
+    // make sure all threads are gone before we release shared objects
+    if ( m_searchBlock != 0 )
+    {
+        m_searchBlock -> m_quitting = true;
+        for ( ThreadPool :: iterator i = m_threadPool . begin (); i != m_threadPool. end (); ++i )
+        {
+            //KThreadCancel ( *i ); does not work too well, instead using m_searchBlock -> m_quitting to command threads to exit orderly
+            KThreadWait  ( *i, 0 );
+            KThreadRelease ( *i );
+        }
+        delete m_searchBlock;
+    }
+
     while ( ! m_searches . empty () )
     {
         delete m_searches . front ();
         m_searches . pop ();
     }
 
-    // make sure all threads are gone before we release shared objects
-    for ( ThreadPool :: iterator i = m_threadPool . begin (); i != m_threadPool. end (); ++i )
-    {
-        KThreadCancel ( *i );
-        KThreadWait  ( *i, 0 );
-        KThreadRelease ( *i );
-    }
     delete m_buf;
-    delete m_searchBlock;
     delete m_output;
 }
 
@@ -279,7 +289,7 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
     assert ( sb . m_searchQueueLock );
 
-    while ( true )
+    while ( ! sb . m_quitting )
     {
         KLockAcquire ( sb . m_searchQueueLock );
         if ( sb . m_search . empty () )
@@ -295,13 +305,17 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
 
         string fragmentId;
         SearchBuffer* buf = it -> NextBuffer();
-        while ( buf != 0 )
+        while ( buf != 0 && ! sb . m_quitting )
         {
-            while ( buf -> NextMatch ( fragmentId ) )
+            while ( ! sb . m_quitting && buf -> NextMatch ( fragmentId ) )
             {
                 sb . m_output . Push ( buf -> AccessionName (), fragmentId );
             }
             delete buf;
+            if ( sb . m_quitting )
+            {
+                break;
+            }
             buf = it -> NextBuffer();
         }
         delete it;
@@ -323,7 +337,7 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
         KLockUnlock ( sb . m_searchQueueLock );
     }
 
-    while ( true )
+    while ( ! sb . m_quitting )
     {
         KLockAcquire ( sb . m_searchQueueLock );
         if ( VdbSearch :: logResults )
@@ -339,7 +353,7 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
                 cout << "Thread " << (void*)self << " NextBuffer()" << endl;
             }
             buf = sb . m_search . front () -> NextBuffer();
-            while ( buf == 0 )
+            while ( buf == 0 && ! sb . m_quitting )
             {   // no more blobs, discard the accession
                 delete sb . m_search . front ();
                 sb . m_search . pop ();
@@ -355,31 +369,51 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
             }
         }
         KLockUnlock ( sb . m_searchQueueLock );
-        if ( buf == 0 )
+
+        if ( sb . m_quitting )
         {
             if ( VdbSearch :: logResults )
             {
-                cout << "Thread " << (void*)self << " done" << endl;
+                KLockAcquire ( sb . m_searchQueueLock );
+                cout << "Thread " << (void*)self << " cancelled" << endl;
+                KLockUnlock ( sb . m_searchQueueLock );
             }
             break;
         }
-
-        string id;
-        id = buf->BufferId();
-        if ( VdbSearch :: logResults )
+        else
         {
-            cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " unlocked " << id << endl;
-        }
+            if ( buf == 0 )
+            {
+                if ( VdbSearch :: logResults )
+                {
+                    KLockAcquire ( sb . m_searchQueueLock );
+                    cout << "Thread " << (void*)self << " done" << endl;
+                    KLockUnlock ( sb . m_searchQueueLock );
+                }
+                break;
+            }
 
-        string fragmentId;
-        while ( buf -> NextMatch ( fragmentId ) )
-        {
-            sb . m_output . Push ( buf -> AccessionName (), fragmentId );
-        }
+            string id;
+            id = buf->BufferId();
+            if ( VdbSearch :: logResults )
+            {
+                KLockAcquire ( sb . m_searchQueueLock );
+                cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " unlocked " << id << endl;
+                KLockUnlock ( sb . m_searchQueueLock );
+            }
 
-        if ( VdbSearch :: logResults )
-        {
-            cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " deleted" << endl;
+            string fragmentId;
+            while ( ! sb . m_quitting && buf -> NextMatch ( fragmentId ) )
+            {
+                sb . m_output . Push ( buf -> AccessionName (), fragmentId );
+            }
+
+            if ( VdbSearch :: logResults )
+            {
+                KLockAcquire ( sb . m_searchQueueLock );
+                cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << ( sb . m_quitting ? " cancelled" : " deleted" ) << endl;
+                KLockUnlock ( sb . m_searchQueueLock );
+            }
         }
         delete buf;
     }
@@ -391,6 +425,11 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
 bool
 VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
 {
+    if ( m_settings . m_maxMatches != 0 && m_matchCount >= m_settings . m_maxMatches )
+    {
+        return false;
+    }
+
     if ( m_settings . m_referenceDriven )
     {   // reference-driven mode, always single threaded for now
         while ( ! m_searches . empty () )
@@ -405,6 +444,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
                 if (m_buf->NextMatch(p_fragmentId))
                 {
                     p_accession = m_buf->AccessionName();
+                    ++m_matchCount;
                     return true;
                 }
                 delete m_buf;
@@ -416,9 +456,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
         }
         return false;
     }
-
-    // sequence-driven mode
-    if ( m_settings . m_threads > 0 )
+    else if ( m_settings . m_threads > 0 ) // fragment-driven mode, multi-threaded
     {
         if ( m_output == 0 ) // first call to NextMatch() - set up
         {
@@ -444,11 +482,15 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
         }
 
         // block until a result appears on the output queue or all searches are marked as completed
-        bool ret = m_output -> Pop ( p_accession, p_fragmentId );
-        return ret;
+        if ( m_output -> Pop ( p_accession, p_fragmentId ) )
+        {
+            ++m_matchCount;
+            return true;
+        }
+        return false;
     }
     else
-    {   // no threads, return one result at a time
+    {   // fragment-driven, no threads, return one result at a time
         while ( ! m_searches . empty () )
         {
             if (m_buf == 0)
@@ -461,6 +503,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
                 if (m_buf->NextMatch(p_fragmentId))
                 {
                     p_accession = m_buf->AccessionName();
+                    ++m_matchCount;
                     return true;
                 }
                 delete m_buf;

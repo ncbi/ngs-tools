@@ -131,10 +131,13 @@ BlobMatchIterator :: ~BlobMatchIterator ()
 SearchBuffer*
 BlobMatchIterator :: NextBuffer ()
 {
+    KLockAcquire ( m_accessionLock );
+    SearchBuffer* ret = 0;
     if ( m_blobIt . hasMore () )
     {
-        return new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
+        ret =  new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
     }
-    return 0;
+    KLockUnlock ( m_accessionLock );
+    return ret;
 }
 

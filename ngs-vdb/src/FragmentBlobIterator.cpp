@@ -111,7 +111,7 @@ FragmentBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
     }
     if ( blob == 0 )
     {
-        throw :: ngs :: ErrorMsg( "No more blobs ");
+        throw :: ngs :: ErrorMsg( "No more blobs" );
     }
     return FragmentBlob ( blob );
 }

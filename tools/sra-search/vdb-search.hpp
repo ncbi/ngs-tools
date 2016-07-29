@@ -77,7 +77,8 @@ public:
         unsigned int                m_threads;          // default 2
         bool                        m_useBlobSearch;    // default true
         bool                        m_referenceDriven;  // default false
-        std::vector < std::string > m_references;   // default empty (all references)
+        std::vector < std::string > m_references;       // default empty (all references)
+        unsigned int                m_maxMatches;       // default 0 (unlimited)
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );
@@ -125,6 +126,8 @@ private:
     OutputQueue*                m_output;
     struct SearchThreadBlock*   m_searchBlock;
     ThreadPool                  m_threadPool;
+
+    unsigned int m_matchCount;
 };
 
 #endif

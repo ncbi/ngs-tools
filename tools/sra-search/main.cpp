@@ -163,6 +163,7 @@ static void handle_help ( const char * appName )
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
          << "  --reference               Scan references for potential matches" << endl
+         << "  -m|--max <number>         Stop after N matches" << endl
          ;
 
     cout << endl;
@@ -260,6 +261,21 @@ main( int argc, char *argv [] )
             else if ( arg == "--reference" )
             {
                 settings . m_referenceDriven = true;
+            }
+            else if ( arg == "-m" || arg == "--max" )
+            {
+                ++i;
+                if ( i >= argc )
+                {
+                    throw invalid_argument ( string ( "Missing argument for " ) + arg );
+                }
+                char* endptr;
+                int32_t maxMatches = strtoi32 ( argv [ i ], &endptr, 10 );
+                if ( *endptr != 0 || maxMatches <= 0 || errno == ERANGE )
+                {
+                    throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
+                }
+                settings . m_maxMatches = ( unsigned int ) maxMatches;
             }
             else
             {
