@@ -24,16 +24,14 @@
 *
 */
 
-#ifndef _hpp_VdbReadCollection_hpp_
-#define _hpp_VdbReadCollection_hpp_
+#ifndef _hpp_VdbReferenceIterator_hpp_
+#define _hpp_VdbReferenceIterator_hpp_
 
-
-#ifndef _hpp_ngs_read_collection_
-#include <ngs/ReadCollection.hpp>
+#ifndef _hpp_ngs_reference_iterator_
+#include <ngs/ReferenceIterator.hpp>
 #endif
 
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
-#include <ngs-vdb/inc/VdbReferenceIterator.hpp>
+#include <ngs-vdb/inc/VdbReference.hpp>
 
 namespace ncbi
 {
@@ -41,37 +39,27 @@ namespace ncbi
     {
         namespace vdb
         {
-            class VdbReadCollection : protected :: ngs :: ReadCollection
+            class VdbReferenceIterator : protected :: ngs :: ReferenceIterator
             {
             public:
 
-                :: ngs :: ReadCollection toReadCollection () const { return *this; }
+                :: ngs :: ReferenceIterator toReferenceIterator () const { return *this; }
 
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
-
-                /* getReferences
-                *  returns an iterator of all References used
-                *  iterator will be empty if no Reads are aligned
-                */
-                VdbReferenceIterator getReferences () const throw ( :: ngs :: ErrorMsg );
-
-                /* getReference
-                */
-                VdbReference getReference ( const :: ngs :: String & spec ) const throw ( :: ngs :: ErrorMsg );
+                VdbReference nextReference () throw ( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
+                VdbReferenceIterator ( :: ngs :: ReferenceIterator dad )
                     throw ();
 
-                VdbReadCollection & operator = ( const VdbReadCollection & obj )
+                VdbReferenceIterator & operator = ( const VdbReferenceIterator & obj )
                     throw ();
-                VdbReadCollection ( const VdbReadCollection & obj )
+                VdbReferenceIterator ( const VdbReferenceIterator & obj )
                     throw ();
 
-                ~ VdbReadCollection ()
+                ~ VdbReferenceIterator ()
                     throw ();
 
             };
@@ -79,4 +67,4 @@ namespace ncbi
     }
 } // ncbi
 
-#endif // _hpp_VdbReadCollection_hpp_
+#endif

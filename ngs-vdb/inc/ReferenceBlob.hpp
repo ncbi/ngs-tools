@@ -24,16 +24,12 @@
 *
 */
 
-#ifndef _hpp_VdbReadCollection_hpp_
-#define _hpp_VdbReadCollection_hpp_
+#ifndef _hpp_ReferenceBlob_hpp_
+#define _hpp_ReferenceBlob_hpp_
 
+#include <ngs/ErrorMsg.hpp>
 
-#ifndef _hpp_ngs_read_collection_
-#include <ngs/ReadCollection.hpp>
-#endif
-
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
-#include <ngs-vdb/inc/VdbReferenceIterator.hpp>
+typedef struct NGS_ReferenceBlob* ReferenceBlobRef;
 
 namespace ncbi
 {
@@ -41,39 +37,42 @@ namespace ncbi
     {
         namespace vdb
         {
-            class VdbReadCollection : protected :: ngs :: ReadCollection
+            class ReferenceBlob
             {
             public:
 
-                :: ngs :: ReadCollection toReadCollection () const { return *this; }
+                const char* Data() const
+                    throw ();
 
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
+                uint64_t Size() const
+                    throw ();
 
-                /* getReferences
-                *  returns an iterator of all References used
-                *  iterator will be empty if no Reads are aligned
-                */
-                VdbReferenceIterator getReferences () const throw ( :: ngs :: ErrorMsg );
+                void GetRowRange ( int64_t& first, uint64_t& count ) const
+                    throw ( :: ngs :: ErrorMsg );
 
-                /* getReference
-                */
-                VdbReference getReference ( const :: ngs :: String & spec ) const throw ( :: ngs :: ErrorMsg );
+                void ResolveOffset ( uint64_t inBlob, uint64_t& inReference, uint32_t& repeatCount, uint64_t& increment ) const
+                    throw ( :: ngs :: ErrorMsg );
+
+                bool FindRepeat ( uint64_t p_startInBlob, uint64_t& p_nextInBlob, uint64_t& p_inReference, uint32_t& p_repeatCount, uint64_t& p_increment ) const
+                    throw ( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
+                ReferenceBlob ( ReferenceBlobRef ref )
                     throw ();
 
-                VdbReadCollection & operator = ( const VdbReadCollection & obj )
-                    throw ();
-                VdbReadCollection ( const VdbReadCollection & obj )
+                ReferenceBlob & operator = ( const ReferenceBlob & obj )
+                    throw ( :: ngs :: ErrorMsg );
+                ReferenceBlob ( const ReferenceBlob & obj )
+                    throw ( :: ngs :: ErrorMsg );
+
+                ~ ReferenceBlob ()
                     throw ();
 
-                ~ VdbReadCollection ()
-                    throw ();
-
+            private:
+                ReferenceBlobRef self;
             };
         };
     }

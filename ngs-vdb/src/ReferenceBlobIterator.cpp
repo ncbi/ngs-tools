@@ -24,10 +24,10 @@
 *
 */
 
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
+#include <ngs-vdb/inc/ReferenceBlobIterator.hpp>
 
 #define __mod__     "NGS_VDB"
-#define __file__    "FragmentBlobIterator"
+#define __file__    "ReferenceBlobIterator"
 #define __fext__    "cpp"
 #include <kfc/ctx.h>
 
@@ -35,25 +35,25 @@
 
 #include <ngs/itf/ErrBlock.hpp>
 
-#include <../libs/ngs/NGS_FragmentBlobIterator.h>
+#include <../libs/ngs/NGS_ReferenceBlobIterator.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 
 using namespace ncbi :: ngs :: vdb;
 
-FragmentBlobIterator :: FragmentBlobIterator ( FragmentBlobIteratorRef ref ) throw ()
+ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) throw ()
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    self = NGS_FragmentBlobIteratorDuplicate ( ref, ctx);
+    self = NGS_ReferenceBlobIteratorDuplicate ( ref, ctx);
 }
 
-FragmentBlobIterator &
-FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator &
+ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_FragmentBlobIteratorRelease ( self, ctx) )
+    TRY ( NGS_ReferenceBlobIteratorRelease ( self, ctx) )
     {
-        self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx);
+        self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx);
     }
     if ( FAILED () )
     {
@@ -64,13 +64,13 @@ FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) throw ( 
     return *this;
 }
 
-FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_FragmentBlobIteratorRelease ( self, ctx) )
+    TRY ( NGS_ReferenceBlobIteratorRelease ( self, ctx) )
     {
-        self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx);
+        self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx);
     }
     if ( FAILED () )
     {
@@ -80,18 +80,18 @@ FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj 
     }
 }
 
-FragmentBlobIterator :: ~ FragmentBlobIterator () throw ()
+ReferenceBlobIterator :: ~ ReferenceBlobIterator () throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    NGS_FragmentBlobIteratorRelease ( self, ctx);
+    NGS_ReferenceBlobIteratorRelease ( self, ctx);
 }
 
 bool
-FragmentBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret = false;
-    ON_FAIL ( ret = NGS_FragmentBlobIteratorHasMore ( self, ctx ) )
+    ON_FAIL ( ret = NGS_ReferenceBlobIteratorHasMore ( self, ctx ) )
     {
         :: ngs :: ErrBlock err;
         NGS_ErrBlockThrow ( &err, ctx );
@@ -100,12 +100,12 @@ FragmentBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
     return ret;
 }
 
-FragmentBlob
-FragmentBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
+ReferenceBlob
+ReferenceBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    NGS_FragmentBlob* blob;
-    ON_FAIL ( blob = NGS_FragmentBlobIteratorNext ( self, ctx ) )
+    NGS_ReferenceBlob* blob;
+    ON_FAIL ( blob = NGS_ReferenceBlobIteratorNext ( self, ctx ) )
     {
         :: ngs :: ErrBlock err;
         NGS_ErrBlockThrow ( &err, ctx );
@@ -115,6 +115,6 @@ FragmentBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
     {
         throw :: ngs :: ErrorMsg( "No more blobs" );
     }
-    return FragmentBlob ( blob );
+    return ReferenceBlob ( blob );
 }
 

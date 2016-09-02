@@ -24,16 +24,12 @@
 *
 */
 
-#ifndef _hpp_VdbReadCollection_hpp_
-#define _hpp_VdbReadCollection_hpp_
+#ifndef _hpp_ReferenceBlobIterator_hpp_
+#define _hpp_ReferenceBlobIterator_hpp_
 
+#include <ngs-vdb/inc/ReferenceBlob.hpp>
 
-#ifndef _hpp_ngs_read_collection_
-#include <ngs/ReadCollection.hpp>
-#endif
-
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
-#include <ngs-vdb/inc/VdbReferenceIterator.hpp>
+typedef struct NGS_ReferenceBlobIterator* ReferenceBlobIteratorRef;
 
 namespace ncbi
 {
@@ -41,42 +37,37 @@ namespace ncbi
     {
         namespace vdb
         {
-            class VdbReadCollection : protected :: ngs :: ReadCollection
+
+            class ReferenceBlobIterator
             {
             public:
 
-                :: ngs :: ReadCollection toReadCollection () const { return *this; }
+                bool hasMore() const throw ( :: ngs :: ErrorMsg );
 
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
-
-                /* getReferences
-                *  returns an iterator of all References used
-                *  iterator will be empty if no Reads are aligned
-                */
-                VdbReferenceIterator getReferences () const throw ( :: ngs :: ErrorMsg );
-
-                /* getReference
-                */
-                VdbReference getReference ( const :: ngs :: String & spec ) const throw ( :: ngs :: ErrorMsg );
+                ReferenceBlob nextBlob() throw ( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
+                ReferenceBlobIterator ( ReferenceBlobIteratorRef ref )
                     throw ();
 
-                VdbReadCollection & operator = ( const VdbReadCollection & obj )
-                    throw ();
-                VdbReadCollection ( const VdbReadCollection & obj )
+                ReferenceBlobIterator & operator = ( const ReferenceBlobIterator & obj )
+                    throw ( :: ngs :: ErrorMsg );
+                ReferenceBlobIterator ( const ReferenceBlobIterator & obj )
+                    throw ( :: ngs :: ErrorMsg );
+
+                ~ ReferenceBlobIterator ()
                     throw ();
 
-                ~ VdbReadCollection ()
-                    throw ();
+            private:
+                ReferenceBlobIterator () throw ();
 
+                ReferenceBlobIteratorRef self;
             };
-        };
+        }
     }
 } // ncbi
 
-#endif // _hpp_VdbReadCollection_hpp_
+#endif

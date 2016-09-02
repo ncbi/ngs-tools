@@ -42,8 +42,10 @@
 using namespace ncbi :: ngs :: vdb;
 
 FragmentBlob :: FragmentBlob ( FragmentBlobRef ref ) throw ()
-: self ( ref )
+: self ( 0 )
 {
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    self = NGS_FragmentBlobDuplicate ( ref, ctx);
 }
 
 FragmentBlob &
