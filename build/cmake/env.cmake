@@ -108,7 +108,6 @@ elseif (WIN32)
     set ( SYS_LIBRARIES 
         ${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
-        ${CMAKE_STATIC_LIBRARY_PREFIX}mbedtls${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
         libngs-bind-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -222,8 +221,6 @@ if (NOT EXISTS ${VDB_ROOT})
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/mbedtls.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/mbedtls.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
@@ -271,8 +268,6 @@ else ()
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/mbedtls.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/mbedtls.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
