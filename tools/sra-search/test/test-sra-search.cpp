@@ -48,6 +48,8 @@ using namespace std;
 using namespace ncbi::NK;
 using namespace ngs;
 
+#define SHOW_UNIMPLEMENTED 0
+
 TEST_SUITE(SraSearchTestSuite);
 
 // SearchBlock
@@ -455,7 +457,22 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 }
 #endif
 
-FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_NoBlobs, VdbSearchFixture )
+{
+    const string Sra1 = "SRR600094";
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, false );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // now, let all the threads finish
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+    }
+}
+
+#if SHOW_UNIMPLEMENTED
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_BlobBased, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
     Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
@@ -468,6 +485,7 @@ FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
     {
     }
 }
+#endif
 
 //TODO: stop multi-threaded search before the end
 
