@@ -36,6 +36,7 @@
 #include <ngs/itf/ErrBlock.hpp>
 
 #include <../libs/ngs/NGS_ReferenceBlobIterator.h>
+#include <../libs/ngs/NGS_ReferenceBlob.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 
 using namespace ncbi :: ngs :: vdb;
@@ -115,6 +116,12 @@ ReferenceBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
     {
         throw :: ngs :: ErrorMsg( "No more blobs" );
     }
-    return ReferenceBlob ( blob );
+    ReferenceBlob ret ( blob );
+    ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
+    {
+        throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobRelease() failed" );
+    }
+    return ret;
+
 }
 

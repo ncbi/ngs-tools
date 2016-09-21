@@ -233,8 +233,8 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
         if ( m_settings . m_referenceDriven )
-        {
-            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references ) );
+        {   // no reference blob search for now
+            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, false ) );
         }
         else if ( m_settings . m_useBlobSearch )
         {

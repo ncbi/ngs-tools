@@ -24,10 +24,10 @@
 *
 */
 
-#include <ngs-vdb/inc/VdbReadCollection.hpp>
+#include <ngs-vdb/inc/VdbReference.hpp>
 
 #define __mod__     "NGS_VDB"
-#define __file__    "VdbReadCollection"
+#define __file__    "VdbReference"
 #define __fext__    "cpp"
 #include <kfc/ctx.h>
 
@@ -35,56 +35,49 @@
 
 #include <ngs/itf/ErrBlock.hpp>
 
-#include <../libs/ngs/NGS_ReadCollection.h>
+#include <../libs/ngs/NGS_Reference.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
-
-#include <../libs/ngs/NGS_FragmentBlobIterator.h>
 
 using namespace ncbi :: ngs :: vdb;
 
-VdbReadCollection :: VdbReadCollection ( :: ngs :: ReadCollection dad ) throw ()
-: :: ngs :: ReadCollection ( dad )
+VdbReference :: VdbReference ( :: ngs :: Reference dad ) throw ()
+: :: ngs :: Reference ( dad )
 {
 }
 
-VdbReadCollection &
-VdbReadCollection :: operator = ( const VdbReadCollection & obj ) throw ()
+VdbReference &
+VdbReference :: operator = ( const VdbReference & obj ) throw ()
 {
-    :: ngs :: ReadCollection :: operator = ( obj );
+    :: ngs :: Reference :: operator = ( obj );
     return *this;
 }
 
-VdbReadCollection :: VdbReadCollection ( const VdbReadCollection & obj ) throw ()
-: :: ngs :: ReadCollection ( obj )
+VdbReference :: VdbReference ( const VdbReference & obj ) throw ()
+: :: ngs :: Reference ( obj )
 {
 }
 
-VdbReadCollection :: ~ VdbReadCollection () throw ()
+VdbReference :: ~ VdbReference () throw ()
 {
 }
 
-class VdbReadCollectionItf : public ngs::ReadCollectionItf
+class VdbReferenceItf : public ngs::ReferenceItf
 {
 public:
-    inline NGS_ReadCollection * Self ()
+    inline NGS_Reference * Self ()
     {
-        return reinterpret_cast<NGS_ReadCollection*> ( ReadCollectionItf::Self() );
+        return reinterpret_cast<NGS_Reference*> ( ReferenceItf::Self() );
     }
 };
 
-FragmentBlobIterator
-VdbReadCollection :: getFragmentBlobs() const throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator
+VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
-    TRY ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) )
+    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx ) )
     {
-        FragmentBlobIterator ret ( iter );
-        ON_FAIL ( NGS_FragmentBlobIteratorRelease ( iter, ctx ) )
-        {
-            throw :: ngs :: ErrorMsg( "NGS_FragmentBlobIteratorRelease() failed" );
-        }
-        return ret;
+        return ReferenceBlobIterator ( iter );
     }
     :: ngs :: ErrBlock err;
     NGS_ErrBlockThrow ( &err, ctx );

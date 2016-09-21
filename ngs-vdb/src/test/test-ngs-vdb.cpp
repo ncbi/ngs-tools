@@ -86,7 +86,6 @@ public:
     const KCtx* m_ctx;  // points into the test case's local memory
 };
 
-
 class FragmentBlobFixture : public KfcFixture
 {
 public:
@@ -141,6 +140,7 @@ FIXTURE_TEST_CASE ( FragmentBlob_Create_Size, FragmentBlobFixture )
     {
         FragmentBlob b ( ref );
         REQUIRE_EQ ( (uint64_t)1080, b . Size() );
+        NGS_FragmentBlobRelease ( ref, ctx );
     }
 
     EXIT;
@@ -151,10 +151,20 @@ FIXTURE_TEST_CASE ( FragmentBlob_Assign, FragmentBlobFixture )
     ENTRY;
     MakeIterator ( ctx, SRA_Accession );
 
-    FragmentBlob b1 ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    FragmentBlob b2 ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    b1 = b2;
-    REQUIRE_EQ ( (uint64_t)913, b1 . Size() );
+    TRY ( NGS_FragmentBlob* ref1 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+    {
+        FragmentBlob b1 ( ref1 );
+        TRY ( NGS_FragmentBlob* ref2 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+        {
+            FragmentBlob b2 ( ref2 );
+            b1 = b2;
+            REQUIRE_EQ ( (uint64_t)913, b1 . Size() );
+
+            NGS_FragmentBlobRelease ( ref2, ctx );
+        }
+
+        NGS_FragmentBlobRelease ( ref1, ctx );
+    }
 
     EXIT;
 }
@@ -164,9 +174,14 @@ FIXTURE_TEST_CASE ( FragmentBlob_Copy, FragmentBlobFixture )
     ENTRY;
     MakeIterator ( ctx, SRA_Accession );
 
-    FragmentBlob b1 ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    FragmentBlob b2 ( b1 );
-    REQUIRE_EQ ( (uint64_t)1080, b2 . Size() );
+    TRY ( NGS_FragmentBlob* ref = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+    {
+        FragmentBlob b1 ( ref );
+        FragmentBlob b2 ( b1 );
+        REQUIRE_EQ ( (uint64_t)1080, b2 . Size() );
+
+        NGS_FragmentBlobRelease ( ref, ctx );
+    }
 
     EXIT;
 }
@@ -176,8 +191,13 @@ FIXTURE_TEST_CASE ( FragmentBlob_Data, FragmentBlobFixture )
     ENTRY;
     MakeIterator ( ctx, SRA_Accession );
 
-    FragmentBlob b ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    REQUIRE_EQ ( string ("TCAGAT"), string ( (const char*)b . Data(), 6 ) );
+    TRY ( NGS_FragmentBlob* ref = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+    {
+        FragmentBlob b ( ref );
+        REQUIRE_EQ ( string ("TCAGAT"), string ( (const char*)b . Data(), 6 ) );
+
+        NGS_FragmentBlobRelease ( ref, ctx );
+    }
 
     EXIT;
 }
@@ -187,16 +207,21 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetFragmentInfo_Biological, FragmentBlobFixture
     ENTRY;
     MakeIterator ( ctx, SRA_Accession );
 
-    FragmentBlob b ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    std::string fragId;
-    uint64_t startInBlob = 0;
-    uint64_t lengthInBases = 0;
-    bool biological = false;
-    b . GetFragmentInfo ( 300, fragId, startInBlob, lengthInBases, biological );
-    REQUIRE_EQ ( SRA_Accession+".FR0.2", fragId );
-    REQUIRE_EQ ( (uint64_t)288, startInBlob );
-    REQUIRE_EQ ( (uint64_t)115, lengthInBases );
-    REQUIRE    ( biological );
+    TRY ( NGS_FragmentBlob* ref = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+    {
+        FragmentBlob b ( ref );
+        std::string fragId;
+        uint64_t startInBlob = 0;
+        uint64_t lengthInBases = 0;
+        bool biological = false;
+        b . GetFragmentInfo ( 300, fragId, startInBlob, lengthInBases, biological );
+        REQUIRE_EQ ( SRA_Accession+".FR0.2", fragId );
+        REQUIRE_EQ ( (uint64_t)288, startInBlob );
+        REQUIRE_EQ ( (uint64_t)115, lengthInBases );
+        REQUIRE    ( biological );
+
+        NGS_FragmentBlobRelease ( ref, ctx );
+    }
 
     EXIT;
 }
@@ -206,17 +231,27 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetRowRange, FragmentBlobFixture )
     ENTRY;
     MakeIterator ( ctx, SRA_Accession );
 
-    FragmentBlob b ( NGS_FragmentBlobIteratorNext ( m_iter, ctx ) );
-    int64_t first=0;
-    uint64_t count=0;
-    b . GetRowRange ( first, count );
-    REQUIRE_EQ ( (int64_t)1, first );
-    REQUIRE_EQ ( (uint64_t)4, count );
+    TRY ( NGS_FragmentBlob* ref1 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+    {
+        FragmentBlob b ( ref1 );
+        int64_t first=0;
+        uint64_t count=0;
+        b . GetRowRange ( first, count );
+        REQUIRE_EQ ( (int64_t)1, first );
+        REQUIRE_EQ ( (uint64_t)4, count );
 
-    b = NGS_FragmentBlobIteratorNext ( m_iter, ctx );
-    b . GetRowRange ( first, count );
-    REQUIRE_EQ ( (int64_t)5, first );
-    REQUIRE_EQ ( (uint64_t)4, count );
+        TRY ( NGS_FragmentBlob* ref2 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
+        {
+            b = ref2;
+            b . GetRowRange ( first, count );
+            REQUIRE_EQ ( (int64_t)5, first );
+            REQUIRE_EQ ( (uint64_t)4, count );
+
+            NGS_FragmentBlobRelease ( ref2, ctx );
+        }
+
+        NGS_FragmentBlobRelease ( ref1, ctx );
+    }
 
     EXIT;
 }
@@ -228,10 +263,11 @@ FIXTURE_TEST_CASE ( FragmentBlobIterator_Create, KfcFixture )
     ENTRY;
     TRY ( NGS_ReadCollection * readColl = NGS_ReadCollectionMake ( ctx, SRA_Accession . c_str () ) )
     {
-        TRY ( FragmentBlobIteratorRef ref = NGS_ReadCollectionGetFragmentBlobs ( readColl, ctx ) )
+        TRY ( NGS_FragmentBlobIterator* ref = NGS_ReadCollectionGetFragmentBlobs ( readColl, ctx ) )
         {
             FragmentBlobIterator blobIt ( ref );
             //TODO: Verify
+            NGS_FragmentBlobIteratorRelease ( ref, ctx );
         }
         NGS_ReadCollectionRelease ( readColl, ctx );
     }
@@ -243,23 +279,25 @@ FIXTURE_TEST_CASE ( FragmentBlobIterator_Assign, KfcFixture )
     ENTRY;
     TRY ( NGS_ReadCollection * readColl_1 = NGS_ReadCollectionMake ( ctx, SRA_Accession . c_str () ) )
     {
-        TRY ( FragmentBlobIteratorRef ref1 = NGS_ReadCollectionGetFragmentBlobs ( readColl_1, ctx ) )
+        TRY ( NGS_FragmentBlobIterator* ref1 = NGS_ReadCollectionGetFragmentBlobs ( readColl_1, ctx ) )
         {
             FragmentBlobIterator blobIt1 ( ref1 );
 
             TRY ( NGS_ReadCollection * readColl_2 = NGS_ReadCollectionMake ( ctx, SRA_Accession_Prime . c_str () ) )
             {
-                TRY ( FragmentBlobIteratorRef ref2 = NGS_ReadCollectionGetFragmentBlobs ( readColl_2, ctx ) )
+                TRY ( NGS_FragmentBlobIterator* ref2 = NGS_ReadCollectionGetFragmentBlobs ( readColl_2, ctx ) )
                 {
                     FragmentBlobIterator blobIt2 ( ref2 );
 
                     blobIt2 = blobIt1;
                     //TODO: Verify
+                    NGS_FragmentBlobIteratorRelease ( ref2, ctx );
                 }
                 NGS_ReadCollectionRelease ( readColl_2, ctx );
             }
-            NGS_ReadCollectionRelease ( readColl_1, ctx );
+            NGS_FragmentBlobIteratorRelease ( ref1, ctx );
         }
+        NGS_ReadCollectionRelease ( readColl_1, ctx );
     }
     EXIT;
 }
@@ -269,11 +307,12 @@ FIXTURE_TEST_CASE ( FragmentBlobIterator_Copy, KfcFixture )
     ENTRY;
     TRY ( NGS_ReadCollection * readColl = NGS_ReadCollectionMake ( ctx, SRA_Accession . c_str () ) )
     {
-        TRY ( FragmentBlobIteratorRef ref1 = NGS_ReadCollectionGetFragmentBlobs ( readColl, ctx ) )
+        TRY ( NGS_FragmentBlobIterator* ref = NGS_ReadCollectionGetFragmentBlobs ( readColl, ctx ) )
         {
-            FragmentBlobIterator blobIt1 ( ref1 );
+            FragmentBlobIterator blobIt1 ( ref );
             FragmentBlobIterator blobIt2 ( blobIt1 );
             //TODO: Verify
+            NGS_FragmentBlobIteratorRelease ( ref, ctx );
         }
         NGS_ReadCollectionRelease ( readColl, ctx );
     }
@@ -355,12 +394,24 @@ public:
     void MakeBlobIterator ( ctx_t ctx, const string& p_acc, const string& p_refName )
     {
         FUNC_ENTRY ( ctx, rcSRA, rcArc, rcAccessing );
+
+        if ( m_readColl != 0 )
+        {
+            NGS_ReadCollectionRelease ( m_readColl, m_ctx );
+            m_readColl = 0;
+        }
+
         ON_FAIL ( m_readColl = NGS_ReadCollectionMake ( ctx, p_acc . c_str () ) )
         {
             throw logic_error ("NGS_ReadCollectionMake failed");
         }
         TRY ( NGS_Reference* ref = NGS_ReadCollectionGetReference ( m_readColl, ctx, p_refName . c_str () ) )
         {
+            if ( m_iter != 0 )
+            {
+                NGS_ReferenceBlobIteratorRelease ( m_iter, m_ctx );
+                m_iter = 0;
+            }
             ON_FAIL ( m_iter = NGS_ReferenceGetBlobs ( ref, ctx ) )
             {
                 throw logic_error ("NGS_ReferenceGetBlobs failed");
@@ -383,12 +434,24 @@ public:
         NGS_ReferenceBlob* blob = 0;
         for ( unsigned int i = 0 ; i < p_index; ++i )
         {
+            if ( blob != 0 )
+            {
+                ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
+                {
+                    throw logic_error ("NGS_ReferenceBlobIteratorNext failed");
+                }
+            }
             ON_FAIL ( blob = NGS_ReferenceBlobIteratorNext ( m_iter, ctx ) )
             {
                 throw logic_error ("NGS_ReferenceBlobIteratorNext failed");
             }
         }
-        return ReferenceBlob ( blob );
+        ReferenceBlob ret ( blob );
+        ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
+        {
+            throw logic_error ("NGS_ReferenceBlobIteratorNext failed");
+        }
+        return ret;
     }
 
     ReferenceBlob GetBlobByRowId ( ctx_t ctx, const string& p_acc, const string& p_refName, unsigned int p_rowId )
@@ -407,9 +470,17 @@ public:
             NGS_ReferenceBlobRowRange ( blob, ctx, &firstRow, &rowCount );
             if ( p_rowId >= firstRow && p_rowId < firstRow + rowCount )
             {
-                return ReferenceBlob ( blob );
+                ReferenceBlob ret ( blob );
+                ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
+                {
+                    throw logic_error ("NGS_ReferenceBlobIteratorNext failed");
+                }
+                return ret;
             }
-
+            ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
+            {
+                throw logic_error ("NGS_ReferenceBlobIteratorNext failed");
+            }
         }
         while ( blob != 0 );
         throw logic_error ("GetBlobByRowId: row not found");
@@ -602,6 +673,16 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_FullScan, ReferenceBlobFixture )
         ++count;
     }
     REQUIRE_EQ ( (size_t)12, count );
+    EXIT;
+}
+
+/// VdbReference
+
+FIXTURE_TEST_CASE ( VdbReference_Construct, KfcFixture )
+{
+    ENTRY;
+    ReadCollection rCol = ncbi :: NGS :: openReadCollection ( CSRA1_Accession );
+    VdbReference ref ( rCol . getReference ( "supercont2.1" ) );
     EXIT;
 }
 

@@ -398,6 +398,22 @@ FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
     delete buf;
 }
 
+FIXTURE_TEST_CASE ( ReferenceDriven_SingleReference_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_references . push_back ( "NC_000007.13" );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+
 FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
@@ -420,8 +436,17 @@ etc
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
 }
 
-//TODO: reference mode on a non-CSRA object
+//TODO: specify multiple reference names, single accession
+//TODO: specify multiple reference names, match against different accessions
+
+//TODO: specify a single reference slice, single accession
+//TODO: specify a single reference slice, match against different accessions
+//TODO: specify multiple reference slices, single accession
+//TODO: specify multiple reference slices, match against different accessions
+//TODO: reference mode on a non-CSRA object (error)
 //TODO: circular references
+
+//TODO: reference blob mode
 
 int
 main( int argc, char *argv [] )

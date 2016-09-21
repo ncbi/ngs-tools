@@ -69,10 +69,7 @@ ReferenceBlob :: ReferenceBlob ( const ReferenceBlob & obj ) throw ( :: ngs :: E
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_ReferenceBlobRelease ( self, ctx) )
-    {
-        self = NGS_ReferenceBlobDuplicate ( obj . self, ctx);
-    }
+    self = NGS_ReferenceBlobDuplicate ( obj . self, ctx);
     if ( FAILED () )
     {
         :: ngs :: ErrBlock err;

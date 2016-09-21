@@ -40,7 +40,10 @@ public:
     typedef std :: set < std :: string > ReportedFragments;
 
 public:
-    ReferenceMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, const ReferenceNames& p_references = ReferenceNames() );
+    ReferenceMatchIterator ( SearchBlock :: Factory&    p_factory,
+                             const std :: string&       p_accession,
+                             const ReferenceNames&      p_references = ReferenceNames(),
+                             bool                       p_blobSearch = false );
 
     virtual ~ReferenceMatchIterator ();
 
