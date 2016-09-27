@@ -27,7 +27,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = sra-search/test
 
-include $(TOP)/Makefile.config
+include $(TOP)/build/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
@@ -94,7 +94,7 @@ test-cmdline:
 	@ echo "Testing $(BINDIR)/sra-search"
 	@ # help
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 1.0-h    --args "-h"
-	@ $(TIME) -f"%E" ./runtestcase.sh $(BINDIR)/sra-search 1.1-help --args "--help" 
+	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 1.1-help --args "--help" 
 	@ # bad args
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 2.0-no-args          	--rc 1 
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 2.1-no-run              --rc 1 --args AGCT
@@ -116,6 +116,8 @@ test-cmdline:
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.0.1-threads-no-arg   --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 -T"
 	@ $(TIME) ./runtestcase.sh $(BINDIR)/sra-search 7.0.2-threads-bad-arg  --rc 1 --args "AGCTAGCTAGCT SRR600094 SRR600095 --threads -1"
 	@ echo
+
+BLOBS = --blobs    
 
 slowtest-cmdline: 
 	@ $(MAKE) --no-print-directory -C $(SRCDIR)/..

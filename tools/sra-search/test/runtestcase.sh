@@ -30,7 +30,7 @@
 #
 # $1 - the executable
 # $2 - test case ID
-# 
+#
 # Options:
 # -d|--dir <path>       (default .) work directory (expected results under expected/, actual results and temporaries created under actual/)
 #                           expected/$2.stdout is expected to exists and will be diffed against the sdtout of the run
@@ -62,15 +62,15 @@ do
     case $key in
         -d|--dir)
             WORKDIR="$2"
-            shift 
+            shift
             ;;
         -r|--rc)
             RC="$2"
-            shift 
+            shift
             ;;
         -a|--args)
             ARGS="$2"
-            shift 
+            shift
             ;;
         -s|--sort)
             SORT="1"
@@ -97,14 +97,14 @@ if [ "$?" != "0" ] ; then
     echo "cannot create $TEMPDIR"
     exit 1
 fi
-rm -rf $TEMPDIR/*
+rm -rf $TEMPDIR/$CASEID*
 
 if [ "$SORT" == "" ] ; then
     CMD="$EXE $ARGS 1>$ACTUAL_STDOUT 2>$ACTUAL_STDERR"
 else
-    CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT" 
+    CMD="$EXE $ARGS 2>$ACTUAL_STDERR | sort >$ACTUAL_STDOUT"
 fi
-    
+
 #echo $CMD
 eval $CMD
 rc="$?"
@@ -126,9 +126,9 @@ if [ "$rc" != "0" ] ; then
     echo "command executed:"
     echo $CMD
     exit 3
-fi    
+fi
 
-if [ -f $EXPECTED_STDERR ] 
+if [ -f $EXPECTED_STDERR ]
     then
     # clean up stderr:
     #
@@ -150,10 +150,10 @@ if [ -f $EXPECTED_STDERR ]
         echo "command executed:"
         echo $CMD
         exit 4
-    fi    
+    fi
 fi
 
-rm -rf $TEMPDIR
+rm -rf $TEMPDIR/$CASEID*
 
 echo "passed"
 

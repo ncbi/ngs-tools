@@ -24,25 +24,25 @@
 
 default: std
 
-TOP ?= $(abspath ..)
+TOP ?= $(abspath ../..)
 MODULE = sra-search
 
-include $(TOP)/Makefile.config
+include $(TOP)/build/Makefile.config
 
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
-std: $(OBJDIR) $(BINDIR) 
+std: $(OBJDIR) $(BINDIR)
 	$(MAKE) $(BINDIR)/sra-search
 
-clean: 
+clean:
 	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
-	$(MAKE) -C test clean 
+	$(MAKE) -C test clean
 
 runtests: test
 
 slowtests: slow
 
-.PHONY: clean 
+.PHONY: clean
 
 #-------------------------------------------------------------------------------
 # vers-includes
@@ -55,8 +55,6 @@ $(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
 # sra-search
 #
 SRA_SEARCH_SRC = \
-    NGS_VDB \
-    ngs-vdb \
     searchblock \
 	vdb-search \
 	main \
@@ -65,6 +63,8 @@ SRA_SEARCH_OBJ = \
 	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
 
 SRA_SEARCH_LIBS = \
+    -L$(ILIBDIR)        \
+    -lngs-vdb           \
     -L$(NGS_LIBDIR)     \
     -L$(VDB_LIBDIR)     \
     -lncbi-ngs-c++      \

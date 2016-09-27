@@ -22,17 +22,55 @@
 #
 # ===========================================================================
 
+default: std
 
-The NCBI SRA Software Development Kit
-Contact: sra-tools@ncbi.nlm.nih.gov
+TOP ?= $(abspath ../..)
+MODULE = ngs-vdb
 
-NCBI External Developer Release: NGS Tools 1.0.1
-May 25, 2016
+include $(TOP)/build/Makefile.config
 
-  build, ngs-tools: 'make test ' will work now when called from ngs-tools
-  build, ngs-tools: will create all required directories on the first build
-  build: MSVS 2013 toolset (12.0) is now supported across all repositories
-  ngs-engine: ncbi-ngs engine was updated: fixed a bug that made NGS read iterator return 0 reads on WGS accessions.
-  ngs-tools: now uses CMake as the primary build tool
-  sra-search: now supports near matches and gapped matches.
-  vdb, ngs-engine: Fixed a bound on memory cache that would never flush under certain access modes
+INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
+
+std: $(OBJDIR) $(ILIBDIR)
+	$(MAKE) $(ILIBDIR)/ngs-vdb
+
+clean:
+	rm -f $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX)
+	#$(MAKE) -C test clean
+
+runtests: test
+
+slowtests: slow
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# sra-search
+#
+NGS_VDB_SRC = \
+    FragmentBlob \
+    FragmentBlobIterator \
+    NGS-VDB \
+	VdbReadCollection \
+
+NGS_VDB_OBJ = \
+	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(NGS_VDB_SRC)))
+
+$(ILIBDIR)/ngs-vdb: $(NGS_VDB_OBJ)
+	$(AR) $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX) $(NGS_VDB_OBJ)
+
+.PHONY: $(ILIBDIR)/ngs-vdb
+
+#-------------------------------------------------------------------------------
+# testing
+#
+test slow: std
+	$(MAKE) TOP=$(TOP) MODPATH=$(MODPATH)/test -C test $@
+

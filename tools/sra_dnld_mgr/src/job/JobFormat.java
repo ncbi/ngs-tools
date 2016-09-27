@@ -39,8 +39,21 @@ public enum JobFormat
         if ( i < 0 || i > 3 ) i = 0;
         return allValues[ i ];
     }    
-    public int to_ordinal() { return value; }
+    
+    public static JobFormat from_string( String s )
+    {
+        if ( s.equals( DOWNLOAD.txt ) )
+            return DOWNLOAD;
+        else if ( s.equals( FASTA.txt ) )
+            return FASTA;
+        else if ( s.equals( FASTQ.txt ) )
+            return FASTQ;
+        return INVALID;
+    }    
 
+    public int to_ordinal() { return value; }
+    public String to_string() { return txt; }
+    
     public static String[] to_StringList()
     {
         String[] res = new String[ allValues.length ];

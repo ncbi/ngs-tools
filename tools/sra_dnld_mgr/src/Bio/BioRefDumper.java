@@ -26,6 +26,7 @@
 package Bio;
 
 import data.CLogger;
+import job.JobData;
 import ngs.ErrorMsg;
 import ngs.ReferenceSequence;
 
@@ -73,15 +74,35 @@ public class BioRefDumper extends BioDumper
 
     public BioRefDumper( final ReferenceSequence ref,
                          final BioFormatter fmt,
-                         final String name,
+                         final JobData job,
                          final long start )
     {
-        super( fmt, name );
+        super( fmt, job.get_short_source() );
         this.ref = ref;
         try
         {
-            this.ref_len = ref.getLength();
-            this.ref_position = start;
+            long iter_start = start;
+            long iter_count = ref.getLength();
+
+            if ( job.get_use_row_filter() )
+            {
+                long filter_start = job.get_start_row();
+                long filter_count = job.get_row_count();
+                long filter_end = filter_start + filter_count - 1;
+
+                if ( iter_start < filter_start )
+                    iter_start = filter_start;
+                else if ( iter_start > filter_end )
+                {
+                    CLogger.logfmt( "job >%s< already reached end of filter-row-range", name );
+                    iter_count = 0;
+                }
+                if ( iter_count > 0 )
+                    iter_count = filter_end - iter_start + 1;
+            }
+            
+            this.ref_position = iter_start;
+            this.ref_len = iter_count;
         }
         catch ( ErrorMsg mgs )
         {

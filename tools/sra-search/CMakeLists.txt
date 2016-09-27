@@ -9,6 +9,7 @@ target_link_libraries ( sra-search
 	${SYS_LIBRARIES}
 )
 
+ncbi_copy_exec_to_old_outdir ( sra-search )
 install ( TARGETS sra-search RUNTIME DESTINATION bin )
 
 add_subdirectory ( test )

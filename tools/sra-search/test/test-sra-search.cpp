@@ -48,6 +48,8 @@ using namespace std;
 using namespace ncbi::NK;
 using namespace ngs;
 
+#define SHOW_UNIMPLEMENTED 0
+
 TEST_SUITE(SraSearchTestSuite);
 
 // SearchBlock
@@ -398,6 +400,19 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
+///////// Multi threading
+FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
+{
+    Setup ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001", false, 4, true ); // 4 blob-based threads on one run
+
+    unsigned int count = 0;
+    while (  m_s -> NextMatch ( m_accession, m_fragment ) )  // used to have a random crash inside VDB
+    {
+        ++count;
+    }
+    REQUIRE_EQ ( 12u, count );
+}
+
 #if TOO_SLOW_FOR_A_UNIT_TEST
 FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 {
@@ -442,43 +457,35 @@ FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
 }
 #endif
 
-/* TODO
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Sorted, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_NoBlobs, VdbSearchFixture )
 {
-
     const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
-    // sorted in order accession, read#, frag#
-    // accessions sort in the order they were added (in this case sra2, sra1)
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431",   NextFragmentId () );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434",   NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", NextFragmentId () );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", NextFragmentId () );
-
-
-    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, false );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // now, let all the threads finish
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+    }
 }
-*/
+
+#if SHOW_UNIMPLEMENTED
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_BlobBased, VdbSearchFixture )
+{
+    const string Sra1 = "SRR600094";
+    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
+    // now, let all the threads finish
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+    }
+}
+#endif
 
 //TODO: stop multi-threaded search before the end
 

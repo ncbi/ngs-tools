@@ -37,7 +37,7 @@ class Action_With_Parent implements ActionListener
 class ExitAction extends Action_With_Parent
 {
     public ExitAction( MainWindow parent ) { super( parent ); }
-    @Override public void actionPerformed( ActionEvent e ) { parent.on_exit(); }
+    @Override public void actionPerformed( ActionEvent e ) { parent.on_exit( 0 ); }
 }
 
 class SettingsAction extends Action_With_Parent

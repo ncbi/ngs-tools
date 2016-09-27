@@ -23,6 +23,14 @@
 =========================================================================== */
 package data;
 
+import job.JobState;
+import static job.JobState.DONE;
+import static job.JobState.ERROR;
+import static job.JobState.INVALID;
+import static job.JobState.PAUSED;
+import static job.JobState.READY;
+import static job.JobState.RUNNING;
+
 public enum LineEndings
 {
     INVALID             ( 0,    "INVALID",      "\n" ),
@@ -36,7 +44,19 @@ public enum LineEndings
     private static final LineEndings[] allValues = values();
 
     public static LineEndings from_ordinal( int i ) { return allValues[ i ]; }
+    public static LineEndings from_string( String s )
+    {
+        if ( s.equals( AUTOMATIC.txt ) )
+            return AUTOMATIC;
+        else if ( s.equals( POSIX.txt ) )
+            return POSIX;
+        else if ( s.equals( WINDOWS.txt ) )
+            return WINDOWS;
+        return INVALID;
+    }    
+
     public int to_ordinal() { return value; }
+    public String to_string() { return txt; }
     
     public String to_line_ending()
     {

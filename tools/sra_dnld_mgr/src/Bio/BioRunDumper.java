@@ -62,11 +62,29 @@ public class BioRunDumper extends BioDumper
         super( fmt, job.get_short_source() );
         
         int read_type_filter;
-                if ( job.get_use_bio_read_type() )
+        if ( job.get_use_bio_read_type() )
             read_type_filter = job.get_bio_read_type().to_read_type();
         else
             read_type_filter = Read.all;
         
-        iter = run.getReadRange( start, run.getReadCount(), read_type_filter );
+        long iter_start = start;
+        long iter_count = run.getReadCount();
+        if ( job.get_use_row_filter() )
+        {
+            long filter_start = job.get_start_row();
+            long filter_count = job.get_row_count();
+            long filter_end = filter_start + filter_count - 1;
+
+            if ( iter_start < filter_start )
+                iter_start = filter_start;
+            else if ( iter_start > filter_end )
+            {
+                CLogger.logfmt( "job >%s< already reached end of filter-row-range", name );
+                iter_count = 0;
+            }
+            if ( iter_count > 0 )
+                iter_count = filter_end - iter_start + 1;
+        }
+        iter = run.getReadRange( iter_start, iter_count, read_type_filter );
     }
 }

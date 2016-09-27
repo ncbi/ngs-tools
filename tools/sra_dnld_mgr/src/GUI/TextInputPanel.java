@@ -80,7 +80,7 @@ public class TextInputPanel extends DlgPanel
         super( caption, 75, 0 );
         listener = null;
         
-        tf = make_input( editable );
+        tf = make_input( editable, 100 );
         tf.getDocument().addDocumentListener( this );
         add( tf, BorderLayout.CENTER );
 

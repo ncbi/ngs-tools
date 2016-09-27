@@ -66,7 +66,7 @@ public class JobConsumerThreadBio extends JobConsumerThread
         catch ( IOException ex )
         {
             if ( append )
-                CLogger.logfmt( "job >%s< error creating outputfile: %s " ,
+                CLogger.logfmt( "job >%s< error re-opening outputfile: %s " ,
                         data.job.get_short_source(), ex.toString() );
             else
                 CLogger.logfmt( "job >%s< error creating outputfile: %s " ,
@@ -264,6 +264,7 @@ public class JobConsumerThreadBio extends JobConsumerThread
         try
         {
             writer.close();
+            System.out.printf( "closing writer for '%s'\n", data.job.get_short_source() );
         }
         catch ( IOException ex )
         {

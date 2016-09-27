@@ -57,7 +57,8 @@ public class FilterWindow extends DlgWithMaxSize
     private final IntInputPanel end_N_filter;
     private final SpotGroupFilterPanel spotgroup;
     private final JobReadTypePanel read_type;
-            
+    private final IntRangePanel row_range;
+    
     private boolean set_show_and_get( final JobData job )
     {
         min_read_filter.set_value( job.get_min_read_len() );
@@ -70,7 +71,10 @@ public class FilterWindow extends DlgWithMaxSize
         spotgroup.set_editable( job.get_use_spotgroup() );
         read_type.set_value( job.get_bio_read_type() );
         read_type.set_editable( job.get_use_bio_read_type() );
-                
+        row_range.set_start_value( job.get_start_row() );
+        row_range.set_count_value( job.get_row_count() );
+        row_range.set_editable( job.get_use_row_filter() );
+        
         boolean res  = show_dialog(); /* from DlgWidthMaxSize.java */
         if ( res )
         {
@@ -84,6 +88,9 @@ public class FilterWindow extends DlgWithMaxSize
             job.set_use_spotgroup( spotgroup.get_editable() );
             job.set_bio_read_type( read_type.get_value() );
             job.set_use_bio_read_type( read_type.get_editable() );
+            job.set_start_row( row_range.get_start_value() );
+            job.set_row_count( row_range.get_count_value() );
+            job.set_use_row_filter( row_range.is_editable() );
             /* do not store here, because the client has to verify
                the job before actually storing it */
         }
@@ -112,6 +119,9 @@ public class FilterWindow extends DlgWithMaxSize
         read_type = new JobReadTypePanel( "read type" );
         pane.add( read_type );
         
+        row_range = new IntRangePanel( "row-range", "rows", true, true );
+        pane.add( row_range );
+
         resize_labels( pane );
         add_save_cancel_panel( pane );
         adjust_height( 35 );

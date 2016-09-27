@@ -28,6 +28,9 @@ import job.*;
 import data.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import javax.swing.*;
 
 public class MainWindow extends JFrame
@@ -48,6 +51,9 @@ public class MainWindow extends JFrame
     private final JToolBar toolbar = make_toolbar();
     private final JPanel jobs = new JPanel();
     
+    private String to_test = null;
+    private String scratch_space = null;
+
     private class on_settings implements ActionListener
     {
         @Override public void actionPerformed( ActionEvent ae ) { SettingsWindow.edit(); }
@@ -55,7 +61,7 @@ public class MainWindow extends JFrame
 
     private class on_exit implements ActionListener
     {
-        @Override public void actionPerformed( ActionEvent ae ) { on_exit(); }
+        @Override public void actionPerformed( ActionEvent ae ) { on_exit( 0 ); }
     }
 
     private class on_stop_all implements ActionListener
@@ -92,17 +98,16 @@ public class MainWindow extends JFrame
     {
         @Override public void on_state_progress_event( StateAndProgressEvent ev )
         {
-            if ( Settings.getInstance().get_autostart() && 
-                 ev.type == StateAndProgressType.STATE &&
+            if ( ev.type == StateAndProgressType.STATE &&
                  ev.prev_state == JobState.RUNNING &&
                  ev.new_state == JobState.DONE )
-                    start_download_jobs();
+                job_has_finished();
         }
     }
 
     private class on_window_close extends WindowAdapter
     {
-        @Override public void windowClosing( WindowEvent we ) { on_exit(); }
+        @Override public void windowClosing( WindowEvent we ) { on_exit( 0 ); }
     }
 
     private class on_job_delete implements JobDeleteEvent
@@ -215,8 +220,7 @@ public class MainWindow extends JFrame
         CLogger.log( "start_stop()" );
         
         JobPanel p = get_active_panel();
-        boolean res = ( p != null );
-        if ( res )
+        if ( p != null )
         {
             if ( p.is_running() )
                 p.pause();
@@ -228,7 +232,7 @@ public class MainWindow extends JFrame
                     p.start();
             }
         }
-        return res;
+        return ( p != null );
     }
     
     public boolean on_key( final KeyEvent ke )
@@ -371,12 +375,61 @@ public class MainWindow extends JFrame
         }
     }
 
-    public void start_download_jobs()
+    public final void start_download_jobs()
     {
         start_loop( Settings.getInstance().get_maxdownloads() - running_downloads() );
     }
+
+    private int test_has_finished()
+    {
+        /* take the job's output, calculate md5, compare with expected md5 */
+        int exit_code = 0;
+        JobPanel p = get_active_panel();
+        JobData job = p.job;
+        String output_filename = job.get_output_filename();
+        String created_md5 = md5_extractor.md5_of_file( output_filename);
+        String expected_md5 = job.get_expected_md5();
+
+        try
+        {
+            Files.deleteIfExists( Paths.get( output_filename ) );
+        }
+        catch ( IOException ex )
+        {
+            System.out.printf( "delete '%s' : %s\n", output_filename, ex.toString() );
+        }
+
+        if ( expected_md5.length() == 0 )
+        {
+            System.out.printf( "no expected md5-sum found in job-file, writing calculated md5 '%s' into job-file\n", created_md5 );
+            job.set_expected_md5( created_md5 );
+            job.store();
+            exit_code = 3;
+        }
+        else
+        {
+            if ( created_md5.equalsIgnoreCase( expected_md5 ) )
+            {
+                System.out.printf( "md5-sum of '%s' matches expected md5-sum from job-file\n", created_md5 );
+            }
+            else
+            {
+                System.out.printf( "calculated md5-sump of '%s' does not match expected md5-sum of '%s'\n", created_md5, expected_md5 );
+                exit_code = 3;
+            }
+        }
+        return exit_code;
+    }
     
-    public void stop_all_threads()
+    public final void job_has_finished()
+    {
+        if ( to_test != null )
+            on_exit( test_has_finished() );
+        else if ( Settings.getInstance().get_autostart() )
+            start_download_jobs();
+    }
+    
+    public final void stop_all_threads()
     {
         int i, n_panels = jobs.getComponentCount();
         for ( i = 0; i < n_panels; ++i )
@@ -458,13 +511,13 @@ public class MainWindow extends JFrame
         if ( removed > 0 ) re_arrange( true );
     }
     
-    public void on_exit()
+    public void on_exit( int exit_code )
     {
         Settings.getInstance().set_position( getBounds(), true );
         stop_all_threads();
         CLogger.stop( "End Application" );
         dispose();
-        System.exit( 0 );
+        System.exit( exit_code );
     }
     
     private void populateContentPane( Container pane )
@@ -479,21 +532,41 @@ public class MainWindow extends JFrame
         
         pane.add( scroll, BorderLayout.CENTER );
 
-        JobList jl = new JobList( Settings.getInstance().get_jobpath() );
-        for ( String filename : jl.make_list() )
+        if ( to_test == null )
         {
-            new_visible_job( new JobData( filename ) );
+            /* no job to execute from cmd-line: read jobs from path */
+            JobList jl = new JobList( Settings.getInstance().get_jobpath() );
+            for ( String filename : jl.make_list() )
+                new_visible_job( new JobData( filename ) );
+        }
+        else
+        {
+            /* we have a job to execute from cmd-line: */
+            JobData job = new JobData( to_test );
+            /* reset the job in any case... */
+            job.reset_as_test( scratch_space );
+            new_visible_job( job );
         }
 
         add( StatusBar.getInstance(), BorderLayout.SOUTH );
         
-        if ( Settings.getInstance().get_autostart() )
+        if ( to_test == null && Settings.getInstance().get_autostart() )
             start_download_jobs();
     }
     
-    public MainWindow()
+    public MainWindow( final String to_test, final String scratch_space )
     {
         super( "SRA download" );
+        
+        if ( to_test != null )
+        {
+            this.to_test = to_test;
+            this.setTitle( "SRA download testing: " + to_test );
+        }
+        
+        if ( scratch_space != null )
+            this.scratch_space = scratch_space;
+        
         this.setIconImage( ResourceImages.get_logo_img().getImage() );
         
         setJMenuBar( new TheMenuBar( this ) );
@@ -511,6 +584,8 @@ public class MainWindow extends JFrame
         setDefaultCloseOperation( JFrame.DO_NOTHING_ON_CLOSE );
         addWindowListener( window_close_event );
         enable_key_processor( true );
-        setVisible( true );
+        
+        if ( to_test == null )
+            setVisible( true );
     }
 }

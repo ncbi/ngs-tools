@@ -82,6 +82,10 @@ public final class JobData extends IniFile
     private static final String F_USE_SPOTGROUP = "USE_SPOTGROUP";
     private static final String F_READ_TYPE = "READ_TYPE";
     private static final String F_USE_READ_TYPE = "USE_READ_TYPE";
+    private static final String F_START_ROW = "START_ROW";
+    private static final String F_ROW_COUNT = "ROW_COUNT";
+    private static final String F_USE_ROW_FILTER = "USER_ROW_FILTER";
+    private static final String EXPECTED_MD5 = "EXPECTED_MD5";
     
     private static final LineEndings DFLT_LINE_ENDING = LineEndings.POSIX;
     private static final int DFLT_LINE_WRAP = 75;
@@ -101,6 +105,9 @@ public final class JobData extends IniFile
     private static final boolean DFLT_F_USE_SPOTGROUP = false;
     private static final BioReadType DFLT_F_READ_TYPE = BioReadType.READ_TYPE_ALL;
     private static final boolean DFLT_F_USE_READ_TYPE = false;
+    private static final long DFLT_F_START_ROW = 1;
+    private static final long DFLT_F_ROW_COUNT = 1000;
+    private static final boolean DFLT_F_USE_ROW_FILTER = false;
     
     private static final int BLOCKSIZE = 1024;
 
@@ -204,7 +211,8 @@ public final class JobData extends IniFile
         {
             if ( state_lock.tryLock() )
             {
-                res = JobState.from_ordinal( get_int( STATE, JobState.INVALID.to_ordinal() ) );
+                res = JobState.from_string( get_str( STATE, JobState.INVALID.to_string() ) );
+                //res = JobState.from_ordinal( get_int( STATE, JobState.INVALID.to_ordinal() ) );
                 state_lock.unlock();
                 done = true;
             }
@@ -228,7 +236,8 @@ public final class JobData extends IniFile
         JobFormat res = JobFormat.INVALID;
         if ( lock.tryLock() )
         {
-            res = JobFormat.from_ordinal( get_int( FORMAT, JobFormat.INVALID.to_ordinal() ) );
+            res = JobFormat.from_string( get_str( FORMAT, JobFormat.INVALID.to_string() ) );
+            //res = JobFormat.from_ordinal( get_int( FORMAT, JobFormat.INVALID.to_ordinal() ) );
             lock.unlock();
         }
         return res;
@@ -239,7 +248,8 @@ public final class JobData extends IniFile
         JobSubFormat res = JobSubFormat.INVALID;
         if ( lock.tryLock() )
         {
-            res = JobSubFormat.from_ordinal( get_int( SUBFORMAT, JobSubFormat.INVALID.to_ordinal() ) );
+            res = JobSubFormat.from_string( get_str( SUBFORMAT, JobSubFormat.INVALID.to_string() ) );
+            //res = JobSubFormat.from_ordinal( get_int( SUBFORMAT, JobSubFormat.INVALID.to_ordinal() ) );
             lock.unlock();
         }
         return res;
@@ -270,9 +280,17 @@ public final class JobData extends IniFile
     }
 
     public final LineEndings get_line_ending()
-    { return LineEndings.from_ordinal( get_int( LINE_ENDING, DFLT_LINE_ENDING.to_ordinal() ) ); }
+    {
+        return LineEndings.from_string( get_str( LINE_ENDING, DFLT_LINE_ENDING.to_string() ) );
+        //return LineEndings.from_ordinal( get_int( LINE_ENDING, DFLT_LINE_ENDING.to_ordinal() ) );
+    }
+    
+    
     public final String get_line_ending_str()
-    { return LineEndings.from_ordinal( get_int( LINE_ENDING, DFLT_LINE_ENDING.to_ordinal() ) ).to_line_ending(); }
+    {
+        return LineEndings.from_string( get_str( LINE_ENDING, DFLT_LINE_ENDING.to_string() ) ).to_line_ending();
+        //return LineEndings.from_ordinal( get_int( LINE_ENDING, DFLT_LINE_ENDING.to_ordinal() ) ).to_line_ending();
+    }
 
     public final int get_line_wrap() { return get_int( LINE_WRAP, DFLT_LINE_WRAP ); }
     public final Boolean get_use_line_wrap() { return get_bool( USE_LINE_WRAP, DFLT_USE_LINE_WRAP ); }
@@ -284,7 +302,10 @@ public final class JobData extends IniFile
     public final String get_md5() { return get_str_value( MD5 );}
     
     public final BioAccessionType get_bio_type() 
-    { return BioAccessionType.from_ordinal( get_int( BIO_TYPE, BioAccessionType.INVALID.to_ordinal() ) ); }
+    {
+        return BioAccessionType.from_string( get_str( BIO_TYPE, BioAccessionType.INVALID.to_string() ) );
+        //return BioAccessionType.from_ordinal( get_int( BIO_TYPE, BioAccessionType.INVALID.to_ordinal() ) );
+    }
     
     /*filter getters: */
     public final int get_min_read_len() { return get_int( F_MIN_READ_LEN, DFLT_F_MIN_READ_LEN ); }
@@ -298,7 +319,12 @@ public final class JobData extends IniFile
     public final BioReadType get_bio_read_type()
     { return BioReadType.from_ordinal( get_int( F_READ_TYPE, BioReadType.INVALID.to_ordinal() ) ); }
     public final Boolean get_use_bio_read_type() { return get_bool( F_USE_READ_TYPE, DFLT_F_USE_READ_TYPE ); }
-    
+
+    public final long get_start_row() { return get_long( F_START_ROW, DFLT_F_START_ROW  ); }
+    public final long get_row_count() { return get_long( F_ROW_COUNT, DFLT_F_ROW_COUNT  ); }
+    public final Boolean get_use_row_filter() { return get_bool( F_USE_ROW_FILTER, DFLT_F_USE_ROW_FILTER  ); }    
+    public final String get_expected_md5() { return get_str_value( EXPECTED_MD5 ); }
+
     public final boolean is_complete()
     {
         long v_max = get_max();
@@ -356,7 +382,7 @@ public final class JobData extends IniFile
     public final void set_source( final String value ) { set_str_value( SOURCE, value ); }
     public final void set_exportpath( final String value ) { set_str_value( EXPORTPATH, value ); }
     public final void set_downloadpath( final String value ) { set_str_value( DOWNLOADPATH, value ); }
-    public final void set_line_ending( final LineEndings value ) {  set_int( LINE_ENDING, value.ordinal() ); }
+    public final void set_line_ending( final LineEndings value ) {  set_str( LINE_ENDING, value.to_string() ); }
     public final void set_line_wrap( final int value ) { set_int( LINE_WRAP, value ); }
     public final void set_use_line_wrap( final Boolean value ) { set_bool( USE_LINE_WRAP, value ); }
     public final void set_fixed_qual( final int value ) { set_int( FIXED_QUAL, value ); }
@@ -364,7 +390,7 @@ public final class JobData extends IniFile
     public final void set_fastq_dump_name( final Boolean value ) { set_bool( FASTQ_DUMP_NAME, value ); }
     public final void set_runtime( final long value ) { set_long( RUNTIME, value ); }
     public final void set_rejected( final long value ) { set_long( REJECTED, value ); }
-    public final void set_bio_type( final BioAccessionType value ) { set_int( BIO_TYPE, value.ordinal() ); }
+    public final void set_bio_type( final BioAccessionType value ) { set_str( BIO_TYPE, value.to_string() ); }
     
     /*filter setters: */
     public final void set_min_read_len( final int value ) { set_int( F_MIN_READ_LEN, value ); }
@@ -377,6 +403,11 @@ public final class JobData extends IniFile
     public final void set_use_spotgroup( final Boolean value ) { set_bool( F_USE_SPOTGROUP, value ); }
     public final void set_bio_read_type( final BioReadType value ) { set_int( F_READ_TYPE, value.ordinal() ); }
     public final void set_use_bio_read_type( final Boolean value ) { set_bool( F_USE_READ_TYPE, value ); }
+
+    public final void set_start_row( final long value ) { set_long( F_START_ROW, value  ); }
+    public final void set_row_count( final long value ) { set_long( F_ROW_COUNT, value  ); }
+    public final void set_use_row_filter( final Boolean value ) { set_bool( F_USE_ROW_FILTER, value  ); }    
+    public final void set_expected_md5( final String value ) { set_str( EXPECTED_MD5, value ); }    
     
     /* set set the values from a spec-class ( name, type, rows ) */
     public final void set_spec( final BioSpec spec )
@@ -390,7 +421,8 @@ public final class JobData extends IniFile
     {
         if ( state_lock.tryLock() )
         {
-            set_int( STATE, value.to_ordinal() );
+            set_str( STATE, value.to_string() );
+            //set_int( STATE, value.to_ordinal() );
             state_lock.unlock();
         }
         if ( save ) store();
@@ -400,7 +432,8 @@ public final class JobData extends IniFile
     {
         if ( lock.tryLock() )
         {
-            set_int( FORMAT, value.to_ordinal() );
+            //set_int( FORMAT, value.to_ordinal() );
+            set_str( FORMAT, value.to_string() );
             lock.unlock();
         }
     }
@@ -409,7 +442,8 @@ public final class JobData extends IniFile
     {
         if ( lock.tryLock() )
         {
-            set_int( SUBFORMAT, value.to_ordinal() );
+            //set_int( SUBFORMAT, value.to_ordinal() );
+            set_str( SUBFORMAT, value.to_string() );
             lock.unlock();
         }
     }
@@ -544,7 +578,7 @@ public final class JobData extends IniFile
         set_line_wrap( settings.get_line_wrap() );
         set_use_line_wrap( false );
         set_fixed_qual( settings.get_fixed_qual() );
-        set_use_fixed_qual( settings.get_use_fixed_qual() );        
+        set_use_fixed_qual( settings.get_use_fixed_qual() );   
         set_max( 0, false ); // 100 k rows... ( because we do not know )
     }
     
@@ -559,6 +593,23 @@ public final class JobData extends IniFile
         clear();
         clear_job();
         check_paths();
+    }
+
+    /**
+     *
+     * @param scratch_space ... where to put the output...
+     */
+    final public void reset_as_test( final String scratch_space )
+    {
+        set_runtime( 0 );
+        set_rejected( 0 );
+        change_job_state( JobState.READY );
+        set_progress( 0, true );
+        if ( scratch_space != null )
+        {
+            set_exportpath( scratch_space );
+            set_downloadpath( scratch_space );
+        }
     }
     
     public JobData( final BioSpec spec )

@@ -48,9 +48,9 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
         return res;
     }
     
-    @Override public JTextField make_input( boolean editable )
+    @Override public JTextField make_input( boolean editable, int w )
     {
-        JTextField res = super.make_input( editable );
+        JTextField res = super.make_input( editable, w );
         
         PlainDocument doc = (PlainDocument) res.getDocument();
         doc.setDocumentFilter( new MyIntFilter() );
@@ -100,7 +100,7 @@ public final class IntInputPanel extends DlgPanel implements ActionListener
             checkbox = null;
         }
         
-        tf = make_input( editable );
+        tf = make_input( editable, 100 );
         p.add( tf, BorderLayout.CENTER );
         
         add( p, BorderLayout.CENTER );

@@ -52,7 +52,7 @@ public class PathChooserPanel extends DlgPanel implements ActionListener
     {
         super( caption, DFLT_PANEL_WIDTH, 0 );
         
-        tf = make_input( false );
+        tf = make_input( false, 100 );
         add( tf, BorderLayout.CENTER );
         
         JButton b = make_btn( "...", 50, 5, this, null );

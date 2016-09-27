@@ -31,6 +31,9 @@ import javax.swing.UnsupportedLookAndFeelException;
 
 class main_window_runner implements Runnable
 {
+    private final String to_test;
+    private final String scratch_space;
+    
     static void set_look_and_feel()
     {
         try
@@ -48,6 +51,7 @@ class main_window_runner implements Runnable
     {
         if ( Settings.getInstance().is_valid() )
         {
+            CLogger.getInstance();
             CLogger.start( "log.txt",
                            "sra-dnld-mgr",
                            Settings.getInstance().get_log_to_file(),
@@ -57,7 +61,7 @@ class main_window_runner implements Runnable
             
             set_look_and_feel();
         
-            MainWindow main_window = new MainWindow();
+            MainWindow main_window = new MainWindow( to_test, scratch_space );
             
             SettingsWindow.make_instance( main_window );
             JobWindow.make_instance( main_window );
@@ -65,6 +69,9 @@ class main_window_runner implements Runnable
             PreviewWindow.make_instance( main_window );
             FilterWindow.make_instance( main_window );
             ReferenceWindow.make_instance( main_window );
+            
+            if ( to_test != null )
+                main_window.start_download_jobs();
         }
         else
         {
@@ -72,13 +79,22 @@ class main_window_runner implements Runnable
                     "Error", JOptionPane.INFORMATION_MESSAGE );
         }
     }
+    
+    public main_window_runner( String to_test, String scratch_space )
+    {
+        super();
+        this.to_test = to_test;
+        this.scratch_space = scratch_space;
+    }
 }
 
 public class SRA_DNLD_MGR
 {
     public static void main( String[] args )
     {
-        main_window_runner mwr = new main_window_runner();
+        String to_test = ( args.length > 0 ) ? args[ 0 ] : null;
+        String scratch_space = ( args.length > 1 ) ? args[ 1 ] : null;
+        main_window_runner mwr = new main_window_runner( to_test, scratch_space );
         javax.swing.SwingUtilities.invokeLater( mwr );
     }
 }
