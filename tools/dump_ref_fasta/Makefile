@@ -36,7 +36,6 @@ std: $(OBJDIR) $(BINDIR)
 
 clean:
 	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/dump_ref_fasta*
-	$(MAKE) -C test clean
 
 runtests: test
 
