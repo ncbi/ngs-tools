@@ -119,9 +119,6 @@ elseif (WIN32)
         ws2_32
     )
 
-    # linker flags
-    set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup")
-
     set ( CPACK_GENERATOR "ZIP" )
     
 else()

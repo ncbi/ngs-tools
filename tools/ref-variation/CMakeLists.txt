@@ -29,6 +29,11 @@ target_link_libraries ( var-expand
 
 include_directories ( ${CMAKE_SOURCE_DIR} )
 
+# linker flags
+if (WIN32)
+    set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup")
+endif()
+
 install ( TARGETS ref-variation var-expand RUNTIME DESTINATION bin )
 
 add_subdirectory ( test )
