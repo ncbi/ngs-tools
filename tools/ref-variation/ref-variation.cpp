@@ -706,7 +706,7 @@ namespace NSRefVariation
 
     bool is_primary_mate ( ngs::Alignment const& align )
     {
-        ncbi::ngs::vdb::VdbAlignment ( align ) . IsFirst ();
+        return ncbi::ngs::vdb::VdbAlignment ( align ) . IsFirst ();
     }
 
     template <class TLock> void find_alignments_in_run_db ( char const* acc,

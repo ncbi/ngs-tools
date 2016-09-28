@@ -93,6 +93,10 @@ elseif (WIN32)
     # use miltiple processors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
+    # use Unicode
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_UNICODE /DUNICODE")
+
+    # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
 
@@ -114,6 +118,9 @@ elseif (WIN32)
         libngs-disp${CMAKE_STATIC_LIBRARY_SUFFIX}
         ws2_32
     )
+
+    # linker flags
+    set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup")
 
     set ( CPACK_GENERATOR "ZIP" )
     
