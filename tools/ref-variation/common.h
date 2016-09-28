@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -24,48 +24,20 @@
 *
 */
 
-#ifndef _hpp_VdbReadCollection_hpp_
-#define _hpp_VdbReadCollection_hpp_
+#include <stdlib.h>
+#include "helper.h"
 
-
-#ifndef _hpp_ngs_read_collection_
-#include <ngs/ReadCollection.hpp>
-#endif
-
-#include <ngs-vdb/inc/FragmentBlobIterator.hpp>
-
-namespace ncbi
+namespace KSearch
 {
-    namespace ngs
-    {
-        namespace vdb
-        {
-            class VdbReadCollection : protected :: ngs :: ReadCollection
-            {
-            public:
+    class CVRefVariation;
+}
 
-                :: ngs :: ReadCollection toReadCollection () const { return *this; }
-
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
-
-            public:
-
-                // C++ support
-
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
-                    throw ();
-
-                VdbReadCollection & operator = ( const VdbReadCollection & obj )
-                    throw ();
-                VdbReadCollection ( const VdbReadCollection & obj )
-                    throw ();
-
-                ~ VdbReadCollection ()
-                    throw ();
-
-            };
-        };
-    }
-} // ncbi
-
-#endif
+namespace Common
+{
+    bool find_variation_core_step (KSearch::CVRefVariation& obj, ::RefVarAlg alg,
+        char const* ref_slice, size_t ref_slice_size,
+        size_t& ref_pos_in_slice,
+        char const* var, size_t var_len, size_t var_len_on_ref,
+        size_t chunk_size, size_t chunk_no_last,
+        size_t& bases_start, size_t& chunk_no_start, size_t& chunk_no_end);
+}

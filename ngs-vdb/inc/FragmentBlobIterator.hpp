@@ -70,4 +70,4 @@ namespace ncbi
     }
 } // ncbi
 
-#endif // _hpp_VdbReadCollection_hpp_
+#endif
