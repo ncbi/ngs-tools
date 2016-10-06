@@ -216,28 +216,50 @@ class DumpReferenceFASTA
     }
 };
 
+static void print_help ( void )
+{
+    cout << "Usage: dump-ref-fasta accession [ reference[ slice ] ] ... " << endl;
+}
+
+static void print_version ( void )
+{
+    cout << "dump-ref-fata : 2.8.0" << endl;
+}
+
+
 int main ( int argc, char const *argv[] )
 {
     if ( argc < 2 )
     {
-        cerr << "Usage: DumpReferenceFASTA accession [ reference[ slice ] ] ... \n";
+        print_help ();
     }
     else try
     {
         ncbi::NGS::setAppVersionString ( "DumpReferenceFASTA.1.0.0" );
-        const String acc( argv[ 1 ] );
-        if ( argc > 2 )
+        const String arg1( argv[ 1 ] );
+        if ( arg1 == "-h" || arg1 == "--help" )
         {
-            int n = ( argc - 2 );
-            Slice * slices = new Slice[ n ];
-            for ( int i = 0; i < n; ++i )
-                slices[ i ] = Slice( argv[ 2 + i ] );
-            DumpReferenceFASTA::run( acc, slices, n );
-            delete [] slices;
+            print_help ();
+        }
+        else if ( arg1 == "-v" || arg1 == "--version" )
+        {
+            print_version ();
         }
         else
         {
-            DumpReferenceFASTA::run( acc );
+            if ( argc > 2 )
+            {
+                int n = ( argc - 2 );
+                Slice * slices = new Slice[ n ];
+                for ( int i = 0; i < n; ++i )
+                    slices[ i ] = Slice( argv[ 2 + i ] );
+                DumpReferenceFASTA::run( arg1, slices, n );
+                delete [] slices;
+            }
+            else
+            {
+                DumpReferenceFASTA::run( arg1 );
+            }
         }
         return 0;
     }

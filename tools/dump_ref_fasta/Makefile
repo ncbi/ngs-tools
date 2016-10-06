@@ -32,7 +32,7 @@ include $(TOP)/build/Makefile.config
 INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
 
 std: $(OBJDIR) $(BINDIR)
-	$(MAKE) $(BINDIR)/dump_ref_fasta
+	$(MAKE) $(BINDIR)/dump-ref-fasta
 
 clean:
 	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/dump-ref-fasta*
@@ -70,7 +70,7 @@ DUMP_REF_FASTA_LIBS = \
 	-lpthread           \
 	-ldl
 
-$(BINDIR)/dump_ref_fasta: $(OBJDIR) $(BINDIR) $(DUMP_REF_FASTA_OBJ)
+$(BINDIR)/dump-ref-fasta: $(OBJDIR) $(BINDIR) $(DUMP_REF_FASTA_OBJ)
 	$(LP) -o $@$(VERSION_EXEX) $(DUMP_REF_FASTA_OBJ) $(DUMP_REF_FASTA_LIBS)
 	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
 	ln -sf $(@F)$(MAJVERS_EXEX) $@
