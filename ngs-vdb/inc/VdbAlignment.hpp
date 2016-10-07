@@ -24,12 +24,10 @@
 *
 */
 
-#ifndef _hpp_FragmentBlob_hpp_
-#define _hpp_FragmentBlob_hpp_
+#ifndef _hpp_VdbAlignment_hpp_
+#define _hpp_VdbAlignment_hpp_
 
-#include <ngs/ErrorMsg.hpp>
-
-typedef struct NGS_FragmentBlob* FragmentBlobRef;
+#include <ngs/Alignment.hpp>
 
 namespace ncbi
 {
@@ -37,39 +35,24 @@ namespace ncbi
     {
         namespace vdb
         {
-            class FragmentBlob
+            class VdbAlignment : protected :: ngs :: Alignment
             {
             public:
 
-                const char* Data() const
+                :: ngs :: Alignment toAlignment () const { return *this; }
+
+                bool IsFirst () const
                     throw ();
-
-                uint64_t Size() const
-                    throw ();
-
-                void GetRowRange ( int64_t& first, uint64_t& count ) const
-                    throw ( :: ngs :: ErrorMsg );
-
-                void GetFragmentInfo ( uint64_t offset, std::string& fragId, uint64_t& startInBlob, uint64_t& lengthInBases, bool& biological ) const
-                    throw ( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
-                FragmentBlob ( FragmentBlobRef ref )
+                VdbAlignment ( :: ngs :: Alignment dad )
                     throw ();
 
-                FragmentBlob & operator = ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
-                FragmentBlob ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
-
-                ~ FragmentBlob ()
+                ~ VdbAlignment ()
                     throw ();
-
-            private:
-                FragmentBlobRef self;
             };
         };
     }

@@ -14,7 +14,7 @@ set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs            CACHE PATH "ngs source dir
 set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb       CACHE PATH "ncbi-vdb source directory" )
 set ( NGS_SDK_BUILD_PREFIX ${OLD_OUTDIR}/ngs-sdk      CACHE PATH "ngs build directory" )
 set ( VDB_BUILD_PREFIX ${OLD_OUTDIR}/ncbi-vdb         CACHE PATH "ncbi-vdb build directory" )
-set ( NGS_TOOLS_OUTDIR_ENABLED OFF                    CACHE BOOL "enable copying build results into NGS_TOOLS_OUTDIR_PREFIX" ) 
+set ( NGS_TOOLS_OUTDIR_ENABLED OFF                    CACHE BOOL "enable copying build results into NGS_TOOLS_OUTDIR_PREFIX" )
 set ( NGS_TOOLS_OUTDIR_PREFIX ${OLD_OUTDIR}/ngs-tools CACHE PATH "ngs-tools output directory" )
 
 set ( GIT_BRANCH "master" )
@@ -41,7 +41,7 @@ if (UNIX)
     endif()
 
     include_directories ("${VDB_ROOT}/interfaces/os/unix")
-    
+
     # gmake is a single-configuration generator; we are either Debug or Release
     if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         set ( BUILD dbg )
@@ -50,62 +50,66 @@ if (UNIX)
         set ( BUILD rel )
         set ( CONFIGURE_FLAGS "" )
     endif ()
-    
+
     set ( NGS_LIBDIR ${NGS_SDK_BUILD_PREFIX}/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
     set ( VDB_LIBDIR ${VDB_BUILD_PREFIX}/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
     set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
 
-    set ( SYS_LIBRARIES 
+    set ( SYS_LIBRARIES
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
-            pthread 
-            dl 
+            pthread
+            dl
     )
-    
+
     if (!CMAKE_INSTALL_PREFIX)
-        set ( CMAKE_INSTALL_PREFIX /usr/local/ )  
+        set ( CMAKE_INSTALL_PREFIX /usr/local/ )
     endif ()
 
     set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
-    
+
 elseif (WIN32)
 
     set ( OS win )
     set ( COMPILER vc++ )
-    
+
     if ( CMAKE_GENERATOR MATCHES "2010" )
-        set ( NGS_VSPROJ_SUBDIR "vs2010" ) 
-        set ( VDB_VSPROJ_SUBDIR "2010" ) 
-        set ( PLATFORM_TOOLSET "v100" ) 
+        set ( NGS_VSPROJ_SUBDIR "vs2010" )
+        set ( VDB_VSPROJ_SUBDIR "2010" )
+        set ( PLATFORM_TOOLSET "v100" )
         set ( TOOLS_VERSION "4.0" )
     elseif (CMAKE_GENERATOR MATCHES "2013" )
-        set ( NGS_VSPROJ_SUBDIR "vs2013" ) 
-        set ( VDB_VSPROJ_SUBDIR "2013" ) 
-        set ( PLATFORM_TOOLSET "v120" ) 
+        set ( NGS_VSPROJ_SUBDIR "vs2013" )
+        set ( VDB_VSPROJ_SUBDIR "2013" )
+        set ( PLATFORM_TOOLSET "v120" )
         set ( TOOLS_VERSION "12.0" )
     else()
-        message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )        
+        message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )
     endif()
 
     include_directories ("${NGS_ROOT}/ngs-sdk/win")
-    
+
     # use miltiple processors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
+    # use Unicode
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_UNICODE /DUNICODE")
+
+    # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
 
     set ( NGS_LIBDIR ${NGS_SDK_BUILD_PREFIX}/${OS}/${PLATFORM_TOOLSET}/${WIN_PLATFORM}/$(Configuration)/lib )
     set ( VDB_LIBDIR ${VDB_BUILD_PREFIX}/${OS}/${PLATFORM_TOOLSET}/${WIN_PLATFORM}/$(Configuration)/lib )
     set ( VDB_ILIBDIR ${VDB_LIBDIR} )
-    
+
     string(REPLACE "$(Configuration)" "Debug"   NGS_LIBDIR_DEBUG ${NGS_LIBDIR})
     string(REPLACE "$(Configuration)" "Release" NGS_LIBDIR_RELEASE ${NGS_LIBDIR})
     string(REPLACE "$(Configuration)" "Debug"   VDB_LIBDIR_DEBUG ${VDB_LIBDIR})
     string(REPLACE "$(Configuration)" "Release" VDB_LIBDIR_RELEASE ${VDB_LIBDIR})
 
-    set ( SYS_LIBRARIES 
+    set ( SYS_LIBRARIES
         ${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -116,7 +120,7 @@ elseif (WIN32)
     )
 
     set ( CPACK_GENERATOR "ZIP" )
-    
+
 else()
     message ( FATAL_ERROR "Unsupported OS" )
 endif()
@@ -129,7 +133,7 @@ if ( NOT ANT_EXECUTABLE )
 endif()
 if ( NOT DEFINED ENV{JAVA_HOME} )
     message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
-endif () 
+endif ()
 set ( NGSJAR "${OLD_OUTDIR}/ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
@@ -147,26 +151,26 @@ set ( MSBUILD_OPTIONS  /m /tv:${TOOLS_VERSION} /p:Platform=${WIN_PLATFORM} )
 if (NOT EXISTS ${NGS_ROOT})
     message( STATUS "NGS sources are not found. Will download and build them" )
     if (WIN32)
-        ExternalProject_Add ( ngs 
+        ExternalProject_Add ( ngs
             SOURCE_DIR ${NGS_ROOT}
             GIT_REPOSITORY https://github.com/ncbi/ngs.git
             GIT_TAG ${GIT_BRANCH_NGS}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ""
             BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release
                   COMMAND ${ANT_EXECUTABLE} -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OLD_OUTDIR}/ngs-java jar
           	INSTALL_COMMAND ""
         )
     else ()
-        ExternalProject_Add ( ngs 
+        ExternalProject_Add ( ngs
             SOURCE_DIR ${NGS_ROOT}
             GIT_REPOSITORY https://github.com/ncbi/ngs.git
             GIT_TAG ${GIT_BRANCH_NGS}
             UPDATE_COMMAND ""
             CONFIGURE_COMMAND ${NGS_ROOT}/configure --prefix=${CMAKE_INSTALL_PREFIX} --build-prefix=${OLD_OUTDIR} ${CONFIGURE_FLAGS}
             BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java
-            INSTALL_COMMAND "" 
+            INSTALL_COMMAND ""
         )
     endif()
 else()
@@ -185,18 +189,18 @@ else()
         message ( STATUS "Warning: NGS libraries are not found at ${NGS_LIBDIR}. Will try to build them" )
     endif()
     unset ( NGS_LIBRARY CACHE )
-          
+
     if (WIN32)
-        ExternalProject_Add ( ngs 
+        ExternalProject_Add ( ngs
             SOURCE_DIR ${NGS_ROOT}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release 
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release
                   COMMAND ${ANT_EXECUTABLE} -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OLD_OUTDIR}/ngs-java jar
           	INSTALL_COMMAND ""
         )
     else ()
-        ExternalProject_Add ( ngs 
+        ExternalProject_Add ( ngs
             SOURCE_DIR ${NGS_ROOT}
             CONFIGURE_COMMAND ""
             BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java
@@ -208,7 +212,7 @@ endif()
 if (NOT EXISTS ${VDB_ROOT})
     message( STATUS "NCBI-VDB sources are not found. Will download and build them." )
     if (WIN32)
-        ExternalProject_Add ( ncbi-vdb 
+        ExternalProject_Add ( ncbi-vdb
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
@@ -225,10 +229,14 @@ if (NOT EXISTS ${VDB_ROOT})
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
           	INSTALL_COMMAND ""
         )
     else()
-        ExternalProject_Add ( ncbi-vdb 
+        ExternalProject_Add ( ncbi-vdb
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
@@ -240,7 +248,7 @@ if (NOT EXISTS ${VDB_ROOT})
         )
     endif()
 else ()
-    message( STATUS "Found NCBI-VDB sources. Looking for NCBI-VDB libraries..." )  
+    message( STATUS "Found NCBI-VDB sources. Looking for NCBI-VDB libraries..." )
     if (UNIX)
         find_library ( VDB_LIBRARY ncbi-vdb PATHS ${VDB_LIBDIR} NO_DEFAULT_PATH )
     elseif (CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
@@ -248,7 +256,7 @@ else ()
     else ()
         find_library ( VDB_LIBRARY ncbi-vdb PATHS ${VDB_LIBDIR_RELEASE} NO_DEFAULT_PATH )
     endif()
-	
+
     if ( VDB_LIBRARY )
         get_filename_component(VDB_LIBRARY_DIR ${VDB_LIBRARY} PATH)
         message ( STATUS "Found NGS libraries at ${VDB_LIBRARY_DIR}" )
@@ -256,9 +264,9 @@ else ()
         message ( STATUS "Warning: VDB libraries are not found at ${VDB_LIBDIR}. Will try to build them" )
     endif()
     unset ( VDB_LIBRARY CACHE )
-    
+
     if (WIN32)
-        ExternalProject_Add ( ncbi-vdb 
+        ExternalProject_Add ( ncbi-vdb
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             CONFIGURE_COMMAND ""
@@ -275,7 +283,7 @@ else ()
           	INSTALL_COMMAND ""
         )
     else()
-        ExternalProject_Add ( ncbi-vdb 
+        ExternalProject_Add ( ncbi-vdb
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             CONFIGURE_COMMAND ""

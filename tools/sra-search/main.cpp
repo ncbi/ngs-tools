@@ -186,7 +186,7 @@ main( int argc, char *argv [] )
         Runs runs;
         string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
         bool is_expr = false;
-        bool useBlobSearch = true;
+        bool useBlobSearch = false; // blobs search is not ready yet
         int score = 100;
         int threads = 2;
         bool sortOutput = false;
