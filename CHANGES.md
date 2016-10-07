@@ -1,5 +1,19 @@
 # NCBI External Developer Release:
 
+## NGS Tools 2.8.0
+**October 7, 2016**
+
+### HTTPS-ENABLED RELEASE
+
+  **version**: Moved version from 1.0.x to 2.8.0 to be in sync with sra-tools  
+  **build, ngs-tools**: Now ngs-tools look for its dependencies using their normal build paths and does not reconfigure them  
+  **build, ngs-tools**: Now ngs-tools use CMAKE_INSTALL_PREFIX for installation path  
+  **kns**: All tools and libraries now support https  
+  **ngs, ngs-tools, ref-variation**: added class ngs-vdb::VdbAlignment, featuring method IsFirst()  
+  **ngs-tools**: Fixed Makefiles to keep supporting "./configure; make" build of sra-search, alongside CMake-based build.  
+  **test-sra**: test-sra prints version of ncbi-vdb or ngs-sdk dynamic library  
+
+
 ## NGS Tools 1.0.2
 **July 12, 2016**
 
