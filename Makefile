@@ -43,7 +43,8 @@ include $(TOP)/build/Makefile.targets
 
 default: $(SUBDIRS)
 
-test: $(SUBDIRS) runtests
+#test: $(SUBDIRS) runtests
+test runtests:
 
 $(SUBDIRS):
 	@ $(MAKE) -C $@
