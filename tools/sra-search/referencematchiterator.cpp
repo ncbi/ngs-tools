@@ -68,11 +68,37 @@ ReverseComplementDNA ( const string& p_source)
 class ReferenceSearchBuffer : public SearchBuffer
 {
 public:
-    ReferenceSearchBuffer ( SearchBlock* p_sb, const string& p_accession, const ReadCollection& p_run, const Reference& p_reference, ReferenceMatchIterator :: ReportedFragments& p_reported )
+    ReferenceSearchBuffer ( SearchBlock* p_sb,
+                            const string& p_accession,
+                            const ReadCollection& p_run,
+                            const Reference& p_reference, // all bases
+                            ReferenceMatchIterator :: ReportedFragments& p_reported )
     :   SearchBuffer ( p_sb, p_accession ),
         m_run ( p_run ),
         m_reference ( p_reference ),
+        m_start ( 0 ),
         m_bases ( m_reference.getReferenceBases ( 0 ) ),
+        m_offset ( 0 ),
+        m_refSearch ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
+        m_refSearchReverse ( 0 ),
+        m_alIt ( 0 ),
+        m_fragIt ( 0 ),
+        m_reported ( p_reported )
+    {
+    }
+
+    ReferenceSearchBuffer ( SearchBlock* p_sb,
+                            const string& p_accession,
+                            const ReadCollection& p_run,
+                            const Reference& p_reference, // a slice
+                            uint64_t p_start,
+                            uint64_t p_end,
+                            ReferenceMatchIterator :: ReportedFragments& p_reported )
+    :   SearchBuffer ( p_sb, p_accession ),
+        m_run ( p_run ),
+        m_reference ( p_reference ),
+        m_start ( p_start ),
+        m_bases ( m_reference.getReferenceBases ( p_start, p_end - p_start ) ),
         m_offset ( 0 ),
         m_refSearch ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
         m_refSearchReverse ( 0 ),
@@ -96,6 +122,7 @@ public:
         {
             if ( m_alIt == 0 ) // start searching at m_offset
             {
+                //cout << "searching at " << m_offset << endl;
                 uint64_t hitStart;
                 uint64_t hitEnd;
                 if ( m_refSearch != 0 )
@@ -120,8 +147,8 @@ public:
                         break;
                     }
                 }
-                // cout << "Match on " << BufferId () << " at " << ( m_offset + hitStart ) << "-" << ( m_offset + hitEnd ) << ( m_refSearch == 0 ? " (reverse)" : "" ) << endl;
-                m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) ( m_offset + hitStart ), hitEnd - hitStart ) );
+                // cout << "Match on " << BufferId () << " at " << ( m_start + m_offset + hitStart ) << "-" << ( m_start + m_offset + hitEnd ) << ( m_refSearch == 0 ? " (reverse)" : "" ) << endl;
+                m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) ( m_start + m_offset + hitStart ), hitEnd - hitStart ) );
                 m_offset += hitEnd; //TODO: this may be too far
             }
 
@@ -143,12 +170,13 @@ public:
                     while ( m_fragIt -> nextFragment () ) // foreach fragment
                     {
                         StringRef fragBases = m_fragIt -> getFragmentBases ();
-                        // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
+                        //cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
                         if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
                         {
                             string fragId = m_fragIt -> getFragmentId () . toString ();
                             if ( m_reported . find ( fragId ) == m_reported.end () )
                             {
+                                // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
                                 m_reported . insert ( fragId );
                                 p_fragmentId = fragId;
                                 return true;
@@ -180,6 +208,7 @@ private:
 private:
     ReadCollection  m_run;
     Reference       m_reference;
+    uint64_t        m_start;
     String          m_bases;
     uint64_t        m_offset;
 
@@ -202,14 +231,65 @@ public:
     :   SearchBuffer ( p_sb, p_accession ),
         m_run ( p_run ),
         m_reference ( p_reference ),
+        m_end ( (uint64_t)-1 ),
+        m_startInBlob ( 0 ),
         m_blobIter ( m_reference.getBlobs() ),
-        m_offset ( 0 ),
-        m_refSearch ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
-        m_refSearchReverse ( 0 ),
+        m_curBlob ( 0 ),
+        m_offsetInReference ( 0 ),
+        m_offsetInBlob ( 0 ),
+        m_refSearch         ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
+        m_refSearchReverse  ( NewReferenceSearchBlock ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ) ) ),
+        m_reverse ( false ),
         m_alIt ( 0 ),
         m_fragIt ( 0 ),
         m_reported ( p_reported )
     {
+        if ( m_blobIter . hasMore () )
+        {
+            m_curBlob = m_blobIter. nextBlob();
+            m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+        }
+    }
+
+    ReferenceBlobSearchBuffer ( SearchBlock* p_sb,
+                                const string& p_accession,
+                                const ReadCollection& p_run,
+                                const Reference& p_reference, // a slice
+                                uint64_t p_start,
+                                uint64_t p_end,
+                                ReferenceMatchIterator :: ReportedFragments& p_reported )
+    :   SearchBuffer ( p_sb, p_accession ),
+        m_run ( p_run ),
+        m_reference ( p_reference ),
+        m_startInBlob ( 0 ),
+        m_end ( p_end ),
+        m_blobIter ( m_reference . getBlobs ( p_start, p_end ) ),
+        m_curBlob ( 0 ),
+        m_offsetInReference ( p_start ),
+        m_offsetInBlob ( 0 ),
+        m_refSearch         ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
+        m_refSearchReverse  ( NewReferenceSearchBlock ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ) ) ),
+        m_reverse ( false ),
+        m_alIt ( 0 ),
+        m_fragIt ( 0 ),
+        m_reported ( p_reported )
+    {
+        if ( m_blobIter . hasMore () )
+        {
+            m_curBlob = m_blobIter. nextBlob();
+            m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+            if ( p_start != 0 )
+            { // recalculate starting point of the search
+                uint64_t inReference;
+                uint32_t repeatCount;
+                uint64_t increment;
+                m_curBlob . ResolveOffset ( 0, inReference, repeatCount, increment );
+                assert ( p_start > inReference );
+                m_startInBlob = p_start - inReference;
+                m_offsetInBlob = m_startInBlob;
+// cout << "inReference=" << inReference << " m_startInBlob=" << m_startInBlob << endl;
+            }
+        }
     }
 
     virtual ~ReferenceBlobSearchBuffer ()
@@ -222,78 +302,108 @@ public:
 
     virtual bool NextMatch ( string& p_fragmentId )
     {
-#if 0
-        while ( true )  // foreach match on the reference
+        if ( m_bases . size () == 0 )
         {
-            if ( m_alIt == 0 ) // start searching at m_offset
-            {
-                uint64_t hitStart;
-                uint64_t hitEnd;
-                if ( m_refSearch != 0 )
-                {
-                    if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, hitStart, hitEnd ) )
-                    {   // no more matches on this reference; switch to reverse search
-                        delete m_refSearch;
-                        m_refSearch = 0;
-                        string reverseQuery = ReverseComplementDNA ( m_searchBlock -> GetQuery () ); //TODO: this calculation takes place for each reference with the same result; push up the call stack
-                        //cout << "Swithing to reverse, query=" << reverseQuery << endl;
-                        m_refSearchReverse = NewReferenceSearchBlock ( reverseQuery );
-                        m_offset = 0;
-                        continue;
-                    }
-                }
-                else
-                {
-                    if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, hitStart, hitEnd ) )
-                    {   // no more reverse matches on this reference; the end.
-                        delete m_refSearchReverse;
-                        m_refSearchReverse = 0;
-                        break;
-                    }
-                }
-                // cout << "Match on " << BufferId () << " at " << ( m_offset + hitStart ) << "-" << ( m_offset + hitEnd ) << ( m_refSearch == 0 ? " (reverse)" : "" ) << endl;
-                m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) ( m_offset + hitStart ), hitEnd - hitStart ) );
-                m_offset += hitEnd; //TODO: this may be too far
-            }
+            return false;
+        }
 
-            while ( true ) // for each alignment on the slice
-            {
-                if ( m_fragIt == 0 )
-                {   // start searching alignment on the matched slice
-                    if ( ! m_alIt -> nextAlignment() )
-                    {
-                        delete m_alIt;
-                        m_alIt = 0;
-                        break;
-                    }
-                    m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
-                }
+        while ( true ) // for each blob
+        {
+            m_unpackedBlobSize = m_curBlob . UnpackedSize ();
+            m_reverse = false;
+            m_offsetInBlob = 0;
 
-                if ( m_fragIt != 0 )
+            while ( true )  // foreach match in the blob
+            {
+                if ( m_alIt == 0 ) // start searching at m_offsetInBlob
                 {
-                    while ( m_fragIt -> nextFragment () ) // foreach fragment
+                    uint64_t hitStart;
+                    uint64_t hitEnd;
+                    if ( ! m_reverse )
                     {
-                        StringRef fragBases = m_fragIt -> getFragmentBases ();
-                        // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
-                        if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
-                        {
-                            string fragId = m_fragIt -> getFragmentId () . toString ();
-                            if ( m_reported . find ( fragId ) == m_reported.end () )
-                            {
-                                m_reported . insert ( fragId );
-                                p_fragmentId = fragId;
-                                return true;
-                            }
+                        int64_t first;
+                        uint64_t count;
+                        m_curBlob . GetRowRange ( first, count );
+                        // cout << "searching at " << m_offsetInReference + m_offsetInBlob
+                        //     << " blob size=" << m_bases.size() << " unpacked=" << m_unpackedBlobSize
+                        //     << " rows=" <<  first << "-" << ( first + count - 1) << endl;
+
+                        if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, hitStart, hitEnd ) )
+                        {   // no more matches in this blob; switch to reverse search
+                            m_reverse = true;
+                            m_offsetInBlob = m_startInBlob;
+                            continue;
                         }
                     }
-                    // no (more) matches on this read
-                    delete m_fragIt;
-                    m_fragIt = 0;
+                    else if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, hitStart, hitEnd ) )
+                    {   // no more reverse matches on this reference; the end for this blob
+                        break;
+                    }
+
+                    // cout << "Match on " << BufferId () << " '" << string ( m_bases . data () + m_offsetInBlob + hitStart, hitEnd - hitStart ) << "'" <<
+                    //         " at " << ( m_offsetInReference + m_offsetInBlob + hitStart ) << "-" << ( m_offsetInReference + m_offsetInBlob + hitEnd ) << ( m_reverse ? " (reverse)" : "" ) <<
+                    //         " in blob " << ( m_offsetInBlob + hitStart ) <<
+                                    // endl;
+                    uint64_t inReference;
+                    uint32_t repeatCount;
+                    uint64_t increment;
+                    m_curBlob . ResolveOffset ( m_offsetInBlob + hitStart, inReference, repeatCount, increment );
+                    // cout << "Resolved to  " << inReference << " repeat=" << repeatCount << " inc=" << increment << endl;
+                    m_offsetInBlob += hitEnd; //TODO: this may be too far
+                    if ( m_end != (uint64_t)-1 && inReference >= m_end )
+                    {
+                        continue;
+                    }
+                    m_alIt = new AlignmentIterator ( m_reference . toReference () . getAlignmentSlice ( ( int64_t ) inReference, hitEnd - hitStart ) );
+                }
+
+                while ( true ) // for each alignment on the slice
+                {
+                    if ( m_fragIt == 0 )
+                    {   // start searching alignment on the matched slice
+                        if ( ! m_alIt -> nextAlignment() )
+                        {
+                            delete m_alIt;
+                            m_alIt = 0;
+                            break;
+                        }
+                        m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
+                    }
+
+                    if ( m_fragIt != 0 )
+                    {
+                        while ( m_fragIt -> nextFragment () ) // foreach fragment
+                        {
+                            StringRef fragBases = m_fragIt -> getFragmentBases ();
+                            // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
+                            if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
+                            {
+                                string fragId = m_fragIt -> getFragmentId () . toString ();
+                                if ( m_reported . find ( fragId ) == m_reported.end () )
+                                {
+                                    m_reported . insert ( fragId );
+                                    p_fragmentId = fragId;
+                                    return true;
+                                }
+                            }
+                        }
+                        // no (more) matches on this read
+                        delete m_fragIt;
+                        m_fragIt = 0;
+                    }
                 }
             }
+
+            m_offsetInReference += m_unpackedBlobSize;
+
+            if ( ! m_blobIter . hasMore () )
+            {
+                m_bases . clear ();
+                return false;
+            }
+            m_curBlob = m_blobIter. nextBlob ();
+            m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
         }
-#endif
-        return false;
     }
 
     virtual string BufferId () const
@@ -312,12 +422,19 @@ private:
 private:
     ReadCollection          m_run;
     VdbReference            m_reference;
+    uint64_t                m_startInBlob;
+    uint64_t                m_end;
     ReferenceBlobIterator   m_blobIter;
-    uint64_t                m_offset;
+    ReferenceBlob           m_curBlob;
+    String                  m_bases;
+    uint64_t                m_offsetInReference;
+    uint64_t                m_offsetInBlob;
+    uint64_t                m_unpackedBlobSize;
 
     // loose search on the reference
     SearchBlock*    m_refSearch;
     SearchBlock*    m_refSearchReverse;
+    bool            m_reverse;
 
     AlignmentIterator* m_alIt;
     FragmentIterator*  m_fragIt;
@@ -327,15 +444,16 @@ private:
 
 //////////////////// ReferenceMatchIterator
 
-ReferenceMatchIterator :: ReferenceMatchIterator ( SearchBlock :: Factory&                  p_factory,
-                                                   const string&                            p_accession,
-                                                   const std :: vector < std :: string >&   p_references,
-                                                   bool                                     p_blobSearch )
+ReferenceMatchIterator :: ReferenceMatchIterator ( SearchBlock :: Factory&  p_factory,
+                                                   const string&            p_accession,
+                                                   const ReferenceSpecs&    p_references,
+                                                   bool                     p_blobSearch )
 :   MatchIterator ( p_factory, p_accession ),
     m_run ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
+    m_blobSearch ( p_blobSearch ),
     m_references ( p_references ),
     m_unalignedReadIt ( p_factory, p_accession, ( ngs :: Read :: ReadCategory )  ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned  ) ),
-    m_readsDone ( false )
+    m_unalignedDone ( false )
 {
     if ( m_references . empty () )
     {   // search all references if none specified
@@ -355,23 +473,77 @@ ReferenceMatchIterator :: ~ReferenceMatchIterator ()
 SearchBuffer*
 ReferenceMatchIterator :: NextBuffer ()
 {   // returns a buffer associated with the next reference in the iterator, or with the next unaligned read
-    if ( m_refIt != m_references . end () )
+    while ( m_refIt != m_references . end () )
     {
-        //cout << "Searching on " << *m_refIt << endl;
-//        ReferenceSearchBuffer* ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, m_run, m_run . getReference ( *m_refIt ), m_reported );
-        ReferenceBlobSearchBuffer* ret = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, m_run, m_run . getReference ( *m_refIt ), m_reported );
-        ++ m_refIt;
-        return ret;
+        // cout << "Searching on " << m_refIt -> m_name << endl;
+        try
+        {
+            SearchBuffer* ret;
+            if ( m_blobSearch )
+            {
+                if (  m_refIt -> m_full )
+                {
+                    ret = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                      m_accession,
+                                                      m_run,
+                                                      m_run . getReference ( m_refIt -> m_name ),
+                                                      m_reported );
+                }
+                else
+                {
+                    ret = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                      m_accession,
+                                                      m_run,
+                                                      m_run . getReference ( m_refIt -> m_name ),
+                                                      m_refIt -> m_start,
+                                                      m_refIt -> m_end,
+                                                      m_reported );
+                }
+            }
+            else
+            {
+                if (  m_refIt -> m_full )
+                {
+                    ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                      m_accession,
+                                                      m_run,
+                                                      m_run . getReference ( m_refIt -> m_name ),
+                                                      m_reported );
+                }
+                else
+                {
+                    ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                      m_accession,
+                                                      m_run,
+                                                      m_run . getReference ( m_refIt -> m_name ),
+                                                      m_refIt -> m_start,
+                                                      m_refIt -> m_end,
+                                                      m_reported );
+                }
+            }
+            ++ m_refIt;
+            return ret;
+        }
+        catch ( ngs :: ErrorMsg ex )
+        {
+            const string NotFoundMsg = "Reference not found";
+            if ( string ( ex . what (), NotFoundMsg . size () ) == NotFoundMsg )
+            {
+                ++ m_refIt;
+                continue;
+            }
+            throw;
+        }
     }
 
-    if ( ! m_readsDone )
+    if ( m_references . empty () && ! m_unalignedDone ) // unaligned fragments are not searched if reference spec is not empty
     {
         SearchBuffer* ret = m_unalignedReadIt . NextBuffer ();
         if ( ret != 0 )
         {
             return ret;
         }
-        m_readsDone = true;
+        m_unalignedDone = true;
     }
 
     return 0;

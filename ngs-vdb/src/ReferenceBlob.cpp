@@ -92,11 +92,25 @@ ReferenceBlob :: Data() const throw ()
 }
 
 uint64_t
-ReferenceBlob :: Size() const throw ()
+ReferenceBlob :: Size() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     uint64_t ret = 0;
     ON_FAIL ( ret = NGS_ReferenceBlobSize ( self, ctx ) )
+    {
+        :: ngs :: ErrBlock err;
+        NGS_ErrBlockThrow ( &err, ctx );
+        err.Throw();
+    }
+    return ret;
+}
+
+uint64_t
+ReferenceBlob :: UnpackedSize() const throw ( :: ngs :: ErrorMsg )
+{
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    uint64_t ret = 0;
+    ON_FAIL ( ret = NGS_ReferenceBlobUnpackedSize ( self, ctx ) )
     {
         :: ngs :: ErrBlock err;
         NGS_ErrBlockThrow ( &err, ctx );

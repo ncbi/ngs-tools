@@ -383,6 +383,7 @@ FIXTURE_TEST_CASE ( ReferenceMatchIterator_AccessionName, VdbSearchFixture )
     DummySearchBlockFactory factory;
     ReferenceMatchIterator it ( factory, accName );
     SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_NOT_NULL ( buf );
     REQUIRE_EQ ( accName, buf -> AccessionName () );
     delete buf;
 }
@@ -394,14 +395,34 @@ FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
     ReferenceMatchIterator it ( factory, accName );
 
     SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_NOT_NULL ( buf );
     REQUIRE_EQ ( string("gi|169794206|ref|NC_010410.1|"), buf -> BufferId () );
     delete buf;
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_ReferenceNotFound, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NOT_ME_GUV" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_NotCSRA, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001" );
+    // No references or alignments in the archive, this becomes a scan of SEQUENCE table
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR000001.FR0.28322" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR000001.FR0.65088" ),  m_fragment );
+    // etc
 }
 
 FIXTURE_TEST_CASE ( ReferenceDriven_SingleReference_SingleAccession, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
-    m_settings . m_references . push_back ( "NC_000007.13" );
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
     SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
 
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
@@ -413,10 +434,10 @@ FIXTURE_TEST_CASE ( ReferenceDriven_SingleReference_SingleAccession, VdbSearchFi
     REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
 }
 
-
 FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
     SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
 
 /*
@@ -432,21 +453,94 @@ etc
             // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment ); // used to be duplicates
             // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
-            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
 }
 
-//TODO: specify multiple reference names, single accession
-//TODO: specify multiple reference names, match against different accessions
+FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates_Blobs, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
 
-//TODO: specify a single reference slice, single accession
-//TODO: specify a single reference slice, match against different accessions
-//TODO: specify multiple reference slices, single accession
-//TODO: specify multiple reference slices, match against different accessions
-//TODO: reference mode on a non-CSRA object (error)
-//TODO: circular references
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+}
 
-//TODO: reference blob mode
+FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_SingleSlice_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13", 81000000, 105000000 ) );
+    SetupSingleThread ( "ACGTAGGGTC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // Match on NC_000007.13 at 104,782,835-104,782,845
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125868" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125870" ),  m_fragment );
+    // Match on NC_000007.13 at 81,579,623-81,579,633 (reverse)
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094914" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094915" ),  m_fragment );
+
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13", 81575001, 105000000 ) );
+    SetupSingleThread ( "ACGTAGGGTC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // Match on NC_000007.13 at 81,579,623-81,579,633 (reverse)
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094914" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094915" ),  m_fragment );
+    // Match on NC_000007.13 at 104,782,835-104,782,845
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125868" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125870" ),  m_fragment );
+
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+//TODO: reference-driven, specify a single reference slice, match against different accessions
+//TODO: reference-driven, specify multiple reference slices, single accession
+//TODO: reference-driven, specify multiple reference slices, match against different accessions
+
+#if UNIMPLEMENTED
+FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
+{
+    const string Query = "ACTACCATG";
+    const string Run = "SRR600099";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_references . push_back ( "NC_000001.10" );
+//    m_settings . m_references . push_back ( "NC_007605.1" );
+
+    m_settings . m_useBlobSearch  = true;
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb, Run );
+    set<string> blobs;
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        blobs . insert ( m_fragment );
+    }
+
+    m_settings . m_useBlobSearch  = false;
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb ); // same run as before
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        if ( blobs . find ( m_fragment ) == blobs . end () )
+        {
+            cout << "gotcha: " << m_fragment << endl;
+            return;
+        }
+    }
+
+//    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.1493134" ),  m_fragment ); // this crosses the row (blob?) boundary
+ //   REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.1493135" ),  m_fragment ); // this crosses the row (blob?) boundary
+}
+#endif
+
+//TODO: reference-driven, circular references
+
+//TODO: reference-driven, specify multiple reference names, single accession
+//TODO: reference-driven, specify multiple reference names, match against different accessions
 
 int
 main( int argc, char *argv [] )

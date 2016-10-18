@@ -45,7 +45,10 @@ namespace ncbi
                     throw ();
 
                 uint64_t Size() const
-                    throw ();
+                    throw ( :: ngs :: ErrorMsg );
+
+                uint64_t UnpackedSize() const
+                    throw ( :: ngs :: ErrorMsg );
 
                 void GetRowRange ( int64_t& first, uint64_t& count ) const
                     throw ( :: ngs :: ErrorMsg );

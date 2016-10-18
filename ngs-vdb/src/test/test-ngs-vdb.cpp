@@ -26,6 +26,8 @@
 
 #include <ktst/unit_test.hpp>
 
+#include <sstream>
+
 #include <ngs-vdb/inc/NGS-VDB.hpp>
 
 #define __mod__     "TEST_NGS_VDB"
@@ -121,6 +123,19 @@ public:
         ON_FAIL ( m_iter = NGS_ReadCollectionGetFragmentBlobs ( m_readColl, ctx ) )
         {
             throw logic_error ("NGS_ReadCollectionGetFragmentBlobs failed");
+        }
+    }
+
+    void CheckRange ( const FragmentBlob& p_blob, int64_t p_first, uint64_t p_count )
+    {
+        int64_t first=0;
+        uint64_t count=0;
+        p_blob . GetRowRange ( first, count );
+        if ( p_first != first || p_count != count )
+        {
+            ostringstream str;
+            str << "CheckRange(first=" << p_first << ", count=" << p_count << ") : first=" << first << ", count=" << count << endl;
+            throw std :: logic_error ( str.str() );
         }
     }
 
@@ -234,18 +249,12 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetRowRange, FragmentBlobFixture )
     TRY ( NGS_FragmentBlob* ref1 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
     {
         FragmentBlob b ( ref1 );
-        int64_t first=0;
-        uint64_t count=0;
-        b . GetRowRange ( first, count );
-        REQUIRE_EQ ( (int64_t)1, first );
-        REQUIRE_EQ ( (uint64_t)4, count );
+        CheckRange ( b, 1, 4 );
 
         TRY ( NGS_FragmentBlob* ref2 = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
         {
             b = ref2;
-            b . GetRowRange ( first, count );
-            REQUIRE_EQ ( (int64_t)5, first );
-            REQUIRE_EQ ( (uint64_t)4, count );
+            CheckRange ( b, 5, 4 );
 
             NGS_FragmentBlobRelease ( ref2, ctx );
         }
@@ -391,7 +400,7 @@ public:
         }
     }
 
-    void MakeBlobIterator ( ctx_t ctx, const string& p_acc, const string& p_refName )
+    void MakeBlobIterator ( ctx_t ctx, const string& p_acc, const string& p_refName, int64_t p_start = 0, uint64_t p_length = (uint64_t)-1 )
     {
         FUNC_ENTRY ( ctx, rcSRA, rcArc, rcAccessing );
 
@@ -412,7 +421,7 @@ public:
                 NGS_ReferenceBlobIteratorRelease ( m_iter, m_ctx );
                 m_iter = 0;
             }
-            ON_FAIL ( m_iter = NGS_ReferenceGetBlobs ( ref, ctx ) )
+            ON_FAIL ( m_iter = NGS_ReferenceGetBlobs ( ref, ctx, p_start, p_length ) )
             {
                 throw logic_error ("NGS_ReferenceGetBlobs failed");
             }
@@ -486,14 +495,49 @@ public:
         throw logic_error ("GetBlobByRowId: row not found");
     }
 
+    void CheckRange ( const ReferenceBlob& p_blob, int64_t p_first, uint64_t p_count )
+    {
+        int64_t first=0;
+        uint64_t count=0;
+        p_blob . GetRowRange ( first, count );
+        if ( p_first != first || p_count != count )
+        {
+            ostringstream str;
+            str << "CheckRange(first=" << p_first << ", count=" << p_count << ") : first=" << first << ", count=" << count << endl;
+            throw std :: logic_error ( str.str() );
+        }
+    }
+
     NGS_ReadCollection*         m_readColl;
     NGS_ReferenceBlobIterator*  m_iter;
 };
 
-FIXTURE_TEST_CASE ( ReferenceBlob_Create_Size, ReferenceBlobFixture )
+FIXTURE_TEST_CASE ( ReferenceBlob_Create_Size_NoRepeats, ReferenceBlobFixture )
 {
     ENTRY;
     REQUIRE_EQ ( (uint64_t)20000, GetBlobByNumber ( ctx, CSRA1_Accession, "supercont2.1" ) . Size () );
+    EXIT;
+}
+
+FIXTURE_TEST_CASE ( ReferenceBlob_UnpackedSize_NoRepeats, ReferenceBlobFixture )
+{
+    ENTRY;
+    REQUIRE_EQ ( (uint64_t)20000, GetBlobByNumber ( ctx, CSRA1_Accession, "supercont2.1" ) . UnpackedSize () );
+    EXIT;
+}
+
+FIXTURE_TEST_CASE ( ReferenceBlob_Size_WithRepeats, ReferenceBlobFixture )
+{
+    ENTRY;
+    ReferenceBlob b ( GetBlobByRowId ( ctx, CSRA1_Accession_WithRepeats, "NC_000001.10", 96 ) );   /* this blob contains some repeated all-N rows */
+    REQUIRE_EQ ( (uint64_t)280000, b . Size () );
+    EXIT;
+}
+FIXTURE_TEST_CASE ( ReferenceBlob_UnpackedSize_WithRepeats, ReferenceBlobFixture )
+{
+    ENTRY;
+    ReferenceBlob b ( GetBlobByRowId ( ctx, CSRA1_Accession_WithRepeats, "NC_000001.10", 96 ) );   /* this blob contains some repeated all-N rows */
+    REQUIRE_EQ ( (uint64_t)320000, b . UnpackedSize () );
     EXIT;
 }
 
@@ -533,11 +577,7 @@ FIXTURE_TEST_CASE ( ReferenceBlob_GetRowRange, ReferenceBlobFixture )
     ENTRY;
 
     ReferenceBlob b ( GetBlobByNumber ( ctx, CSRA1_Accession, "supercont2.1", 1 ) );
-    int64_t first=0;
-    uint64_t count=0;
-    b . GetRowRange ( first, count );
-    REQUIRE_EQ ( (int64_t)1, first );
-    REQUIRE_EQ ( (uint64_t)4, count );
+    CheckRange ( b, 1, 4 );
 
     EXIT;
 }
@@ -666,13 +706,54 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_FullScan, ReferenceBlobFixture )
     ENTRY;
     MakeBlobIterator ( ctx, CSRA1_Accession, "supercont2.1" );
     ReferenceBlobIterator iter ( m_iter );
-    size_t count = 0;
-    while ( iter . hasMore () )
-    {
-        ReferenceBlob b = iter . nextBlob ();
-        ++count;
-    }
-    REQUIRE_EQ ( (size_t)12, count );
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 1, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 5, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 9, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 13, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 17, 16);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 33, 16);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 49, 16);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 65, 64);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( ! iter . hasMore () );
+    EXIT;
+}
+
+FIXTURE_TEST_CASE ( ReferenceBlobIterator_Slice_Open, ReferenceBlobFixture )
+{
+    ENTRY;
+    MakeBlobIterator ( ctx, CSRA1_Accession, "supercont2.1", 500000 );
+    ReferenceBlobIterator iter ( m_iter );
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 101, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 102, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 103, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 104, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 105, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 113, 16);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( ! iter . hasMore () );
+    EXIT;
+}
+
+FIXTURE_TEST_CASE ( ReferenceBlobIterator_SliceClosed, ReferenceBlobFixture )
+{
+    ENTRY;
+    MakeBlobIterator ( ctx, CSRA1_Accession, "supercont2.1", 500000, 50000 );
+    ReferenceBlobIterator iter ( m_iter );
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 101, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 102, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 103, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 104, 1);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 105, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 4);
+    REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
 

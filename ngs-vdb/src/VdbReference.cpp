@@ -75,7 +75,21 @@ VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
-    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx ) )
+    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, 0, (uint64_t)-1 ) )
+    {
+        return ReferenceBlobIterator ( iter );
+    }
+    :: ngs :: ErrBlock err;
+    NGS_ErrBlockThrow ( &err, ctx );
+    err.Throw();
+}
+
+ReferenceBlobIterator
+VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const throw ( :: ngs :: ErrorMsg )
+{
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+
+    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, p_start, p_count ) )
     {
         return ReferenceBlobIterator ( iter );
     }

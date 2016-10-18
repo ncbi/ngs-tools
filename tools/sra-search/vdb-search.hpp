@@ -35,6 +35,7 @@
 #include <klib/rc.h>
 
 #include "searchblock.hpp"
+#include "referencespec.hpp"
 
 struct KThread;
 class MatchIterator;
@@ -77,7 +78,7 @@ public:
         unsigned int                m_threads;          // default 2
         bool                        m_useBlobSearch;    // default true
         bool                        m_referenceDriven;  // default false
-        std::vector < std::string > m_references;       // default empty (all references)
+        ReferenceSpecs              m_references;       // default empty (all references)
         unsigned int                m_maxMatches;       // default 0 (unlimited)
 
         Settings ();

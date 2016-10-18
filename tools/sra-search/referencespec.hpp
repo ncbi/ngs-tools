@@ -1,4 +1,4 @@
-/*===========================================================================
+    /*===========================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -24,45 +24,37 @@
 *
 */
 
-#ifndef _hpp_reference_match_iterator_
-#define _hpp_reference_match_iterator_
+#ifndef _hpp_reference_spec_
+#define _hpp_reference_spec_
 
+#include <string>
 #include <vector>
-#include <set>
 
-#include <ngs/ReadCollection.hpp>
-#include "fragmentmatchiterator.hpp"
-
-#include "referencespec.hpp"
-
-class ReferenceMatchIterator : public MatchIterator
+struct ReferenceSpec
 {
-public:
-    typedef std :: vector < std :: string > ReferenceNames;
-    typedef std :: set < std :: string > ReportedFragments;
+    ReferenceSpec ( const std :: string& p_name ) // full
+    :   m_name ( p_name ),
+        m_start ( 0 ),
+        m_end ( 0 ),
+        m_full ( true )
+    {
+    }
 
-public:
-    ReferenceMatchIterator ( SearchBlock :: Factory&    p_factory,
-                             const std :: string&       p_accession,
-                             const ReferenceSpecs&      p_references = ReferenceSpecs(),
-                             bool                       p_blobSearch = false );
+    ReferenceSpec ( const std :: string& p_name, uint64_t p_start, uint64_t p_end ) // slice [ p_start .. p_end )
+    :   m_name ( p_name ),
+        m_start ( p_start ),
+        m_end ( p_end ),
+        m_full ( false )
+    {
+    }
 
-    virtual ~ReferenceMatchIterator ();
-
-    virtual SearchBuffer* NextBuffer ();
-
-private:
-    ngs :: ReadCollection   m_run;
-
-    ReferenceSpecs  m_references;
-    bool            m_blobSearch;
-
-    ReferenceSpecs :: const_iterator    m_refIt;
-
-    FragmentMatchIterator   m_unalignedReadIt;
-    bool                    m_unalignedDone;
-
-    ReportedFragments m_reported; // used to eliminate double reports
+    std::string m_name;
+    uint64_t m_start;
+    uint64_t  m_end;
+    bool m_full;
 };
 
+typedef std :: vector < ReferenceSpec > ReferenceSpecs;
+
 #endif
+

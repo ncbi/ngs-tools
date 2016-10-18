@@ -234,7 +234,7 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         if ( m_settings . m_referenceDriven )
         {   // no reference blob search for now
-            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, false ) );
+            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }
         else if ( m_settings . m_useBlobSearch )
         {
