@@ -264,7 +264,7 @@ public class JobConsumerThreadBio extends JobConsumerThread
         try
         {
             writer.close();
-            System.out.printf( "closing writer for '%s'\n", data.job.get_short_source() );
+            /* System.out.printf( "closing writer for '%s'\n", data.job.get_short_source() ); */
         }
         catch ( IOException ex )
         {

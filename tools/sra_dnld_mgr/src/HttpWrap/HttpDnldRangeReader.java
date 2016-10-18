@@ -23,8 +23,9 @@
 =========================================================================== */
 package HttpWrap;
 
-import java.io.*;
-import java.net.*;
+import java.io.IOException;
+import java.io.DataInputStream;
+import javax.net.ssl.HttpsURLConnection;
 import data.CLogger;
 
 public class HttpDnldRangeReader extends HttpDnldUrlWrapper
@@ -34,13 +35,13 @@ public class HttpDnldRangeReader extends HttpDnldUrlWrapper
         long res = 0;
         if ( valid() )
         {
-            HttpURLConnection conn = make_connection( "HEAD" );
+            HttpsURLConnection conn = make_https_connection( "HEAD" );
             if ( conn != null )
             {
                 try
                 {
                     conn.connect();
-                    if ( conn.getResponseCode() == HttpURLConnection.HTTP_OK )
+                    if ( conn.getResponseCode() == HttpsURLConnection.HTTP_OK )
                         res = conn.getContentLengthLong();
                     conn.disconnect();
                 }
@@ -55,7 +56,7 @@ public class HttpDnldRangeReader extends HttpDnldUrlWrapper
         c.available = 0;
         if ( valid() )
         {
-            HttpURLConnection conn = make_connection( "GET" );
+            HttpsURLConnection conn = make_https_connection( "GET" );
             if ( conn != null )
             {
                 try
@@ -64,8 +65,8 @@ public class HttpDnldRangeReader extends HttpDnldUrlWrapper
                     conn.addRequestProperty( "Range", range );
                     conn.connect();
                     int resp_code = conn.getResponseCode();
-                    if ( resp_code == HttpURLConnection.HTTP_OK ||
-                         resp_code == HttpURLConnection.HTTP_PARTIAL )
+                    if ( resp_code == HttpsURLConnection.HTTP_OK ||
+                         resp_code == HttpsURLConnection.HTTP_PARTIAL )
                     {
                         c.available = Integer.parseInt( conn.getHeaderField( "Content-Length" ) );
                         if ( c.available > 0 )

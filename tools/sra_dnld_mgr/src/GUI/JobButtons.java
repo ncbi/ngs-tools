@@ -106,6 +106,14 @@ class JobButtons extends JPanel
                               Edit.setEnabled( true );
                               Delete.setEnabled( true );                              
                               break;
+                
+            case FAILED     : Start.setEnabled( false );
+                              Pause.setEnabled( false );
+                              Reset.setEnabled( true );
+                              Edit.setEnabled( true );
+                              Delete.setEnabled( true );                              
+                              break;
+                
         }
     }
             

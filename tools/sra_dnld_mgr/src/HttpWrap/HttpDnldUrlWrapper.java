@@ -24,7 +24,9 @@
 package HttpWrap;
 
 import java.io.*;
-import java.net.*;
+import java.net.URL;
+import java.net.MalformedURLException;
+import javax.net.ssl.HttpsURLConnection;
 import data.CLogger;
 
 public class HttpDnldUrlWrapper
@@ -38,12 +40,12 @@ public class HttpDnldUrlWrapper
             
     public boolean valid() { return url != null; }
 
-    public HttpURLConnection make_connection( String RequestMethod )
+    public HttpsURLConnection make_https_connection( String RequestMethod )
     {
-        HttpURLConnection conn = null;
+        HttpsURLConnection conn = null;
         try
         {
-            conn = ( HttpURLConnection )url.openConnection();
+            conn = ( HttpsURLConnection )url.openConnection();
             conn.setConnectTimeout( conn_timeout );
             conn.setReadTimeout( read_timeout );
             conn.setRequestMethod( RequestMethod );
@@ -69,6 +71,8 @@ public class HttpDnldUrlWrapper
     {
         set_defaults();
         
+        /* CLogger.logfmt( "HttpDnldUrlWrapper( %s )" , url ); */
+
         try { this.url = new URL( url ); }
         catch ( MalformedURLException ex ) { CLogger.log( ex.toString() ); }
     }
