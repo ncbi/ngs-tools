@@ -29,6 +29,8 @@
 #include <cstring>
 
 #include <klib/rc.h>
+//#include <klib/text.h>
+#include <klib/printf.h>
 
 #include <search/grep.h>
 #include <search/nucstrstr.h>
@@ -38,6 +40,19 @@
 
 using namespace std;
 using namespace ngs;
+
+static
+void
+ThrowRC(const char* p_message, rc_t p_rc)
+{
+    char buf[1024];
+    rc_t rc = string_printf(buf, sizeof(buf), NULL, "%s, rc = %R", p_message, p_rc);
+    if ( rc != 0 )
+    {
+        throw ErrorMsg ( p_message );
+    }
+    throw ErrorMsg ( buf );
+}
 
 //////////////////// SearchBlock subclasses
 
@@ -63,7 +78,7 @@ FgrepSearch :: FgrepSearch ( const string& p_query, Algorithm p_algorithm )
     }
     if ( rc != 0 )
     {
-        throw ( ErrorMsg ( "FgrepMake() failed" ) );
+        ThrowRC ( "FgrepMake() failed", rc );
     }
 }
 
@@ -109,7 +124,7 @@ AgrepSearch :: AgrepSearch ( const string& p_query, Algorithm p_algorithm, uint8
     }
     if ( rc != 0 )
     {
-        throw ( ErrorMsg ( "AgrepMake failed" ) );
+        ThrowRC ( "AgrepMake failed", rc );
     }
 }
 
@@ -224,7 +239,7 @@ SmithWatermanSearch :: SmithWatermanSearch ( const string& p_query, uint8_t p_mi
     rc_t rc = SmithWatermanMake ( &m_sw, m_query . c_str() );
     if ( rc != 0 )
     {
-        throw ( ErrorMsg ( "SmithWatermanMake() failed" ) );
+        ThrowRC ( "SmithWatermanMake() failed", rc );
     }
 }
 
@@ -249,5 +264,5 @@ SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t
     {
         return false;
     }
-    throw ( ErrorMsg ( "SmithWatermanFindFirst() failed" ) );
+    ThrowRC ( "SmithWatermanFindFirst() failed", rc );
 }

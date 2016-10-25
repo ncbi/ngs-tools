@@ -235,6 +235,7 @@ public:
         m_startInBlob ( 0 ),
         m_blobIter ( m_reference.getBlobs() ),
         m_curBlob ( 0 ),
+        m_nextBlob ( 0 ),
         m_offsetInReference ( 0 ),
         m_offsetInBlob ( 0 ),
         m_refSearch         ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
@@ -247,7 +248,19 @@ public:
         if ( m_blobIter . hasMore () )
         {
             m_curBlob = m_blobIter. nextBlob();
+            m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
             m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+
+            //TODO: this code is replicated in both constructors and NextMatch(), refactor
+            if ( m_blobIter . hasMore () )
+            {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
+                m_nextBlob = m_blobIter. nextBlob ();
+                m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
+            }
+            else
+            {
+                m_lastBlob = true;
+            }
         }
     }
 
@@ -265,8 +278,10 @@ public:
         m_end ( p_end ),
         m_blobIter ( m_reference . getBlobs ( p_start, p_end ) ),
         m_curBlob ( 0 ),
+        m_nextBlob ( 0 ),
         m_offsetInReference ( p_start ),
         m_offsetInBlob ( 0 ),
+        m_lastBlob ( false ),
         m_refSearch         ( NewReferenceSearchBlock ( m_searchBlock -> GetQuery () ) ),
         m_refSearchReverse  ( NewReferenceSearchBlock ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ) ) ),
         m_reverse ( false ),
@@ -277,7 +292,20 @@ public:
         if ( m_blobIter . hasMore () )
         {
             m_curBlob = m_blobIter. nextBlob();
+
+            m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
             m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+            //TODO: this code is replicated in both constructors and NextMatch(), refactor
+            if ( m_blobIter . hasMore () )
+            {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
+                m_nextBlob = m_blobIter. nextBlob ();
+                m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
+            }
+            else
+            {
+                m_lastBlob = true;
+            }
+
             if ( p_start != 0 )
             { // recalculate starting point of the search
                 uint64_t inReference;
@@ -396,13 +424,23 @@ public:
 
             m_offsetInReference += m_unpackedBlobSize;
 
-            if ( ! m_blobIter . hasMore () )
+            if ( m_lastBlob )
             {
-                m_bases . clear ();
                 return false;
             }
-            m_curBlob = m_blobIter. nextBlob ();
+
+            m_curBlob = m_nextBlob;
             m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+            if ( m_blobIter . hasMore () )
+            {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
+                m_nextBlob = m_blobIter. nextBlob ();
+                m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
+                m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
+            }
+            else
+            {
+                m_lastBlob = true;
+            }
         }
     }
 
@@ -424,12 +462,16 @@ private:
     VdbReference            m_reference;
     uint64_t                m_startInBlob;
     uint64_t                m_end;
+
     ReferenceBlobIterator   m_blobIter;
     ReferenceBlob           m_curBlob;
+    ReferenceBlob           m_nextBlob;
+
     String                  m_bases;
     uint64_t                m_offsetInReference;
     uint64_t                m_offsetInBlob;
     uint64_t                m_unpackedBlobSize;
+    bool                    m_lastBlob;
 
     // loose search on the reference
     SearchBlock*    m_refSearch;
