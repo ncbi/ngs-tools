@@ -28,6 +28,7 @@
 #include <stdexcept>
 #include <cerrno>
 #include <set>
+#include <sstream>
 
 #include <strtol.h>
 
@@ -162,7 +163,7 @@ static void handle_help ( const char * appName )
          << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
-         << "  --reference               Scan references for potential matches" << endl
+         << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
          << "  -m|--max <number>         Stop after N matches" << endl
          ;
 
@@ -261,6 +262,16 @@ main( int argc, char *argv [] )
             else if ( arg == "--reference" )
             {
                 settings . m_referenceDriven = true;
+                if ( i + 1 < argc && argv [ i + 1 ] [ 0 ] != '-' )
+                {   // parse reference specs
+                    istringstream str ( argv [ i + 1 ] );
+                    string name;
+                    while ( getline ( str, name, ',') )
+                    {
+                        settings . m_references . push_back ( name );
+                    }
+                }
+                ++i;
             }
             else if ( arg == "-m" || arg == "--max" )
             {

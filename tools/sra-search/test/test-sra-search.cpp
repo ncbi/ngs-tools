@@ -41,6 +41,8 @@
 #include <sra/sraschema.h> // VDBManagerMakeSRASchema
 #include <vdb/schema.h> /* VSchemaRelease */
 
+#include <ngs/ncbi/NGS.hpp>
+
 #include <../libs/vdb/blob-priv.h>
 
 #include <search/grep.h>
@@ -466,6 +468,115 @@ FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates_Blobs, VdbSearchF
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
 }
 
+FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
+{
+    const string Query = "TTGAAGAGATCCGACATCA";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back("SRR600094");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10", 14936, 15011 ) ); // crosses the blob boundary (5000)
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE_EQ ( string("SRR600094.FR0.1647758"), m_fragment ); // aligns into the above region, across the blob boundary
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_MatchAcrossEndOfCirular, VdbSearchFixture )
+{
+    // read=TATTGTGATGTTTTATTTAAGGGGAATGTGTGGGTTATTTAGGTTTTATGATTTTGAAGTAGGAATTAGATGTTGGATATAGTTTATTTTAGTTCCATAACACTTAAAAATAACTAAAATAAACTATATCCAACATCTAATTCCTACTTCAAAATCATAAAACCTAAATAACCCACACATTCCCCTTA
+    // ref=GATCACAGG...CATCACGATG
+    const string Query = "TGGAT";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back("SRR1769246");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_012920.1" ) );
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        if ( string("SRR1769246.FR0.1638021") == m_fragment )
+        {
+            return;
+        }
+    }
+    FAIL ("SRR1769246.FR0.1638021 not found");
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_MatchAcrossEndOfCirular, VdbSearchFixture )
+{
+    // read=TATTGTGATGTTTTATTTAAGGGGAATGTGTGGGTTATTTAGGTTTTATGATTTTGAAGTAGGAATTAGATGTTGGATATAGTTTATTTTAGTTCCATAACACTTAAAAATAACTAAAATAAACTATATCCAACATCTAATTCCTACTTCAAAATCATAAAACCTAAATAACCCACACATTCCCCTTA
+    // ref=GATCACAGG...CATCACGATG
+    const string Query = "TGGAT";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_accessions . push_back("SRR1769246");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_012920.1" ) );
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        if ( string("SRR1769246.FR0.1638021") == m_fragment )
+        {
+            return;
+        }
+    }
+    FAIL ("SRR1769246.FR0.1638021 not found");
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_MultipleReferences_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    // NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+    // there are matches on other references, not reported here
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_MultipleReferences_MultipleAccessions, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back ( "SRR600095" );
+    m_settings . m_accessions . push_back ( "SRR600094" );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb );
+
+    // SRR600095, on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600095.FR1.694078" ),  m_fragment );
+    // SRR600094, NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600095.FR1.69793" ),  m_fragment );
+    // SRR600094, on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    // SRR600094, NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+    // there are matches on other references, not reported here
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+// Reference-driven mode on a reference slice
+
 FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_SingleSlice_SingleAccession, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
@@ -503,47 +614,7 @@ FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearch
 //TODO: reference-driven, specify a single reference slice, match against different accessions
 //TODO: reference-driven, specify multiple reference slices, single accession
 //TODO: reference-driven, specify multiple reference slices, match against different accessions
-
-
-// An NGS-based way to find alignments on a blob boundary:
-// FIXTURE_TEST_CASE(temporary, CSRA1_Fixture)
-// {
-//     // we should filter out secondary alignments with SEQ_SPOT_ID == 0
-//     ngs :: ReadCollection run = ncbi :: NGS :: openReadCollection ( "SRR600094" );
-//     ngs :: ReferenceIterator refIt = run . getReferences ();
-//     while (refIt . nextReference ())
-//     {
-//         ngs :: AlignmentIterator alIt = refIt . getAlignments(ngs::Alignment::all);
-//         while (alIt.nextAlignment())
-//         {
-//             int64_t begin = alIt.getAlignmentPosition();
-//             int64_t end = begin + alIt.getAlignmentLength();
-//             if (begin / 5000 != end / 5000)
-//             {
-//                 cout << alIt.getAlignmentId() << ": " << refIt . getCanonicalName() << " " << begin << "-" << end << "'" << alIt . getReferenceBases() . toString () << "'" << endl;
-//                 exit(0);
-//             }
-//         }
-//     }
-// }
-
-FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
-{
-    const string Query = "TTGAAGAGATCCGACATCA";
-    m_settings . m_referenceDriven = true;
-    m_settings . m_useBlobSearch  = true;
-    m_settings . m_accessions . push_back("SRR600094");
-    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10", 14936, 15011 ) ); // crosses the blob boundary (5000)
-
-    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( string("SRR600094.FR0.1647758"), m_fragment ); // aligns into the above region, across the blob boundary
-}
-
-//TODO: reference-driven, across the "end" of a circular reference
-
-//TODO: reference-driven, specify multiple reference names, single accession
-//TODO: reference-driven, specify multiple reference names, match against different accessions
+//TODO: reference-driven search on a slice that wraps around the end of a circular reference
 
 int
 main( int argc, char *argv [] )
