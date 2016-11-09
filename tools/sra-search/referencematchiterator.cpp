@@ -80,8 +80,10 @@ public:
         m_reported ( p_reported ),
         m_reverse ( false )
     {
-        m_refSearch         = NewReferenceSearchBlock ( m_searchBlock -> GetQuery () );
-        m_refSearchReverse  = NewReferenceSearchBlock ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ) );
+        const unsigned int ReferenceMatchTolerancePct = 90; // search on reference has to be looser than in reads
+        const unsigned int ThresholdPct = m_searchBlock -> GetScoreThreshold() * ReferenceMatchTolerancePct / 100;
+        m_refSearch         = new AgrepSearch ( m_searchBlock -> GetQuery (),                           AgrepSearch :: AgrepWuManber, ThresholdPct );
+        m_refSearchReverse  = new AgrepSearch ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ),  AgrepSearch :: AgrepWuManber, ThresholdPct );
     }
 
     virtual ~ReferenceSearchBase()
@@ -99,12 +101,46 @@ public:
         return m_reference . getCanonicalName ();
     }
 
-private:
-    SearchBlock* NewReferenceSearchBlock ( const string& p_query ) const
+protected:
+    bool NextFragment ( string& p_fragmentId )
     {
-        const unsigned int ReferenceMatchTolerancePct = 90; // search on reference has to be looser than in reads
-        const unsigned int ThresholdPct = m_searchBlock -> GetScoreThreshold() * ReferenceMatchTolerancePct / 100;
-        return new AgrepSearch ( p_query,  AgrepSearch :: AgrepWuManber, ThresholdPct );
+        while ( true ) // for each alignment on the slice
+        {
+            if ( m_fragIt == 0 )
+            {   // start searching alignment on the matched slice
+                if ( ! m_alIt -> nextAlignment() )
+                {
+                    delete m_alIt;
+                    m_alIt = 0;
+                    break;
+                }
+                m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
+            }
+
+            if ( m_fragIt != 0 )
+            {
+                while ( m_fragIt -> nextFragment () ) // foreach fragment
+                {
+                    StringRef fragBases = m_fragIt -> getFragmentBases ();
+                    // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
+                    if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
+                    {
+                        string fragId = m_fragIt -> getFragmentId () . toString ();
+                        if ( m_reported . find ( fragId ) == m_reported.end () )
+                        {
+                            // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
+                            m_reported . insert ( fragId );
+                            p_fragmentId = fragId;
+                            return true;
+                        }
+                    }
+                }
+                // no (more) matches on this read
+                delete m_fragIt;
+                m_fragIt = 0;
+            }
+        }
+        return false;
     }
 
 protected:
@@ -159,7 +195,7 @@ public:
 
     virtual bool NextMatch ( string& p_fragmentId )
     {
-        while ( true )  // foreach match on the reference
+        while ( true )  // for each match on the reference
         {
             if ( m_alIt == 0 ) // start searching at m_offset
             {
@@ -186,42 +222,9 @@ public:
                 m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) ( m_start + m_offset + hitStart ), hitEnd - hitStart ) );
                 m_offset += hitEnd; //TODO: this may be too far
             }
-
-            while ( true ) // for each alignment on the slice
+            if ( NextFragment ( p_fragmentId ) )
             {
-                if ( m_fragIt == 0 )
-                {   // start searching alignment on the matched slice
-                    if ( ! m_alIt -> nextAlignment() )
-                    {
-                        delete m_alIt;
-                        m_alIt = 0;
-                        break;
-                    }
-                    m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
-                }
-
-                if ( m_fragIt != 0 )
-                {
-                    while ( m_fragIt -> nextFragment () ) // foreach fragment
-                    {
-                        StringRef fragBases = m_fragIt -> getFragmentBases ();
-                        // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
-                        if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
-                        {
-                            string fragId = m_fragIt -> getFragmentId () . toString ();
-                            if ( m_reported . find ( fragId ) == m_reported.end () )
-                            {
-                                // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
-                                m_reported . insert ( fragId );
-                                p_fragmentId = fragId;
-                                return true;
-                            }
-                        }
-                    }
-                    // no (more) matches on this read
-                    delete m_fragIt;
-                    m_fragIt = 0;
-                }
+                return true;
             }
         }
     }
@@ -251,7 +254,7 @@ public:
         m_offsetInBlob ( 0 ),
         m_lastBlob ( false )
     {
-        NextBlob();
+        SetupFirstBlob();
     }
 
     ReferenceBlobSearchBuffer ( SearchBlock* p_sb,
@@ -270,7 +273,7 @@ public:
         m_offsetInBlob ( 0 ),
         m_lastBlob ( false )
     {
-        if ( NextBlob() && p_start != 0 )
+        if ( SetupFirstBlob() && p_start != 0 )
         { // recalculate starting point of the search
             uint64_t inReference;
             uint32_t repeatCount;
@@ -296,7 +299,7 @@ public:
             m_reverse = false;
             m_offsetInBlob = 0;
 
-            while ( true )  // foreach match in the blob
+            while ( true )  // for each match in the blob
             {
                 if ( m_alIt == 0 ) // start searching at m_offsetInBlob
                 {
@@ -340,41 +343,11 @@ public:
                     m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) inReference, hitEnd - hitStart ) );
                 }
 
-                while ( true ) // for each alignment on the slice
+                if ( NextFragment ( p_fragmentId ) )
                 {
-                    if ( m_fragIt == 0 )
-                    {   // start searching alignment on the matched slice
-                        if ( ! m_alIt -> nextAlignment() )
-                        {
-                            delete m_alIt;
-                            m_alIt = 0;
-                            break;
-                        }
-                        m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
-                    }
-
-                    if ( m_fragIt != 0 )
-                    {
-                        while ( m_fragIt -> nextFragment () ) // foreach fragment
-                        {
-                            StringRef fragBases = m_fragIt -> getFragmentBases ();
-                            // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
-                            if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
-                            {
-                                string fragId = m_fragIt -> getFragmentId () . toString ();
-                                if ( m_reported . find ( fragId ) == m_reported.end () )
-                                {
-                                    m_reported . insert ( fragId );
-                                    p_fragmentId = fragId;
-                                    return true;
-                                }
-                            }
-                        }
-                        // no (more) matches on this read
-                        delete m_fragIt;
-                        m_fragIt = 0;
-                    }
+                    return true;
                 }
+
             }
 
             m_offsetInReference += m_unpackedBlobSize;
@@ -401,7 +374,7 @@ public:
     }
 
 private:
-    bool NextBlob()
+    bool SetupFirstBlob()
     {
         if ( ! m_blobIter . hasMore () )
         {
