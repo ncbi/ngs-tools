@@ -358,11 +358,12 @@ public:
             }
 
             m_curBlob = m_nextBlob;
+
+            m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
             m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
             if ( m_blobIter . hasMore () )
             {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
                 m_nextBlob = m_blobIter. nextBlob ();
-                m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
                 m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
             }
             else
