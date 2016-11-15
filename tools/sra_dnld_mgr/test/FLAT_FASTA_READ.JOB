@@ -1,5 +1,5 @@
 #one job for SRA download
-#Tue Oct 18 12:41:57 GMT-05:00 2016
+#Tue Nov 15 14:50:25 GMT-05:00 2016
 USE_MAX_N=false
 USE_LINE_WRAP=false
 FIXED_QUAL=30
@@ -20,7 +20,7 @@ EXPORTPATH=/home/raetzw/devel/ncbi/ngs-tools/tools/sra_dnld_mgr/test
 MD5=5bd4b32a94bb70c55e165e1d739b891f
 LINE_WRAP=75
 ROW_COUNT=1000
-RUNTIME=426
+RUNTIME=9021
 STATE=DONE
 FORMAT=FASTA
 MAX=10001
