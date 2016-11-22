@@ -56,9 +56,6 @@ namespace ncbi
                 void ResolveOffset ( uint64_t inBlob, uint64_t& inReference, uint32_t& repeatCount, uint64_t& increment ) const
                     throw ( :: ngs :: ErrorMsg );
 
-                bool FindRepeat ( uint64_t p_startInBlob, uint64_t& p_nextInBlob, uint64_t& p_inReference, uint32_t& p_repeatCount, uint64_t& p_increment ) const
-                    throw ( :: ngs :: ErrorMsg );
-
             public:
 
                 // C++ support
