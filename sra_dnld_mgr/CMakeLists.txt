@@ -8,8 +8,12 @@ ADD_CUSTOM_COMMAND(
   COMMAND ant   -Dplatform.java="${Java_JAVA_EXECUTABLE}"
                 -Dplatform.javac="${Java_JAVAC_EXECUTABLE}"
                 -Dplatform.javadoc="${Java_JAVADOC_EXECUTABLE}"
-                -buildfile ${CMAKE_CURRENT_SOURCE_DIR}/build.xml 
+                -buildfile ${CMAKE_CURRENT_SOURCE_DIR}/build.xml
                 -Ddist.dir=${CMAKE_CURRENT_BINARY_DIR}
 )
 
-#-Dplatforms.JDK_1.7.home="$(JAVA_HOME)" 
+#-Dplatforms.JDK_1.7.home="$(JAVA_HOME)"
+
+# uncomemnt when ready for auto-testing
+#add_subdirectory ( test )
+
