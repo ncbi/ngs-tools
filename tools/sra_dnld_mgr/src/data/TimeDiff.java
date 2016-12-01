@@ -23,8 +23,6 @@
 =========================================================================== */
 package data;
 
-import java.text.NumberFormat;
-
 public class TimeDiff
 {
     private static final long SecondsInMilli = 1000;

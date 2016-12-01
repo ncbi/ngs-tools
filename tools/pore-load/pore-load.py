@@ -32,9 +32,14 @@
                 work space.
 
     progress:   The update rate (in seconds) for periodic progress messages,
-                0 to disable, initially set to 10 seconds if __debug__ else 0.
+                0 to disable, initially set to 0.
                 Regardless, one progress message will be printed at the end of
                 each input.
+
+    error:      error response, can't be one of
+                keep:   keep the offending file in the scratch space
+                report: report the error but don't keep the file
+                silent: don't report or keep the file
 
     help:       displays this message
     
@@ -57,9 +62,10 @@ gzcat = None    # what executable to use for out-of-process decompression
 files = []      # what files to operate on
 tmpdir = "/tmp" # default workspace
 outdir = None
+error = None
 removeWorkDir = True
-showProgress = 10 if __debug__ else 0
-usage = "Usage: {} [ --tmpdir=<path> ] [ --output=<path> ] [ --progress=<number> ] [ --help ] [file ...]\n".format(sys.argv[0])
+showProgress = 0
+usage = "Usage: {} [ --tmpdir=<path> ] [ --output=<path> ] [ --progress=<number> ] [ --error=<keep|report|silent> [ --help ] [file ...]\n".format(sys.argv[0])
 
 for arg in sys.argv[1:]:
     if arg[0:2] == '--':
@@ -69,6 +75,8 @@ for arg in sys.argv[1:]:
             outdir = arg[9:]
         elif arg[2:11] == 'progress=':
             showProgress = eval(arg[11:])
+        elif arg[2:8] == 'error=':
+            error = arg[8:]
         elif arg[2:] == 'help':
             sys.stderr.write(usage)
             sys.stderr.write(__doc__)
@@ -86,6 +94,12 @@ import os, subprocess, tempfile
 
 if __debug__:
     import traceback
+
+if error == None or error == 'silent' or error == 'report' or error == 'keep':
+    pass
+else:
+    sys.stderr.write(usage)
+    exit(1)
 
 saveSysPath = sys.path
 sys.path.append(os.path.abspath("../../shared/python"))
@@ -273,6 +287,11 @@ class FastQData:
         """
         f5 = poretools.Fast5File(fname)
         try:
+            if f5.get_channel_number() == None:
+                errMsg = "Info:\tchannel number missing. skipping file '{}'".format(os.path.basename(fname))
+                gw.errorMessage(errMsg)
+                return None
+
             channel = int(f5.get_channel_number())
             try:
                 readno = int(f5.get_read_number())
@@ -298,9 +317,13 @@ class FastQData:
                     , sequence_2d, quality_2d
                     , channel, readno, hiQ)
                         
+            #errMsg = "pore-tools did not read any sequence data from '{}'".format(os.path.basename(fname))
+            #gw.errorMessage(errMsg)
+            #sys.stderr.write(errMsg+"\n")
             return None
         except:
-            errMsg = "pore-tools reported an unspecific error while reading '{}'".format(os.path.basename(fname))
+            e = sys.exc_info()[0]
+            errMsg = "{} while reading '{}'".format(e, os.path.basename(fname))
             gw.errorMessage(errMsg)
             sys.stderr.write(errMsg+"\n")
             if __debug__:
@@ -315,6 +338,8 @@ def ProcessFast5(fname):
 
         Write it to the General Writer
     """
+    if showProgress > 0:
+        sys.stderr.write("Info: processing {}\n".format(fname))
     data = FastQData.ReadFast5Data(fname)
     if data:
         data.write()
@@ -337,92 +362,65 @@ def isHDF5(fname):
         return False
 
 
-notRemoved = [] # because of errors
-goodCounter = 0
-skipCounter = 0
-badCounter = 0
+def ExtractToTemporary(tar, file):
+    extracted = tar.extractfile(file)
+    if extracted:
+        tmpname = os.path.join(workDir, os.path.basename(file.name))
+        try:
+            with open(tmpname, 'wb') as output:
+                output.write(extracted.read())
+            return tmpname
+        except:
+            pass
+    return None
 
-def ExtractAndProcess(f, source):
-    """ Extract file to the working directory and process it
-    """
-    global goodCounter
-    global badCounter
-
-    fname = os.path.join(workDir, source)
-    with open(fname, 'wb') as output:
-        output.write(f.read())
-
-    keep = False
-    if not isHDF5(fname):
-        errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
-        gw.errorMessage(errMsg)
-        sys.stderr.write(errMsg+"\n")
-    elif ProcessFast5(fname):
-        goodCounter = goodCounter + 1
-    else:
-        badCounter = badCounter + 1
-        keep = __debug__
-    
-    if keep:
-        notRemoved.append(source)
-    else:
-        os.remove(fname)
-    
-
-processCounter = 0
-processStart = time.clock()
-nextReport = (processStart + showProgress) if showProgress > 0 else None
-
-def shouldProcess(tarinfo):
-    if not tarinfo.isfile():
-        return False
-    if not tarinfo.name.endswith('.fast5'):
-        return False
-    if os.path.basename(os.path.dirname(tarinfo.name)) == 'fail':
-        return False
-    return True
 
 def ProcessTar(tar):
     """ Extract and process all fast5 files
     """
-    global processCounter
-    global nextReport
-    global goodCounter
-    global skipCounter
-    global badCounter
-
-    (saveGoodCounter, goodCounter) = (goodCounter, 0)
-    (saveSkipCounter, skipCounter) = (skipCounter, 0)
-    (saveBadCounter, badCounter) = (badCounter, 0)
-
-    count = 0
+    processCounter = 0
+    processStart = time.clock()
+    nextReport = (processStart + showProgress) if showProgress else None
+    results = dict()
 
     for f in tar:
-        if shouldProcess(f):
-            i = tar.extractfile(f)
-            try:
-                ExtractAndProcess(i, os.path.basename(f.name))
-            finally:
-                i.close()
+        result = None
+        name = f.name
+        if f.isfile() and name.endswith('.fast5'):
+            dir = os.path.dirname(name)
+            if dir not in results:
+                results[dir] = { 'good': [], 'fail': [] }
+            tmpname = ExtractToTemporary(tar, f)
+            if tmpname:
+                try:
+                    if isHDF5(tmpname):
+                        result = False
+                        if ProcessFast5(tmpname):
+                            result = True
+                finally:
+                    os.remove(tmpname)
 
-            processCounter = processCounter + 1
+            if result == True:
+                results[dir]['good'].append(name)
+            else:
+                results[dir]['fail'].append(name)
+
             now = time.clock()
-            if nextReport and now >= nextReport:
-                nextReport = nextReport + showProgress
-                sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
-                    format(processCounter, processCounter/(now - processStart)))
-        else:
-            skipCounter = skipCounter + 1
+            processCounter += 1
+            if showProgress > 0 and now >= nextReport:
+                nextReport = now + showProgress
+                sys.stderr.write("Progress: processed {} files; {:0.1f} per sec.\n".
+                                 format(processCounter, processCounter/(now - processStart)))
 
-        count = count + 1
-
-    if count > 0:
-        sys.stderr.write("Progress: {} good ({}%), {} skipped ({}%), {} bad ({}%)\n".
-                         format(goodCounter, int(goodCounter * 100 / count), skipCounter, int(skipCounter * 100 / count), badCounter, int(badCounter * 100 / count)))
     elapsed = time.clock() - processStart
-    sys.stderr.write("Progress: processed {} spots in {} secs, {} per sec.\n".
+    sys.stderr.write("Progress: processed {} files in {} secs, {:0.1f} per sec.\n".
                      format(processCounter, elapsed, processCounter/elapsed))
-    (goodCounter, badCounter, skipCounter) = (goodCounter + saveGoodCounter, badCounter + saveBadCounter, skipCounter + saveSkipCounter)
+
+    for f in results:
+        resultGood = len(results[f]['good'])
+        resultFail = len(results[f]['fail'])
+        total = resultGood + resultFail
+        sys.stderr.write("{}: pass: {} ({:4.1f}%)\tfail: {} ({:4.1f}%)\n".format(f, resultGood, 100.0 * resultGood / total, resultFail, 100.0 * resultFail / total))
 
 
 def which(f):
@@ -461,17 +459,7 @@ def main():
 
 
 def cleanup():
-    rmd = removeWorkDir
-    if len(notRemoved) != 0:
-        rmd = False
-        sys.stderr.write("Info: these files caused errors and were not removed "
-            "from the work space to aid in debugging:\n"
-            )
-        for f in notRemoved:
-            sys.stderr.write("Info:\t{}\n".format(f))
-
-    if rmd:
-        os.rmdir(workDir)
+    os.rmdir(workDir)
 
 
 main()

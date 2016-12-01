@@ -30,8 +30,9 @@ public enum JobState
     RUNNING (   2,  "RUNNING"   ),
     PAUSED  (   3,  "PAUSED"    ),
     ERROR   (   4,  "ERROR"     ),
-    DONE    (   5,  "DONE"      );
-
+    DONE    (   5,  "DONE"      ),
+    FAILED  (   6,  "FAILED"    );
+    
     private final int value;
     private final String txt;
     private static final JobState[] allValues = values();
@@ -49,6 +50,8 @@ public enum JobState
             return ERROR;
         else if ( s.equals( DONE.txt ) )
             return DONE;
+        else if ( s.equals( FAILED.txt ) )
+            return FAILED;
         return INVALID;
     }    
     

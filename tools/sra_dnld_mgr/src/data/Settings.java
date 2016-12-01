@@ -36,7 +36,7 @@ public class Settings extends IniFile
     private static final String WIDTH = "WIDTH";
     private static final String HEIGHT = "HEIGHT";
     private static final String AUTOSTART = "AUTOSTART";
-    private static final String RESOLVER = "RESOLVER";
+    private static final String RESOLVER_URL = "RESOLVER";
     private static final String DNLD_BLOCK_SIZE = "DNLD_BLOCK_SIZE";
     private static final String CONN_TIMEOUT = "CONN_TIMEOUT";
     private static final String READ_TIMEOUT = "READ_TIMEOUT";
@@ -56,7 +56,7 @@ public class Settings extends IniFile
     private static final int DFLT_YPOS = 100;
     private static final int DFLT_WIDTH = 500;
     private static final int DFLT_HEIGHT = 400;
-    private static final String DFLT_RESOLVER = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+    private static final String DFLT_RESOLVER_URL = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
     private static final int DFLT_DNLD_BLOCK_SIZE = 1024 * 128;
     private static final int DFLT_CONN_TIMEOUT = 5000;
     private static final int DFLT_READ_TIMEOUT = 5000;
@@ -93,7 +93,7 @@ public class Settings extends IniFile
         set_jobpath( dir );
         set_exportpath( dir );
         set_maxdownloads( DFLT_MAXDOWNLOADS );
-        set_resolver( DFLT_RESOLVER );
+        set_resolver_url( DFLT_RESOLVER_URL );
         set_dnld_block_size( DFLT_DNLD_BLOCK_SIZE );
         set_conn_timeout( DFLT_CONN_TIMEOUT );
         set_read_timeout( DFLT_READ_TIMEOUT );
@@ -132,7 +132,7 @@ public class Settings extends IniFile
     {
         return new Rectangle( get_xpos(), get_ypos(), get_width(), get_height() );
     }
-    public final String get_resolver() { return get_str( RESOLVER, DFLT_RESOLVER ); }
+    public final String get_resolver_url() { return get_str( RESOLVER_URL, DFLT_RESOLVER_URL ); }
     public final int get_dnld_block_size() { return get_int( DNLD_BLOCK_SIZE, DFLT_DNLD_BLOCK_SIZE ); }
     public final int get_conn_timeout() { return get_int( CONN_TIMEOUT, DFLT_CONN_TIMEOUT ); }
     public final int get_read_timeout() { return get_int( READ_TIMEOUT, DFLT_READ_TIMEOUT ); }
@@ -170,7 +170,7 @@ public class Settings extends IniFile
         set_height( rect.height );
         if ( save ) store();
     }
-    public final void set_resolver( final String value ) { set_str( RESOLVER, value ); }
+    public final void set_resolver_url( final String value ) { set_str( RESOLVER_URL, value ); }
     public final void set_dnld_block_size( final int value ) { set_int( DNLD_BLOCK_SIZE, value ); }
     public final void set_conn_timeout( final int value ) { set_int( CONN_TIMEOUT, value ); }
     public final void set_read_timeout( final int value ) { set_int( READ_TIMEOUT, value ); }

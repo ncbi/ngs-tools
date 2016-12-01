@@ -49,6 +49,18 @@ public class NGS
         return mgr . isSupported ();
     }
 
+    /**
+     * Returns exception which occurred during initialization
+     *  If the exception is a subclass of LibraryLoadError, then there was a problem
+     *  with loading native libraries
+     *
+     * @return initialization error or null
+     */
+    static public ExceptionInInitializerError getInitializationError ()
+    {
+        return mgr . invalid;
+    }
+
 
     /**
      * Updates User-Agent header in HTTP communications
@@ -128,9 +140,9 @@ public class NGS
         test( "SRR00000", false);
         test( "SRR000000", false);
         test( "SRR000001", true); // table
-        test("http://sra-download.ncbi.nlm.nih.gov/srapub/SRR000001", true);
+        test("https://sra-download.ncbi.nlm.nih.gov/srapub/SRR000001", true);
         test( "SRR499924", true); // db
-        test("http://sra-download.ncbi.nlm.nih.gov/srapub/SRR499924", true);
+        test("https://sra-download.ncbi.nlm.nih.gov/srapub/SRR499924", true);
         test("SRR9000000", false);
         test("ERR000000", false);
         test("ERR000002", true);
@@ -145,9 +157,9 @@ public class NGS
         test(h + "SRR053325"  , true); // tbl; dir
         test(h + "SRR600096.f", true); // db; file
         test(h + "SRR600096"  , true); // db; dir
-        test("http://w.gov/", false); // bad host
-        test("http://www.nih.gov/", false); // exists
-        test("http://sra-download.ncbi.nlm.nih.gov/srapub/", false); // ! exists
+        test("https://w.gov/", false); // bad host
+        test("https://www.nih.gov/", false); // exists
+        test("https://sra-download.ncbi.nlm.nih.gov/srapub/", false); // ! exists
     }
 
 }
