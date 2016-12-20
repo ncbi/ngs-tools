@@ -143,18 +143,3 @@ ReferenceBlob :: ResolveOffset ( uint64_t p_inBlob, uint64_t& p_inReference, uin
         err.Throw();
     }
 }
-
-bool
-ReferenceBlob :: FindRepeat ( uint64_t p_startInBlob, uint64_t& p_nextInBlob, uint64_t& p_inReference, uint32_t& p_repeatCount, uint64_t& p_increment ) const
-                    throw ( :: ngs :: ErrorMsg )
-{
-    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    bool ret = false;
-    ON_FAIL ( ret = NGS_ReferenceBlobFindRepeat ( self, ctx, p_startInBlob, & p_nextInBlob, & p_inReference, & p_repeatCount, & p_increment ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
-    return ret;
-}

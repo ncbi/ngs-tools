@@ -582,43 +582,6 @@ FIXTURE_TEST_CASE ( ReferenceBlob_GetRowRange, ReferenceBlobFixture )
     EXIT;
 }
 
-FIXTURE_TEST_CASE ( ReferenceBlob_FindRepeat_NotFound, ReferenceBlobFixture )
-{
-    ENTRY;
-
-    ReferenceBlob b ( GetBlobByNumber ( ctx, CSRA1_Accession, "supercont2.1", 1 ) );
-    uint64_t inReference = 0;
-    uint64_t nextInBlob = 0;
-    uint32_t repeatCount = 0;
-    uint64_t increment = 999;
-    REQUIRE ( ! b . FindRepeat ( 0, nextInBlob, inReference, repeatCount, increment ) );
-
-    EXIT;
-}
-
-FIXTURE_TEST_CASE ( ReferenceBlob_FindRepeat_Found, ReferenceBlobFixture )
-{
-    ENTRY;
-
-    const int64_t repeatedRowId = 96;
-    ReferenceBlob b ( GetBlobByRowId ( ctx, CSRA1_Accession_WithRepeats, "NC_000001.10", repeatedRowId ) );   /* this blob consists of 9 repeated all-N rows */
-    int64_t first=0;
-    uint64_t count=0;
-    b . GetRowRange ( first, count );
-
-    uint64_t nextInBlob = 0;
-    uint64_t inReference = 0;
-    uint32_t repeatCount = 0;
-    uint64_t increment = 0;
-    REQUIRE ( b . FindRepeat ( 0, nextInBlob, inReference, repeatCount, increment ) );
-    REQUIRE_EQ ( (uint64_t)( repeatedRowId - first ) * 5000 , nextInBlob );
-    REQUIRE_EQ ( (uint64_t)( repeatedRowId - 1 ) * 5000, inReference );
-    REQUIRE_EQ ( (uint32_t)9, repeatCount );
-    REQUIRE_EQ ( (uint64_t)5000, increment );
-
-    EXIT;
-}
-
 FIXTURE_TEST_CASE ( ReferenceBlob_GetResolveOffset, ReferenceBlobFixture )
 {
     ENTRY;
@@ -717,7 +680,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_FullScan, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 39);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
@@ -737,7 +700,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_Slice_Open, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 39);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
@@ -752,7 +715,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_SliceClosed, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 103, 1);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 104, 1);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 105, 4);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 2);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
