@@ -680,7 +680,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_FullScan, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 39);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
@@ -700,7 +700,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_Slice_Open, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 129, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 193, 64);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 257, 164);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 72);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 421, 39);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
@@ -715,7 +715,7 @@ FIXTURE_TEST_CASE ( ReferenceBlobIterator_SliceClosed, ReferenceBlobFixture )
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 103, 1);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 104, 1);
     REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 105, 4);
-    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 4);
+    REQUIRE ( iter . hasMore () ); CheckRange ( iter . nextBlob (), 109, 2);
     REQUIRE ( ! iter . hasMore () );
     EXIT;
 }
