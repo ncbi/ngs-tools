@@ -29,6 +29,7 @@
 #include <sstream>
 
 #include <ngs-vdb/inc/NGS-VDB.hpp>
+#include <ngs-vdb/inc/VdbAlignment.hpp>
 
 #define __mod__     "TEST_NGS_VDB"
 #define __file__    "test-ngs-vdb"
@@ -728,6 +729,68 @@ FIXTURE_TEST_CASE ( VdbReference_Construct, KfcFixture )
     ReadCollection rCol = ncbi :: NGS :: openReadCollection ( CSRA1_Accession );
     VdbReference ref ( rCol . getReference ( "supercont2.1" ) );
     EXIT;
+}
+
+/// VdbAlignment
+
+FIXTURE_TEST_CASE ( VdbAlignment_Create_toAlignment, KfcFixture )
+{
+    ReadCollection coll ( ncbi :: NGS :: openReadCollection ( CSRA1_Accession ) );
+    AlignmentIterator iter = coll.getAlignments( Alignment :: primaryAlignment );
+    REQUIRE ( iter . nextAlignment () );
+
+    VdbAlignment align ( iter );
+    REQUIRE_EQ ( string ( "SRR1063272.PA.1" ), align . toAlignment () . getAlignmentId () . toString () );
+}
+
+FIXTURE_TEST_CASE ( VdbAlignment_CopyContruct, KfcFixture )
+{   // using the compiler-generated copy constructor
+    ReadCollection coll ( ncbi :: NGS :: openReadCollection ( CSRA1_Accession ) );
+    AlignmentIterator iter = coll.getAlignments( Alignment :: primaryAlignment );
+    REQUIRE ( iter . nextAlignment () );
+
+    VdbAlignment align1 ( iter );
+    VdbAlignment align2 ( align1 );
+    REQUIRE_EQ ( align1 . toAlignment () . getAlignmentId () . toString (),
+                 align2 . toAlignment () . getAlignmentId () . toString () );
+}
+
+FIXTURE_TEST_CASE ( VdbAlignment_Assign, KfcFixture )
+{   // using the compiler-generated copy assignment
+    ReadCollection coll ( ncbi :: NGS :: openReadCollection ( CSRA1_Accession ) );
+
+    AlignmentIterator iterPrim = coll.getAlignments( Alignment :: primaryAlignment );
+    REQUIRE ( iterPrim . nextAlignment () );
+    VdbAlignment align1 ( iterPrim );
+
+    AlignmentIterator iterSec = coll.getAlignments( Alignment :: secondaryAlignment );
+    REQUIRE ( ! iterSec . nextAlignment () ); // no secondary alignments, but that does not matter here
+    VdbAlignment align2 ( iterSec );
+
+    align2 = align1;
+    REQUIRE_EQ ( align1 . toAlignment () . getAlignmentId () . toString (),
+                 align2 . toAlignment () . getAlignmentId () . toString () );
+}
+
+FIXTURE_TEST_CASE ( VdbAlignment_IsFirst_Yes, KfcFixture )
+{
+    ReadCollection coll ( ncbi :: NGS :: openReadCollection ( CSRA1_Accession ) );
+    AlignmentIterator iter = coll.getAlignments( Alignment :: primaryAlignment );
+    REQUIRE ( iter . nextAlignment () );
+
+    VdbAlignment align ( iter );
+    REQUIRE ( align . IsFirst () );
+}
+
+FIXTURE_TEST_CASE ( VdbAlignment_IsFirst_No, KfcFixture )
+{
+    ReadCollection coll ( ncbi :: NGS :: openReadCollection ( CSRA1_Accession ) );
+    AlignmentIterator iter = coll.getAlignments( Alignment :: primaryAlignment );
+    REQUIRE ( iter . nextAlignment () );
+    REQUIRE ( iter . nextAlignment () );
+
+    VdbAlignment align ( iter );
+    REQUIRE ( ! align . IsFirst () );
 }
 
 int

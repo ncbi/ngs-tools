@@ -23,14 +23,10 @@
 =========================================================================== */
 package data;
 
-import job.JobState;
-import static job.JobState.DONE;
-import static job.JobState.ERROR;
-import static job.JobState.INVALID;
-import static job.JobState.PAUSED;
-import static job.JobState.READY;
-import static job.JobState.RUNNING;
-
+/*
+    LineEndings is an enum used for writing target specific text
+    and the value can be saved in Settings...
+*/
 public enum LineEndings
 {
     INVALID             ( 0,    "INVALID",      "\n" ),

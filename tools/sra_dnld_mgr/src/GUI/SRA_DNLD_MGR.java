@@ -71,7 +71,10 @@ class main_window_runner implements Runnable
             ReferenceWindow.make_instance( main_window );
             
             if ( to_test != null )
+            {
+                System.out.printf( "testing: %s ", to_test );
                 main_window.start_download_jobs();
+            }
         }
         else
         {

@@ -23,7 +23,6 @@
 =========================================================================== */
 package job;
 
-import data.CLogger;
 import data.QConnect;
 import java.awt.EventQueue;
 import java.util.ArrayList;
@@ -97,7 +96,8 @@ public class StateAndProgressNotifier
 
     final public void put_start() { put_ev( StateAndProgressType.START ); }
     final public void put_stop() { put_ev( StateAndProgressType.STOP ); }
-
+    final public void put_fail() { put_ev( StateAndProgressType.FAILED ); }
+    
     final public void put_state( final JobState prev_state, final JobState new_state )
     {
         StateAndProgressEvent ev = get_from_stock();

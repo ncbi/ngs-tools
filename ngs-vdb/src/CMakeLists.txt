@@ -7,6 +7,7 @@ add_library ( ngs-vdb
                 VdbReference.cpp
                 ReferenceBlob.cpp
                 ReferenceBlobIterator.cpp
+                VdbAlignment.cpp
                 NGS-VDB.cpp )
 
 add_subdirectory ( test )

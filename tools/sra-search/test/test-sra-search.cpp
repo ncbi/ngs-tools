@@ -51,6 +51,8 @@ using namespace std;
 using namespace ncbi::NK;
 using namespace ngs;
 
+#define SHOW_UNIMPLEMENTED 0
+
 TEST_SUITE(SraSearchTestSuite);
 
 

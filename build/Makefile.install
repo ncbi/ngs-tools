@@ -35,7 +35,8 @@ include $(TOP)/build/Makefile.$(OS)
 # install
 # 
 TOOLS_TO_INSTALL = \
-    sra-search      \
+	sra-search      \
+	dump_ref_fasta
 
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:

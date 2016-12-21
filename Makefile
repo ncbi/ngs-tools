@@ -34,15 +34,17 @@ include $(TOP)/build/Makefile.shell
 # default
 #
 SUBDIRS = \
-    ngs-vdb/src \
+	ngs-vdb/src \
 	tools/sra-search \
+	tools/dump_ref_fasta
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets
 
 default: $(SUBDIRS)
 
-test: $(SUBDIRS) runtests
+#test: $(SUBDIRS) runtests
+test runtests:
 
 $(SUBDIRS):
 	@ $(MAKE) -C $@

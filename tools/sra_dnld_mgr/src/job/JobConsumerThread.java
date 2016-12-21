@@ -141,6 +141,10 @@ class JobConsumerThread extends Thread
             }
             perform_done(); // <======
         }
+        else
+        {
+            change_state_and_notify( JobState.FAILED );
+        }
     }
 
     public JobConsumerThread( final JobThreadData data )

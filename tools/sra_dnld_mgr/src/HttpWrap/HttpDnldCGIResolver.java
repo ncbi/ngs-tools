@@ -23,8 +23,12 @@
 =========================================================================== */
 package HttpWrap;
 
-import java.io.*;
-import java.net.*;
+import java.io.DataOutputStream;
+import java.io.InputStream;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import javax.net.ssl.HttpsURLConnection;
 import data.CLogger;
 import data.Settings;
 
@@ -42,6 +46,17 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
             lines = new String[ n ];
             count = 0;
         }
+        
+        @Override  public String toString()
+        {
+            StringBuilder sb = new StringBuilder();
+            for( int i = 0; i < count; i++)
+            {
+                sb.append( lines[ i ] );
+                sb.append( "\n" );
+            }
+            return sb.toString();
+        }
     }
     
     private Lines post( String parameters )
@@ -49,7 +64,7 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
         Lines res  = new Lines( 5 );
         if ( valid() )
         {
-            HttpURLConnection conn = make_connection( "POST" );
+            HttpsURLConnection conn = make_https_connection( "POST" );
             conn.setUseCaches( false );
             conn.setDoOutput( true );
             try
@@ -111,6 +126,26 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
         return ( r.result_code == 200 );
     }
     
+    private boolean split_1_2( String s, HttpDnldResolved r )
+    {
+        String[] parts = s.split( "\\|" );
+        if ( parts.length > 0 ) r.accession = parts[ 0 ];
+        if ( parts.length > 1 ) r.obj_id = parts[ 1 ];
+        if ( parts.length > 2 ) r.name = parts[ 2 ];
+        if ( parts.length > 3 )
+        {
+            try { r.size = Long.parseLong( parts[ 3 ] ); }
+            catch( NumberFormatException e ) { r.size = 0; }
+        }
+        if ( parts.length > 4 ) r.mod_date = parts[ 4 ];
+        if ( parts.length > 5 ) r.md5 = parts[ 5 ];
+        if ( parts.length > 6 ) r.dnld_ticket = parts[ 6 ];
+        if ( parts.length > 7 ) r.url = parts[ 7 ];
+        if ( parts.length > 8 ) r.result_code = Integer.parseInt( parts[ 8 ] );
+        if ( parts.length > 9 ) r.msg = parts[ 9 ];
+        return ( r.result_code == 200 );
+    }
+
     public boolean resolve( String accession, HttpDnldResolved r )
     {
         boolean found = false;
@@ -124,7 +159,7 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
             sb.append( String.format( "acc=%s", accession ) );
             sb.append( '&' );
 
-            sb.append( String.format( "accept-proto=http" ) );
+            sb.append( String.format( "accept-proto=https" ) );
             
             Lines lines = post( sb.toString() );
             if ( lines.count > 1 )
@@ -138,23 +173,33 @@ public class HttpDnldCGIResolver extends HttpDnldUrlWrapper
                 {
                     found = split_1_1( lines.lines[ 1 ], r );
                 }
+                else if ( sel.startsWith( "#1.2" ) )
+                {
+                    found = split_1_2( lines.lines[ 1 ], r );
+                }
             }
         }
         return found;
     }
     
+    /*
+        the constructor, given a string
+    */
     public HttpDnldCGIResolver( String url )
     {
         super( url );
         this.v_maj = 1;
-        this.v_min = 1;
+        this.v_min = 2;
     }
-    
+
+    /*
+        the constructor, without a parameter
+    */
     public HttpDnldCGIResolver()
     {
-        super( Settings.getInstance().get_resolver() );
+        super( Settings.getInstance().get_resolver_url() );
         this.v_maj = 1;
-        this.v_min = 1;
+        this.v_min = 2;
         Settings settings = Settings.getInstance();
         set_conn_timeout( settings.get_conn_timeout() );
         set_read_timeout( settings.get_read_timeout() );

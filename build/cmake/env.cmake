@@ -93,6 +93,10 @@ elseif (WIN32)
     # use miltiple processors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
+    # use Unicode
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_UNICODE /DUNICODE")
+
+    # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
 
@@ -225,6 +229,10 @@ if (NOT EXISTS ${VDB_ROOT})
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
                   COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
+                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
           	INSTALL_COMMAND ""
         )
     else()

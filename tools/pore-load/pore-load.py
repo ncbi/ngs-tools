@@ -32,7 +32,7 @@
                 work space.
 
     progress:   The update rate (in seconds) for periodic progress messages,
-                0 to disable, initially set to 10 seconds if __debug__ else 0.
+                0 to disable, initially set to 0.
                 Regardless, one progress message will be printed at the end of
                 each input.
 
@@ -64,7 +64,7 @@ tmpdir = "/tmp" # default workspace
 outdir = None
 error = None
 removeWorkDir = True
-showProgress = 10 if __debug__ else 0
+showProgress = 0
 usage = "Usage: {} [ --tmpdir=<path> ] [ --output=<path> ] [ --progress=<number> ] [ --error=<keep|report|silent> [ --help ] [file ...]\n".format(sys.argv[0])
 
 for arg in sys.argv[1:]:
@@ -287,6 +287,11 @@ class FastQData:
         """
         f5 = poretools.Fast5File(fname)
         try:
+            if f5.get_channel_number() == None:
+                errMsg = "Info:\tchannel number missing. skipping file '{}'".format(os.path.basename(fname))
+                gw.errorMessage(errMsg)
+                return None
+
             channel = int(f5.get_channel_number())
             try:
                 readno = int(f5.get_read_number())
@@ -317,7 +322,8 @@ class FastQData:
             #sys.stderr.write(errMsg+"\n")
             return None
         except:
-            errMsg = "pore-tools reported an unspecific error while reading '{}'".format(os.path.basename(fname))
+            e = sys.exc_info()[0]
+            errMsg = "{} while reading '{}'".format(e, os.path.basename(fname))
             gw.errorMessage(errMsg)
             sys.stderr.write(errMsg+"\n")
             if __debug__:
@@ -332,6 +338,8 @@ def ProcessFast5(fname):
 
         Write it to the General Writer
     """
+    if showProgress > 0:
+        sys.stderr.write("Info: processing {}\n".format(fname))
     data = FastQData.ReadFast5Data(fname)
     if data:
         data.write()
@@ -399,7 +407,7 @@ def ProcessTar(tar):
 
             now = time.clock()
             processCounter += 1
-            if showProgress and now >= nextReport:
+            if showProgress > 0 and now >= nextReport:
                 nextReport = now + showProgress
                 sys.stderr.write("Progress: processed {} files; {:0.1f} per sec.\n".
                                  format(processCounter, processCounter/(now - processStart)))
