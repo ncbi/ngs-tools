@@ -1,0 +1,28 @@
+
+fastacmd -d refseq_genomic -p F -D 2 > refseq_gis.txt
+fastacmd -d refseq_genomic -i ./refseq_gis.txt -T >refseq_gis.tax
+
+shutovo@lmem21:/panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree $ ~shutovo/blast/tax_tree/format_gi_tax_list.py ./refseq_gis.tax > ./refseq_tax_by_gi.txt
+
+~shutovo/blast/tax_tree/build_tree.sh ./refseq_tax_by_gi.txt  
+du -h -a -b . | grep ".fasta" | sort -n -r > files.list
+grep "./tree" from files.list - check why it's in list
+
+shutovo@lmem21:/panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree $ ~/blast/tax_tree/build_tax_id_parents.py ./files.list > tax.parents
+
+~/blast/tax_tree/search/build_index ./files.list >tree_index_hash_t_3_4_16_threads
+~/blast/tax_tree/search/check_index
+
+#~/blast/tax_tree/tree_index_merge_taxes.py ./tree_index_hash_t_3_4_16_threads > tree_index_3_4_16_threads_tax_consensus 2>tree_index_3_4_16_threads_tax_consensus_removed
+shutovo@lmem21:/panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree $ ~/blast/tax_tree/filter_db.py ./tree_index_1.3.checked > ./tree_index_1.3.checked.bad
+shutovo@lmem21:/panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree $ ~/blast/tax_tree/remove_from_db.py ./tree_index_1.3.checked ./tree_index_1.3.checked.bad >./tree_index_1.3.checked.clean 2>./tree_index_1.3.checked.removed
+
+
+shutovo@lmem21:/panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree $ ~/blast/text_analysis/db_fasta_to_bin ./tree_index_1.3.checked.clean ./tree_index_1.3.checked.clean.dbs
+
+~/blast/contig_builder/cpp/aligns_to.sh -dbs /panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree/tree_index_1.3.checked.clean.dbs $1 > ./$1.out
+
+
+HALF WINDOW:
+cd /panfs/pan1.be-md.ncbi.nlm.nih.gov/tax_analysis/tax_tree
+~/blast/tax_tree/search/build_index ./files.list ./tax.parents 2 > tree_index_1.3.half_window 2> tree_index_1.3.half_window.log

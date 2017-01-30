@@ -1,0 +1,172 @@
+<HTML>
+
+<HEAD>
+
+<script src="tree_transform.js"></script>
+
+<SCRIPT LANGUAGE = "Javascript">
+"use strict"
+
+function equal(a, b)
+{
+	if (a != b) // && !isEquivalent(a, b))
+		console.error(a, "!=", b)
+	else
+		console.info("ok");
+}
+
+//tree_transform([{n:"idm26080", p:"0", d:{name:"cellular organisms", percent:97.16}}, {n:"idm24992", p:"idm26080", d:{name:"Bacteria", percent:0.05}}, {n:"idp91920", p:"idm24992", d:{name:"Proteobacteria", percent:0}}, {n:"idp93344", p:"idp91920", d:{name:"Alphaproteobacteria", percent:0}}]);
+function to_tree_test()
+{
+	{
+		var tree = tax_tree.to_tree([{n:"idm27808", p:"0", d:{name:"cellular organisms", percent:92.25}}, {n:"idm26624", p:"idm27808", d:{name:"Bacteria", percent:0.05}}, {n:"idm6016", p:"idm26624", d:{name:"Terrabacteria group", percent:0}}, {n:"idp89968", p:"idm6016", d:{name:"Firmicutes", percent:0}}, {n:"idp91392", p:"idp89968", d:{name:"Bacilli", percent:0}}, {n:"idp92816", p:"idp91392", d:{name:"Lactobacillales", percent:0}}, {n:"idp94240", p:"idp92816", d:{name:"Lactobacillaceae", percent:0}}, {n:"idp95776", p:"idp94240", d:{name:"Pediococcus", percent:0}}, {n:"idp97104", p:"idp95776", d:{name:"Pediococcus acidilactici group", percent:0}}, {n:"idp98192", p:"idp97104", d:{name:"Pediococcus acidilactici", percent:0}}, {n:"idp99872", p:"idp98192", c:0, d:{name:"Pediococcus acidilactici D3", percent:0}}, {n:"idp100960", p:"idm26624", d:{name:"Proteobacteria", percent:0}}, {n:"idp102288", p:"idp100960", d:{name:"Betaproteobacteria", percent:0}}, {n:"idp103616", p:"idp102288", d:{name:"Burkholderiales", percent:0}}, {n:"idp105040", p:"idp103616", d:{name:"Oxalobacteraceae", percent:0}}, {n:"idp106464", p:"idp105040", c:0, d:{name:"Herbaspirillum", percent:0}}, {n:"idp107856", p:"idm27808", d:{name:"Eukaryota", percent:92.22}}, {n:"idp109344", p:"idp107856", d:{name:"Opisthokonta", percent:91.61}}, {n:"idp110560", p:"idp109344", d:{name:"Metazoa", percent:91.52}}, {n:"idp112016", p:"idp110560", d:{name:"Eumetazoa", percent:91.52}}, {n:"idp113200", p:"idp112016", d:{name:"Bilateria", percent:91.52}}, {n:"idp114416", p:"idp113200", d:{name:"Deuterostomia", percent:90.74}}, {n:"idp115600", p:"idp114416", d:{name:"Chordata", percent:90.74}}, {n:"idp117056", p:"idp115600", d:{name:"Craniata", percent:90.74}}, {n:"idp118512", p:"idp117056", d:{name:"Vertebrata", percent:90.74}}, {n:"idp119696", p:"idp118512", d:{name:"Gnathostomata", percent:90.74}}, {n:"idp120912", p:"idp119696", d:{name:"Teleostomi", percent:90.64}}, {n:"idp122096", p:"idp120912", d:{name:"Euteleostomi", percent:90.64}}, {n:"idp123312", p:"idp122096", d:{name:"Actinopterygii", percent:0}}, {n:"idp124736", p:"idp123312", d:{name:"Actinopteri", percent:0}}, {n:"idp126160", p:"idp124736", d:{name:"Neopterygii", percent:0}}, {n:"idp127584", p:"idp126160", d:{name:"Teleostei", percent:0}}, {n:"idp129008", p:"idp127584", d:{name:"Osteoglossocephalai", percent:0}}, {n:"idp130336", p:"idp129008", d:{name:"Clupeocephala", percent:0}}, {n:"idp131488", p:"idp130336", d:{name:"Otomorpha", percent:0}}, {n:"idp99696", p:"idp131488", d:{name:"Ostariophysi", percent:0}}, {n:"idp134128", p:"idp99696", d:{name:"Otophysi", percent:0}}, {n:"idp135280", p:"idp134128", d:{name:"Cypriniphysae", percent:0}}, {n:"idp136704", p:"idp135280", d:{name:"Cypriniformes", percent:0}}, {n:"idp138128", p:"idp136704", d:{name:"Cobitoidea", percent:0}}, {n:"idp139552", p:"idp138128", d:{name:"Cobitidae", percent:0}}, {n:"idp140976", p:"idp139552", c:0, d:{name:"Cobitinae", percent:0}}, {n:"idp142400", p:"idp130336", d:{name:"Euteleosteomorpha", percent:0}}, {n:"idp143552", p:"idp142400", d:{name:"Neoteleostei", percent:0}}, {n:"idp144704", p:"idp143552", d:{name:"Eurypterygia", percent:0}}, {n:"idp145856", p:"idp144704", d:{name:"Ctenosquamata", percent:0}}, {n:"idp147008", p:"idp145856", d:{name:"Acanthomorphata", percent:0}}, {n:"idp148160", p:"idp147008", d:{name:"Euacanthomorphacea", percent:0}}, {n:"idp149312", p:"idp148160", d:{name:"Percomorphaceae", percent:0}}, {n:"idp150464", p:"idp149312", d:{name:"Ovalentaria", percent:0}}, {n:"idp151616", p:"idp150464", d:{name:"Atherinomorphae", percent:0}}, {n:"idp153040", p:"idp151616", d:{name:"Cyprinodontiformes", percent:0}}, {n:"idp154464", p:"idp153040", d:{name:"Aplocheiloidei", percent:0}}, {n:"idp155888", p:"idp154464", d:{name:"Nothobranchiidae", percent:0}}, {n:"idp157312", p:"idp155888", d:{name:"Nothobranchius", percent:0}}, {n:"idp158736", p:"idp157312", c:0, d:{name:"Nothobranchius furzeri", percent:0}}, {n:"idp160160", p:"idp122096", d:{name:"Sarcopterygii", percent:90.13}}, {n:"idp161344", p:"idp160160", d:{name:"Dipnotetrapodomorpha", percent:90.12}}, {n:"idp162528", p:"idp161344", d:{name:"Tetrapoda", percent:90.12}}, {n:"idp163744", p:"idp162528", d:{name:"Amniota", percent:90.1}}, {n:"idp164960", p:"idp163744", d:{name:"Mammalia", percent:89.85}}, {n:"idp166448", p:"idp164960", d:{name:"Theria", percent:89.79}}, {n:"idp167664", p:"idp166448", d:{name:"Eutheria", percent:89.68}}, {n:"idp168880", p:"idp167664", d:{name:"Afrotheria", percent:0.01}}, {n:"idp170304", p:"idp168880", d:{name:"Proboscidea", percent:0.01}}, {n:"idp171728", p:"idp170304", d:{name:"Elephantidae", percent:0.01}}, {n:"idp173152", p:"idp171728", d:{name:"Loxodonta", percent:0.01}}, {n:"idp174576", p:"idp173152", c:0, d:{name:"Loxodonta africana", percent:0.01}}, {n:"idp176000", p:"idp167664", d:{name:"Boreoeutheria", percent:89.43}}, {n:"idp177216", p:"idp176000", d:{name:"Laurasiatheria", percent:0.02}}, {n:"idp178640", p:"idp177216", d:{name:"Perissodactyla", percent:0.01}}, {n:"idp180064", p:"idp178640", d:{name:"Rhinocerotidae", percent:0.01}}, {n:"idp181488", p:"idp180064", d:{name:"Ceratotherium", percent:0.01}}, {n:"idp182912", p:"idp181488", d:{name:"Ceratotherium simum", percent:0.01}}, {n:"idp184336", p:"idp182912", c:0, d:{name:"Ceratotherium simum simum", percent:0.01}}, {n:"idp185776", p:"idp177216", d:{name:"Carnivora", percent:0.01}}, {n:"idp187200", p:"idp185776", d:{name:"Caniformia", percent:0.01}}, {n:"idp188624", p:"idp187200", d:{name:"Ursidae", percent:0.01}}, {n:"idp190048", p:"idp188624", d:{name:"Ailuropoda", percent:0.01}}, {n:"idp191472", p:"idp190048", c:0, d:{name:"Ailuropoda melanoleuca", percent:0.01}}, {n:"idp192896", p:"idp176000", d:{name:"Euarchontoglires", percent:89.11}}, {n:"idp194384", p:"idp192896", d:{name:"Primates", percent:88.91}}, {n:"idp195872", p:"idp194384", d:{name:"Haplorrhini", percent:88.89}}, {n:"idp197360", p:"idp195872", d:{name:"Simiiformes", percent:88.88}}, {n:"idp198848", p:"idp197360", d:{name:"Platyrrhini", percent:0.04}}, {n:"idp200272", p:"idp198848", d:{name:"Cebidae", percent:0.04}}, {n:"idp201696", p:"idp200272", d:{name:"Callitrichinae", percent:0.04}}, {n:"idp203120", p:"idp201696", d:{name:"Callithrix", percent:0.04}}, {n:"idp204544", p:"idp203120", c:0, d:{name:"Callithrix jacchus", percent:0.04}}, {n:"idp205872", p:"idp197360", d:{name:"Catarrhini", percent:88.64}}, {n:"idp207200", p:"idp205872", d:{name:"Cercopithecoidea", percent:1.47}}, {n:"idp208624", p:"idp207200", d:{name:"Cercopithecidae", percent:1.47}}, {n:"idp210112", p:"idp208624", d:{name:"Cercopithecinae", percent:0.89}}, {n:"idp211600", p:"idp210112", d:{name:"Papio", percent:0.1}}, {n:"idp213056", p:"idp211600", c:0, d:{name:"Papio anubis", percent:0.1}}, {n:"idp214544", p:"idp205872", d:{name:"Hominoidea", percent:86.6}}, {n:"idp216032", p:"idp214544", d:{name:"Hominidae", percent:85.4}}, {n:"idp217520", p:"idp216032", d:{name:"Homininae", percent:84.22}}, {n:"idp219008", p:"idp217520", d:{name:"Homo", percent:65.85}}, {n:"idp220496", p:"idp219008", d:{name:"Homo sapiens", percent:65.34}}, {n:"idp221984", p:"idp220496", c:0, d:{name:"Homo sapiens neanderthalensis", percent:0}}, {n:"idp223424", p:"idp220496", c:0, d:{name:"Homo sapiens ssp. Denisova", percent:0}}, {n:"idp224864", p:"idp216032", d:{name:"Ponginae", percent:0.26}}, {n:"idp226320", p:"idp224864", d:{name:"Pongo", percent:0.26}}, {n:"idp227776", p:"idp226320", c:0, d:{name:"Pongo abelii", percent:0.26}}, {n:"idp229264", p:"idp192896", d:{name:"Glires", percent:0.19}}, {n:"idp230448", p:"idp229264", d:{name:"Rodentia", percent:0.19}}, {n:"idp231904", p:"idp230448", d:{name:"Sciurognathi", percent:0.19}}, {n:"idp233360", p:"idp231904", d:{name:"Muroidea", percent:0.19}}, {n:"idp234544", p:"idp233360", d:{name:"Cricetidae", percent:0.07}}, {n:"idp235968", p:"idp234544", d:{name:"Cricetinae", percent:0.07}}, {n:"idp237392", p:"idp235968", d:{name:"Cricetulus", percent:0.07}}, {n:"idp238816", p:"idp237392", c:0, d:{name:"Cricetulus griseus", percent:0.07}}, {n:"idp240240", p:"idp233360", d:{name:"Muridae", percent:0.12}}, {n:"idp241696", p:"idp240240", d:{name:"Murinae", percent:0.12}}, {n:"idp243152", p:"idp241696", d:{name:"Rattus", percent:0.12}}, {n:"idp244608", p:"idp243152", c:0, d:{name:"Rattus norvegicus", percent:0.12}}, {n:"idp246096", p:"0", d:{name:"Viruses", percent:8.61}}, {n:"idp247552", p:"idp246096", d:{name:"ssDNA viruses", percent:0.01}}, {n:"idp248752", p:"idp247552", d:{name:"Anelloviridae", percent:0.01}}, {n:"idp250176", p:"idp248752", d:{name:"unclassified Anelloviridae", percent:0.01}}, {n:"idp251344", p:"idp250176", c:0, d:{name:"Torque teno virus", percent:0.01}}, {n:"idp252768", p:"idp246096", d:{name:"ssRNA viruses", percent:8.6}}, {n:"idp253952", p:"idp252768", d:{name:"ssRNA positive-strand viruses, no DNA stage", percent:8.6}}, {n:"idp255168", p:"idp253952", d:{name:"Flaviviridae", percent:8.6}}, {n:"idp256656", p:"idp255168", d:{name:"Hepacivirus", percent:8.6}}, {n:"idp258112", p:"idp256656", c:0, d:{name:"Hepatitis C virus", percent:8.6}}, {n:"idp259600", p:"idp246096", d:{name:"Retro-transcribing viruses", percent:0}}, {n:"idp260768", p:"idp259600", d:{name:"Retroviridae", percent:0}}, {n:"idp262192", p:"idp260768", d:{name:"Orthoretrovirinae", percent:0}}, {n:"idp263616", p:"idp262192", d:{name:"Lentivirus", percent:0}}, {n:"idp265040", p:"idp263616", d:{name:"Primate lentivirus group", percent:0}}, {n:"idp266208", p:"idp265040", c:0, d:{name:"Human immunodeficiency virus 1", percent:0}}, 0]);
+		var sel = null;
+		tax_tree.for_every_tree_node(tree, function(node) {
+//			console.info(node.display.name);
+			if (node.display.name == "Cercopithecoidea")
+				sel = node;
+			return true;
+		});
+		console.info(sel);
+		equal(sel.parent != null, true);
+		equal(sel.parent.childs.length > 1, true);
+		equal(tax_tree.get_top_percent(sel.parent.childs), 86.6);
+		equal(tax_tree.node_level(sel), 27);
+		equal(tax_tree.is_eukaryota(sel), true);
+		equal(tax_tree.is_human(sel), false);
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"cells", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0}}])
+		var rec = tax_tree.from_tree(tree);
+		console.info(rec);
+//		equal(from_tree(tree), [{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0}}])
+	}
+
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"cells", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0}}])
+		equal(tree.name, "root")
+		equal(tree.childs[0].name, "one")
+		equal(tree.childs[0].parent, tree)
+		var cells = tree.childs[0];
+					
+		equal(cells.childs[0].name, "two")
+		equal(cells.childs[0].parent, cells)
+		equal(cells.childs[1].name, "three")
+		equal(cells.childs[1].parent, cells)
+//		equal(from_tree(tree), [{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0}}])
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Eukaryota", percent:0.05}}, {n:"three", p:"two", d:{name:"Hominidae", percent:0.05}}, {n:"four", p:"three", d:{name:"Homo sapiens", percent:0.05}}]);
+		tax_tree.collapse_unclear(tree);
+		var _tree = tree.childs[0];
+		equal(_tree.collapsed, true);
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Eukaryota", percent:0.05}}, {n:"three", p:"two", d:{name:"Hominidae", percent:0.05}}, {n:"four", p:"three", d:{name:"Homo sapiens", percent:0.05}}]);
+		var _tree = tree.childs[0];
+		equal(tax_tree.is_human(_tree.childs[0]), true);
+		equal(tax_tree.is_eukaryota(_tree.childs[0]), true);
+	}
+
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.08}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.07}}]);
+		var _tree = tree.childs[0];
+		equal(tax_tree.is_human(_tree.childs[0]), false);
+		equal(tax_tree.is_eukaryota(_tree.childs[0]), false);
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.08}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.07}}]);
+		var _tree = tree.childs[0];
+		equal(tax_tree.node_level(_tree.childs[0]), 2);
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.08}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.07}}]);
+		var _tree = tree.childs[0];
+		equal(tax_tree.get_top_percent(_tree.childs), 0.08);
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:0}}]);
+		tax_tree.fix_zero_percent_message(tree);
+		var _tree = tree.childs[0];
+		equal(_tree.display.percent, "< 0.01");
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.05}}, {n:"four", p:"three", d:{name:"Proteobacteria - ex", percent:0.05}}]);
+		var _tree = tree.childs[0];
+		equal(_tree.childs[0].name, "two")
+		equal(_tree.childs[1].name, "three")
+		equal(_tree.childs[1].childs[0].name, "four")
+		tax_tree.remove_percent_duplicates(tree);
+		equal(_tree.childs[0].name, "two")
+		equal(_tree.childs[1].name, "three")
+		equal(_tree.childs[1].childs[0].name, "four")
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.05}}, {n:"four", p:"three", d:{name:"Proteobacteria - ex", percent:0.05}}, {n:"five", p:"four", d:{name:"Proteobacteria - ex 2", percent:0.05}}]);
+		var _tree = tree.childs[0];
+		equal(_tree.childs[0].name, "two")
+		equal(_tree.childs[1].name, "three")
+		equal(_tree.childs[1].childs[0].name, "four")
+		tax_tree.remove_percent_duplicates(tree);
+		equal(_tree.childs[0].name, "two")
+		equal(_tree.childs[1].name, "three")
+		equal(_tree.childs[1].childs[0].name, "five")
+	}
+
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0.1}}])
+		var _tree = tree.childs[0];
+		equal(_tree.childs[0].name, "two")
+		equal(_tree.childs[1].name, "three")
+		tax_tree.sort_nodes(tree);
+		equal(_tree.childs[0].name, "three")
+		equal(_tree.childs[1].name, "two")
+	}
+	{
+		var tree = tax_tree.to_tree([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"two", d:{name:"Proteobacteria", percent:0}}])
+		var _tree = tree.childs[0];
+		equal(_tree.name, "one")
+		equal(_tree.childs[0].name, "two")
+//		equal(_tree.childs[0].parent, tree)
+
+//		var reconstructed = from_tree(tree);
+//		equal(reconstructed[0], {n:"one", p:"0", d:{name:"root", percent:1.1}});
+	}
+	{
+		var t = tree_transform([{n:"one", p:"0", d:{name:"root", percent:1.1}}, {n:"two", p:"one", d:{name:"Bacteria", percent:0.05}}, {n:"three", p:"one", d:{name:"Proteobacteria", percent:0}}]);
+		console.info(t);
+	}
+}
+
+ 
+to_tree_test()
+
+document.firstline = "all is OK"
+
+document.open()
+document.write(document.firstline)
+document.open()
+
+</SCRIPT>
+<TITLE>load demo</TITLE>
+</HEAD>
+
+<BODY>
+<SCRIPT>
+//document.open()
+//document.write(document.firstline)
+//document.open()
+</SCRIPT>
+
+</BODY>
+
