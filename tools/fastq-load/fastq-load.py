@@ -1,4 +1,5 @@
-#!/opt/python-3.4/bin/python
+#!/opt/python-2.7env/bin/python
+####/opt/python-3.4/bin/python
 #===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -30,67 +31,92 @@ fastq-load.py --output=<archive path> <other options> <fastq files> | general-lo
 
 Options:
 
-    offset:        For interpretation of ascii quality (offset=33 or offset=64) or
-                   indicating the presence of numerical quality (offset=0).
-                   (accepts PHRED_33 and PHRED_64, too)
+    output:         Output archive path
 
-    quality:       same as offset (different from latf due to requirement for '=')
+    offset:         For interpretation of ascii quality (offset=33 or offset=64) or
+                    indicating the presence of numerical quality (offset=0).
+                    (accepts PHRED_33 and PHRED_64, too)
 
-    readLens:      For splitting fixed length sequence/quality from a single fastq
-                   Number of values must = # of reads (comma-separated). Must be
-                   consistent with number of read types specified
+    quality:        Same as offset (different from latf due to requirement for '=')
 
-    readTypes:     For specifying read types using B (Biological) or T (Technical)
-                   Use sequence like TBBT - no commas. Defaults to BB. Must be
-                   consistent with number of values specified for read lengths
+    readLens:       For splitting fixed length sequence/quality from a single fastq
+                    Number of values must = # of reads (comma-separated). Must be
+                    consistent with number of read types specified
 
-    spotGroup:     Indicates spot group to associate with all spots that are loaded
-                   Overrides barcodes on deflines.
+    readTypes:      For specifying read types using B (Biological) or T (Technical)
+                    Use sequence like TBBT - no commas. Defaults to BB. Must be
+                    consistent with number of values specified for read lengths.
+                    If you want the read sequence to be used as the spot group or
+                    part of the spot group use G (Group). Multiple reads incorporated
+                    into the spot group will be concatenated with an '_' separator.
 
-    orphanReads:   File or files contain orphan reads or fragments mixed with non-orphan
-                   reads. If all files are either completely fragments or completely
-                   paired (e.g. split-3 fastq-dump output) then this option is
-                   unnecessary. However, for pre-split 454 this option would probably be
-                   necessary.
+    spotGroup:      Indicates spot group to associate with all spots that are loaded
+                    Overrides barcodes on deflines.
 
-    logOdds:       Input fastq has log odds quality (set prior to 'offset' or 'quality'
-                   option)
+    orphanReads:    File or files contain orphan reads or fragments mixed with non-orphan
+                    reads. If all files are either completely fragments or completely
+                    paired (e.g. split-3 fastq-dump output) then this option is
+                    unnecessary. However, for pre-split 454 this option would probably be
+                    necessary.
+
+    logOdds:        Input fastq has log odds quality (set prior to 'offset' or 'quality'
+                    option)
     
-    ignoreNames:   For when names repeat, go on position only. Specify eight line fastq
-                   if that is the case. Does not work with orphanReads. Does not work
-                   for split seq/qual files.
+    discardNames:   For when names repeat, go on position only. Specify eight line fastq
+                    if that is the case. Does not work with orphanReads. Does not work
+                    for split seq/qual files.
     
-    read1PairFiles Filenames containing read1 seqs ordered to correspond with read2 pair
-                   files. Required with --orphanReads option. Files paths must still be
-                   provided on the command line in addition to this option. Must be
-                   specified in conjunction with read2PairFiles option. Comma-separated.
+    useAndDiscardNames:   Too many names to store but still useful for determination of
+                    read pairs. So names are used and then discarded.
+                    
+    ignoreNames:    Determination of pairs via names will not work but first read name
+                    retained.
+    
+    read1PairFiles: Filenames containing read1 seqs ordered to correspond with read2 pair
+                    files. Required with --orphanReads option. Files paths must still be
+                    provided on the command line in addition to this option. Must be
+                    specified in conjunction with read2PairFiles option. Comma-separated.
+                    Also useful if ignoring/discarding names.
 
-    read2PairFiles Filenames containing read2 seqs. Required for --orphanReads option.
-                   Include a filename from the read1 files if read2 is in the same file
-                   using corresponding positions. Files paths must still be provided on
-                   the command line in addition to this option. Comma-separated. Must
-                   be specified in conjunction with read1PairFiles option.
+    read2PairFiles: Filenames containing read2 seqs. Required for --orphanReads option.
+                    Include a filename from the read1 files if read2 is in the same file
+                    using corresponding positions. Files paths must still be provided on
+                    the command line in addition to this option. Comma-separated. Must
+                    be specified in conjunction with read1PairFiles option.
+                    Also useful if ignoring/discarding names.
 
-    platform:      454, Pacbio, Illumina, ABI, etc.
+    read1QualFiles: Filenames containing read1 quals ordered to correspond with read2 pair
+                    files. Files paths must still be provided on the command line in addition
+                    to this option. Must be specified in conjunction with read2QualFiles option.
+                    Comma-separated. (Provide only if ignoring or discarding names)
 
-    readLabels:    Rev, Fwd, Barcode, etc., comma-separated (no whitespaces)
+    read2QualFiles: Filenames containing read2 quals ordered to correspond with read1 pair
+                    files. Files paths must still be provided on the command line in addition
+                    to this option. Must be specified in conjunction with read1QualFiles option.
+                    Comma-separated. (Provide only if ignoring or discarding names)
 
-    mixedDeflines: Indicates mixed defline types exist in one of the fastq files.
-                   Results in slower processing of deflines.
+    platform:       454, Pacbio, Illumina, ABI, etc.
 
-    schema:        Set vdb schema to use during load
+    readLabels:     Rev, Fwd, Barcode, etc., comma-separated (no whitespaces)
 
-    z|xml-log:     XML version of stderr output
+    mixedDeflines:  Indicates mixed defline types exist in one of the fastq files.
+                    Results in slower processing of deflines.
 
-    h|help:        Displays this message
+    ignLeadChars:   Set # of leading defline characters to ignore for pairing
 
-    V|version:     Displays version of fastq-load.py
+    discardBarcodes For cases where too many barcodes exist (>30000)
+    
+    schema:         Set vdb schema to use during load
+
+    z|xml-log:      XML version of stderr output
+
+    h|help:         Displays this message
+
+    V|version:      Displays version of fastq-load.py
 
 You may have to provide read1 and read2 lists if pairing of files is necessary and
 orphan reads exist. If both reads exist in the same file, put the same filename 
 in both lists.
-
-Assumes that first read number is 1
 
 Cannot handle > 2 files that contain reads for a spot
 (i.e. cannot handle three reads in separate files)
@@ -110,7 +136,10 @@ import os
 import re
 import copy
 import gzip
+import bz2
 import datetime
+import string
+import time
 
 ############################################################
 # Environment globals
@@ -134,6 +163,7 @@ fileLabels = {}      # map from filename to label for file
 def usage ( message, state ):
     usageMessage =  """
 Usage: fastq-load.py\n
+          [ --output=<archive>        (optional) ]
           [ --offset=<number>         (optional) ]
           [ --readLens=<number(s)>    (optional) ]
           [ --readTypes=<B|T(s)>      (optional) ]
@@ -141,12 +171,18 @@ Usage: fastq-load.py\n
           [ --orphanReads             (optional) ]
           [ --logOdds                 (optional) ]
           [ --ignoreNames             (optional) ]
+          [ --discardNames            (optional) ]
+          [ --useAndDiscardNames      (optional) ]
           [ --read1PairFiles=<string> (optional) ]
           [ --read2PairFiles=<string> (optional) ]
+          [ --read1QualFiles=<string> (optional) ]
+          [ --read2QualFiles=<string> (optional) ]
           [ --platform=<string>       (optional) ]
           [ --readLabels=<labels>     (optional) ]
           [ --maxErrorCount=<count>   (optional) ]
           [ --mixedDeflines           (optional) ]
+          [ --ignLeadChars=<count>    (optional) ]
+          [ --discardBarcodes         (optional) ]
           [ --schema=<string>         (optional) ]
           [ -z|--xml-log=<string>     (optional) ]
           [ -h|--help                 (optional) ]
@@ -196,7 +232,8 @@ class StatusWriter:
     def outputInfo ( self, message ):
         dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<info app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
+            self.xmlLogHandle.write('<info app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'
+                                    .format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
         sys.stderr.write("{} fastq-load.py.{} info: {}\n".format(dateTime,self.vers,message) )
         sys.stderr.flush()
@@ -207,7 +244,8 @@ class StatusWriter:
     def outputWarning ( self, message ):
         dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<warning app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
+            self.xmlLogHandle.write('<warning app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'
+                                    .format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
         sys.stderr.write("{} fastq-load.py.{} warn: {}\n".format(dateTime,self.vers,message) )
         sys.stderr.flush()
@@ -218,7 +256,8 @@ class StatusWriter:
     def outputErrorAndExit (self, message):
         dateTime = self.getTime()
         if self.xmlLogHandle:
-            self.xmlLogHandle.write('<error app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'.format(self.escape(message),self.pid,dateTime,self.vers))
+            self.xmlLogHandle.write('<error app="fastq-load.py" message="{}" pid="{}" timestamp="{}" version="{}"/>\n'
+                                    .format(self.escape(message),self.pid,dateTime,self.vers))
             self.xmlLogHandle.flush()
             self.closeXmlLog()
         sys.exit( "\n{} fastq-load.py.{} Error: {}\n\n".format(dateTime,self.vers,message) )
@@ -364,41 +403,48 @@ class Defline:
         self.suffix = ''
         self.abiTitle = ''
         self.statusWriter = None
+        self.ignLeadCharsNum = None
+        self.ignoredLeadChars = None
 
-        self.illuminaNew = re.compile("@([!-~]+?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|[_\|])([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
-        self.illuminaNewNoPrefix = re.compile("@([!-~]*?)(:?)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|_)([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
-        self.illuminaNewWithJunk = re.compile("@([!-~]+?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)([!-~]+?\s*)([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
-        self.illuminaNewWithPeriods = re.compile("@([!-~]+?)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\s+|_)([12345])\.([NY])\.(\d+|O)\.?([!-~]*?)(\s+|$)")
+        self.illuminaNew = re.compile("[@>]([!-~]+?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|[_\|])([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
+        self.illuminaNewNoPrefix = re.compile("[@>]([!-~]*?)(:?)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|_)([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
+        self.illuminaNewWithJunk = re.compile("[@>]([!-~]+?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)([!-~]+?\s*)([12345]|):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
+        self.illuminaNewWithPeriods = re.compile("[@>]([!-~]+?)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\s+|_)([12345]|)\.([NY])\.(\d+|O)\.?([!-~]*?)(\s+|$)")
+        self.illuminaNewWithUnderscores = re.compile("[@>]([!-~]+?)(_)(\d+)(_)(\d+)(_)(\d+)(_)(\d+)(\s+|_)([12345]|)_([NY])_(\d+|O)_?([!-~]*?)(\s+|$)")
+        self.illuminaNewSuffix = re.compile("(#[!-~]*?|)(/[12345]|\\\\[12345])?([!-~]*?)(#[!-~]*?|)(/[12345]|\\\\[12345])?([:_\|]?)(\s+|$)")
 
         self.illuminaOld = None
-        self.illuminaOldColon = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)_?[012]?(#[!-~]*?|)\s?(/|\\\\)?([12345]?)(\s+|$)")
-        self.illuminaOldUnderscore = re.compile("[@>]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+)(_)(-?\d+)(#[!-~]*?|)\s?(/|\\\\)?([12345]?)(\s+|$)")
-        self.illuminaOldNoPrefix = re.compile("[@>]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)(#[!-~]*?|)\s?(/|\\\\)?([12345]?)(\s+|$)")
-        self.illuminaOldWithJunk = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)(#[!-~]+)(/)([12345])[!-~]+(\s+|$)")
-        self.illuminaOldWithJunk2 = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)[!-~]+(#[!-~]*|)\s?(/|\\\\)?([12345]?)(\s+|$)")
+        self.illuminaOldColon = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)_?[012]?(#[!-~]*?|)\s?(/[12345]|\\\\[12345])?(\s+|$)")
+        self.illuminaOldUnderscore = re.compile("[@>]?([!-~]+?)(_)(\d+)(_)(\d+)(_)(-?\d+)(_)(-?\d+)(#[!-~]*?|)\s?(/[12345]|\\\\[12345])?(\s+|$)")
+        self.illuminaOldNoPrefix = re.compile("[@>]?([!-~]*?)(:?)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)(#[!-~]*?|)\s?(/[12345]|\\\\[12345])?(\s+|$)")
+        self.illuminaOldWithJunk = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)(#[!-~]+)(/[12345])[!-~]+(\s+|$)")
+        self.illuminaOldWithJunk2 = re.compile("[@>]?([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+[!-~]+?)(#[!-~]*|)\s?(/[12345]|\\\\[12345])?(\s+|$)")
+        self.illuminaOldSuffix = re.compile("(-?\d+)([!-~]*)") # Must have '*' and not '+'. Otherwise, name for pairing is truncated by one character.
 
         self.illuminaOldBcRn = None
-        self.illuminaOldBcRnOnly = re.compile("[@>]([!-~]+?)(#)([!-~]+?)(/|\\\\)([12345])(\s+|$)")
-        self.illuminaOldBcOnly = re.compile("[@>]([!-~]+?)(#)([!-~]+)(\s+|$)(.?)(.?)")
-        self.illuminaOldRnOnly = re.compile("[@>]([!-~]+?)(/|\\\\)([12345])(\s+|$)(.?)(.?)")
+        self.illuminaOldBcRnOnly = re.compile("[@>]([!-~]+?)(#[!-~]+?)(/[12345]|\\\\[12345])(\s+|$)")
+        self.illuminaOldBcOnly = re.compile("[@>]([!-~]+?)(#[!-~]+)(\s+|$)(.?)")
+        self.illuminaOldRnOnly = re.compile("[@>]([!-~]+?)(/[12345]|\\\\[12345])(\s+|$)(.?)")
 
         self.qiimeBc = re.compile("[@>]([!-~]*).*?\s+orig_bc=[!-~]+\s+new_bc=([!-~]+)\s+bc_diffs=[01]")
         self.qiimeIlluminaNew = re.compile("[@>]([!-~]*)\s+([!-~]*?)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(:|_)(\d+)(\s+|_|:)([12345]):([NY]):(\d+|O):?([!-~]*?)(\s+|$)")
         self.qiimeIlluminaNewPeriods = re.compile("[@>]([!-~]*)\s+([!-~]*?)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\.)(\d+)(\s+|_|:)([12345])\.([NY])\.(\d+|O)\.?([!-~]*?)(\s+|$)")
-        self.qiimeIlluminaOld = re.compile("[@>]([!-~]*)\s+([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)#?([!-~]*?)\s?(/|\\\\)?([12345]?)(\s+|$)")
+        self.qiimeIlluminaNewUnderscores = re.compile("[@>]([!-~]*)\s+([!-~]*?)(_)(\d+)(_)(\d+)(_)(\d+)(_)(\d+)(\s+|_|:)([12345])_([NY])_(\d+|O)_?([!-~]*?)(\s+|$)")
+        
+        self.qiimeIlluminaOld = re.compile("[@>]([!-~]*)\s+([!-~]+?)(:)(\d+)(:)(\d+)(:)(-?\d+)(:)(-?\d+)(#[!-~]*?|)\s?(/[12345]|\\\\[12345])?(\s+|$)")
 
-        self.ls454 = re.compile("[@>]([!-~]+_|)([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})[/]?([12345]?)(\s+|$)")
-        self.qiime454 = re.compile("[@>]([!-~]*)\s+([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})[/]?([12345]?)(\s+|$)")
+        self.ls454 = re.compile("[@>]([!-~]+_|)([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})(/[12345])?(\s+|$)")
+        self.qiime454 = re.compile("[@>]([!-~]*)\s+([A-Z0-9]{7})(\d{2})([A-Z0-9]{5})(/[12345])?(\s+|$)")
 
         self.pacbio = re.compile("[@>](m\d{6}_\d{6}_[!-~]+?_c\d{33}_s\d+_[pX]\d/\d+/?\d*_?\d*)(\s+|$)")
 
-        self.nanopore = re.compile("[@>](channel_)(\d+)(_read_)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement)?(:[!-~]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)")
-        self.nanopore2 = re.compile("[@>]([!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement)(:[!-~]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)")
-        self.nanopore3 = re.compile("[@>]([!-~]+?_Basecall_2D_000[!-~]+?\s[!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement)(:[!-~]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)")
+        self.nanopore = re.compile("[@>]+?(channel_)(\d+)(_read_)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)?(:[!-~]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)")
+        self.nanopore2 = re.compile("[@>]([!-~]*?ch)(\d+)(_file)(\d+)([!-~]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)(:[!-~]+?_ch\d+_file\d+_strand.fast5)?(\s+|$)")
+        self.nanopore3 = re.compile("[@>]([!-~]+?_Basecall_2D[_0]*?)(_twodirections|_2d|-2D|_template|-1D|_complement|-complement|\.1C|\.1T|\.2D)[: ]([!-~]+?)[: ]([!-~]+?_ch)(\d+)(_read|_file)(\d+)(_strand\d*.fast5)(\s+|$)")
 
         self.helicos = re.compile("[@>](VHE-\d+)-(\d+)-(\d+)-(\d)-(\d+)(\s+|$)")
 
-        self.ionTorrent = re.compile("[@>]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})[/]?([12345]?)(\s+|$)")
+        self.ionTorrent = re.compile("[@>]([A-Z0-9]{5})(:)(\d{1,5})(:)(\d{1,5})(/[12345]|\\\\[12345]|[LR])?(\s+|$)")
 
         self.abSolid = re.compile("[@>]([!-~]*?)(\d+)_(\d+)_(\d+)_(F3|R3|F5-BC|BC|F5-P2|F5-RNA|F5-DNA)([!-~]*?)(\s+|$)")
 
@@ -426,7 +472,9 @@ class Defline:
         if ( sameReadNum and
              defline1.name and
              defline2.name and
-             defline1.name == defline2.name and
+             ( defline1.name == defline2.name or
+               ( defline1.abiTitle and defline1.name == defline1.abiTitle + "_" + defline2.name ) or
+               ( defline2.abiTitle and defline2.name == defline2.abiTitle + "_" + defline1.name ) ) and
              defline1.readNum == defline2.readNum ):
 
             if ( defline1.tagType and
@@ -542,6 +590,7 @@ class Defline:
         self.tagType = ''
         self.suffix = ''
         self.dir = ''
+        self.ignoredLeadChars = None
 
     ############################################################
     # Parse deflines based on cases we have seen in the past
@@ -561,7 +610,7 @@ class Defline:
         ############################################################
         # helicos
         #
-        # @VHE-242383071011-15-1-0-2
+        # @VHE-242383071011-15-1-0-2 (YYY034449)
         ############################################################
 
         elif ( self.deflineType == self.HELICOS or
@@ -594,7 +643,22 @@ class Defline:
         ############################################################
         # ab solid
         #
-        # >3_189_730_F3
+        # >3_189_730_F3 (XXX001662)
+        # >3_189_730_R3 (XXX001662)
+        # >461_28_1048_F3 (XXX001354)
+        # >349_1793_467_F3 (XXX015374)
+        # >1_98_123_BC (XXX1001434)
+        # >427_21_101_F3 (XXX112693)
+        # >427_17_22_F5-P2 (XXX112693)
+        # >2_35_407_F3 (XXX3159530)
+        # >2_35_407_F5-BC (XXX3159530)
+        # @1_43_495_F3 (XXX645822)
+        # @1_43_495_F5-BC (XXX645822)
+        # >47_15_207_F5-RNA (YYY005001)
+        # >47_15_207_F5-DNA (YYY005002)
+        # >1_01_1_23_192_F3 (YYY3222665)
+        # >1_23_192_F3_1_01 (ZZZ3222665)
+        # >427_27_224_F3 1:0003213231 (ZZZ005000)
         ############################################################
 
         elif ( self.deflineType == self.ABSOLID or
@@ -616,9 +680,9 @@ class Defline:
             # Set defline name
 
             if self.abiTitle:
-                self.name = self.abiTitle + self.prefix + self.panel + "_" + self.x + "_" + self.y + self.suffix
+                self.name = self.abiTitle + "_" + self.prefix + self.panel + "_" + self.x + "_" + self.y
             else:
-                self.name = self.prefix + self.panel + "_" + self.x + "_" + self.y + self.suffix
+                self.name = self.prefix + self.panel + "_" + self.x + "_" + self.y
 
             # Retain defline type if desired
 
@@ -630,26 +694,28 @@ class Defline:
         ############################################################
         # New Illumina
         #
-        # @M00730:68:000000000-A2307:1:1101:14701:1383 1:N:0:1
-        # @HWI-962:74:C0K69ACXX:8:2104:14888:94110 2:N:0:CCGATAT
-        # @HWI-ST808:130:H0B8YADXX:1:1101:1914:2223 1:N:0:NNNNNN-GGTCCA-AAAA
-        # @HWI-M01380:63:000000000-A8KG4:1:1101:17932:1459 1:N:0:Alpha29 CTAGTACG|0|GTAAGGAG|0
-        # @HWI-ST959:56:D0AW4ACXX:8:1101:1233:2026 2:N:0:
-        # @DJB77P1:546:H8V5MADXX:2:1101:11528:3334 1:N:0:_I_GACGAC
-        # @HET-141-007:154:C391TACXX:6:1216:12924:76893 1:N:0
-        # @DG7PMJN1:293:D12THACXX:2:1101:1161:1968_1:N:0:GATCAG
-        # @M01321:49:000000000-A6HWP:1:1101:17736:2216_1:N:0:1/M01321:49:000000000-A6HWP:1:1101:17736:2216_2:N:0:1
-        # @MISEQ:36:000000000-A5BCL:1:1101:24982:8584;smpl=12;brcd=ACTTTCCCTCGA 1:N:0:ACTTTCCCTCGA
-        # @HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG
-        # @aa,HWI-7001455:146:H97PVADXX:2:1101:1498:2093 1:Y:0:ACAAACGGAGTTCCGA
-        # @NS500234:97:HC75GBGXX:1:11101:6479:1067 1:N:0:ATTCAG+NTTCGC
-        # @M01388:38:000000000-A49F2:1:1101:14022:1748 1:N:0:0
-        # @M00388:100:000000000-A98FW:1:1101:17578:2134 1:N:0:1|isu|119|c95|303
-        # @HISEQ:191:H9BYTADXX:1:1101:1215:1719 1:N:0:TTAGGC##NGTCCG
-        # @HWI:1:X:1:1101:1298:2061 1:N:0: AGCGATAG (barcode is discarded)
-        # @8:1101:1486:2141 1:N:0:/1
+        # @M00730:68:000000000-A2307:1:1101:14701:1383 1:N:0:1 (XXX574591)
+        # @HWI-962:74:C0K69ACXX:8:2104:14888:94110 2:N:0:CCGATAT (XXX610048)
+        # @HWI-ST808:130:H0B8YADXX:1:1101:1914:2223 1:N:0:NNNNNN-GGTCCA-AAAA (YYY1106612)
+        # @HWI-M01380:63:000000000-A8KG4:1:1101:17932:1459 1:N:0:Alpha29 CTAGTACG|0|GTAAGGAG|0 (SRR1767413)
+        # @HWI-ST959:56:D0AW4ACXX:8:1101:1233:2026 2:N:0: (XXX770604)
+        # @DJB77P1:546:H8V5MADXX:2:1101:11528:3334 1:N:0:_I_GACGAC (WWW000015)
+        # @HET-141-007:154:C391TACXX:6:1216:12924:76893 1:N:0 (WWW000006)
+        # @DG7PMJN1:293:D12THACXX:2:1101:1161:1968_1:N:0:GATCAG (XXX998303)
+        # @M01321:49:000000000-A6HWP:1:1101:17736:2216_1:N:0:1/M01321:49:000000000-A6HWP:1:1101:17736:2216_2:N:0:1 (WWW000016)
+        # @MISEQ:36:000000000-A5BCL:1:1101:24982:8584;smpl=12;brcd=ACTTTCCCTCGA 1:N:0:ACTTTCCCTCGA (WWW000026)
+        # @HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG (XXX1692309)
+        # @aa,HWI-7001455:146:H97PVADXX:2:1101:1498:2093 1:Y:0:ACAAACGGAGTTCCGA (WWW000027)
+        # @NS500234:97:HC75GBGXX:1:11101:6479:1067 1:N:0:ATTCAG+NTTCGC (WWW000028)
+        # @M01388:38:000000000-A49F2:1:1101:14022:1748 1:N:0:0 (WWW000029)
+        # @M00388:100:000000000-A98FW:1:1101:17578:2134 1:N:0:1|isu|119|c95|303 (WWW000030)
+        # @HISEQ:191:H9BYTADXX:1:1101:1215:1719 1:N:0:TTAGGC##NGTCCG (WWW000031)
+        # @HWI:1:X:1:1101:1298:2061 1:N:0: AGCGATAG (barcode is discarded) (WWW000039)
+        # @8:1101:1486:2141 1:N:0:/1 (WWW000033)
         # @HS2000-1017_69:7:2203:18414:13643|2:N:O:GATCAG (WWW000045)
         # @HISEQ:258:C6E8AANXX:6:1101:1823:1979:CGAGCACA:1:N:0:CGAGCACA:NG:GT (SRR3156573)
+        # @HWI-ST226:170:AB075UABXX:3:1101:1436:2127 1:N:0:GCCAAT (XXX104658)
+        # @HISEQ06:187:C0WKBACXX:6:1101:1198:2254 1:N:0: (XXX788729)
         ############################################################
 
         elif ( self.deflineType == self.ILLUMINA_NEW or
@@ -658,7 +724,8 @@ class Defline:
                ( self.deflineType is None and
                  ( self.illuminaNew.match(self.deflineString) or
                    self.illuminaNewWithJunk.match(self.deflineString) or
-                   self.illuminaNewNoPrefix.match(self.deflineString) ) ) ):
+                   self.illuminaNewNoPrefix.match(self.deflineString) or
+                   self.illuminaNewWithUnderscores.match(self.deflineString) ) ) ):
 
             if self.deflineType:
                 m = self.illuminaNew.match(self.deflineString)
@@ -669,9 +736,12 @@ class Defline:
                 elif self.illuminaNewNoPrefix.match(self.deflineString):
                     m = self.illuminaNewNoPrefix.match(self.deflineString)
                     self.foundRE = self.illuminaNewNoPrefix
-                else:
+                elif self.illuminaNewWithJunk.match(self.deflineString):
                     m = self.illuminaNewWithJunk.match(self.deflineString)
                     self.foundRE = self.illuminaNewWithJunk
+                else:
+                    m = self.illuminaNewWithUnderscores.match(self.deflineString)
+                    self.foundRE = self.illuminaNewWithUnderscores
 
                 # Must set these here because last check may not be executed
                 
@@ -687,6 +757,14 @@ class Defline:
             
             (self.prefix, sep1, self.lane, sep2, self.tile, sep3, self.x, sep4, self.y, sep5,
              self.readNum, self.filterRead, reserved, self.spotGroup, endSep ) = m.groups()
+
+            # Capture info in sep5 as suffix
+
+            if ( sep5 is not None and
+                 len(sep5) > 2 ):
+                s = self.illuminaNewSuffix.match ( sep5 )
+                if s is not None:
+                    ( discard1, discard2, self.suffix, discard3, discard4, discard5, discard6 ) = s.groups()
 
             # Value of 0 for spot group is equivalent to no spot group
 
@@ -709,7 +787,10 @@ class Defline:
                  ( not self.deflineType and
                    len(self.spotGroup) > len(self.name) and
                    re.search( re.escape(self.name), self.spotGroup) ) ):
-                start = str.find(self.spotGroup,self.name)
+                if (sys.version).startswith("3"):
+                    start = str.find(self.spotGroup,self.name)
+                else:
+                    start = string.find(self.spotGroup,self.name)
                 if start != -1:
                     self.spotGroup = self.spotGroup[0:start-1]
                     if self.saveDeflineType:
@@ -740,32 +821,63 @@ class Defline:
         ############################################################
         # Old Illumina
         #
-        # @HWIEAS210R_0014:3:28:1070:11942#ATCCCG/1
-        # @FCABM5A:1:1101:15563:1926#CTAGCGCT_CATTGCTT/1
-        # @HWI-ST1374:1:1101:1161:2060#0/1
-        # @ID57_120908_30E4FAAXX:3:1:1772:953/1
-        # @HWI-EAS30_2_FC200HWAAXX_4_1_646_399^M
-        # @R1:1:221:197:649/1
-        # @R16:8:1:0:1617#0/1^M
-        # @7:1:792:533
-        # @7:1:164:-0
-        # @HWUSI-BETA8_3:7:1:-1:14
-        # @rumen9533:0:0:0:5
-        # @IL10_334:1:1:4:606
-        # @HWUSI-EAS517-74:3:1:1023:8178/1 ~ RGR:Uk6;
-        # @FCC19K2ACXX:3:1101:1485:2170#/1
-        # @MB27-02-1:1101:1723:2171 /1
-        # @AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771:0:1#0
-        # @AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769:0:0#0
-        # @120315_SN711_0193_BC0KW7ACXX:1:1101:1419:2074:1#0/1
-        # @ATGCT_7_1101_1418_2098_1
-        # HWI-ST155_0544:1:1:6804:2058#0/1 (SINGLE LINE FASTQ SO NO '@')
-        # @HWI-ST225:626:C2Y82ACXX:3:1208:2931:82861_1
-        # >M01056:83:000000000-A7GBN:1:1108:17094:2684--W1
-        # @D3LH75P1:1:1101:1054:2148:0 1:1
-        # @HWI-IT879:92:5:1101:1170:2026#0/1:0
-        # @HWI-ST225:626:C2Y82ACXX:3:1208:2222:82880_1
-        # @FCA5PJ4:1:1101:14707:1407#GTAGTCGC_AGCTCGGT/1
+        # @HWIEAS210R_0014:3:28:1070:11942#ATCCCG/1 (XXX799414)
+        # @FCABM5A:1:1101:15563:1926#CTAGCGCT_CATTGCTT/1 (WWW000014)
+        # @HWI-ST1374:1:1101:1161:2060#0/1 (XXX001101)
+        # @ID57_120908_30E4FAAXX:3:1:1772:953/1 (XXX020199)
+        # @HWI-EAS30_2_FC200HWAAXX_4_1_646_399^M (XXX013586)
+        # @R1:1:221:197:649/1 (YYY003002)
+        # @R16:8:1:0:1617#0/1^M (YYY003003)
+        # @7:1:792:533 (YYY013547)
+        # @7:1:164:-0 (YYY013547)
+        # @HWUSI-BETA8_3:7:1:-1:14 (YYY015261)
+        # @rumen9533:0:0:0:5 (YYY020795)
+        # @IL10_334:1:1:4:606 (YYY036999)
+        # @HWUSI-EAS517-74:3:1:1023:8178/1 ~ RGR:Uk6; (WWW000002)
+        # @FCC19K2ACXX:3:1101:1485:2170#/1 (WWW000017)
+        # @MB27-02-1:1101:1723:2171 /1 (WWW000003)
+        # @AMS2007273_SHEN-MISEQ01:47:1:1:12958:1771:0:1#0 (WWW000008)
+        # @AMS2007273_SHEN-MISEQ01:47:1:1:17538:1769:0:0#0 (WWW000008)
+        # @120315_SN711_0193_BC0KW7ACXX:1:1101:1419:2074:1#0/1 (WWW000001)
+        # @ATGCT_7_1101_1418_2098_1 (WWW000007)
+        # HWI-ST155_0544:1:1:6804:2058#0/1 (SINGLE LINE FASTQ SO NO '@') (YYY003101)
+        # @HWI-ST225:626:C2Y82ACXX:3:1208:2931:82861_1 (WWW000040)
+        # >M01056:83:000000000-A7GBN:1:1108:17094:2684--W1 (WWW000019)
+        # @D3LH75P1:1:1101:1054:2148:0 1:1 (WWW000032)
+        # @HWI-IT879:92:5:1101:1170:2026#0/1:0 (WWW000037)
+        # @HWI-ST225:626:C2Y82ACXX:3:1208:2222:82880_1 (WWW000040)
+        # @FCA5PJ4:1:1101:14707:1407#GTAGTCGC_AGCTCGGT/1 (SRR2006030)
+        # @SOLEXA-GA02_1:1:1:0:106 (ERR011021)
+        # @HWUSI-EAS499:1:3:9:1822#0/1 (XXX000093)
+        # @BILLIEHOLIDAY_1_FC20F3DAAXX:8:2:342:540 (XXX013565)
+        # @BILLIEHOLIDAY_1_FC200TYAAXX_3_1_751_675 (XXX013571)
+        # @HWI-EAS30_2_FC20416AAXX_7_1_116_317 (XXX013600)
+        # >KN-930:1:1:653:356 (XXX014056)
+        # USI-EAS50_1:6:1:392:881 (XXX014283)
+        # @FC12044_91407_8_1_46_673 (XXX015015)
+        # @HWI-EAS299_2_30MNAAAXX:5:1:936:1505/1 (XXX015076)
+        # @HWI-EAS-249:7:1:1:443/1 (XXX037956)
+        # @741:6:1:1204:10747/1 (XXX094419)
+        # @HWI-EAS385_0086_FC:1:1:1239:943#0/1 (XXX488373)
+        # @HWUSI-EAS613-R_0001:8:1:1020:14660#0/1 (XXX556206)
+        # @ILLUMINA-D01686_0001:7:1:1028:14175#0/1 (XXX567550)
+        # @1920:1:1:1504:1082/1 (XXX627950)
+        # @HWI-EAS397_0013:1:1:1083:11725#0/1 (XXX651965)
+        # >HWI-EAS6_4_FC2010T:1:1:80:366 (YYY001656)
+        # @NUTELLA_42A08AAXX:4:001:0003:0089/1 (YYY003100)
+        # @R16:8:1:0:875#0/1 (YYY014126)
+        # HWI-EAS102_1_30LWPAAXX:5:1:1456:776 (YYY016872)
+        # @HWI-EAS390_30VGNAAXX1:1:1:377:1113/1 (YYY020188)
+        # @ID57_120908_30E4FAAXX:3:1:1772:953/1 (YYY020203)
+        # HWI-EAS440_102:8:1:168:1332 (YYY029167)
+        # @SNPSTER4_246_30GCDAAXX_PE:1:1:3:896/1 (YYY029194)
+        # @FC42AUBAAXX:6:1:4:1280#TGACCA/1 (YYY030833)
+        # @SOLEXA9:1:1:1:2005#0/1 (YYY037749)
+        # @SNPSTER3_264_30JGGAAXX_PE:2:1:218:311/1 (YYY058403)
+        # @HWUSI-EAS535_0001:7:1:747:14018#0/1 (YYY065453)
+        # @FC42ATTAAXX:5:1:0:20481 (YYY066636)
+        # @HWUSI-EAS1571_0012:8:1:1017:20197#0/1 (YYY089777)
+        # @SOLEXA1_0052_FC:8:1:1508:1078#TTAGGC/1 (YYY171628)
         ############################################################
 
         elif ( self.deflineType == self.ILLUMINA_OLD or
@@ -807,7 +919,17 @@ class Defline:
             # Collect values from regular expression pattern
             
             (self.prefix, sep1, self.lane, sep2, self.tile, sep3, self.x, sep4, self.y,
-             self.spotGroup, sep5, self.readNum, endSep) = m.groups()
+             self.spotGroup, self.readNum, endSep) = m.groups()
+            if self.readNum:
+                self.readNum = self.readNum[1:]
+
+            # Check for suffix
+
+            s = self.illuminaOldSuffix.match ( self.y )
+            if s:
+                ( self.y, self.suffix ) = s.groups()
+                if len(self.suffix) < 3:
+                    self.suffix = None
 
             # Determine number of discards first time through
             
@@ -825,15 +947,27 @@ class Defline:
                     self.x = self.tile
                     self.tile = self.lane
                     m2 = re.match("([!-~]*?)(" + sep4 + ")(\d+)$", self.prefix)
-                    (self.prefix,sep0,self.lane) = m2.groups()
-                    self.name = self.prefix + sep0 + self.lane + sep1 + self.tile + sep2 + self.x + sep3 + self.y
+                    if m2:
+                        (self.prefix,sep0,self.lane) = m2.groups()
+                        self.name = self.prefix + sep0 + self.lane + sep1 + self.tile + sep2 + self.x + sep3 + self.y
+                    else:
+                        self.lane = self.prefix
+                        self.prefix = ""
+                        self.name = self.lane + sep1 + self.tile + sep2 + self.x + sep3 + self.y
 
                 elif self.numDiscards == 2:
                     self.y = self.tile
                     self.x = self.lane
                     m2 = re.match("([!-~]*?)(" + sep4 + ")(\d+)(" + sep4 + ")(\d+)(\s+|$)",self.prefix)
-                    (self.prefix,sep_1,self.lane,sep0,self.tile,sepUnused) = m2.groups()
-                    self.name = self.prefix + sep_1 + self.lane + sep0 + self.tile + sep1 + self.x + sep2 + self.y
+                    if m2:
+                        (self.prefix,sep_1,self.lane,sep0,self.tile,sepUnused) = m2.groups()
+                        self.name = self.prefix + sep_1 + self.lane + sep0 + self.tile + sep1 + self.x + sep2 + self.y
+                    else:
+                        m2 = re.match("(\d+)(" + sep4 + ")(\d+)(\s+|$)",self.prefix)
+                        if m2:
+                            (self.lane,sep0,self.tile,sepUnused) = m2.groups()
+                            self.prefix = ""
+                            self.name = self.lane + sep0 + self.tile + sep1 + self.x + sep2 + self.y
 
             # If no discards and prefix exists, set name including prefix
             
@@ -865,13 +999,15 @@ class Defline:
         ############################################################
         # qiime with new illumina (only first spot qiime name retained)
         #
-        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_5644 M00181:229:000000000-AAPUA:1:1101:9433:3327 1:N:0:1 orig_bc=TGACCTCCTAGA new_bc=TGACCTCCAAGA bc_diffs=1
-        # @2wkRT.79_123 M00176:18:000000000-A0DK4:1:1:13923:1732 1:N:0:0 orig_bc=ATGCTAACCACG new_bc=ATGCTAACCACG bc_diffs=0
-        # @ HWI-M01929:28:000000000-A6VG4:1:2109:8848:7133 1:N:0:GTGTT  orig_bc=GCTTA   new_bc=GCTTA    bc_diffs=0
-        # @cp2  :1:1101:17436:1559:1:N:0:5/1_:1:1101:17436:1559:2:N:0:5/2   124 124
-        # @10_194156 HWI-M02808:46:AAHRM:1:1101:17744:1823 1:N:0:ATGAGACTCCAC orig_bc=ATGAGACTCCAC new_bc=ATGAGACTCCAC bc_diffs=0
-        # @AM-B-CON M02233:62:000000000-A9GLW:1:1101:15425:1859 1:N:0:111^M
+        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_5644 M00181:229:000000000-AAPUA:1:1101:9433:3327 1:N:0:1 orig_bc=TGACCTCCTAGA new_bc=TGACCTCCAAGA bc_diffs=1 (YYY908068)
+        # @2wkRT.79_123 M00176:18:000000000-A0DK4:1:1:13923:1732 1:N:0:0 orig_bc=ATGCTAACCACG new_bc=ATGCTAACCACG bc_diffs=0 (XXX776282)
+        # @ HWI-M01929:28:000000000-A6VG4:1:2109:8848:7133 1:N:0:GTGTT  orig_bc=GCTTA   new_bc=GCTTA    bc_diffs=0 (WWW000005)
+        # @cp2  :1:1101:17436:1559:1:N:0:5/1_:1:1101:17436:1559:2:N:0:5/2   124 124 (WWW000020)
+        # @10_194156 HWI-M02808:46:AAHRM:1:1101:17744:1823 1:N:0:ATGAGACTCCAC orig_bc=ATGAGACTCCAC new_bc=ATGAGACTCCAC bc_diffs=0 (WWW000013)
+        # @AM-B-CON M02233:62:000000000-A9GLW:1:1101:15425:1859 1:N:0:111^M (WWW000024)
         # >26.04.2015.WO.Comp.S55_1 M00596.112.000000000.AHGJM.1.1101.20901.1309 1.N.0.55 (SRR3112744)
+        # >PSF.1d.20_0 HISEQ:128:160215_SNL128_0128_AHJT2MBCXX:1:1101:3422:2184 1:N:0: orig_bc=TATAGCGACTACTATA new_bc=TATAGCGACTACTATA bc_diffs=0 (SRR3992252)
+        # @2-796964 M01929:5:000000000-A46YE:1:1108:16489:18207 1:N:0:2 (XXX1778155)
         ############################################################
 
         elif ( self.deflineType == self.QIIME_ILLUMINA_NEW or
@@ -880,7 +1016,8 @@ class Defline:
                self.deflineType == self.QIIME_ILLUMINA_NEW_DBL_BC or
                ( self.deflineType is None and
                  ( self.qiimeIlluminaNew.match(self.deflineString) or
-                   self.qiimeIlluminaNewPeriods.match(self.deflineString) ) ) ):
+                   self.qiimeIlluminaNewPeriods.match(self.deflineString) or
+                   self.qiimeIlluminaNewUnderscores.match(self.deflineString) ) ) ):
             
             if self.deflineType:
                 m = self.qiimeIlluminaNew.match ( self.deflineString )
@@ -888,10 +1025,13 @@ class Defline:
                 if self.qiimeIlluminaNew.match ( self.deflineString ) :
                     m = self.qiimeIlluminaNew.match ( self.deflineString )
                     self.foundRE = self.qiimeIlluminaNew
-                else:
+                elif self.qiimeIlluminaNewPeriods.match ( self.deflineString ):
                     m = self.qiimeIlluminaNewPeriods.match ( self.deflineString )
                     self.foundRE = self.qiimeIlluminaNewPeriods
-
+                else:
+                    m = self.qiimeIlluminaNewUnderscores.match ( self.deflineString )
+                    self.foundRE = self.qiimeIlluminaNewUnderscores
+                
                 # Must set here because last check may not be executed
 
                 if self.saveDeflineType:
@@ -937,7 +1077,10 @@ class Defline:
                  ( not self.deflineType and
                    len(self.spotGroup) > len(self.name) and
                    re.search( re.escape(self.name), self.spotGroup) ) ):
-                start = str.find(self.spotGroup,self.name)
+                if (sys.version).startswith("3"):
+                    start = str.find(self.spotGroup,self.name)
+                else:
+                    start = string.find(self.spotGroup,self.name)
                 if start != -1:
                     self.spotGroup = self.spotGroup[0:start-1]
                     if re.search( "/[12]", self.spotGroup ):
@@ -968,8 +1111,8 @@ class Defline:
         ############################################################
         # qiime with old illumina (only first spot qiime name retained)
         #
-        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_378 M00181:229:000000000-AAPUA:1:1101:19450:2192#0/1 orig_bc=TGACCTCCAAGA new_bc=TGACCTCCAAGA bc_diffs=0
-        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_158 M00181:229:000000000-AAPUA:1:1101:19450:2192#0/2 orig_bc=TGACCTCCAAGA new_bc=TGACCTCCAAGA bc_diffs=0
+        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_378 M00181:229:000000000-AAPUA:1:1101:19450:2192#0/1 orig_bc=TGACCTCCAAGA new_bc=TGACCTCCAAGA bc_diffs=0 (ZZZ908068)
+        # @B11.13210.SIV.Barouch.Stool.250.06.8.13.12_158 M00181:229:000000000-AAPUA:1:1101:19450:2192#0/2 orig_bc=TGACCTCCAAGA new_bc=TGACCTCCAAGA bc_diffs=0 (ZZZ908068)
         ############################################################
 
         elif ( self.deflineType == self.QIIME_ILLUMINA_OLD or
@@ -988,7 +1131,11 @@ class Defline:
             # Get match values
             
             (self.qiimeName, self.prefix, sep1, self.lane, sep2, self.tile, sep3, self.x, sep4, self.y,
-             self.spotGroup, sep5, self.readNum, endSep) = m.groups()
+             self.spotGroup, self.readNum, endSep) = m.groups()
+            if self.readNum:
+                self.readNum = self.readNum[1:]
+            if self.spotGroup:
+                self.spotGroup = self.spotGroup[1:]
 
             # Check for the presence of barcode corrections
 
@@ -1021,9 +1168,12 @@ class Defline:
         ############################################################
         # 454 defline
         #
-        # @GG3IVWD03F5DLB length=97 xy=2404_1917 region=3 run=R_2010_05_11_11_15_22_
-        # @EV5T11R03G54ZJ
-        # @G08F-G.1CDX_GLT1WDS04JWLOH rank=0066288 x=3944.5 y=3119.0 length=353 (SRR1619238)
+        # @GG3IVWD03F5DLB length=97 xy=2404_1917 region=3 run=R_2010_05_11_11_15_22_ (XXX529889)
+        # @EV5T11R03G54ZJ (YYY307780)
+        # @GKW2OSF01D55D9 (ERR016499)
+        # @OS-230b_GLZVSPV04JTNWT (ERR039808)
+        # @HUT5UCF07H984F (SRR2035362)
+        # @EM7LVYS02FOYNU/1 (WWW000042 or WWW000043)
         ############################################################
 
         elif ( self.deflineType == self.LS454 or
@@ -1043,6 +1193,8 @@ class Defline:
             # Get match values
             
             (self.prefix,self.dateAndHash454,self.region454,self.xy454,self.readNum,endSep) = m.groups()
+            if self.readNum:
+                self.readNum = self.readNum[1:]
             
             # Set name
 
@@ -1058,7 +1210,7 @@ class Defline:
         ############################################################
         # qiime with 454
         #
-        # @T562_7000012 H29C5KU01AZBDB orig_bc=AGCTCACGTA new_bc=AGCTCACGTA bc_diffs=0
+        # @T562_7000012 H29C5KU01AZBDB orig_bc=AGCTCACGTA new_bc=AGCTCACGTA bc_diffs=0 (WWW000018)
         ############################################################
 
         elif ( self.deflineType == self.QIIME_454 or
@@ -1079,6 +1231,8 @@ class Defline:
             # Get match values
             
             (self.qiimeName,self.dateAndHash454,self.region454,self.xy454,self.readNum,endSep) = m.groups()
+            if self.readNum:
+                self.readNum = self.readNum[1:]
 
             # Extract barcode if present
             
@@ -1112,12 +1266,13 @@ class Defline:
         # Pacbio CCS/RoIs reads or subreads
         #
         # See https://www.biostars.org/p/146048/ for field descriptions
-        # @m120525_202528_42132_c100323432550000001523017609061234_s1_p0/43
-        # @m101111_134728_richard_c000027022550000000115022502211150_s1_p0/1
-        # @m110115_082846_Uni_c000000000000000000000012706400001_s3_p0/1/0_508
-        # @m130727_043304_42150_c100538232550000001823086511101337_s1_p0/16/0_5273
-        # @m120328_022709_00128_c100311312550000001523011808061260_s1_p0/129/0_4701
-        # @m120204_011539_00128_c100220982555400000315052304111230_s2_p0/8/0_1446
+        # Also see https://speakerdeck.com/pacbio/specifics-of-smrt-sequencing-data
+        # @m120525_202528_42132_c100323432550000001523017609061234_s1_p0/43 (XXX941211)
+        # @m101111_134728_richard_c000027022550000000115022502211150_s1_p0/1 (YYY075011)
+        # @m110115_082846_Uni_c000000000000000000000012706400001_s3_p0/1/0_508 (SRR497981)
+        # @m130727_043304_42150_c100538232550000001823086511101337_s1_p0/16/0_5273 (XXX989791)
+        # @m120328_022709_00128_c100311312550000001523011808061260_s1_p0/129/0_4701 (WWW000010)
+        # @m120204_011539_00128_c100220982555400000315052304111230_s2_p0/8/0_1446 (WWW000009)
         ############################################################
 
         elif ( self.deflineType == self.PACBIO or
@@ -1148,8 +1303,8 @@ class Defline:
         ############################################################
         # ion torrent
         #
-        # @A313D:7:49 (SRR486160)
-        # @RD4FE:00027:00172 (SRR2925654)
+        # @A313D:7:49 (XXX486160)
+        # @RD4FE:00027:00172 (XXX2925654)
         # @ONBWR:00329:02356/1 (WWW000044)
         # >311CX:3560:2667   length=347 (SRR547526)
         ############################################################
@@ -1172,6 +1327,17 @@ class Defline:
             
             (self.runId, sep1, self.row, sep2, self.column, self.readNum, endSep) = m.groups()
 
+            # Interpret readNum, if found
+
+            if self.readNum:
+                if ( self.readNum[0:1] == "/" or
+                     self.readNum[0:1] == "\\" ):
+                    self.readNum = self.readNum[1:]
+                elif self.readNum == "L":
+                    self.readNum = "1"
+                elif self.readNum == "R":
+                    self.readNum = "2"
+
             # Set defline name
 
             self.name = self.runId + sep1 + self.row + sep2 + self.column
@@ -1187,9 +1353,9 @@ class Defline:
         # Old illumina bar code and/or read number only
         # Must occur after pacbio defline check
         #
-        # @_2_#GATCAGAT/1
-        # @Read_190546#BC005 length=1419
-        # @SN971:2:1101:15.80:103.70#0/1
+        # @_2_#GATCAGAT/1 (WWW000004)
+        # @Read_190546#BC005 length=1419 (XXX1616052)
+        # @SN971:2:1101:15.80:103.70#0/1 (WWW000034)
         ############################################################
         
         elif ( self.deflineType == self.ILLUMINA_OLD_BC_RN or
@@ -1218,19 +1384,20 @@ class Defline:
 
             # Assign values
 
-            self.name = m.group(1)
-            (dummy, sep1, self.spotGroup, sep2, self.readNum, endSep) = m.groups()
-            if sep1 == "#":
-                if sep2 == "/" or sep2 == "\\":
-                    pass
+            (self.name, self.spotGroup, self.readNum, endSep) = m.groups()
+            if self.spotGroup[0:1] == "#":
+                self.spotGroup = self.spotGroup[1:]
+                if ( self.readNum[0:1] == "/" or
+                     self.readNum[0:1] == "\\" ):
+                    self.readNum = self.readNum[1:]
                 else:
-                    self.readNum = ''
+                    self.readNum = None
             else:
-                self.readNum = self.spotGroup
+                self.readNum = self.spotGroup[1:]
                 self.spotGroup = None
 
             if self.spotGroup == "0":
-                self.spotGroup = ''
+                self.spotGroup = None
 
             # Save defline type and regular expression (must occur after determination of numDiscards)
 
@@ -1243,7 +1410,7 @@ class Defline:
         ############################################################
         # generic qiime
         #
-        # @10317.000016458_0 orig_bc=TGCACCTCTGTC new_bc=TGCACCTCTGTC bc_diffs=0
+        # @10317.000016458_0 orig_bc=TGCACCTCTGTC new_bc=TGCACCTCTGTC bc_diffs=0 (WWW000022)
         ############################################################
 
         elif ( self.deflineType == self.QIIME_GENERIC or
@@ -1274,27 +1441,32 @@ class Defline:
         ############################################################
         # Nanopore/MinION fastq
         #
-        # @77_2_1650_1_ch100_file0_strand_twodirections
-        # @77_2_1650_1_ch100_file16_strand_twodirections:pass\77_2_1650_1_ch100_file16_strand.fast5
-        # @channel_108_read_11_twodirections:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5
-        # @channel_108_read_11_complement:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5
-        # @channel_108_read_11_template:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5
-        # @channel_346_read_183-1D
-        # @channel_346_read_183-complement
-        # @channel_346_read_183-2D
-        # @ch120_file13-1D
-        # @ch120_file13-2D
-        # @1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5
-        # @channel_108_read_8:LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file18_strand.fast5 (R-based poRe fastq requires filename, too)
+        # @77_2_1650_1_ch100_file0_strand_twodirections (XXX2761339)
+        # @77_2_1650_1_ch100_file16_strand_twodirections:pass\77_2_1650_1_ch100_file16_strand.fast5 (SRR2761339)
+        # @channel_108_read_11_twodirections:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+        # @channel_108_read_11_complement:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+        # @channel_108_read_11_template:flowcell_17/LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file21_strand.fast5 (XXX637417 or YYY637417)
+        # @channel_346_read_183-1D (SRR1747417)
+        # @channel_346_read_183-complement (SRR1747417)
+        # @channel_346_read_183-2D (SRR1747417)
+        # @ch120_file13-1D (SRR1980822)
+        # @ch120_file13-2D (SRR1980822)
+        # @channel_108_read_8:LomanLabz_PC_E.coli_MG1655_ONI_3058_1_ch108_file18_strand.fast5 (R-based poRe fastq requires filename, too) (WWW000025)
+        # @1dc51069-f61f-45db-b624-56c857c4e2a8_Basecall_2D_000_2d oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand_twodirections:CORNELL_Oxford_Nanopore/oxford_PC_HG02.3attempt_0633_1_ch96_file81_strand.fast5 (SRR2848544 - self.nanopore3)
+        # @ae74c4fb-2c1d-4176-9584-3dfcc6dce41e_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch93_read2620_strand.fast5 (SRR5085901 - self.nanopore3)
+        # @ddb7d987-73c0-4d9a-8ac0-ac0dbc462ab5_Basecall_2D_2d UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1 NB06\UT317077_20160808_FNFAD22478_MN19846_sequencing_run_FHV_Barcoded_TakeII_88358_ch100_read4767_strand1.fast5 (SRR5085901 - self.nanopore3)
+        # @channel_101_read_1.1C|1T|2D (ERR1121618 bam converted to fastq)
         ############################################################
 
         elif ( self.deflineType == self.NANOPORE or
                ( self.deflineType is None and
                  ( self.nanopore.match( self.deflineString ) or
-                   self.nanopore2.match( self.deflineString ) ) ) ) :
+                   self.nanopore2.match( self.deflineString ) or
+                   self.nanopore3.match( self.deflineString ) ) ) ) :
         
             if self.deflineType:
                 m = self.nanopore.match ( self.deflineString )
+
             elif self.nanopore.match ( self.deflineString ) :
                 m = self.nanopore.match ( self.deflineString )
                 self.foundRE = self.nanopore
@@ -1313,43 +1485,43 @@ class Defline:
 
             # Assign values (note that readNum may actually be a file number which is not the same)
 
-            ( poreStart, self.channel, poreMid, self.readNo, poreEnd, self.poreRead, self.poreFile, endSep ) = m.groups()
-
-            # Set name
-
-            self.name = poreStart + self.channel + poreMid + self.readNo + poreEnd
+            poreMid = None
+            if ( self.nanopore == self.nanopore3 or
+                 self.foundRE == self.nanopore3 ):
+                ( self.name, self.poreRead, discard, poreStart, self.channel, poreMid, self.readNo, poreEnd, endSep ) = m.groups()
+                self.poreFile = poreStart + self.channel + poreMid + self.readNo + poreEnd
+            else:
+                ( poreStart, self.channel, poreMid, self.readNo, poreEnd, self.poreRead, self.poreFile, endSep ) = m.groups()
+                self.name = poreStart + self.channel + poreMid + self.readNo + poreEnd
 
             # Set readNum to None if actually a file number
 
-            if poreMid == "_file":
+            if ( poreMid and
+                 poreMid == "_file" ):
                 self.readNo = 0
 
             # Process poreFile if present
 
             if self.poreFile:
 
+                # Check for 'pass' or 'fail'
+
+                if re.search( "pass(/|\\\\)", self.poreFile ):
+                    self.filterRead = 0
+                elif re.search( "fail(/|\\\\)", self.poreFile ):
+                    self.filterRead = 1
+
+                # Check for barcode
+
+                b = re.search ( "(NB\d{2}|BC\d{2})(/|\\\\)", self.poreFile )
+                if b:
+                    (self.spotGroup,delimiter) = b.groups()
+                
                 # Split poreFile on '/' or '\' if present
 
                 poreFileChunks = re.split('/|\\\\',self.poreFile)
-
-                # Set filter value if possible
-                # (based on metrichor basecaller pass/fail directories or folders)
-
                 if len ( poreFileChunks) > 1:
-                    if poreFileChunks[0] == "fail":
-                        self.filterRead = 1
-                    elif poreFileChunks[0] == "pass":
-                        self.filterRead = 0
-
-                    # Set poreFile to filename without path
-
                     self.poreFile = poreFileChunks.pop()
-
-                # Spot group based on filename (like pore-load.py)
-
-                chLoc = self.poreFile.rfind("_ch{}_".format(self.channel))
-                if chLoc != -1:
-                    self.spotGroup = self.poreFile[0:chLoc]
 
             # Check for missing poreRead (from R-based poRe fastq dump) and normalize read type
 
@@ -1366,10 +1538,12 @@ class Defline:
                 else:
                     self.statusWriter.outputErrorAndExit( "Unable to determine nanopore read type ... {}".format(self.deflineString) )
             elif ( self.poreRead == "_twodirections" or
-                   self.poreRead == "-2D"):
+                   self.poreRead[1:] == "2D" or
+                   self.poreRead == "_2d" ):
                 self.poreRead = "2D"
             elif ( self.poreRead == "_template" or
-                   self.poreRead == "-1D"):
+                   self.poreRead == "-1D" or
+                   self.poreRead == ".1T" ):
                 self.poreRead = "template"
             else:
                 self.poreRead = "complement"
@@ -1469,15 +1643,17 @@ class Defline:
         ############################################################
         # Default just use non-whitespace characters after > or @
         # 
-        # @MB03~zSEQ034LingCncrtPool1~0000282
-        # @Lab1.3.ab1 1249 10 1068
-        # @CH_BAC1_C05.ab1_extraction_2
-        # @G15-D_3_1_903_603_0.81
-        # >No_name^M
-        # @SN7001204_0288_BH97LHADXX_R_SRi_L5503_L5508:11106:1433:74165
-        # @HWI-ST170:292:8:1101:1239-2176
-        # @Read_1-Barcode=BC001-PIPELINE=V41 length=6487
+        # @MB03~zSEQ034LingCncrtPool1~0000282 (SRR869399)
+        # @Lab1.3.ab1 1249 10 1068 (WWW000012)
+        # @CH_BAC1_C05.ab1_extraction_2 (WWW000011)
+        # @G15-D_3_1_903_603_0.81 (XXX006565)
+        # >No_name^M (WWW000021)
+        # @SN7001204_0288_BH97LHADXX_R_SRi_L5503_L5508:11106:1433:74165 (WWW000035)
+        # @HWI-ST170:292:8:1101:1239-2176 (WWW000036)
+        # @Read_1-Barcode=BC001-PIPELINE=V41 length=6487 (WWW000038)
         # @contig_2_to_3_R_inner_clone_1_9589_A11_BJ-674528_048.ab1 (SRR2064214)
+        # @S3_332 (ERR1288564)
+        # @sim_CFSAN001140-756880/1 (SRR3020730)
         ############################################################
 
         elif ( self.deflineType == self.UNDEFINED or
@@ -1507,17 +1683,16 @@ class Defline:
 
         else:
             self.isValid = False
-            
+
+        if ( self.isValid and
+             self.ignLeadCharsNum ):
+            self.ignoredLeadChars = self.name[0:self.ignLeadCharsNum]
+            self.name = self.name[self.ignLeadCharsNum:]
+
         return self.isValid
 
         # SRA fastq output with read numbers
-        # @ERR908068.1.1 1 length=232
-        # @ERR908068.1.2 1 length=250
-        # @ERR908068.71486.1 71486 length=219
-
         # SRA fastq output without read numbers
-        # @SRR1634775.1 1 length=252
-        # @XXX1178505.1 1 length=100
 
     ############################################################
     # Count extra numbers in Illumina prefix (at most 2)
@@ -1571,10 +1746,10 @@ class Seq:
         self.clipLeft = 0
         self.clipRight = 0
         self.csKey = None
-        self.transBase1 = str.maketrans('', '', "ACTGNWSBVDHKMRY.")
-        self.transBase2 = str.maketrans('', '', "ACTGNWSBVDHKMRY")
-        self.transColor = str.maketrans('', '', "0123.")
-        
+        if (sys.version).startswith("3"):
+            self.transBase1 = str.maketrans('', '', "ACTGNWSBVDHKMRY.")
+            self.transBase2 = str.maketrans('', '', "ACTGNWSBVDHKMRY")
+            self.transColor = str.maketrans('', '', "0123.")
         if seqString:
             self.parseSeq(seqString)
 
@@ -1622,14 +1797,20 @@ class Seq:
             pass
 
         elif self.isBaseSpace:
-            empty = self.seq.translate(self.transBase1)
+            if (sys.version).startswith("3"):
+                empty = self.seq.translate(self.transBase1)
+            else:
+                empty = self.seq.translate(None, "ACTGNWSBVDHKMRY.")
             if len(empty) == 0:
                 self.isValid = True
                 self.clipLeft = Seq.getClipLeft(self.seqOrig,self.seq)
                 self.clipRight = Seq.getClipRight(self.seqOrig,self.seq)
 
         elif self.isColorSpace:
-            empty2 = self.seq[1:].translate(self.transColor)
+            if (sys.version).startswith("3"):
+                empty2 = self.seq[1:].translate(self.transColor)
+            else:
+                empty2 = self.seq[1:].translate(None, "0123.")
             if ( len(empty2) == 0 and
                  self.seq[0:1] in "ACTG" ):
                 self.isValid = True
@@ -1639,7 +1820,10 @@ class Seq:
                 self.length -= 1
                 
         else:
-            empty = self.seq.translate(self.transBase2)
+            if (sys.version).startswith("3"):
+                empty = self.seq.translate(self.transBase2)
+            else:
+                empty = self.seq.translate(None, "ACTGNWSBVDHKMRY")
             if len(empty) == 0:
                 self.isValid = True
                 self.isBaseSpace = True
@@ -1647,7 +1831,10 @@ class Seq:
                 self.clipRight = Seq.getClipRight(self.seqOrig,self.seq)
         
             else:
-                empty2 = self.seq[1:].translate(self.transColor)
+                if (sys.version).startswith("3"):
+                    empty2 = self.seq[1:].translate(self.transColor)
+                else:
+                    empty2 = self.seq[1:].translate(None, "0123.")
                 if ( len(empty2) == 0 and
                      self.seq[0:1] in "ACTG" ):
                     self.isValid = True
@@ -1660,8 +1847,11 @@ class Seq:
 
                     # Check for non-colorspace seq with dots
                     # (2nd check here to properly handle colorspace seq consisting of all dots)
-                
-                    empty3 = self.seq.translate(self.transBase1)
+
+                    if (sys.version).startswith("3"):
+                        empty3 = self.seq.translate(self.transBase1)
+                    else:
+                        empty3 = self.seq.translate(None, "ACTGNWSBVDHKMRY.")
                     if len(empty3) == 0:
                         self.isValid = True
                         self.isBaseSpace = True
@@ -1677,7 +1867,7 @@ class Seq:
 class Qual:
     """ Parses/validates/characterizes quality string """
 
-    def __init__(self, qualString):
+    def __init__(self, qualString, seqLen):
         self.qual = None
         self.length = 0
         self.isValid = False
@@ -1688,15 +1878,18 @@ class Qual:
         self.maxQual = 0
         self.minOrd = 1000
         self.maxOrd = 0
+        self.seqLen = 0
+        if seqLen:
+            self.seqLen = seqLen
         if qualString:
-            self.parseQual(qualString)
+            self.parseQual( qualString, seqLen )
 
     ############################################################
     # Determine if provided qualString matches only qual characters
     # in range or if numerical quality
     ############################################################
     
-    def parseQual( self, qualString ):
+    def parseQual( self, qualString, seqLen ):
         self.qual = qualString.strip()
         self.length = 0
         self.isValid = False
@@ -1712,9 +1905,16 @@ class Qual:
 
         # Check for numerical quality
 
+        singleIntQual = False
+        if ( ( not seqLen or seqLen == 1 ) and
+             self.isInt(self.qual) and
+             int(self.qual) <= 100 ):
+            singleIntQual = True
+
         if ( self.isNumQual or
              ( not self.isAscQual and
-               " " in self.qual ) ):
+               ( " " in self.qual or
+                 singleIntQual ) ) ):
             for qualSubString in self.qual.split():
                 if self.isInt(qualSubString):
                     if int(qualSubString) < self.minQual:
@@ -1730,7 +1930,8 @@ class Qual:
 
             if self.length != 0:
                 self.isValid = True
-                self.isNumQual = True
+                if not singleIntQual: # Not concluding numerical qual based on single integer quality
+                    self.isNumQual = True
 
         # Check for ascii quality.
         # Defaulting to 33 offset for now
@@ -1760,8 +1961,12 @@ class Qual:
     @staticmethod
     def isInt ( qStr ):
         if qStr[0] in ('-', '+'):
-            return qStr[1:].isdigit()
-        return qStr.isdigit()
+            if len(qStr) > 1:
+                return qStr[1:].isdigit()
+            else:
+                return False
+        else:
+            return qStr.isdigit()
     
 ############################################################
 # FastqReader Class
@@ -1805,7 +2010,7 @@ class FastqReader:
         self.extraQualForCSkey = False
         self.checkSeqQual = True
         self.seqParser = Seq( '' )
-        self.qualParser = Qual( '' )
+        self.qualParser = Qual( '', 0 )
         self.seqLineCount = None
         self.qualLineCount = None
         self.savedDeflineString = ''
@@ -1815,6 +2020,30 @@ class FastqReader:
         self.statusWriter = None
         self.headerLineCount = self.processHeader(handle,self.defline)
         self.deflineCheck = copy.copy(self.defline) # Putting here in case abiTitle is set; Use for multiline qual
+
+    ############################################################
+    # Initialize fastq reader to reflect current understanding
+    # of the data. Some sw values may not be set yet
+    ############################################################
+    
+    def setStatus (self, status):
+        self.restart()
+        self.isNumQual = status.isNumQual
+        self.isColorSpace = status.isColorSpace
+        self.extraQualForCSkey = status.extraQualForCSkey
+        self.checkSeqQual = status.checkSeqQual
+        self.setClips = status.setClips
+        self.statusWriter = status.statusWriter
+        self.defline.statusWriter = status.statusWriter
+        self.deflineCheck.statusWriter = status.statusWriter
+        self.ignoreNames = status.ignoreNames
+        self.discardNames = status.discardNames
+        if self.deflineQual:
+            self.deflineQual.statusWriter = status.statusWriter
+        if status.mixedDeflines:
+            self.discardDeflineType()
+        if status.ignLeadCharsNum:
+            self.ignoreLeadDeflineChars ( status.ignLeadCharsNum )
 
     ############################################################
     # Read from fastq handle
@@ -1840,9 +2069,9 @@ class FastqReader:
         # Read qual
 
         if self.qualHandle:
-            self.lengthQual = self.readQual(self.qualHandle)
+            self.lengthQual = self.readQual( self.qualHandle, self.deflineQual )
         else:
-            self.lengthQual = self.readQual(self.handle)
+            self.lengthQual = self.readQual( self.handle, self.defline )
 
         # Adjust for color space
 
@@ -1877,6 +2106,8 @@ class FastqReader:
     ############################################################
     
     def readSeq (self):
+
+        attemptCount = 0
         
         if self.isMultiLine:
             if ( self.isFasta or
@@ -1904,8 +2135,14 @@ class FastqReader:
                     break
 
                 else:
+                    attemptCount += 1
+                    if attemptCount > 1000:
+                        self.statusWriter.outputErrorAndExit("Failed to find valid seq after 1000 attempts near spot {} in file {} ... {}"
+                                                        .format(self.spotCount,self.filename,self.seqOrig.strip() ))
+
                     if self.outputStatus:
-                        self.statusWriter.outputWarning("Discarding this line in readSeq while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.seqOrig.strip() ))
+                        self.statusWriter.outputWarning("Discarding this line in readSeq while looking for a valid complete spot near spot {} in file {} ... {}"
+                                                        .format(self.spotCount,self.filename,self.seqOrig.strip() ))
                     self.findValidDefline(True)
                     
                     if self.isMultiLine:
@@ -1936,41 +2173,45 @@ class FastqReader:
     # Read qual (possibly from separate file)
     ############################################################
     
-    def readQual ( self, handle ):
+    def readQual ( self, handle, defline ):
         
         if self.isMultiLine:
+            # Capture defline that follows multi-line qual value
             if self.isSplitSeqQual:
-                self.savedDeflineStringQual = self.readMultiLineQual(handle)
+                self.savedDeflineStringQual = self.readMultiLineQual( handle, defline )
             else:
-                self.savedDeflineStringSeq = self.readMultiLineQual(handle)
+                self.savedDeflineStringSeq = self.readMultiLineQual( handle, defline )
         else:
             self.qualOrig = handle.readline()
 
-        self.qual = self.qualOrig.strip()
-            
+        self.qual = self.qualOrig.rstrip() # leave leading space here; just strip trailing spaces
+
         if self.checkSeqQual:
             while True:
-                qualIsValid = self.qualParser.parseQual(self.qualOrig.strip())
+                qualIsValid = self.qualParser.parseQual(self.qualOrig.strip(), self.length) # remove leading/trailing spaces here
                 if ( not self.qual or
                      qualIsValid ):
+                    if self.qualParser.isNumQual:
+                        self.isNumQual = True # In case it's not already set
                     break
 
                 else:
                     if self.outputStatus:
-                        self.statusWriter.outputWarning("Discarding this line in readQual while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.qual) )
+                        self.statusWriter.outputWarning("Discarding this line in readQual while looking for a valid complete spot near spot {} in file {} ... {}"
+                                                        .format(self.spotCount,self.filename,self.qual) )
                     self.findValidDefline(True)
                     self.length = self.readSeq()
                     self.processQualDefline(handle)
                     
                     if self.isMultiLine:
                         if self.isSplitSeqQual:
-                            self.savedDeflineStringQual = self.readMultiLineQual(handle)
+                            self.savedDeflineStringQual = self.readMultiLineQual(handle, defline)
                         else:
-                            self.savedDeflineStringSeq = self.readMultiLineQual(handle)
+                            self.savedDeflineStringSeq = self.readMultiLineQual(handle, defline)
                     else:
                         self.qualOrig = handle.readline()
 
-                    self.qual = self.qualOrig.strip()
+                    self.qual = self.qualOrig.rstrip()
 
         if self.isNumQual:
             lengthQual = len ( self.qual.split() )
@@ -2004,9 +2245,10 @@ class FastqReader:
                 return ''
 
             elif self.seqLineCount > 20000:
-                self.statusWriter.outputErrorAndExit("Exceeded 20000 sequence lines between deflines near spot {} in file {}".format(self.spotCount,self.filename) )
+                self.statusWriter.outputErrorAndExit("Exceeded 20000 sequence lines between deflines near spot {} in file {}"
+                                                     .format(self.spotCount,self.filename) )
 
-            # Check for defline
+            # Check for defline. Note that deflineCharQual and deflineCharSeq are the same for seqQual fastq.
 
             elif ( ( self.isFasta and
                      fileString[0:1] == self.deflineCharSeq ) or
@@ -2023,27 +2265,45 @@ class FastqReader:
     # Read multi-line qual (handle can be same or separate file)
     ############################################################
     
-    def readMultiLineQual ( self, handle ):
+    def readMultiLineQual ( self, handle, defline ):
         self.qualLineCount = 0
         self.qualOrig = ''
         
         while True:
             fileStringOrig = handle.readline()
-            fileString = fileStringOrig.strip()
+            fileString = fileStringOrig.rstrip()
 
             # At EOF/20000 lines and did not find next read defline
 
             if not fileStringOrig:
                 return ''
 
-            elif self.qualLineCount > 20000:
-                self.statusWriter.outputErrorAndExit("Exceeded 20000 quality lines between deflines near spot {} in file {}\n".format(self.spotCount,self.filename))
+            elif self.qualLineCount > 1000:
+                self.statusWriter.outputErrorAndExit("Exceeded 1000 quality lines between deflines near spot {} in file {}\n"
+                                                     .format(self.spotCount,self.filename))
                 
-            # Check for next seq or qual defline
+            # Check for next seq or qual defline (deflineCharSeq and deflineCharQual is the same for seqQual fastq)
+            # isdigit checks for numerical-only names (extra stuff on the defline will break this)
             
-            elif ( fileString[0:2] == self.defline.deflineString[0:2] and
-                   self.deflineCheck.parseDeflineString(fileString) ):
+            elif ( ( self.deflineCharSeq == '@' and
+                     not defline.saveDeflineType ) or
+                   ( defline.deflineType != defline.UNDEFINED and
+                     fileString[0:1] == self.deflineCharSeq and
+                     self.deflineCheck.parseDeflineString(fileString) ) or
+                   ( defline.deflineType == defline.UNDEFINED and
+                     ( fileString[0:2] == self.deflineStringSeq[0:2] or
+                       ( fileString[1:].isdigit() and
+                         self.deflineStringSeq[1:].isdigit() ) ) and
+                     self.deflineCheck.parseDeflineString(fileString) ) ):
                 return fileString
+
+            # Account for wrapped numerical quality
+
+            if ( ( self.isNumQual or
+                   " " in fileString ) and
+                 fileString[0:1] != " " ):
+                self.qualOrig += " "
+                self.isNumQual = True
 
             # Collect qual
             
@@ -2059,7 +2319,8 @@ class FastqReader:
         while True:
             count += 1
             if self.outputStatus:
-                self.statusWriter.outputWarning("Discarding this line in findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.defline.deflineString) )
+                self.statusWriter.outputWarning("Discarding this line in findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}"
+                                                .format(self.spotCount,self.filename,self.defline.deflineString) )
 
             deflineStringSeqOrig = self.handle.readline()
             self.deflineStringSeq = deflineStringSeqOrig.strip()
@@ -2072,7 +2333,8 @@ class FastqReader:
                 break
             elif ( count == 1000 or
                    not deflineStringSeqOrig ):
-                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}".format( self.defline.deflineString,self.filename,str(self.spotCount) ) )
+                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}"
+                                                      .format( self.defline.deflineString,self.filename,str(self.spotCount) ) )
 
     ############################################################
     # Discard defline type if mixed deflines in a single file
@@ -2080,8 +2342,19 @@ class FastqReader:
 
     def discardDeflineType (self):
         self.defline.saveDeflineType = False
+        self.deflineCheck.saveDeflineType = False
         if self.deflineQual:
             self.deflineQual.saveDeflineType = False
+
+    ############################################################
+    # Ignore leading defline characters for pair determination
+    ############################################################
+
+    def ignoreLeadDeflineChars ( self, ignLeadCharsNum ):
+        self.defline.ignLeadCharsNum = ignLeadCharsNum
+        self.deflineCheck.ignLeadCharsNum = ignLeadCharsNum
+        if self.deflineQual:
+            self.deflineQual.ignLeadCharsNum = ignLeadCharsNum
 
     ############################################################
     # Update spotcount or eof based on quality and defline name
@@ -2123,6 +2396,12 @@ class FastqReader:
         if self.qualHandle:
             self.qualHandle.seek(0)
             self.processHeader (self.qualHandle,self.deflineQual)
+            if ( self.defline.abiTitle and
+                 not self.deflineQual.abiTitle ):
+                self.defline.abiTitle = ''
+            elif ( self.deflineQual.abiTitle
+                   and not self.defline.abiTitle ):
+                self.deflineQual.abiTitle = ''
         self.eof = False
         self.spotCount = 0
         self.deflineStringSeq = ''
@@ -2131,6 +2410,7 @@ class FastqReader:
         self.savedDeflineString = ''
         self.savedDeflineStringSeq = ''
         self.savedDeflineStringQual = ''
+        self.checkSeqQual = True
         
     ############################################################
     # Skip lines at start of file beginning with '#'
@@ -2154,6 +2434,9 @@ class FastqReader:
                      re.match("# Title: ([!-~]+)",fileString) ):
                     m = re.match("# Title: ([!-~]+)",fileString)
                     defline.abiTitle = m.group(1)
+                    if re.search ( "_$", defline.abiTitle ):
+                        defline.abiTitle = defline.abiTitle[0:len(defline.abiTitle)-1]
+					
         return headerLineCount
 
     ############################################################
@@ -2163,7 +2446,7 @@ class FastqReader:
     def isMultiLineFastq ( self ):
         self.seqLineCount = 0
         self.qualLineCount = 0
-        
+
         self.restart()
         maxSeqLineCount = 0
         maxQualLineCount = 0
@@ -2218,7 +2501,11 @@ class SeqQualFastqReader (FastqReader):
         # Determine which string to used for defline
         
         if not self.savedDeflineStringSeq:
-            self.deflineStringSeq = self.handle.readline().strip()
+            self.deflineStringSeq = self.handle.readline()
+            if self.deflineStringSeq:
+                self.deflineStringSeq = self.deflineStringSeq.strip()
+            else:
+                return
         else:
             self.deflineStringSeq = self.savedDeflineStringSeq
             self.savedDeflineStringSeq = ''
@@ -2228,19 +2515,35 @@ class SeqQualFastqReader (FastqReader):
         self.defline.parseDeflineString ( self.deflineStringSeq )
         if not self.defline.isValid:
             if self.outputStatus:
-                self.statusWriter.outputErrorAndExit("Unable to parse defline ... filename,spotCount,deflineString\t{},{},{}".format(self.filename,self.spotCount,self.defline.deflineString))
+                self.statusWriter.outputErrorAndExit("Unable to parse defline ... filename,spotCount,deflineString\t{},{},{}"
+                                                     .format(self.filename,self.spotCount,self.defline.deflineString))
 
     ############################################################
     # Process qual defline
     ############################################################
     
     def processQualDefline ( self, handle ):
-        self.deflineStringQual = handle.readline().strip()
-        self.deflineQual.parseDeflineString( self.deflineStringQual )
-        if not self.deflineQual.isValid:
-            self.statusWriter.outputErrorAndExit( "Unable to parse quality defline ... filename,spotCount,deflineString\t{},{},{}".format(self.qualFilename,self.spotCount,self.deflineQual.deflineString) )
-        if self.defline.name != self.deflineQual.name:
-            self.seqQualDeflineMismatch = True
+        if self.savedDeflineStringQual:
+            self.deflineStringQual= self.savedDeflineStringQual
+            self.savedDeflineStringQual = ''
+        else:
+            self.deflineStringQual = handle.readline()
+
+        if self.deflineStringQual: # Qual file can end early
+            self.deflineStringQual = self.deflineStringQual.strip()
+            self.deflineQual.parseDeflineString( self.deflineStringQual )
+            if not self.deflineQual.isValid:
+                testRead = handle.readline() # see if we are at EOF for quality
+                if ( not testRead and
+                     self.deflineStringQual in self.deflineStringSeq): # If at EOF for truncated quality file
+                    return
+                else:
+                    self.statusWriter.outputErrorAndExit( "Unable to parse quality defline ... filename,spotCount,deflineString\t{},{},{}"
+                                                          .format(self.qualFilename,self.spotCount,self.deflineQual.deflineString) )
+            if ( not self.ignoreNames and
+                 not self.discardNames and
+                 self.defline.name != self.deflineQual.name ):
+                self.seqQualDeflineMismatch = True
 
     ############################################################
     # Check if two handles represent seq/qual fastq pair
@@ -2253,9 +2556,9 @@ class SeqQualFastqReader (FastqReader):
         self.restart()
 
         parsedSeq1 = Seq(self.seq)
-        parsedQual1 = Qual(self.seq)
+        parsedQual1 = Qual(self.seq,parsedSeq1.length)
         parsedSeq2 = Seq(self.qual)
-        parsedQual2 = Qual(self.qual)
+        parsedQual2 = Qual(self.qual,parsedSeq2.length)
 
         if Defline.isPairedDeflines ( self.defline, self.deflineQual, True ):
             if parsedSeq1.isValid and parsedQual2.isValid:
@@ -2266,14 +2569,12 @@ class SeqQualFastqReader (FastqReader):
         return False
 
     ############################################################
-    # Update spotcount or eof based on quality and defline name
+    # Update spotcount or eof based on sequence and defline name
     ############################################################
 
     def updateSpotCountOrEof (self):
-        if ( ( self.defline.name and
-               self.deflineQual.name ) or
-             ( self.seqOrig and
-               self.qualOrig ) ):
+        if ( self.defline.name and
+             self.seqOrig ):
             self.spotCount += 1
         else:
             self.eof = True
@@ -2319,6 +2620,7 @@ class FastaFastqReader (FastqReader):
     
     def isFastaFastq(self):
         self.restart()
+        self.checkSeqQual = False
         self.read()
         parsedSeq = Seq(self.seq)
         self.read()
@@ -2410,7 +2712,7 @@ class SingleLineFastqReader (FastqReader):
 
             # Process qual chunk
             
-            self.lengthQual = self.readQual(self.handle)
+            self.lengthQual = self.readQual( self.handle, None )
 
             # Process seq chunk
             
@@ -2447,7 +2749,7 @@ class SingleLineFastqReader (FastqReader):
     # Read qual
     ############################################################
     
-    def readQual (self,handle):
+    def readQual (self,handle,defline):
         self.qualOrig = self.deflineChunks.pop()
         self.qual = self.qualOrig
         if self.isNumQual:
@@ -2464,11 +2766,12 @@ class SingleLineFastqReader (FastqReader):
         while True:
             count += 1
             if self.outputStatus:
-                self.statusWriter.outputWarning("Discarding this line in SingleLineFastqReader findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}".format(self.spotCount,self.filename,self.fileString) )
+                self.statusWriter.outputWarning("Discarding this line in SingleLineFastqReader findValidDefline while looking for a valid complete spot near spot {} in file {} ... {}"
+                                                .format(self.spotCount,self.filename,self.fileString) )
             fileStringOrig = self.handle.readline()
             self.fileString = fileStringOrig.strip()
             self.deflineChunks = self.fileString.split( self.delim )
-            self.lengthQual = self.readQual( self.handle )
+            self.lengthQual = self.readQual( self.handle, None )
             self.length = self.readSeq()
             self.deflineStringSeq = self.delim.join( self.deflineChunks )
             self.defline.parseDeflineString( self.deflineStringSeq )
@@ -2476,7 +2779,8 @@ class SingleLineFastqReader (FastqReader):
                 break
             elif ( count == 1000 or
                    not fileStringOrig ):
-                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}".format(self.defline.deflineString,self.filename,self.spotCount) )
+                self.statusWriter.outputErrorAndExit( "Unable to parse defline in 1000 lines or before eof ... \n\tlast line ... {}\n\tfilename ... {}\n\tspotCount ... {}"
+                                                      .format(self.defline.deflineString,self.filename,self.spotCount) )
 
     ############################################################
     # Check if fastq file contains single line fastq
@@ -2488,7 +2792,7 @@ class SingleLineFastqReader (FastqReader):
         self.read()
         self.restart()
         parsedSeq = Seq(self.seq)
-        parsedQual = Qual(self.qual)
+        parsedQual = Qual( self.qual, parsedSeq.length )
         if ( parsedSeq.isValid and
              parsedQual.isValid and
              parsedSeq.length == parsedQual.length ):
@@ -2503,9 +2807,14 @@ class SingleLineFastqReader (FastqReader):
 class FastqSpotWriter():
     """ Container for collecting/writing fasta spot information to gw """
 
+    READ_TYPE_TECHNICAL                 = 0
+    READ_TYPE_BIOLOGICAL                = 1
+    READ_TYPE_GROUP                     = 2
+
     def __init__(self):
 
         self.readCount = 0
+        self.readCountNonGroup = 0
         self.readLengths = []
         self.readStarts = []
         self.readTypes = array.array('B', [1, 1])
@@ -2516,6 +2825,7 @@ class FastqSpotWriter():
         self.clipQualityLeft = array.array('I', [0])
         self.clipQualityRight = array.array('I', [0])
         self.labels = ''
+        self.firstLabelRE = ''
         self.labelStarts = array.array('I', [ 0, 0 ])
         self.labelLengths = array.array('I', [ 0, 0 ])
         self.offset = 33
@@ -2534,8 +2844,12 @@ class FastqSpotWriter():
         self.read1QualFiles = None
         self.read2QualFiles = None
         self.spotGroup = ''
+        self.spotGroupsFound = {}
+        self.discardBarcodes = False
         self.ignoreNames = False
         self.discardNames = False
+        self.useAndDiscardNames = False
+        self.nameCount = 0
         self.isEightLine = False
         self.mixedDeflines = False
         self.setClips = False
@@ -2549,9 +2863,10 @@ class FastqSpotWriter():
         self.spotGroupProvided = False
         self.offsetProvided = False
         self.pairFilesProvided = False
+        self.qualFilesProvided = False
 
         self.workDir = None
-        self.outdir = "None"
+        self.outdir = "out.sra"
         self.finalDest = ''
         self.spotCount = 0
         
@@ -2559,10 +2874,13 @@ class FastqSpotWriter():
                                         # handled by abi-load currently; comment lines at the start
         self.extraQualForCSkey = False  # Set to True if extra qual value for cs key
         self.readColumn = 'READ'
-        self.read1IsTechnical = False
-        self.read2IsTechnical = False
         
-        self.logOdds = False        # Indicated by presence of negative qualities
+        self.logOdds = False            # Indicated by presence of negative qualities
+        self.changeNegOneQual = False   # '-1' only is likely used for dot or N qualities
+        if (sys.version).startswith("3"):
+            self.transNegOne = str.maketrans('?', '@')
+        else:
+            self.transNegOne = string.maketrans('?', '@')
         self.readNums = []
 
         self.gw = None
@@ -2573,6 +2891,7 @@ class FastqSpotWriter():
         self.profile = False
         self.checkSeqQual = True
         self.statusWriter = None
+        self.ignLeadCharsNum = None
 
         ############################################################
         # Define SEQUENCE table components for general loader
@@ -2754,8 +3073,8 @@ class FastqSpotWriter():
         if self.logOdds:
             self.db = 'NCBI:SRA:GenericFastqLogOdds:db'
 
-        elif ( self.ignoreNames or
-               self.discardNames ):
+        elif ( self.discardNames or
+               self.useAndDiscardNames ):
             self.db = 'NCBI:SRA:GenericFastqNoNames:db'
 
         # Remove label and clip columns if necessary
@@ -2812,9 +3131,9 @@ class FastqSpotWriter():
         # Paired files
         
         elif fastq2 :
-            if self.read1IsTechnical:
+            if self.readTypes[0] == self.READ_TYPE_TECHNICAL:
                 self.dst['READ_TYPE']['data'] = array.array( 'B', [ 0, 1 ] )
-            if self.read2IsTechnical:
+            elif self.readTypes[1] == self.READ_TYPE_TECHNICAL:
                 self.dst['READ_TYPE']['data'] = array.array( 'B', [ 1, 0 ] )
             else:
                 self.dst['READ_TYPE']['data'] = array.array( 'B', [ 1, 1 ] )
@@ -2828,9 +3147,18 @@ class FastqSpotWriter():
         # Lengths provided
         
         else:
-            self.dst['READ_START']['data'] = self.readStarts
-            self.dst['READ_LENGTH']['data'] = self.readLengths
-            self.dst['READ_TYPE']['data'] = self.readTypes
+            self.dst['READ_START']['data'] = array.array( 'I', [] )
+            self.dst['READ_LENGTH']['data'] = array.array( 'I', [] )
+            self.dst['READ_TYPE']['data'] = array.array( 'B', [] )
+            readIndex = -1
+            readStart = 0
+            for readType in self.readTypes:
+                readIndex += 1
+                if readType != self.READ_TYPE_GROUP:
+                    self.dst['READ_START']['data'].append( readStart )
+                    self.dst['READ_LENGTH']['data'].append( self.readLengths[readIndex] )
+                    self.dst['READ_TYPE']['data'].append( self.readTypes[readIndex] )
+                    readStart += self.readLengths[readIndex]
 
         # Can be called twice if fastq1 or fastq2 ends early
         # Execute the following lines only once
@@ -2844,7 +3172,8 @@ class FastqSpotWriter():
             
             if self.mixedDeflines:
                 fastq1.discardDeflineType()
-                fastq2.discardDeflineType()
+                if fastq2:
+                    fastq2.discardDeflineType()
             
     ############################################################
     # Selects write function for handling fastq data
@@ -2887,9 +3216,10 @@ class FastqSpotWriter():
             # Second fastq indicates paired fastq files
 
             if fastq2 :
-                if ( not self.ignoreNames and
+                if ( not ( self.ignoreNames or self.discardNames ) and
                      fastq1.defline.name != fastq2.defline.name ):
-                    self.statusWriter.outputErrorAndExit("Expected paired deflines but encountered name mismatch ... {},{}".format(fastq1.defline.name,fastq2.defline.name) )
+                    self.statusWriter.outputErrorAndExit("Expected paired deflines but encountered name mismatch ... {},{}"
+                                                         .format(fastq1.defline.name,fastq2.defline.name) )
                 else:
                     self.processPairFastqSpot ( fastq1, fastq2 )
 
@@ -2917,7 +3247,7 @@ class FastqSpotWriter():
             # Output spotcount
 
             if fastq1.spotCount % self.infoSizeForSpotCount == 0:
-                self.outputCount(fastq1,False)
+                self.outputCount(fastq1,fastq2,False)
 
             # Edge case where one seq in a pair is an empty string (very sparse)
 
@@ -2982,25 +3312,51 @@ class FastqSpotWriter():
     ############################################################
     
     def processMultiReadSingleFastqSpot ( self, fastq1 ):
-        self.dst['READ']['data'] = fastq1.seq.encode('ascii')
-        self.dst['READ_FILTER']['data'] = array.array('B', [fastq1.defline.filterRead] * self.readCount)
-        if self.variableLengthSpecified :
-            readLengthsLocal = array.array('I', [0] * self.readCount)
-            readLengthsLocal[0] = self.readLengths[0]
-            if self.readCount == 2:
-                readLengthsLocal[1] = len(fastq1.seq) - self.readLengths[0]
-            elif self.readCount == 3:
-                readLengthsLocal[1] = self.readLengths[1]
-                readLengthsLocal[2] = len(fastq1.seq) - self.readLengths[0] - self.readLengths[1]
-            elif self.readCount == 4:
-                readLengthsLocal[1] = self.readLengths[1]
-                readLengthsLocal[2] = self.readLengths[2]
-                readLengthsLocal[3] = len(fastq1.seq) - self.readLengths[0] - self.readLengths[1] - self.readLengths[2]
+        clipQualityRight = 0
+        if self.readCount == self.readCountNonGroup:
+            self.dst['READ']['data'] = fastq1.seq.encode('ascii')
+            self.setDstQual ( fastq1.qual, self.dst )
+            if self.setClips:
+                clipQualityRight = len(fastq1.seq) - fastq1.clipRight
+            if self.variableLengthSpecified :
+                readLengthsLocal = array.array('I', [0] * self.readCount)
+                readLengthsLocal[0] = self.readLengths[0]
+                if self.readCount == 2:
+                    readLengthsLocal[1] = len(fastq1.seq) - self.readLengths[0]
+                elif self.readCount == 3:
+                    readLengthsLocal[1] = self.readLengths[1]
+                    readLengthsLocal[2] = len(fastq1.seq) - self.readLengths[0] - self.readLengths[1]
+                elif self.readCount == 4:
+                    readLengthsLocal[1] = self.readLengths[1]
+                    readLengthsLocal[2] = self.readLengths[2]
+                    readLengthsLocal[3] = len(fastq1.seq) - self.readLengths[0] - self.readLengths[1] - self.readLengths[2]
+                self.dst['READ_LENGTH']['data'] = readLengthsLocal
+        else:
+            seq = ""
+            qual = ""
+            start = 0
+            readIndex = -1
+            readLengthsLocal = array.array('I', [] )
+            for readType in self.readTypes:
+                readIndex += 1
+                if readType != self.READ_TYPE_GROUP:
+                    seq += fastq1.seq[ start : start + self.readLengths[readIndex] ]
+                    qual += fastq1.qual[ start : start + self.readLengths[readIndex] ] # Does not work with numerical qual :(               
+                    if self.readLengths[readIndex] == 0: # last read only currently
+                        readLengthsLocal.append( len ( fastq1.seq[start:] ) )
+                    else:
+                        readLengthsLocal.append(self.readLengths[readIndex])
+                start += self.readLengths[readIndex]
+            self.dst['READ']['data'] = seq.encode('ascii')
+            self.setDstQual ( qual, self.dst )
+            if self.setClips:
+                clipQualityRight = len(seq) - fastq1.clipRight
             self.dst['READ_LENGTH']['data'] = readLengthsLocal
-        self.setDstQual ( fastq1.qual, self.dst )
+
+        self.dst['READ_FILTER']['data'] = array.array('B', [fastq1.defline.filterRead] * self.readCountNonGroup)
+
         if self.setClips:
             clipQualityLeft = fastq1.clipLeft + 1
-            clipQualityRight = len(fastq1.seq) - fastq1.clipRight
             self.dst['CLIP_QUALITY_LEFT']['data'] = array.array( 'I', [ int(clipQualityLeft) ] )
             self.dst['CLIP_QUALITY_RIGHT']['data'] = array.array( 'I', [ int(clipQualityRight) ] )
 
@@ -3052,7 +3408,7 @@ class FastqSpotWriter():
                 self.processUnpairedPoreRead ( fastq2, None ) # 2D read in fastq3 handled/cached by prior call
 
         if fastq1.spotCount % self.infoSizeForSpotCount == 0:
-            self.outputCount(fastq1,True)
+            self.outputCount(fastq1,fastq2,True)
 
     ############################################################
     # If a read is unpaired then check for prior encounter with
@@ -3098,7 +3454,7 @@ class FastqSpotWriter():
             self.writeNanopore2Dread ( fastq1, None )
             
         if fastq1.spotCount % self.infoSizeForSpotCount == 0:
-            self.outputCount(fastq1,True)
+            self.outputCount(fastq1,None,True)
         
     ############################################################
     # Write actual or fake 2D read
@@ -3153,7 +3509,7 @@ class FastqSpotWriter():
         if self.nanopore2Donly:
             self.spotCount += 1
             if fastq.spotCount % self.infoSizeForSpotCount == 0:
-                self.outputCount(fastq,False )
+                self.outputCount(fastq,None,False )
 
     ############################################################
     # Write technical nanopore template read to SEQUENCE table using
@@ -3204,7 +3560,7 @@ class FastqSpotWriter():
                 self.processUnpairedRead ( fastq2 )
 
         if fastq1.spotCount % self.infoSizeForSpotCount == 0:
-            self.outputCount (fastq1,True)
+            self.outputCount (fastq1,fastq2,True)
 
     ############################################################
     # Write spot when read matches up with previously encountered reads
@@ -3300,6 +3656,10 @@ class FastqSpotWriter():
         
         if fastq2.defline.qiimeName:
             fastq2.defline.qiimeName = read1['qiimeName']
+
+        if fastq2.defline.suffix:
+            fastq2.defline.suffix = read1['suffix']
+
         self.setDstName ( fastq2, self.dst )
         self.setDstSpotGroup ( fastq2, None, self.dst )
         self.gw.write(self.dst)
@@ -3331,6 +3691,9 @@ class FastqSpotWriter():
         if fastq.defline.qiimeName:
             readValues['qiimeName'] = fastq.defline.qiimeName
             
+        if fastq.defline.suffix:
+            readValues['suffix'] = fastq.defline.suffix
+
         if ( ( fastq.defline.readNum and
                fastq.defline.readNum == "1") or
              ( fastq.defline.poreRead and
@@ -3365,7 +3728,7 @@ class FastqSpotWriter():
              fastq1.defline.name in self.pairedRead2 ):
             self.writeMixedOrphan ( fastq1 )
         if fastq1.spotCount % self.infoSizeForSpotCount == 0:
-            self.outputCount(fastq1,True)
+            self.outputCount(fastq1,None,True)
 
     ############################################################
     # Set name to be written in archive
@@ -3376,14 +3739,24 @@ class FastqSpotWriter():
     ############################################################
             
     def setDstName ( self, fastq, dst ):
-        if ( self.ignoreNames or
-             self.discardNames ):
+        self.nameCount += 1
+        if ( self.discardNames or
+             self.useAndDiscardNames ):
             pass
-        elif fastq.defline.qiimeName :
-            name = fastq.defline.qiimeName + "_" + fastq.defline.name
-            dst['NAME']['data'] = name.encode('ascii')
         else:
-            dst['NAME']['data'] = fastq.defline.name.encode('ascii')
+            name = fastq.defline.name
+            if ( self.ignoreNames and
+                 self.firstLabelRE ):
+                m = re.search( self.firstLabelRE, name )
+                if m:
+                    name = name[:m.start()]
+            if fastq.defline.qiimeName :
+                name = fastq.defline.qiimeName + "_" + name
+            if fastq.defline.ignoredLeadChars :
+                name = fastq.defline.ignoredLeadChars + name
+            if fastq.defline.suffix :
+                name = name + fastq.defline.suffix
+            dst['NAME']['data'] = name.encode('ascii')
 
     ############################################################
     # Set spot group in destination array
@@ -3392,12 +3765,32 @@ class FastqSpotWriter():
     ############################################################
     
     def setDstSpotGroup ( self, fastq, fastq2, dst ):
-        if self.spotGroupProvided:
-            dst['SPOT_GROUP']['data'] = self.spotGroup.encode('ascii')
-        elif fastq.defline.spotGroup:
-            dst['SPOT_GROUP']['data'] = fastq.defline.spotGroup.encode('ascii')
-        else:
-            dst['SPOT_GROUP']['data'] = ''.encode('ascii')
+        spotGroup = ''
+        if not self.discardBarcodes:
+            if self.spotGroupProvided:
+                spotGroup = self.spotGroup
+            elif ( self.lengthsProvided and
+                   self.readCount != self.readCountNonGroup ):
+                start = 0
+                readIndex = -1
+                for readType in self.readTypes:
+                    readIndex += 1
+                    if readType == self.READ_TYPE_GROUP:
+                        if spotGroup:
+                            spotGroup += "_"
+                        spotGroup += fastq.seq[ start : start + self.readLengths[readIndex] ]
+                    start += self.readLengths[readIndex]
+            elif ( fastq.defline.spotGroup and
+                   not self.discardNames ):
+                spotGroup = fastq.defline.spotGroup
+
+        dst['SPOT_GROUP']['data'] = spotGroup.encode('ascii')
+        if ( spotGroup and
+             not self.spotGroupProvided and
+             not spotGroup in self.spotGroupsFound ):
+            self.spotGroupsFound[spotGroup] = 1
+            if len ( self.spotGroupsFound ) > 30000:
+                self.statusWriter.outputErrorAndExit( "Over 30000 unique spot groups were found within this submission. Please specify '--discardBarcodes'" )
 
     ############################################################
     # Set quality in destination array
@@ -3408,6 +3801,8 @@ class FastqSpotWriter():
             qualVals = self.getNumQualArray ( qualString )
             dst['QUALITY']['data'] = qualVals
         else:
+            if self.changeNegOneQual:
+                qualString = qualString.translate(self.transNegOne)
             dst['QUALITY']['data'] = qualString.encode('ascii')
 
     ############################################################
@@ -3426,7 +3821,15 @@ class FastqSpotWriter():
 
         for qualValString in qualValStrings:
             qualIndex += 1
-            qualVals[qualIndex] = int(qualValString)
+            qualVal = int(qualValString)
+
+            # Handle case where dots or Ns are sometimes assigned '-1' for quality
+            
+            if ( self.changeNegOneQual and
+                 qualVal == -1 ):
+                qualVal = 0
+                
+            qualVals[qualIndex] = qualVal
 
         return qualVals
 
@@ -3449,7 +3852,8 @@ class FastqSpotWriter():
         if ( offset != 0 and
              offset != 33 and
              offset != 64 ):
-            self.statusWriter.outputErrorAndExit( "Invalid offset determined or specified. Allowed values are 0 (numerical quality), 33, or 64 ... {}".format(offset) )
+            self.statusWriter.outputErrorAndExit( "Invalid offset determined or specified. Allowed values are 0 (numerical quality), 33, or 64 ... {}"
+                                                  .format(offset) )
         else:
             self.offset = offset
 
@@ -3483,7 +3887,8 @@ class FastqSpotWriter():
         readLenCount = len(readLens)
         if self.readCount != 0:
             if readLenCount != self.readCount:
-                self.statusWriter.outputErrorAndExit( "\nRead count disagreement between provided read lengths, {}, and prior argument read count, {}".format(str(readLenCount),str(self.readCount)))
+                self.statusWriter.outputErrorAndExit( "\nRead count disagreement between provided read lengths, {}, and prior argument read count, {}"
+                                                      .format(str(readLenCount),str(self.readCount)))
         else:
             self.readCount = readLenCount
 
@@ -3510,16 +3915,20 @@ class FastqSpotWriter():
     
     def setReadTypes (self,readTypeString):
         readTypeString = readTypeString.strip()
-        transType = str.maketrans('', '', "BT")
-        empty = readTypeString.translate(transType)
+        if (sys.version).startswith("3"):
+            transType = str.maketrans('', '', "BTG")
+            empty = readTypeString.translate(transType)
+        else:
+            empty = readTypeString.translate(None, "BTG")
         if len(empty) != 0:
-            self.statusWriter.outputErrorAndExit( "Invalid read type specified (only B or T allowed) ... {}".format(readTypeString) )
+            self.statusWriter.outputErrorAndExit( "Invalid read type specified (only B, T, or G allowed) ... {}".format(readTypeString) )
 
         else:
             typeCount = len(readTypeString)
             if self.readCount != 0:
                 if typeCount != self.readCount:
-                    self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read types, {}, and prior argument read count, {}".format(typeCount,self.readCount))
+                    self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read types, {}, and prior argument read count, {}"
+                                                          .format(typeCount,self.readCount))
             else:
                 self.readCount = typeCount
 
@@ -3527,10 +3936,14 @@ class FastqSpotWriter():
             self.readTypes = array.array('B', [0] * self.readCount)
             for readType in readTypeString:
                 readIndex += 1
-                if readType == "B":
-                    self.readTypes[readIndex] = 1
+                if readType == "G":
+                    self.readTypes[readIndex] = self.READ_TYPE_GROUP
                 else:
-                    self.readTypes[readIndex] = 0
+                    self.readCountNonGroup += 1
+                    if readType == "T":
+                        self.readTypes[readIndex] = self.READ_TYPE_TECHNICAL
+                    else:
+                        self.readTypes[readIndex] = self.READ_TYPE_BIOLOGICAL
 
     ############################################################
     # Set read labels variables from provided read label string
@@ -3542,13 +3955,16 @@ class FastqSpotWriter():
         labelCount = len(labels)
         if self.readCount != 0:
             if labelCount != self.readCount:
-                self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read labels, {}, and prior argument read count, {}".format(labelCount,self.readCount))
+                self.statusWriter.outputErrorAndExit( "Read count disagreement between provided read labels, {}, and prior argument read count, {}"
+                                                      .format(labelCount,self.readCount))
         else:
             self.readCount = labelCount
 
         readIndex = -1
         labelStart = 0
         labelString = ''
+        self.firstLabelRE = re.escape ( labels[0] )
+        self.firstLabelRE = self.firstLabelRE + "$"
         self.labels = ''
         self.labelStarts = array.array('I', [0] * self.readCount)
         self.labelLengths = array.array('I', [0] * self.readCount)
@@ -3582,6 +3998,16 @@ class FastqSpotWriter():
         else:
             self.platform = array.array('B', [platform.value] )
             self.platformString = platformString
+            if platform == Platform.SRA_PLATFORM_ILLUMINA:
+                self.db = 'NCBI:SRA:Illumina:db'
+                self.schema = '/panfs/pan1.be-md.ncbi.nlm.nih.gov/trace_work/backup/scripts/py/generic-fastq.vschema'
+
+    ############################################################
+    # Ignore leading characters on deflines for pairing
+    ############################################################
+    
+    def setIgnLeadChars ( self, ignLeadCharsNum ):
+        self.ignLeadCharsNum = int(ignLeadCharsNum) - 1
 
     ############################################################
     # Ignore names and remove NAME column value
@@ -3589,7 +4015,31 @@ class FastqSpotWriter():
     
     def setIgnoreNames ( self ):
         self.ignoreNames = True
+        self.mixedDeflines = True
+
+    ############################################################
+    # Discard names and remove NAME column value
+    ############################################################
+    
+    def setDiscardNames ( self ):
+        self.discardNames = True
+        self.mixedDeflines = True
         del self.tbl['SEQUENCE']['NAME']
+
+    ############################################################
+    # Discard names and remove NAME column value
+    ############################################################
+    
+    def setUseAndDiscardNames ( self ):
+        self.useAndDiscardNames = True
+        del self.tbl['SEQUENCE']['NAME']
+
+    ############################################################
+    # Discard barcodes because too many
+    ############################################################
+    
+    def setDiscardBarcodes ( self ):
+        self.discardBarcodes = True
 
     ############################################################
     # Set alternative schema to use
@@ -3651,11 +4101,26 @@ class FastqSpotWriter():
     # Outputs spot count
     ############################################################
 
-    def outputCount ( self, fastq, readCount ):
-        if readCount:
-            self.statusWriter.outputInfo("Reading spot number {} from {}".format(fastq.spotCount,fastq.filename) )
+    def outputCount ( self, fastq, fastq2, readCount ):
+        if ( fastq2 and
+             fastq.filename != fastq2.filename ):
+            if fastq.spotCount == fastq2.spotCount:
+                if readCount:
+                    self.statusWriter.outputInfo("Reading spot number {} from {} and {}".format(fastq.spotCount,fastq.filename,fastq2.filename) )
+                else:
+                    self.statusWriter.outputInfo("Wrote approx. spot number {} from {} and {}".format(fastq.spotCount,fastq.filename,fastq2.filename) )
+            else:
+                if readCount:
+                    self.statusWriter.outputInfo("Reading spot number {} from {}, spot number {} from {}"
+                                                 .format(fastq.spotCount,fastq.filename,fastq2.spotCount,fastq2.filename) )
+                else:
+                    self.statusWriter.outputInfo("Wrote approx. spot number {} from {}, approx. spot number {} from {}"
+                                                 .format(fastq.spotCount,fastq.filename,fastq2.spotCount,fastq2.filename) )
         else:
-            self.statusWriter.outputInfo("Wrote spot number {} from {}".format(fastq.spotCount,fastq.filename) )
+            if readCount:
+                self.statusWriter.outputInfo("Reading spot number {} from {}".format(fastq.spotCount,fastq.filename) )
+            else:
+                self.statusWriter.outputInfo("Wrote approx. spot number {} from {}".format(fastq.spotCount,fastq.filename) )
 
 ############################################################
 # Process command line arguments
@@ -3686,10 +4151,16 @@ def processArguments():
                 sw.logOdds = True
             elif arg[2:] == 'ignoreNames':
                 sw.setIgnoreNames()
+            elif arg[2:] == 'discardNames':
+                sw.setDiscardNames()
             elif arg[2:17] == 'read1PairFiles=':
                 sw.read1PairFiles = arg[17:]
             elif arg[2:17] == 'read2PairFiles=':
                 sw.read2PairFiles = arg[17:]
+            elif arg[2:17] == 'read1QualFiles=':
+                sw.read1QualFiles = arg[17:]
+            elif arg[2:17] == 'read2QualFiles=':
+                sw.read2QualFiles = arg[17:]
             elif arg[2:] == 'profile':
                 sw.profile = True
             elif arg[2:11] == 'platform=':
@@ -3704,6 +4175,12 @@ def processArguments():
                 sw.setSchema ( arg[9:] )
             elif arg[2:10] == 'xml-log=':
                 statusWriter.setXmlLog( arg[10:] )
+            elif arg[2:15] == 'ignLeadChars=':
+                sw.setIgnLeadChars( arg[15:] )
+            elif arg[2:] == 'discardBarcodes':
+                sw.setDiscardBarcodes()
+            elif arg[2:] == 'useAndDiscardNames':
+                sw.setUseAndDiscardNames()
             elif arg[1:2] == 'z=':
                 statusWriter.setXmlLog( arg[2:] )
             elif ( arg[2:] == 'help' or
@@ -3724,25 +4201,6 @@ def processArguments():
             else:
                 filePaths[os.path.basename(arg)] = arg
 
-    # Process read1 and read2 pair filename lists if provided
-    # (only necessary for orphan reads)
-    
-    if ( sw.read1PairFiles and
-         sw.read2PairFiles ):
-        
-        sw.pairFilesProvided = True
-        
-        for (filename1,filename2) in zip(sw.read1PairFiles.split(","),sw.read2PairFiles.split(",")):
-            if ( not filename1 or
-                 not filename2):
-                usage ( "Providing only read1 or read2 pair file is not valid", 1)
-            else:
-                fileReadPairs[filename1] = filename2
-
-    elif ( sw.read1PairFiles or
-           sw.read2PairFiles ):
-        usage ( "Providing only read1 or read2 pair file lists is not valid", 1)
-
     # Ensure read lengths and types are consistent
 
     if ( sw.lengthsProvided and
@@ -3753,9 +4211,10 @@ def processArguments():
 
     # Ensure not orphan reads and ignore names
 
-    if ( sw.ignoreNames and
+    if ( ( sw.ignoreNames or
+           sw.discardNames ) and
          sw.orphanReads ):
-        usage( "Cannot specify ignoreNames and orphanReads at the same time", 1)
+        usage( "Cannot specify ignoreNames|discardNames and orphanReads at the same time", 1)
 
     # Ensure fastq file paths were provided
 
@@ -3767,10 +4226,69 @@ def processArguments():
     logging.basicConfig(level=logging.DEBUG)
 
 ############################################################
+# Process provided file lists
+############################################################
+
+def processPairAndQualLists ():
+    # Process read1 and read2 pair filename lists if provided
+    # (only necessary for orphan reads or for ignoring/discarding names)
+    
+    if ( sw.read1PairFiles and
+         sw.read2PairFiles ):
+        
+        sw.pairFilesProvided = True
+        
+        for (filename1,filename2) in zip(sw.read1PairFiles.split(","),sw.read2PairFiles.split(",")):
+            if ( not filename1 or
+                 filename1 == "-"):
+                statusWriter.outputInfo("Assuming this file is a fragment file ... ".format(filename2 ) )
+            elif ( not filename2 or
+                   filename2 == "-" ):
+                statusWriter.outputInfo("Assuming this file is a fragment file ... ".format(filename1 ) )
+            else:
+                fileReadPairs[filename1] = filename2
+
+    elif ( sw.read1PairFiles or
+           sw.read2PairFiles ):
+        usage ( "Providing only read1 or read2 pair file lists is not valid", 1)
+
+    # Process read 1 seq and qual filename lists if provided
+
+    if ( sw.read1PairFiles and
+         sw.read1QualFiles ):
+        
+        sw.qualFilesProvided = True
+        for (filename1,filename2) in zip(sw.read1PairFiles.split(","),sw.read1QualFiles.split(",")):
+            if ( not filename1 or
+                 filename1 == "-" ):
+                continue
+            elif ( not filename2 or
+                   filename2 == "-" ):
+                usage ( "Filename does not have a qual file even though read1QualFiles provided ... {}".format(filename1), 1)
+            else:
+                refineSeqQual (filename1, fileHandles[filename1], filename2, fileHandles[filename2] )
+
+    # Process read 2 seq and qual filename lists if provided
+
+    if ( sw.read2PairFiles and
+         sw.read2QualFiles ):
+        
+        sw.qualFilesProvided = True
+        for (filename1,filename2) in zip(sw.read2PairFiles.split(","),sw.read2QualFiles.split(",")):
+            if ( not filename1 or
+                 filename1 == "-" ):
+                continue
+            elif ( not filename2 or
+                   filename2 == "-" ):
+                usage ( "Filename does not have a qual file even though read2QualFiles provided ... {}".format(filename1), 1)
+            else:
+                refineSeqQual (filename1, fileHandles[filename1], filename2, fileHandles[filename2] )
+
+############################################################
 # Determine if eight line fastq
 ############################################################
 
-def isEightLineFastq (filename, handle, fileType):
+def isEightLineOrSameNameFastq (filename, handle, fileType):
     if fileType == "multiLine":
         fastq1 = FastqReader (filename,handle)
         fastq1.isMultiLine = True
@@ -3789,36 +4307,136 @@ def isEightLineFastq (filename, handle, fileType):
     else:
         fastq1 = FastqReader (filename,handle)
         fastq2 = FastqReader (filename,handle)
-    fastq1.read()
-    fastq2.read()
-    if Defline.isPairedDeflines ( fastq1.defline, fastq2.defline, False ):
-        
-        if fastq1.defline.poreRead:
-            if ( fastq1.defline.poreRead == "2D" or
-                 fastq2.defline.poreRead == "2D" ):
 
-                # "2D" read found, too
-                
+    if sw.ignLeadCharsNum:
+        fastq1.ignoreLeadDeflineChars ( sw.ignLeadCharsNum )
+        fastq2.ignoreLeadDeflineChars ( sw.ignLeadCharsNum )
+
+    spotNames = {}
+    spotCount = 0
+    isEightLine = False
+    fastq1.setStatus(sw)
+    fastq2.setStatus(sw)
+    while True:
+        spotCount += 1
+        fastq1.read()
+        if fastq1.defline.name not in spotNames:
+            spotNames[fastq1.defline.name] = 0
+        spotNames[fastq1.defline.name] += 1
+        fastq2.read()
+        if fastq2.defline.name not in spotNames:
+            spotNames[fastq2.defline.name] = 0
+        spotNames[fastq2.defline.name] += 1
+        if (not isEightLine and
+            Defline.isPairedDeflines ( fastq1.defline, fastq2.defline, False ) ):
+            if (fastq1.defline.poreRead and # Look for 2D read, too
+                ( fastq1.defline.poreRead == "2D" or
+                  fastq2.defline.poreRead == "2D" ) ):
                 filePore2D[filename] = filename
-            else:
-                # Look for "2D" reads in same file if not already found
-
-                readCount = 1
-                while True:
-                    fastq1.read()
-                    if fastq1.eof:
-                        break
-                    readCount += 1
-                    if fastq1.defline.poreRead == "2D":
-                        filePore2D[filename] = filename
-                        break
-                    if readCount == 50000:
-                        break
-            if filename in filePore2D:
                 sw.orphanReads = True
-        return True
+            isEightLine = True
+        elif ( isEightLine and
+               not filename in filePore2D and
+               fastq1.defline.poreRead and  # Look for 2D read, too
+               ( fastq1.defline.poreRead == "2D" or
+                 fastq2.defline.poreRead == "2D" ) ):
+                filePore2D[filename] = filename
+                sw.orphanReads = True
+
+        if (spotCount == 10000 or
+            fastq1.eof):
+            break
+
+    for name in spotNames:
+        if spotNames[name] > 10:
+            statusWriter.outputWarning("Discarding spot names because file {} has repeated names (e.g. '{}'). Paired files must be specified."
+                                       .format(filename,name) )
+            isEightLine = False
+            sw.setDiscardNames()
+            break
+
+    return isEightLine
+
+############################################################
+# Check seqQual files for multiline, eightline
+############################################################
+
+def refineSeqQual ( filename, handle, filename2, handle2 ):
+    fileSkip[filename2] = 1
+    fileQualPairs[filename] = filename2
+    fastq = SeqQualFastqReader (filename,handle,filename2,handle2)
+    fastq.setStatus(sw)
+    fastq.isMultiLine = True
+    if fastq.isMultiLineFastq():
+        fileTypes[filename] = "multiLineSeqQual"
     else:
-        return False
+        fileTypes[filename] = "seqQual"
+
+    # Check for '8 line' seq qual
+
+    if ( sw.isEightLine or
+         ( not ( sw.ignoreNames or sw.discardNames ) and
+           isEightLineOrSameNameFastq ( filename, handle, fileTypes[filename] ) ) ):
+        fileReadPairs[filename] = filename
+        if fileTypes[filename] == "multiLineSeqQual":
+            fileTypes[filename] = "multiLineEightLineSeqQual"
+        else:
+            fileTypes[filename] = "eightLineSeqQual"
+
+    statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename] ) )
+    statusWriter.outputInfo("File {} is identified as {} (seq file is {})".format(filename2,fileTypes[filename],filename) )
+
+############################################################
+# Check fasta files for multiline, eightline
+############################################################
+
+def refineFasta ( filename, handle ):
+    fastq = FastaFastqReader (filename,handle)
+    fastq.setStatus(sw)
+    fastq.isMultiLine = True
+    if fastq.isMultiLineFasta():
+        fileTypes[filename] = "multiLineFasta"
+    else:
+        fileTypes[filename] = "fasta"
+
+    # Check for '8 line' fasta
+
+    if ( sw.isEightLine or
+         ( not ( sw.ignoreNames or sw.discardNames ) and
+           isEightLineOrSameNameFastq ( filename, handle, fileTypes[filename] ) ) ):
+        fileReadPairs[filename] = filename
+        if fileTypes[filename] == "multiLineFasta":
+            fileTypes[filename] = "multiLineEightLineFasta"
+        else:
+            fileTypes[filename] = "eightLineFasta"
+                            
+    statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename]) )
+
+############################################################
+# Check fasta files for multiline, eightline
+############################################################
+
+def refineFastq ( filename, handle ):
+    fastq = FastqReader ( filename, handle )
+    fastq.setStatus(sw)
+    fastq.isMultiLine = True
+    if fastq.isMultiLineFastq():
+        if ( sw.isEightLine or
+             ( not ( sw.ignoreNames or sw.discardNames) and
+               isEightLineOrSameNameFastq ( filename, handle, "multiLine" ) ) ):
+            fileReadPairs[filename] = filename
+            fileTypes[filename] = "multiLineEightLine"
+        else:
+            fileTypes[filename] = "multiLine"
+    elif ( sw.isEightLine or
+           ( not ( sw.ignoreNames or sw.discardNames) and
+             isEightLineOrSameNameFastq ( filename, handle, False ) ) ):
+        fileReadPairs[filename] = filename
+        fileTypes[filename] = "eightLine"
+    else:
+        fileTypes[filename] = "normal"
+
+    statusWriter.outputInfo("File {} is identified as {}".format(filename, fileTypes[filename]) )
 
 ############################################################
 # Determine file types
@@ -3829,7 +4447,7 @@ def isEightLineFastq (filename, handle, fileType):
 
 def setFileTypes ():
     startFileNum = 0
-    for filename in sorted(filePaths):
+    for filename in sorted(fileHandles):
         startFileNum += 1
         if ( filename in fileSkip or
              filename in fileQualPairs ):
@@ -3849,27 +4467,14 @@ def setFileTypes ():
                 fileTypes[filename] = "singleLine"
                 statusWriter.outputInfo("File {} is identified as single line fastq".format(filename) )
             else:
-                statusWriter.outputErrorAndExit( "Defline without > or @ and not recognizable as single line fastq ... {}".format(file1DeflineString) )
+                statusWriter.outputErrorAndExit( "Defline without > or @ is not recognizable as single line fastq ... {}"
+                                                 .format(file1DeflineString) )
 
-        # Check for '8 line' fastq
+        # Check for '8 line' (8-line with ignored/discarded names must be user specified)
+        # and/or 'multi-line' fastq
 
         elif deflineChar == "@":
-            fastq = FastqReader ( filename, handle )
-            fastq.isMultiLine = True
-            if fastq.isMultiLineFastq():
-                if ( sw.isEightLine or
-                     ( not sw.ignoreNames and
-                       isEightLineFastq ( filename, handle, "multiLine" ) ) ):
-                    fileReadPairs[filename] = filename
-                    fileTypes[filename] = "multiLineEightLine"
-                else:
-                    fileTypes[filename] = "multiLine"
-                statusWriter.outputInfo("File {} is identified as {}".format(filename, fileTypes[filename]) )
-            elif ( sw.isEightLine or
-                     ( not sw.ignoreNames and
-                       isEightLineFastq ( filename, handle, False ) ) ):
-                fileReadPairs[filename] = filename
-                fileTypes[filename] = "eightLine"
+            refineFastq (filename, handle)
 
         # Check for separate seq/qual files (deflineChar == ">")
         # Also check for fasta only file
@@ -3884,6 +4489,9 @@ def setFileTypes ():
                      filename2 in fileSkip ):
                     continue
                 else:
+                    
+                    # Look for matching seq/qual file in remaining files
+                    
                     defline2 = Defline('')
                     handle2 = fileHandles[filename2]
                     FastqReader.processHeader(handle2,defline2)
@@ -3894,99 +4502,29 @@ def setFileTypes ():
                         continue
                     else:
                         fastq = SeqQualFastqReader (filename,handle,filename2,handle2)
+                        fastq.setStatus(sw)
                         isSeqQualFastq = fastq.isSeqQualFastq()
-                        if isSeqQualFastq is not False: # Don't change this condition Bob!
-
-                            # 'filename' contains seq, 'filename2' contains qual
-
-                            if isSeqQualFastq == 1:
-                                fileSkip[filename2] = 1
-                                fileQualPairs[filename] = filename2
-                                fastq = FastaFastqReader (filename,handle)
-                                fastq.isMultiLine = True
-                                if fastq.isMultiLineFasta():
-                                    fileTypes[filename] = "multiLineSeqQual"
-                                else:
-                                    fileTypes[filename] = "seqQual"
-
-                                # Check for '8 line' seq qual
-
-                                if ( sw.isEightLine or
-                                     ( not sw.ignoreNames and
-                                       isEightLineFastq ( filename, handle, fileTypes[filename] ) ) ):
-                                    fileReadPairs[filename] = filename
-                                    if fileTypes[filename] == "multiLineSeqQual":
-                                        fileTypes[filename] = "multiLineEightLineSeqQual"
-                                    else:
-                                        fileTypes[filename] = "eightLineSeqQual"
-
-                                statusWriter.outputInfo("File {} is identified as {} (seq file is {})".format(filename2,fileTypes[filename],filename) )
-                                statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename] ) )
-
-                            # 'filename2' contains seq, 'filename' contains qual
-
-                            else:
-                                fileSkip[filename] = 1
-                                fileQualPairs[filename2] = filename
-                                fastq = FastaFastqReader (filename2,handle2)
-                                fastq.isMultiLine = True
-                                if fastq.isMultiLineFasta():
-                                    fileTypes[filename2] = "multiLineSeqQual"
-                                else:
-                                    fileTypes[filename2] = "seqQual"
-
-                                # Check for '8 line' seq qual
-
-                                if ( sw.isEightLine or
-                                     ( not sw.ignoreNames and
-                                       isEightLineFastq ( filename2, handle, fileTypes[filename2] ) ) ):
-                                    fileReadPairs[filename2] = filename2
-                                    if fileTypes[filename2] == "multiLineSeqQual":
-                                        fileTypes[filename2] = "multiLineEightLineSeqQual"
-                                    else:
-                                        fileTypes[filename2] = "eightLineSeqQual"
-                                
-                                statusWriter.outputInfo("File {} is identified as {} (seq file is {})".format(filename,fileTypes[filename2],filename2) )
-                                statusWriter.outputInfo("File {} is identified as {}".format(filename2,fileTypes[filename2]) )
-
+                        if isSeqQualFastq == 1:
+                            refineSeqQual(filename,handle,filename2,handle2)
+                        elif isSeqQualFastq == 2:
+                            refineSeqQual(filename2,handle2,filename,handle)
                     handle2.seek(0)
 
             if ( filename not in fileTypes and
                  filename not in fileSkip and
                  filename not in fileQualPairs ):
                 fastq = FastaFastqReader (filename,handle)
+                fastq.setStatus(sw)
                 if fastq.isFastaFastq():
-                    fastq = FastaFastqReader (filename,handle)
-                    fastq.isMultiLine = True
-                    if fastq.isMultiLineFasta():
-                        fileTypes[filename] = "multiLineFasta"
-                    else:
-                        fileTypes[filename] = "fasta"
-
-                    # Check for '8 line' fasta
-                    
-                    if ( sw.isEightLine or
-                         ( not sw.ignoreNames and
-                           isEightLineFastq ( filename, handle, fileTypes[filename] ) ) ):
-                        fileReadPairs[filename] = filename
-                        if fileTypes[filename] == "multiLineFasta":
-                            fileTypes[filename] = "multiLineEightLineFasta"
-                        else:
-                            fileTypes[filename] = "eightLineFasta"
-                            
-                    statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename]) )
+                    refineFasta ( filename, handle )
 
                 else:
-                    parsedQual = Qual(fastq.seq)
+                    parsedQual = Qual(fastq.seq, 0)
                     if parsedQual.isValid :
                         statusWriter.outputErrorAndExit( "Unable to associate seq file with this qual file ... {}".format(filename) )
                     else:
-                        statusWriter.outputErrorAndExit( "File with '>' defline character is unrecognized as containing sequence or quality ... {}".format(filename) )
-
-        if ( filename not in fileTypes and
-             filename not in fileSkip ):
-            fileTypes[filename] = "normal"
-            statusWriter.outputInfo("File {} is identified as {}".format(filename,fileTypes[filename]) )
+                        statusWriter.outputErrorAndExit( "File with '>' defline character is unrecognized as containing sequence or quality ... {}"
+                                                         .format(filename) )
 
         handle.seek(0)
 
@@ -4025,19 +4563,8 @@ def getFastqInstance (filename):
     else:
         statusWriter.outputErrorAndExit( "Unable to determine file type for ... {}".format(filename) )
 
-    # These values may not be set yet but if they are, pass them on
-    
-    reader.isNumQual = sw.isNumQual
-    reader.isColorSpace = sw.isColorSpace
-    reader.extraQualForCSkey = sw.extraQualForCSkey
-    reader.checkSeqQual = sw.checkSeqQual
-    reader.setClips = sw.setClips
-    reader.statusWriter = statusWriter
-    reader.defline.statusWriter = statusWriter
-    reader.deflineCheck.statusWriter = statusWriter
-    if reader.deflineQual:
-        reader.deflineQual.statusWriter = statusWriter
-        
+    reader.setStatus(sw)
+
     return reader
 
 ############################################################
@@ -4046,9 +4573,9 @@ def getFastqInstance (filename):
 
 def setFilePairs ():
 
-    if sw.ignoreNames:
+    if sw.ignoreNames or sw.discardNames:
         return
-                       
+
     startFileNum = 0
     for filename1 in sorted(filePaths):
         startFileNum += 1
@@ -4174,8 +4701,17 @@ def setFilePairs ():
                             break
                         read2Count += 1
                         if fastq2.defline.name in file1Reads:
+
+                            # Reset fastq1 defline object to state for retained fastq1.deflineStringSeq
+
                             fastq1.defline.parseDeflineString(file1Reads[fastq2.defline.name])
+
+                            # Determine which file has lesser read (e.g. read1 vs read2)
+
                             isPairedDeflines = Defline.isPairedDeflines ( fastq1.defline, fastq2.defline, False )
+
+                            # Use 'isPairedDeflines' values to retain lesser read
+
                             if isPairedDeflines:
                                 sw.orphanReads = True
                                 statusWriter.outputInfo("Files {} and {} are paired with orphan reads".format(filename1,filename2) )
@@ -4314,7 +4850,7 @@ def checkForColorSpaceOrNanoporeFiles():
         if fastq.defline.panel:
             sw.setPlatform("ABSOLID")
             parsedSeq = Seq(fastq.seq)
-            parsedQual = Qual(fastq.qual)
+            parsedQual = Qual(fastq.qual,parsedSeq.length)
             if parsedSeq.isColorSpace:
                 sw.isColorSpace = True
                 if parsedQual.length == parsedSeq.length + 1:
@@ -4335,7 +4871,7 @@ def checkForColorSpaceOrNanoporeFiles():
                 fastq2.read()
                 fileLabels[filename] += "," + fastq2.defline.tagType
                 if fastq2.defline.tagType == "BC":
-                    sw.read2IsTechnical = True
+                    sw.readTypes[1] = sw.READ_TYPE_TECHNICAL
             if not abLabelSet:
                 sw.setReadLabels(fileLabels[filename])
                 abLabelSet = True
@@ -4390,19 +4926,27 @@ def checkForColorSpaceOrNanoporeFiles():
 
 def updateQualRangeAndClipStatus ( fastq1, fastq2 ):
     
-    qual = Qual('')
+    qual = Qual('',0)
     if ( not fastq1.qualOrig or
          ( fastq2 and
            not fastq2.qualOrig) ):
         return
     
     if fastq2:
-        if " " in fastq1.qual:
-            qual.parseQual( fastq1.qual + " " + fastq2.qual )
+        if ( fastq1.qual and
+             fastq2.qual and
+             ( " " in fastq1.qual or
+               ( fastq1.length == 1 and qual.isInt(fastq1.qual) ) ) and
+             ( " " in fastq2.qual or
+               ( fastq2.length == 1 and qual.isInt(fastq2.qual) ) ) and
+             ( len(fastq1.qual) > 1 or
+               len(fastq2.qual) > 1 ) ):
+            combinedQual = fastq1.qual + " " + fastq2.qual
         else:
-            qual.parseQual( fastq1.qual + fastq2.qual )
+            combinedQual = fastq1.qual + fastq2.qual
+        qual.parseQual( combinedQual, ( fastq1.length + fastq2.length ) )
     else:
-        qual.parseQual( fastq1.qual )
+        qual.parseQual( fastq1.qual, fastq1.length )
 
     if qual.minQual < sw.minQual:
         sw.minQual = qual.minQual
@@ -4410,12 +4954,13 @@ def updateQualRangeAndClipStatus ( fastq1, fastq2 ):
         sw.maxQual = qual.maxQual
 
     if ( sw.isNumQual and
-         not qual.isNumQual ):
+         not qual.isNumQual and
+         qual.length > 1 ):
         if fastq2:
-            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}, {}".format(fastq1.filename,fastq2.filename) )
+            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}, {}, {}, {}".format(fastq1.defline.name, fastq1.filename, fastq2.defline.name, fastq2.filename) )
         else:
-            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}".format(fastq1.filename) )
-    else:
+            statusWriter.outputErrorAndExit( "Possible mixed numerical and non-numerical quality  ... {}, {}".format(fastq1.defline.name, fastq1.filename) )
+    elif qual.isNumQual:
         sw.isNumQual = qual.isNumQual
 
     if ( ( not sw.setClips ) and
@@ -4424,9 +4969,9 @@ def updateQualRangeAndClipStatus ( fastq1, fastq2 ):
            ( fastq2 and
              fastq2.seq != fastq2.seqOrig.strip() ) ) ):
         if fastq2:
-            statusWriter.outputInfo("Setting left and right clips based on {} or {}".format(fastq1.filename,fastq2.filename) )
+            statusWriter.outputInfo("Setting left and right clips based on {},{} or {},{}".format(fastq1.defline.name, fastq1.filename, fastq2.defline.name, fastq2.filename) )
         else:
-            statusWriter.outputInfo("Setting left and right clips based on {}".format(fastq1.filename) )
+            statusWriter.outputInfo("Setting left and right clips based on {},{}".format(fastq1.defline.name, fastq1.filename) )
         sw.setClips = True
 
 ############################################################
@@ -4452,7 +4997,8 @@ def checkFastqLengths ( fastq ):
                     fastq.qual = " 30" * (fastq.length - 1)
                 else:
                     fastq.qual = "?" * fastq.length
-                statusWriter.outputWarning("Qual not present for spot {} in {} - created qual containing all ?s".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual not present for spot {} in {} - created qual containing all ?s"
+                                           .format(fastq.defline.name,fastq.filename) )
 
             # Addresses seq length > qual length
             
@@ -4462,7 +5008,8 @@ def checkFastqLengths ( fastq ):
                     fastq.qual += " 30" * delta
                 else:
                     fastq.qual += "?" * delta
-                statusWriter.outputWarning("Qual length < seq length for spot {} in {} - extended qual to seq length with ?s".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual length < seq length for spot {} in {} - extended qual to seq length with ?s"
+                                           .format(fastq.defline.name,fastq.filename) )
 
             # Addresses qual length > seq length
             
@@ -4473,7 +5020,8 @@ def checkFastqLengths ( fastq ):
                     fastq.qual = delim.join(qualChunks[0:fastq.length])
                 else:
                     fastq.qual = fastq.qual[0:fastq.length]
-                statusWriter.outputWarning("Qual length > seq length for spot {} in {} - truncated qual to seq length".format(fastq.defline.name,fastq.filename) )
+                statusWriter.outputWarning("Qual length > seq length for spot {} in {} - truncated qual to seq length"
+                                           .format(fastq.defline.name,fastq.filename) )
                 
             fastq.lengthQual = fastq.length
             return True
@@ -4497,7 +5045,7 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
             if ( fastq1.qualHandle and
                  fastq1.seqQualDeflineMismatch ):
                 statusWriter.outputErrorAndExit( "Mismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}"
-                                            .format(fastq1.filename,fastq1.spotCount,fastq1.defline.deflineString,fastq1.deflineQual.deflineString))
+                                                 .format(fastq1.filename,fastq1.spotCount,fastq1.deflineStringSeq,fastq1.deflineStringQual))
 
         if ( fastq2 and
              not fastq2.eof ):
@@ -4505,7 +5053,7 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
             if ( fastq2.qualHandle and
                  fastq2.seqQualDeflineMismatch ):
                 statusWriter.outputErrorAndExit( "Mismatch between seq and qual deflines ... filename,spotCount,deflineStringSeq,deflineStringQual\t{}\t{}\t{}\t{}"
-                                            .format(fastq2.filename,fastq2.spotCount,fastq2.defline.deflineString,fastq2.deflineQual.deflineString))
+                                                 .format(fastq2.filename,fastq2.spotCount,fastq2.deflineStringSeq,fastq2.deflineStringQual))
 
         # Nanopore 2D fastq - Assuming this will end sooner than fastq1 or fastq2
         # Could all be the same file, too.
@@ -4536,7 +5084,8 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
 
             # Check for emergence of orphan reads (due to corruption for example)
             
-            if ( not sw.orphanReads and
+            if ( not ( sw.ignoreNames or sw.discardNames ) and
+                 not sw.orphanReads and
                  fastq1 and
                  fastq2 and
                  ( not fastq1.eof ) and
@@ -4567,7 +5116,7 @@ def processFastqSpots ( determineOffsetAndClip, fastq1, fastq2, fastq3 ):
                 sw.setUnchangingSpotValues ( fastq1, fastq2 )
 
             # If mismatch between seq and qual length,
-            # the set both to empty strings for now
+            # then set both to empty strings for now
 
             if checkFastqLengths ( fastq1 ):
                 errorCount += 1
@@ -4689,9 +5238,11 @@ def processFiles (determineOffsetAndClip):
             if determineOffsetAndClip:
                 if ( not filename2 or
                      filename1 == filename2 ):
-                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for file {} is {},{}".format(filename1,sw.minQual,sw.maxQual) )
+                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for file {} is {},{}"
+                                             .format(filename1,sw.minQual,sw.maxQual) )
                 else :
-                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for files {} and {} is {},{}".format(filename1,filename2,sw.minQual,sw.maxQual) )
+                    statusWriter.outputInfo( "Qual range using 0 or 33 offset for files {} and {} is {},{}"
+                                             .format(filename1,filename2,sw.minQual,sw.maxQual) )
 
             # Indicate end of files for archive generation
 
@@ -4712,10 +5263,13 @@ def processFiles (determineOffsetAndClip):
                 sw.minQual = 0
             
             # Set log odds first if necessary (setQualityOffset dependency)
+            # '-1' only is likely used for dot or N qualities
             
-            if sw.minQual < 0:
+            if sw.minQual < -1:
                 sw.logOdds = True
                 statusWriter.outputInfo( "Logodds quality type" )
+            elif sw.minQual == -1:
+                sw.changeNegOneQual = True
 
             # Set offset to 0
 
@@ -4726,10 +5280,13 @@ def processFiles (determineOffsetAndClip):
                  sw.maxQual > 45 ) ) :
 
             # Set log odds first if necessary (setQualityOffset dependency)
+            # '-1' only is likely used for dot or N qualities
             
-            if ( sw.minQual + 33 - 64 ) < 0 :
+            if ( sw.minQual + 33 - 64 ) < -1 :
                 sw.logOdds = True
                 statusWriter.outputInfo( "Logodds quality type2" )
+            elif ( sw.minQual + 33 - 64 ) == -1:
+                sw.changeNegOneQual = True
 
             # Set offset to 64
 
@@ -4754,8 +5311,15 @@ def generateArchive():
     for filename in filePaths:
         if filename.endswith(".gz"):
             fileHandles[filename] = gzip.open ( filePaths[filename], 'rt' )
+        elif filename.endswith(".bz2"):
+            fileHandles[filename] = bz2.BZ2File( filePaths[filename] )
         else:
             fileHandles[filename] = open ( filePaths[filename] )
+
+    # Process file lists if provided
+
+    if sw.read1PairFiles:
+        processPairAndQualLists()
 
     # Set file types
     # (normal, singleLine, eightLine, multiLine, multiLineEightLine,
@@ -4775,10 +5339,11 @@ def generateArchive():
             filename2 = fileReadPairs[filename1]
             if filename1 != filename2:
                 fileSkip[filename2] = 1
-            type1 = fileTypes[filename1]
-            type2 = fileTypes[filename2]
-            if type1 != type2:
-                statusWriter.outputErrorAndExit( "Paired files have different file types ... {} is {}, {} is {}".format(filename1,type1,filename2,type2) )
+                type1 = fileTypes[filename1]
+                type2 = fileTypes[filename2]
+                if type1 != type2:
+                    statusWriter.outputErrorAndExit( "Paired files have different file types ... {} is {}, {} is {}"
+                                                     .format(filename1,type1,filename2,type2) )
 
     # Check for properly characterized absolid or nanopore files
 
@@ -4816,6 +5381,24 @@ if sw.profile:
     ps.print_stats()
 else:
     generateArchive()
+
+# Wait for general-loader to finish
+
+pid = os.getpid()
+loaderPid = pid+1
+loaderPidPath = "/proc/" + str(loaderPid) + "/cmdline"
+while True:
+    time.sleep(5)
+    if not os.path.exists(loaderPidPath):
+        break
+
+while True:
+    time.sleep(5)
+    if ( not os.path.exists( sw.outdir ) or
+         time.time() - os.path.getmtime(sw.outdir) > 20 ):
+        break
+
+# Output load complete indication
 
 statusWriter.outputInfo("Load complete")
 if statusWriter.xmlLogHandle:
