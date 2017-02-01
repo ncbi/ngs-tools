@@ -3,29 +3,18 @@ SKESA - Strategic Kmer Extension for Scrupulous Assemblies
 Version 1.0
 
 For questions regarding SKESA, please contact
-    Alexandre Souvorov (souvorov@ncbi.nlm.nih.gov)
-    Richa Agarwala (agarwala@ncbi.nlm.nih.gov)
+    sra-tools@ncbi.nlm.nih.gov
 
 ======================================================================
 
 I.  INSTALLATION
 
-    For checking out and compiling SKESA within NCBI, do
+    For checking out and compiling SKESA, do
 
-     $ svn co https://svn.ncbi.nlm.nih.gov/repos/toolkit/branches/individual/souvorov/SKESA
-     $ cd SKESA
-     $ make
-
-    For users outside NCBI, instructions after one downloads skesa.tar.gz from
-        ftp://ftp.ncbi.nlm.nih.gov/pub/agarwala/skesa/skesa.tar.gz
-    are as follows:
-     $ tar -zxf skesa.tar.gz
-     $ mkdir SKESA/build
-     $ cd SKESA/build
+     $ git clone https://github.com/ncbi/ngs-tools.git
+     $ cd ngs-tools/tools/skesa/build
      $ cmake ..
      $ make
-
-   [We have not created above ftp directory yet so please ask if you want skesa.tar.gz]
 
 ======================================================================
 II. SYNOPSIS
