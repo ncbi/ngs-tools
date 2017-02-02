@@ -4000,7 +4000,6 @@ class FastqSpotWriter():
             self.platformString = platformString
             if platform == Platform.SRA_PLATFORM_ILLUMINA:
                 self.db = 'NCBI:SRA:Illumina:db'
-                self.schema = '/panfs/pan1.be-md.ncbi.nlm.nih.gov/trace_work/backup/scripts/py/generic-fastq.vschema'
 
     ############################################################
     # Ignore leading characters on deflines for pairing
