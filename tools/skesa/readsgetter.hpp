@@ -27,7 +27,7 @@
 #ifndef _ReadsGetter_
 #define _ReadsGetter_
 
-#include <ncbi-vdb/NGS.hpp>
+#include <ngs/ncbi/NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>

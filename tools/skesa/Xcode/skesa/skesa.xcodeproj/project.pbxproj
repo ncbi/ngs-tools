@@ -1,0 +1,336 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BEC547001E4CD8F000F69F83 /* skesa.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEC546FF1E4CD8F000F69F83 /* skesa.cpp */; };
+		BEC547051E4CDE3B00F69F83 /* libncbi-ngs-c++.a.2.8.1 in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547021E4CDE3B00F69F83 /* libncbi-ngs-c++.a.2.8.1 */; };
+		BEC547061E4CDE3B00F69F83 /* libncbi-vdb.a.2.8.1 in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547031E4CDE3B00F69F83 /* libncbi-vdb.a.2.8.1 */; };
+		BEC547071E4CDE3B00F69F83 /* libngs-c++.a.1.3.0 in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547041E4CDE3B00F69F83 /* libngs-c++.a.1.3.0 */; };
+		BEC5470D1E4CE3AE00F69F83 /* libboost_chrono-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC5470A1E4CE3AE00F69F83 /* libboost_chrono-mt.dylib */; };
+		BEC5470E1E4CE3AE00F69F83 /* libboost_program_options-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC5470B1E4CE3AE00F69F83 /* libboost_program_options-mt.dylib */; };
+		BEC5470F1E4CE3AE00F69F83 /* libboost_timer-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC5470C1E4CE3AE00F69F83 /* libboost_timer-mt.dylib */; };
+		BEC547131E4CE43A00F69F83 /* libboost_iostreams-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547101E4CE43A00F69F83 /* libboost_iostreams-mt.dylib */; };
+		BEC547141E4CE43A00F69F83 /* libboost_regex-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547111E4CE43A00F69F83 /* libboost_regex-mt.dylib */; };
+		BEC547151E4CE43A00F69F83 /* libboost_system-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BEC547121E4CE43A00F69F83 /* libboost_system-mt.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BEC546F21E4CD82700F69F83 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		BEC546F41E4CD82700F69F83 /* skesa */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = skesa; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEC546FE1E4CD86100F69F83 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = ../../../Makefile; sourceTree = "<group>"; };
+		BEC546FF1E4CD8F000F69F83 /* skesa.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = skesa.cpp; path = ../../skesa.cpp; sourceTree = SOURCE_ROOT; };
+		BEC547021E4CDE3B00F69F83 /* libncbi-ngs-c++.a.2.8.1 */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = "libncbi-ngs-c++.a.2.8.1"; sourceTree = "<group>"; };
+		BEC547031E4CDE3B00F69F83 /* libncbi-vdb.a.2.8.1 */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = "libncbi-vdb.a.2.8.1"; sourceTree = "<group>"; };
+		BEC547041E4CDE3B00F69F83 /* libngs-c++.a.1.3.0 */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = "libngs-c++.a.1.3.0"; sourceTree = "<group>"; };
+		BEC5470A1E4CE3AE00F69F83 /* libboost_chrono-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_chrono-mt.dylib"; sourceTree = "<group>"; };
+		BEC5470B1E4CE3AE00F69F83 /* libboost_program_options-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_program_options-mt.dylib"; sourceTree = "<group>"; };
+		BEC5470C1E4CE3AE00F69F83 /* libboost_timer-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_timer-mt.dylib"; sourceTree = "<group>"; };
+		BEC547101E4CE43A00F69F83 /* libboost_iostreams-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_iostreams-mt.dylib"; sourceTree = "<group>"; };
+		BEC547111E4CE43A00F69F83 /* libboost_regex-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_regex-mt.dylib"; sourceTree = "<group>"; };
+		BEC547121E4CE43A00F69F83 /* libboost_system-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_system-mt.dylib"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BEC546F11E4CD82700F69F83 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEC547131E4CE43A00F69F83 /* libboost_iostreams-mt.dylib in Frameworks */,
+				BEC547141E4CE43A00F69F83 /* libboost_regex-mt.dylib in Frameworks */,
+				BEC547151E4CE43A00F69F83 /* libboost_system-mt.dylib in Frameworks */,
+				BEC5470D1E4CE3AE00F69F83 /* libboost_chrono-mt.dylib in Frameworks */,
+				BEC5470E1E4CE3AE00F69F83 /* libboost_program_options-mt.dylib in Frameworks */,
+				BEC5470F1E4CE3AE00F69F83 /* libboost_timer-mt.dylib in Frameworks */,
+				BEC547051E4CDE3B00F69F83 /* libncbi-ngs-c++.a.2.8.1 in Frameworks */,
+				BEC547061E4CDE3B00F69F83 /* libncbi-vdb.a.2.8.1 in Frameworks */,
+				BEC547071E4CDE3B00F69F83 /* libngs-c++.a.1.3.0 in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BEC546EB1E4CD82700F69F83 = {
+			isa = PBXGroup;
+			children = (
+				BEC546F61E4CD82700F69F83 /* skesa */,
+				BEC546F51E4CD82700F69F83 /* Products */,
+				BEC547011E4CDE3B00F69F83 /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		BEC546F51E4CD82700F69F83 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BEC546F41E4CD82700F69F83 /* skesa */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BEC546F61E4CD82700F69F83 /* skesa */ = {
+			isa = PBXGroup;
+			children = (
+				BEC546FF1E4CD8F000F69F83 /* skesa.cpp */,
+				BEC546FE1E4CD86100F69F83 /* Makefile */,
+			);
+			path = skesa;
+			sourceTree = "<group>";
+		};
+		BEC547011E4CDE3B00F69F83 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BEC547091E4CE2EC00F69F83 /* boost */,
+				BEC547081E4CE0CA00F69F83 /* ncbi */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BEC547081E4CE0CA00F69F83 /* ncbi */ = {
+			isa = PBXGroup;
+			children = (
+				BEC547021E4CDE3B00F69F83 /* libncbi-ngs-c++.a.2.8.1 */,
+				BEC547031E4CDE3B00F69F83 /* libncbi-vdb.a.2.8.1 */,
+				BEC547041E4CDE3B00F69F83 /* libngs-c++.a.1.3.0 */,
+			);
+			name = ncbi;
+			path = "../../../../../../ncbi/ncbi-vdb/lib64";
+			sourceTree = "<group>";
+		};
+		BEC547091E4CE2EC00F69F83 /* boost */ = {
+			isa = PBXGroup;
+			children = (
+				BEC547101E4CE43A00F69F83 /* libboost_iostreams-mt.dylib */,
+				BEC547111E4CE43A00F69F83 /* libboost_regex-mt.dylib */,
+				BEC547121E4CE43A00F69F83 /* libboost_system-mt.dylib */,
+				BEC5470A1E4CE3AE00F69F83 /* libboost_chrono-mt.dylib */,
+				BEC5470B1E4CE3AE00F69F83 /* libboost_program_options-mt.dylib */,
+				BEC5470C1E4CE3AE00F69F83 /* libboost_timer-mt.dylib */,
+			);
+			name = boost;
+			path = ../../../../../../../../opt/local/lib;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BEC546F31E4CD82700F69F83 /* skesa */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEC546FB1E4CD82700F69F83 /* Build configuration list for PBXNativeTarget "skesa" */;
+			buildPhases = (
+				BEC546F01E4CD82700F69F83 /* Sources */,
+				BEC546F11E4CD82700F69F83 /* Frameworks */,
+				BEC546F21E4CD82700F69F83 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = skesa;
+			productName = skesa;
+			productReference = BEC546F41E4CD82700F69F83 /* skesa */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BEC546EC1E4CD82700F69F83 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0820;
+				ORGANIZATIONNAME = "Kenneth Durbrow";
+				TargetAttributes = {
+					BEC546F31E4CD82700F69F83 = {
+						CreatedOnToolsVersion = 8.2.1;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = BEC546EF1E4CD82700F69F83 /* Build configuration list for PBXProject "skesa" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = BEC546EB1E4CD82700F69F83;
+			productRefGroup = BEC546F51E4CD82700F69F83 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BEC546F31E4CD82700F69F83 /* skesa */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BEC546F01E4CD82700F69F83 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEC547001E4CD8F000F69F83 /* skesa.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BEC546F91E4CD82700F69F83 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		BEC546FA1E4CD82700F69F83 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.12;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		BEC546FC1E4CD82700F69F83 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					/opt/local/include,
+					"${PROJECT_DIR}/../../../../../ncbi-vdb/interfaces/",
+					"${PROJECT_DIR}/../../../../../ngs/ngs-sdk/",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/opt/local/lib,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BEC546FD1E4CD82700F69F83 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					/opt/local/include,
+					"${PROJECT_DIR}/../../../../../ncbi-vdb/interfaces/",
+					"${PROJECT_DIR}/../../../../../ngs/ngs-sdk/",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					/opt/local/lib,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BEC546EF1E4CD82700F69F83 /* Build configuration list for PBXProject "skesa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEC546F91E4CD82700F69F83 /* Debug */,
+				BEC546FA1E4CD82700F69F83 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEC546FB1E4CD82700F69F83 /* Build configuration list for PBXNativeTarget "skesa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEC546FC1E4CD82700F69F83 /* Debug */,
+				BEC546FD1E4CD82700F69F83 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BEC546EC1E4CD82700F69F83 /* Project object */;
+}

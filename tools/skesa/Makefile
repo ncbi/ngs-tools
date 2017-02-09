@@ -38,7 +38,7 @@ ALL_TOOLS = \
 #include $(builddir)/Makefile.mk
 
 
-CC = g++ -std=gnu++11  
+CXX = c++ -std=gnu++11
 CFLAGS = -Wall -Wno-format-y2k  -pthread -fPIC -O3 -finline-functions -fstrict-aliasing -fomit-frame-pointer -msse4.2 \
          $(INCDIRS) $(BOOST_INCLUDE)
 LIBS = -L $(NGSLIBS) -lncbi-ngs-c++ -lngs-c++ -lncbi-vdb-static \
@@ -47,23 +47,23 @@ LIBS = -L $(NGSLIBS) -lncbi-ngs-c++ -lngs-c++ -lncbi-vdb-static \
 # -ltcmalloc
 
 %.o: %.cpp
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CXX) -c -o $@ $< $(CFLAGS)
 
 all: skesa wgmlst dbgtester guidedassembler
 
 skesa.o: readsgetter.hpp counter.hpp graphdigger.hpp assembler.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 skesa: skesa.o 
-	$(CC) -o $@ $^ $(LIBS)
+	$(CXX) -o $@ $^ $(LIBS)
 
 wgmlst.o: KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 glb_align.o: glb_align.hpp
 wgmlst: wgmlst.o glb_align.o
-	$(CC) -o $@ $^ $(LIBS)
+	$(CXX) -o $@ $^ $(LIBS)
 
 dbgtester.o: graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 dbgtester: dbgtester.o
-	$(CC) -o $@ $< $(LIBS)
+	$(CXX) -o $@ $< $(LIBS)
 
 guidedassembler.o: guidedpath.hpp readsgetter.hpp counter.hpp graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 guidedassembler: guidedassembler.o glb_align.o
-	$(CC) -o $@ $^ $(LIBS)
+	$(CXX) -o $@ $^ $(LIBS)
