@@ -25,7 +25,7 @@
 */
 
 #ifndef _Concurrent_Hash_
-#define _Concurrent_Has_
+#define _Concurrent_Hash_
 
 
 #include "Integer.hpp"
