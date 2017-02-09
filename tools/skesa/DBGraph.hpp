@@ -863,7 +863,6 @@ namespace DeBruijn {
         };
 
         // iterator-type clas to access reads
-        class string_iterator;
         string_iterator send() const { return string_iterator(*this, 2*m_total_seq, m_read_length.size()); }
         string_iterator sbegin() const { return string_iterator(*this); }
 
