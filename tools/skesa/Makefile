@@ -38,32 +38,42 @@ ALL_TOOLS = \
 #include $(builddir)/Makefile.mk
 
 
-CXX = c++ -std=gnu++11
-CFLAGS = -Wall -Wno-format-y2k  -pthread -fPIC -O3 -finline-functions -fstrict-aliasing -fomit-frame-pointer -msse4.2 \
+CC = c++ -std=c++11  
+CFLAGS = -Wall -Wno-format-y2k  -pthread -fPIC -O3 -finline-functions -fstrict-aliasing \
+         -fomit-frame-pointer -msse4.2 \
          $(INCDIRS) $(BOOST_INCLUDE)
-LIBS = -L $(NGSLIBS) -lncbi-ngs-c++ -lngs-c++ -lncbi-vdb-static \
-       $(BOOST_LIBPATH) $(BOOST_PROGRAM_OPTIONS_STATIC_LIBS) $(BOOST_IOSTREAMS_STATIC_LIBS) $(BOOST_REGEX_STATIC_LIBS) -lboost_timer$(BOOST_TAG)-static -lboost_chrono$(BOOST_TAG)-static  $(BOOST_SYSTEM_STATIC_LIBS) \
+LIBS = \
+       -L $(NCBI_LIBPATH) -lncbi-ngs-c++-static -lncbi-vdb-static \
+       -L $(NGS_LIBPATH) -lngs-c++-static \
+       -L $(BOOST_LIBPATH) \
+       -lboost_system \
+       -lboost_program_options \
+       -lboost_iostreams \
+       -lboost_regex \
+       -lboost_timer \
+       -lboost_chrono \
+       $(BOOST_SYSTEM_STATIC_LIBS) \
        -lrt -ldl -lm  -lpthread -lz
 # -ltcmalloc
 
 %.o: %.cpp
-	$(CXX) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS)
 
 all: skesa wgmlst dbgtester guidedassembler
 
 skesa.o: readsgetter.hpp counter.hpp graphdigger.hpp assembler.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 skesa: skesa.o 
-	$(CXX) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 wgmlst.o: KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 glb_align.o: glb_align.hpp
 wgmlst: wgmlst.o glb_align.o
-	$(CXX) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 dbgtester.o: graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 dbgtester: dbgtester.o
-	$(CXX) -o $@ $< $(LIBS)
+	$(CC) -o $@ $< $(LIBS)
 
 guidedassembler.o: guidedpath.hpp readsgetter.hpp counter.hpp graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
 guidedassembler: guidedassembler.o glb_align.o
-	$(CXX) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
