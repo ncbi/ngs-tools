@@ -113,7 +113,7 @@ public:
 
     /********************************************************************************/
     /** Print corresponding kmer in ASCII
-     * \param[sizeKmer] in : kmer size (def=32).
+     * \param[in] sizeKmer : kmer size (def=32).
      */
     std::string toString (size_t sizeKmer) const
     {

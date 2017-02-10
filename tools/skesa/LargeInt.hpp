@@ -227,7 +227,7 @@ public:
 
     /********************************************************************************/
     /** Operator %
-     * \param[in] divisor: operand
+     * \param[in] divisor : operand
      * \return modulo of the object by the operand.
      */
     uint32_t operator%(const uint32_t& divisor) const
@@ -378,7 +378,7 @@ public:
 
     /********************************************************************************/
     /** Operator !=
-     * \param[in] c: operand
+     * \param[in] c : operand
      * \return inequality
      */
     bool operator!=(const LargeInt& c) const
@@ -391,7 +391,7 @@ public:
 
     /********************************************************************************/
     /** Operator ==
-     * \param[in] c: operand
+     * \param[in] c : operand
      * \return equality
      */
     bool operator==(const LargeInt& c) const
@@ -404,7 +404,7 @@ public:
 
     /********************************************************************************/
     /** Operator <
-     * \param[in] c: operand
+     * \param[in] c : operand
      */
     bool operator<(const LargeInt& c) const
     {
@@ -417,7 +417,7 @@ public:
 
     /********************************************************************************/
     /** Operator <=
-     * \param[in] c: operand
+     * \param[in] c : operand
      */
     bool operator<=(const LargeInt& c) const
     {

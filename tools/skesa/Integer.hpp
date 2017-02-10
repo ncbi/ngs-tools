@@ -261,13 +261,13 @@ public:
      * \param[in] a : first operand
      * \return addition and affectation.
      */
-    void operator+= (const IntegerTemplate& a)  {  boost::apply_visitor (Integer_plusaffect(),  *(*this), *a);  }
+    IntegerTemplate & operator+= (const IntegerTemplate& a)  {  boost::apply_visitor (Integer_plusaffect(),  *(*this), *a); return *this; }
 
     /** Operator ^=
      * \param[in] a : first operand
      * \return xor and affectation.
      */
-    void operator^= (const IntegerTemplate& a)  {  boost::apply_visitor (Integer_xoraffect(),   *(*this), *a);  }
+    IntegerTemplate & operator^= (const IntegerTemplate& a)  {  boost::apply_visitor (Integer_xoraffect(),   *(*this), *a); return *this; }
 
     /** Operator[] access the ith nucleotide in the given integer. For instance a[4] get the 5th nucleotide of
      * a kmer encoded as an Integer object.
@@ -308,7 +308,6 @@ public:
     uint64_t* getPointer() { return boost::apply_visitor (Pointer(), v); }
 
     /** Get a hash value on 64 bits for a given IntegerTemplate object.
-     * \param[in] a : the integer value
      * \return the hash value on 64 bits.
      */
     u_int64_t oahash() const { return  boost::apply_visitor (Integer_oahash(), *(*this)); }
