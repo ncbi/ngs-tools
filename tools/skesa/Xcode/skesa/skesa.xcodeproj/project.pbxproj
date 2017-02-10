@@ -44,6 +44,8 @@
 		BEC547101E4CE43A00F69F83 /* libboost_iostreams-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_iostreams-mt.dylib"; sourceTree = "<group>"; };
 		BEC547111E4CE43A00F69F83 /* libboost_regex-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_regex-mt.dylib"; sourceTree = "<group>"; };
 		BEC547121E4CE43A00F69F83 /* libboost_system-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libboost_system-mt.dylib"; sourceTree = "<group>"; };
+		BEC547161E4CFC0800F69F83 /* readsgetter.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = readsgetter.hpp; path = ../../../readsgetter.hpp; sourceTree = "<group>"; };
+		BEC547171E4CFC1700F69F83 /* assembler.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = assembler.hpp; path = ../../../assembler.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +88,8 @@
 		BEC546F61E4CD82700F69F83 /* skesa */ = {
 			isa = PBXGroup;
 			children = (
+				BEC547161E4CFC0800F69F83 /* readsgetter.hpp */,
+				BEC547171E4CFC1700F69F83 /* assembler.hpp */,
 				BEC546FF1E4CD8F000F69F83 /* skesa.cpp */,
 				BEC546FE1E4CD86100F69F83 /* Makefile */,
 			);
