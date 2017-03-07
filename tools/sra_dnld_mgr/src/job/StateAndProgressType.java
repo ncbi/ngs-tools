@@ -25,5 +25,5 @@ package job;
 
 public enum StateAndProgressType
 {
-    INVALID, START, STOP, PROGRESS, MAXIMUM, STATE;
+    INVALID, START, STOP, PROGRESS, MAXIMUM, STATE, FAILED;
 }

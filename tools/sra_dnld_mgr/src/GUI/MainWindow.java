@@ -98,10 +98,14 @@ public class MainWindow extends JFrame
     {
         @Override public void on_state_progress_event( StateAndProgressEvent ev )
         {
-            if ( ev.type == StateAndProgressType.STATE &&
-                 ev.prev_state == JobState.RUNNING &&
-                 ev.new_state == JobState.DONE )
-                job_has_finished();
+            if ( ev.type == StateAndProgressType.STATE )
+            {
+                 if ( ev.prev_state == JobState.RUNNING )
+                 {
+                      if ( ev.new_state == JobState.DONE ) job_has_finished();
+                 }
+                 if ( ev.new_state == JobState.FAILED ) job_has_failed();
+            }
         }
     }
 
@@ -420,11 +424,25 @@ public class MainWindow extends JFrame
         }
         return exit_code;
     }
-    
+
     public final void job_has_finished()
     {
         if ( to_test != null )
             on_exit( test_has_finished() );
+        else if ( Settings.getInstance().get_autostart() )
+            start_download_jobs();
+    }
+
+    private int test_has_failed()
+    {
+        return 3;
+    }
+    
+    public final void job_has_failed()
+    {
+        System.out.printf( "job has failed\n" );
+        if ( to_test != null )
+            on_exit( test_has_failed() );
         else if ( Settings.getInstance().get_autostart() )
             start_download_jobs();
     }

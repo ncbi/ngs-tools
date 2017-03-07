@@ -27,69 +27,122 @@
 #ifndef _hpp_searchblock_
 #define _hpp_searchblock_
 
-#include "vdb-search.hpp"
+#include <string>
+#include <stdint.h>
 
 struct Fgrep;
 struct Agrep;
 union NucStrstr;
 struct SmithWaterman;
 
-//////////////////// VdbSearch :: SearchBlock subclasses
-
-class FgrepSearch : public VdbSearch :: SearchBlock
-{   
+// base class of a hierarchy implementing various search algorithms
+class SearchBlock
+{
 public:
-    FgrepSearch ( const std::string& p_query, VdbSearch :: Algorithm p_algorithm ) throw ( ngs :: ErrorMsg );
-    virtual ~FgrepSearch (); 
-    
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );
-    
-private:
-    struct Fgrep*   m_fgrep;
-    const char*     m_query[1];
+    SearchBlock ( const std :: string& p_query )
+    : m_query ( p_query )
+    {
+    }
+    virtual ~SearchBlock () {}
+
+    virtual const std :: string& GetQuery() { return m_query; }
+    virtual unsigned int GetScoreThreshold () { return 100; }
+
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size )
+    {
+        uint64_t hitStart;
+        uint64_t hitEnd;
+        return FirstMatch ( p_bases, p_size, hitStart, hitEnd );
+    }
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) = 0;
+
+public:
+    class Factory
+    {
+    public:
+        virtual ~Factory() {}
+
+        virtual SearchBlock* MakeSearchBlock () const = 0;
+    };
+
+protected:
+    std :: string m_query;
 };
 
-class AgrepSearch : public VdbSearch :: SearchBlock
-{   
+//////////////////// SearchBlock subclasses
+
+class FgrepSearch : public SearchBlock
+{
 public:
-    AgrepSearch ( const std::string& p_query, VdbSearch :: Algorithm p_algorithm, uint8_t p_minScorePct ) throw ( ngs :: ErrorMsg );
+    typedef enum
+    {
+        FgrepDumb,
+        FgrepBoyerMoore,
+        FgrepAho
+     } Algorithm;
+
+public:
+    FgrepSearch ( const std::string& p_query, Algorithm p_algorithm );
+    virtual ~FgrepSearch ();
+
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
+
+private:
+    struct Fgrep*   m_fgrep;
+    const char*     m_queries[1];
+};
+
+class AgrepSearch : public SearchBlock
+{
+public:
+    typedef enum
+    {
+        AgrepDP,
+        AgrepWuManber,
+        AgrepMyers,
+        AgrepMyersUnltd,
+     } Algorithm;
+
+public:
+    AgrepSearch ( const std::string& p_query, Algorithm p_algorithm, uint8_t p_minScorePct );
     virtual ~AgrepSearch ();
-    
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );
+
+    virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
+
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
 
 private:
     struct Agrep*   m_agrep;
-    const char*     m_query;
     uint8_t         m_minScorePct;
 };
 
-class NucStrstrSearch : public VdbSearch :: SearchBlock
-{   
+class NucStrstrSearch : public SearchBlock
+{
 public:
-    NucStrstrSearch ( const std::string& p_query, bool p_positional, bool p_useBlobSearch = false ) throw ( ngs :: ErrorMsg );
+    NucStrstrSearch ( const std::string& p_query, bool p_positional, bool p_useBlobSearch = false );
     virtual ~NucStrstrSearch ();
-    
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size ) throw ( ngs :: ErrorMsg );  
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg ); // will throw if not positional
-    
+
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size );
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ); // will throw if not positional
+
 private:
     static void ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLen, unsigned char* pBuf2NA, size_t nBuf2NASize );
-    
+
     bool                m_positional;
-    std::string         m_query;
     union NucStrstr*    m_nss;
 };
 
-class SmithWatermanSearch : public VdbSearch :: SearchBlock
-{   
+class SmithWatermanSearch : public SearchBlock
+{
 public:
     SmithWatermanSearch ( const std::string& p_query, uint8_t p_minScorePct );
     virtual ~SmithWatermanSearch ();
-    
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ) throw ( ngs :: ErrorMsg );  
+
+    virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
+
+    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
 
 private:
-    const char*             m_query;
     size_t                  m_querySize;
     size_t                  m_matrixSize;
     uint8_t                 m_minScorePct;

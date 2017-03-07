@@ -25,7 +25,8 @@
 */
 
 #include "vdb-search.hpp"
-#include "searchblock.hpp"
+#include "searchbuffer.hpp"
+#include "referencematchiterator.hpp"
 
 #include <set>
 
@@ -40,6 +41,8 @@
 #include <sra/sraschema.h> // VDBManagerMakeSRASchema
 #include <vdb/schema.h> /* VSchemaRelease */
 
+#include <ngs/ncbi/NGS.hpp>
+
 #include <../libs/vdb/blob-priv.h>
 
 #include <search/grep.h>
@@ -52,91 +55,6 @@ using namespace ngs;
 
 TEST_SUITE(SraSearchTestSuite);
 
-// SearchBlock
-
-TEST_CASE ( FgrepDumb )
-{
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepDumb );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-TEST_CASE ( SearchFgrepBoyerMoore )
-{
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepBoyerMoore );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-TEST_CASE ( SearchFgrepAho )
-{
-    FgrepSearch sb ( "CTA", VdbSearch :: FgrepAho );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-TEST_CASE ( SearchAgrepDP )
-{
-    AgrepSearch sb ( "CTA", VdbSearch :: AgrepDP, 100 );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-TEST_CASE ( SearchNucStrstr_NoExpr_NoCoords )
-{
-    NucStrstrSearch sb ( "CTA", false );
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size() ) );
-}
-
-TEST_CASE ( SearchNucStrstr_NoExpr_Coords_NotSupported )
-{
-    NucStrstrSearch sb ( "CTA", false );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE_THROW ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) ); // not supported
-}
-
-TEST_CASE ( SearchNucStrstr_Expr_Coords )
-{
-    NucStrstrSearch sb ( "CTA", true );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
-{
-    SmithWatermanSearch sb ( "CTA", 100 );
-    uint64_t hitStart = 0;
-    uint64_t hitEnd = 0;
-    const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
-    REQUIRE_EQ ( (uint64_t)5, hitStart );
-    REQUIRE_EQ ( (uint64_t)8, hitEnd );
-}
-
-// VdbSearch
 
 class VdbSearchFixture
 {
@@ -156,21 +74,29 @@ public:
         VdbSearch :: logResults = true;
     }
 
-    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, bool p_expression = false, unsigned int p_threads = 0, bool p_blobBased = false )
+    void Setup ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession = string() )
     {
+        m_settings . m_algorithm = p_algorithm;
+        m_settings . m_query = p_query;
+        if ( ! p_accession . empty () )
+        {
+            m_settings . m_accessions . push_back ( p_accession );
+        }
         delete m_s;
-        m_s = 0;
-
-        m_s = new VdbSearch ( p_algorithm, p_query, p_expression, p_blobBased, 100, p_threads );
-        m_s -> AddAccession ( p_accession );
+        m_s = new VdbSearch ( m_settings );
     }
-    void SetupWithScore ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession, unsigned int p_minScore, bool p_blobBased = false )
-    {
-        delete m_s;
-        m_s = 0;
 
-        m_s = new VdbSearch ( p_algorithm, p_query, false, p_blobBased, p_minScore  );
-        m_s -> AddAccession ( p_accession );
+    void SetupSingleThread ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession = string() )
+    {
+        m_settings . m_threads = 0;
+        Setup ( p_query, p_algorithm, p_accession );
+    }
+
+    void SetupMultiThread ( const string& p_query, VdbSearch :: Algorithm p_algorithm, unsigned int p_threads, bool p_blobs, const string& p_accession = string() )
+    {
+        m_settings . m_threads = p_threads;
+        m_settings . m_useBlobSearch = p_blobs;
+        Setup ( p_query, p_algorithm, p_accession );
     }
 
     const string& NextFragmentId ()
@@ -182,6 +108,7 @@ public:
         return m_fragment;
     }
 
+    VdbSearch :: Settings m_settings;
     VdbSearch* m_s;
     string m_accession;
     string m_fragment;
@@ -192,10 +119,9 @@ public:
 
 FIXTURE_TEST_CASE ( Create_Destroy, VdbSearchFixture )
 {
-    m_s = new VdbSearch ( VdbSearch :: FgrepDumb, "ACGT", false, false );
-    REQUIRE_EQ ( VdbSearch :: FgrepDumb, m_s -> GetAlgorithm () );
-    delete m_s;
-    m_s = 0;
+    VdbSearch :: Settings s;
+    s . m_query = "ACGT";
+    m_s = new VdbSearch ( s );
 }
 
 FIXTURE_TEST_CASE ( SupportedAlgorithms, VdbSearchFixture )
@@ -207,7 +133,7 @@ FIXTURE_TEST_CASE ( SupportedAlgorithms, VdbSearchFixture )
 FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
 {
     const string Accession = "SRR000001";
-    Setup ( "A", VdbSearch :: FgrepDumb, Accession ); // will hit (almost) every fragment
+    SetupSingleThread ( "A", VdbSearch :: FgrepDumb, Accession ); // will hit (almost) every fragment
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2" ), NextFragmentId () );
@@ -216,19 +142,21 @@ FIXTURE_TEST_CASE ( SingleAccession_FirstMatches, VdbSearchFixture )
     REQUIRE_EQ ( string ( "SRR000001.FR1.3" ), NextFragmentId () );
 }
 
-FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_MaxMatches, VdbSearchFixture )
 {
-    const string Accession = "ALWZ01";
-    Setup ( "A", VdbSearch :: FgrepDumb, Accession, false, 0, true ); // will hit (almost) every fragment
+    const string Accession = "SRR000001";
+    m_settings . m_maxMatches = 3;
+    SetupSingleThread ( "A", VdbSearch :: FgrepDumb, Accession ); // will hit (almost) every fragment, only return the first 3
 
-    REQUIRE_EQ ( string ( "ALWZ01.FR0.1" ), NextFragmentId () );
-    REQUIRE_EQ ( string ( "ALWZ01.FR0.2" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR0.2" ), NextFragmentId () );
+    REQUIRE_EQ ( string ( "SRR000001.FR1.2" ), NextFragmentId () );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
 }
-
 
 FIXTURE_TEST_CASE ( FgrepDumb_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: FgrepDumb, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: FgrepDumb, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -237,7 +165,7 @@ FIXTURE_TEST_CASE ( FgrepDumb_SingleAccession_HitsAcrossFragments, VdbSearchFixt
 
 FIXTURE_TEST_CASE ( FgrepBoyerMoore_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: FgrepBoyerMoore, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: FgrepBoyerMoore, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -246,7 +174,7 @@ FIXTURE_TEST_CASE ( FgrepBoyerMoore_SingleAccession_HitsAcrossFragments, VdbSear
 
 FIXTURE_TEST_CASE ( FgrepAho_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: FgrepAho, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: FgrepAho, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -255,7 +183,7 @@ FIXTURE_TEST_CASE ( FgrepAho_SingleAccession_HitsAcrossFragments, VdbSearchFixtu
 
 FIXTURE_TEST_CASE ( AgrepDP_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {   /* VDB-2681: AgrepDP algorithm is broken */
-    Setup ( "ATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
@@ -263,7 +191,7 @@ FIXTURE_TEST_CASE ( AgrepDP_SingleAccession_HitsAcrossFragments, VdbSearchFixtur
 
 FIXTURE_TEST_CASE ( AgrepWuManber_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: AgrepWuManber, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: AgrepWuManber, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -272,7 +200,7 @@ FIXTURE_TEST_CASE ( AgrepWuManber_SingleAccession_HitsAcrossFragments, VdbSearch
 
 FIXTURE_TEST_CASE ( AgrepMyers_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: AgrepMyers, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: AgrepMyers, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -281,7 +209,7 @@ FIXTURE_TEST_CASE ( AgrepMyers_SingleAccession_HitsAcrossFragments, VdbSearchFix
 
 FIXTURE_TEST_CASE ( AgrepMyersUnltd_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: AgrepMyersUnltd, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: AgrepMyersUnltd, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -290,7 +218,7 @@ FIXTURE_TEST_CASE ( AgrepMyersUnltd_SingleAccession_HitsAcrossFragments, VdbSear
 
 FIXTURE_TEST_CASE ( NucStrstr_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: NucStrstr, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: NucStrstr, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -299,31 +227,20 @@ FIXTURE_TEST_CASE ( NucStrstr_SingleAccession_HitsAcrossFragments, VdbSearchFixt
 
 FIXTURE_TEST_CASE ( SmithWaterman_SingleAccession_HitsAcrossFragments, VdbSearchFixture )
 {
-    Setup ( "ATTAGC", VdbSearch :: SmithWaterman, "SRR000001" );
+    SetupSingleThread ( "ATTAGC", VdbSearch :: SmithWaterman, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
 }
 
-#if REPORT_MULTIPLE_HITS_IN_ONE_FRAGMENT
-FIXTURE_TEST_CASE ( SingleAccession_HitsInsideOneFragment, VdbSearchFixture )
-{
-    Setup ( "AT", VdbSearch :: FgrepDumb, "SRR000001" );
-
-    REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), NextFragmentId () );
-    REQUIRE_EQ ( string ( "SRR000001.FR0.1" ), NextFragmentId () );
-    //TODO: verify positions when supported
-}
-#endif
-
 FIXTURE_TEST_CASE ( MultipleAccessions, VdbSearchFixture )
 {
-
     const string Sra1 = "SRR600096";
     const string Sra2 = "SRR000001";
-    Setup ( "ACGTACG", VdbSearch :: NucStrstr, Sra1 );
-    m_s -> AddAccession ( Sra2 );
+    m_settings . m_accessions . push_back(Sra1);
+    m_settings . m_accessions . push_back(Sra2);
+    SetupSingleThread ( "ACGTACG", VdbSearch :: NucStrstr );
 
     REQUIRE_EQ ( Sra1 + ".FR1.5", NextFragmentId () );
     REQUIRE_EQ ( Sra2 + ".FR0.26",   NextFragmentId () );
@@ -333,7 +250,8 @@ FIXTURE_TEST_CASE ( MultipleAccessions, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( NucStrstr_Expression, VdbSearchFixture )
 {
-    Setup ( "AAAAAAACCCCCCC||ATTAGC", VdbSearch :: NucStrstr, "SRR000001", true );
+    m_settings . m_isExpression = true;
+    SetupSingleThread ( "AAAAAAACCCCCCC||ATTAGC", VdbSearch :: NucStrstr, "SRR000001" );
 
     REQUIRE_EQ ( string ( "SRR000001.FR0.23" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.36" ), NextFragmentId () );
@@ -342,26 +260,30 @@ FIXTURE_TEST_CASE ( NucStrstr_Expression, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( Expression_OnlyForNucStrstr, VdbSearchFixture )
 {
-    REQUIRE_THROW ( Setup ( "AAAAAAA||ATTAGC", VdbSearch :: SmithWaterman, "SRR000001", true ) );
+    m_settings . m_isExpression = true;
+    REQUIRE_THROW ( SetupSingleThread ( "AAAAAAA||ATTAGC", VdbSearch :: SmithWaterman, "SRR000001" ) );
 }
-
 // Imperfect matches
 FIXTURE_TEST_CASE ( FgrepDumb_ImperfectMatch_Unsupported, VdbSearchFixture )
 {
-    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepDumb, "SRR000001", 90 ) );
+    m_settings . m_minScorePct =  90;
+    REQUIRE_THROW ( SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: FgrepDumb, "SRR000001" ) );
 }
 FIXTURE_TEST_CASE ( FgrepBoyerMoore_ImperfectMatch_Unsupported, VdbSearchFixture )
 {
-    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepBoyerMoore, "SRR000001", 90 ) );
+    m_settings . m_minScorePct =  90;
+    REQUIRE_THROW ( SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: FgrepBoyerMoore, "SRR000001" ) );
 }
 FIXTURE_TEST_CASE ( FgrepAho_ImperfectMatch_Unsupported, VdbSearchFixture )
 {
-    REQUIRE_THROW ( SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: FgrepAho, "SRR000001", 90 ) );
+    m_settings . m_minScorePct =  90;
+    REQUIRE_THROW ( SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: FgrepAho, "SRR000001" ) );
 }
 
 FIXTURE_TEST_CASE ( AgrepDP_ImperfectMatch, VdbSearchFixture )
 {
-    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepDP, "SRR000001", 90 );
+    m_settings . m_minScorePct =  90;
+    SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: AgrepDP, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
@@ -369,7 +291,8 @@ FIXTURE_TEST_CASE ( AgrepDP_ImperfectMatch, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( AgrepWuManber_ImperfectMatch, VdbSearchFixture )
 {
-    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepWuManber, "SRR000001", 90 );
+    m_settings . m_minScorePct =  90;
+    SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: AgrepWuManber, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
@@ -377,7 +300,8 @@ FIXTURE_TEST_CASE ( AgrepWuManber_ImperfectMatch, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( AgrepMyers_ImperfectMatch, VdbSearchFixture )
 {
-    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepMyers, "SRR000001", 90 );
+    m_settings . m_minScorePct =  90;
+    SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: AgrepMyers, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
@@ -385,7 +309,8 @@ FIXTURE_TEST_CASE ( AgrepMyers_ImperfectMatch, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( AgrepMyersUnltd_ImperfectMatch, VdbSearchFixture )
 {
-    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: AgrepMyersUnltd, "SRR000001", 90 );
+    m_settings . m_minScorePct =  90;
+    SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: AgrepMyersUnltd, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.3608" ), NextFragmentId () );
@@ -393,17 +318,29 @@ FIXTURE_TEST_CASE ( AgrepMyersUnltd_ImperfectMatch, VdbSearchFixture )
 
 FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
 {   // SW scoring function is different from Agrep's, so the results are slightly different
-// Lately the SW scoring functuion seems to have changed, and the results are very, very different
-    SetupWithScore ( "ATTAGCATTAGC", VdbSearch :: SmithWaterman, "SRR000001", 90 );
+    m_settings . m_minScorePct =  90;
+    SetupSingleThread ( "ATTAGCATTAGC", VdbSearch :: SmithWaterman, "SRR000001" );
     REQUIRE_EQ ( string ( "SRR000001.FR0.141" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.183" ), NextFragmentId () );
     REQUIRE_EQ ( string ( "SRR000001.FR0.2944" ), NextFragmentId () );
 }
 
 ///////// Multi threading
+
+FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture )
+{
+    const string Accession = "ALWZ01";
+    SetupMultiThread ( "A", VdbSearch :: FgrepDumb, 2, true, Accession ); // will hit (almost) every fragment
+    // observe some results coming back and stop by destroying the search object
+    for ( unsigned int i = 0 ; i < 20; ++i )
+    {
+        REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    }
+}
+
 FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
 {
-    Setup ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001", false, 4, true ); // 4 blob-based threads on one run
+    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, 4, true, "SRR000001" ); // 4 blob-based threads on one run
 
     unsigned int count = 0;
     while (  m_s -> NextMatch ( m_accession, m_fragment ) )  // used to have a random crash inside VDB
@@ -413,81 +350,273 @@ FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
     REQUIRE_EQ ( 12u, count );
 }
 
-#if TOO_SLOW_FOR_A_UNIT_TEST
-FIXTURE_TEST_CASE ( MultipleAccessions_Threaded_Unsorted, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
 {
     const string Sra1 = "SRR600094";
-    const string Sra2 = "SRR600095";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra2, false, 2 );
-    m_s -> AddAccession ( Sra1 );
+    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, 2, false, Sra1 );
 
-    set <string> frags;
-    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
-    {
-        frags.insert(m_fragment);
-    }
-
-    set <string> :: const_iterator it = frags . begin ();
-
-    // this is a straight up alphanumerical sort, so the order here is not quite the same as one would expect (accession/read#/frag#)
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.101991",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053648", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053650", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053651", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1053652", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1561682", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.1667877", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2625526", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.2805749", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR0.324216",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053649", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1053653", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.1561683", *it++ );
-    REQUIRE_EQ ( Sra1 + ".FR1.2625553", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR0.1746431", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1034389", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746425", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.1746434", *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.694078",  *it++ );
-    REQUIRE_EQ ( Sra2 + ".FR1.69793",   *it++ );
-
-    REQUIRE ( it == frags . end () );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    CHECK_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    CHECK_EQ ( Sra1 + ".FR0.101990",  m_fragment );
 }
-#endif
 
-FIXTURE_TEST_CASE ( SingleAccession_Threaded_NoBlobs, VdbSearchFixture )
+// Reference-driven mode
+
+class DummySearchBlockFactory : public SearchBlock :: Factory
 {
-    const string Sra1 = "SRR600094";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, false );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
-    // now, let all the threads finish
-    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+public:
+    virtual SearchBlock* MakeSearchBlock () const
     {
+        return new FgrepSearch ( "", FgrepSearch :: FgrepDumb );
     }
-}
+};
 
-#if SHOW_UNIMPLEMENTED
-FIXTURE_TEST_CASE ( SingleAccession_Threaded_BlobBased, VdbSearchFixture )
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_Construct, VdbSearchFixture )
 {
-    const string Sra1 = "SRR600094";
-    Setup ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, Sra1, false, 2, true );
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, "SRR600094" );
+    SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_NOT_NULL ( buf );
+    delete buf;
+}
+
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_AccessionName, VdbSearchFixture )
+{
+    string accName ( "SRR600094" );
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, accName );
+    SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_NOT_NULL ( buf );
+    REQUIRE_EQ ( accName, buf -> AccessionName () );
+    delete buf;
+}
+
+FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
+{
+    string accName ( "SRR833251" );
+    DummySearchBlockFactory factory;
+    ReferenceMatchIterator it ( factory, accName );
+
+    SearchBuffer* buf = it . NextBuffer ();
+    REQUIRE_NOT_NULL ( buf );
+    REQUIRE_EQ ( string("gi|169794206|ref|NC_010410.1|"), buf -> BufferId () );
+    delete buf;
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_ReferenceNotFound, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NOT_ME_GUV" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_NotCSRA, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR000001" );
+    // No references or alignments in the archive, this becomes a scan of SEQUENCE table
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR000001.FR0.28322" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR000001.FR0.65088" ),  m_fragment );
+    // etc
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_SingleReference_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+/*
+SRR600094.FR1.101989
+SRR600094.FR0.101990
+SRR600094.FR0.101991
+SRR600094.FR0.324216    Not reported in reference mode b/c matches are in clipped portions of the read
+SRR600094.FR1.1053649
+etc
+*/
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment ); // used to be duplicates
+            // REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates_Blobs, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
+{
+    const string Query = "TTGAAGAGATCCGACATCA";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back("SRR600094");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10", 14936, 15011 ) ); // crosses the blob boundary (5000)
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR1.101989",  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    REQUIRE_EQ ( Sra1 + ".FR0.101990",  m_fragment );
-    // now, let all the threads finish
+    REQUIRE_EQ ( string("SRR600094.FR0.1647758"), m_fragment ); // aligns into the above region, across the blob boundary
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_MatchAcrossEndOfCirular, VdbSearchFixture )
+{
+    // read=TATTGTGATGTTTTATTTAAGGGGAATGTGTGGGTTATTTAGGTTTTATGATTTTGAAGTAGGAATTAGATGTTGGATATAGTTTATTTTAGTTCCATAACACTTAAAAATAACTAAAATAAACTATATCCAACATCTAATTCCTACTTCAAAATCATAAAACCTAAATAACCCACACATTCCCCTTA
+    // ref=GATCACAGG...CATCACGATG
+    const string Query = "TGGAT";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back("SRR1769246");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_012920.1" ) );
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
     while ( m_s -> NextMatch ( m_accession, m_fragment ) )
     {
+        if ( string("SRR1769246.FR0.1638021") == m_fragment )
+        {
+            return;
+        }
     }
+    FAIL ("SRR1769246.FR0.1638021 not found");
 }
-#endif
 
-//TODO: stop multi-threaded search before the end
+FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_MatchAcrossEndOfCirular, VdbSearchFixture )
+{
+    // read=TATTGTGATGTTTTATTTAAGGGGAATGTGTGGGTTATTTAGGTTTTATGATTTTGAAGTAGGAATTAGATGTTGGATATAGTTTATTTTAGTTCCATAACACTTAAAAATAACTAAAATAAACTATATCCAACATCTAATTCCTACTTCAAAATCATAAAACCTAAATAACCCACACATTCCCCTTA
+    // ref=GATCACAGG...CATCACGATG
+    const string Query = "TGGAT";
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_accessions . push_back("SRR1769246");
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_012920.1" ) );
+
+    SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
+    while ( m_s -> NextMatch ( m_accession, m_fragment ) )
+    {
+        if ( string("SRR1769246.FR0.1638021") == m_fragment )
+        {
+            return;
+        }
+    }
+    FAIL ("SRR1769246.FR0.1638021 not found");
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_MultipleReferences_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    // NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+    // there are matches on other references, not reported here
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_MultipleReferences_MultipleAccessions, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_accessions . push_back ( "SRR600095" );
+    m_settings . m_accessions . push_back ( "SRR600094" );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13" ) );
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000001.10" ) );
+    SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb );
+
+    // SRR600095, on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600095.FR1.694078" ),  m_fragment );
+    // SRR600094, NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600095.FR1.69793" ),  m_fragment );
+    // SRR600094, on NC_000007.13
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053649" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053650" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053648" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053651" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1053652" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1053653" ),  m_fragment );
+    // SRR600094, NC_000001.10
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.101989" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101990" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ),  m_fragment );
+    // there are matches on other references, not reported here
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+// Reference-driven mode on a reference slice
+
+FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_SingleSlice_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = false;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13", 81000000, 105000000 ) );
+    SetupSingleThread ( "ACGTAGGGTC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // Match on NC_000007.13 at 104,782,835-104,782,845
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125868" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125870" ),  m_fragment );
+    // Match on NC_000007.13 at 81,579,623-81,579,633 (reverse)
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094914" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094915" ),  m_fragment );
+
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_useBlobSearch  = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NC_000007.13", 81575001, 105000000 ) );
+    SetupSingleThread ( "ACGTAGGGTC", VdbSearch :: FgrepDumb, "SRR600094" );
+
+    // Match on NC_000007.13 at 81,579,623-81,579,633 (reverse)
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094914" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR1.1094915" ),  m_fragment );
+    // Match on NC_000007.13 at 104,782,835-104,782,845
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125868" ),  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600094.FR0.1125870" ),  m_fragment );
+
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
+//TODO: reference-driven, specify a single reference slice, match against different accessions
+//TODO: reference-driven, specify multiple reference slices, single accession
+//TODO: reference-driven, specify multiple reference slices, match against different accessions
+//TODO: reference-driven search on a slice that wraps around the end of a circular reference
 
 int
 main( int argc, char *argv [] )

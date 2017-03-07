@@ -28,14 +28,13 @@
 #include <stdexcept>
 #include <cerrno>
 #include <set>
+#include <sstream>
 
 #include <strtol.h>
 
 #include "vdb-search.hpp"
 
 using namespace std;
-
-typedef vector < string > Runs;
 
 struct FragmentId_Less
 {
@@ -91,14 +90,9 @@ typedef set < string, FragmentId_Less > Results;
 
 static
 bool
-DoSearch ( const string& p_query, const Runs& p_runs, const string& p_alg, bool p_isExpr, bool p_blobs, unsigned int p_minScore, unsigned int p_threads, bool p_sortOutput  )
+DoSearch ( const VdbSearch :: Settings& p_settings, bool p_sortOutput  )
 {
-    VdbSearch s ( p_alg, p_query, p_isExpr, p_blobs, p_minScore, p_threads );
-
-    for ( Runs :: const_iterator i = p_runs . begin (); i != p_runs . end (); ++ i )
-    {
-        s . AddAccession ( *i );
-    }
+    VdbSearch s ( p_settings );
 
     string acc;
     string fragId;
@@ -169,6 +163,8 @@ static void handle_help ( const char * appName )
          << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
+         << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
+         << "  -m|--max <number>         Stop after N matches" << endl
          ;
 
     cout << endl;
@@ -182,13 +178,7 @@ main( int argc, char *argv [] )
 
     try
     {
-        string query;
-        Runs runs;
-        string alg = VdbSearch :: GetSupportedAlgorithms () [ 0 ];
-        bool is_expr = false;
-        bool useBlobSearch = false; // blobs search is not ready yet
-        int score = 100;
-        int threads = 2;
+        VdbSearch :: Settings settings;
         bool sortOutput = false;
 
         unsigned int i = 1;
@@ -197,13 +187,13 @@ main( int argc, char *argv [] )
             string arg = argv [ i ];
             if ( arg [ 0 ] != '-' )
             {
-                if ( query . empty () )
+                if ( settings . m_query . empty () )
                 {
-                    query = arg;
+                    settings . m_query = arg;
                 }
                 else
                 {   // an input run
-                    runs . push_back ( arg );
+                    settings . m_accessions . push_back ( arg );
                 }
             }
             else if ( arg == "-h" || arg == "--help" )
@@ -218,11 +208,14 @@ main( int argc, char *argv [] )
                 {
                     throw invalid_argument ( string ( "Missing argument for " ) + arg );
                 }
-                alg = argv [ i ];
+                if ( ! settings . SetAlgorithm ( argv [ i ] ) )
+                {
+                    throw invalid_argument ( string ( "unrecognized algorithm: " ) + argv [ i ] );
+                }
             }
             else if ( arg == "-e" || arg == "--expression" )
             {
-                is_expr = true;
+                settings . m_isExpression = true;
             }
             else if ( arg == "-S" || arg == "--score" )
             {
@@ -232,11 +225,12 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Missing argument for " ) + arg );
                 }
                 char* endptr;
-                score = strtoi32 ( argv [ i ], &endptr, 10 );
+                int32_t score = strtoi32 ( argv [ i ], &endptr, 10 );
                 if ( *endptr != 0 || score <= 0 || errno == ERANGE )
                 {
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
+                settings . m_minScorePct = ( unsigned int ) score;
             }
             else if ( arg == "-T" || arg == "--threads" )
             {
@@ -246,23 +240,53 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Missing argument for " ) + arg );
                 }
                 char* endptr;
-                threads = strtoi32 ( argv [ i ], &endptr, 10 );
+                int32_t threads = strtoi32 ( argv [ i ], &endptr, 10 );
                 if ( *endptr != 0 || threads <= 0 || errno == ERANGE )
                 {
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
+                settings . m_threads = ( unsigned int ) threads;
             }
             else if ( arg == "--nothreads" )
             {
-                threads = 0;
+                settings . m_threads = 0;
             }
             else if ( arg == "--threadperacc" )
             {
-                useBlobSearch = false;
+                settings . m_useBlobSearch = false;
             }
             else if ( arg == "--sort" )
             {
                 sortOutput = true;
+            }
+            else if ( arg == "--reference" )
+            {
+                settings . m_referenceDriven = true;
+                if ( i + 1 < argc && argv [ i + 1 ] [ 0 ] != '-' )
+                {   // parse reference specs
+                    istringstream str ( argv [ i + 1 ] );
+                    string name;
+                    while ( getline ( str, name, ',') )
+                    {
+                        settings . m_references . push_back ( name );
+                    }
+                }
+                ++i;
+            }
+            else if ( arg == "-m" || arg == "--max" )
+            {
+                ++i;
+                if ( i >= argc )
+                {
+                    throw invalid_argument ( string ( "Missing argument for " ) + arg );
+                }
+                char* endptr;
+                int32_t maxMatches = strtoi32 ( argv [ i ], &endptr, 10 );
+                if ( *endptr != 0 || maxMatches <= 0 || errno == ERANGE )
+                {
+                    throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
+                }
+                settings . m_maxMatches = ( unsigned int ) maxMatches;
             }
             else
             {
@@ -272,12 +296,12 @@ main( int argc, char *argv [] )
             ++i;
         }
 
-        if ( query . empty () || runs . size () == 0 )
+        if ( settings . m_query . empty () || settings . m_accessions . size () == 0 )
         {
             throw invalid_argument ( "Missing arguments" );
         }
 
-        found = DoSearch ( query, runs, alg, is_expr, useBlobSearch, (unsigned int)score, (unsigned int)threads, sortOutput );
+        found = DoSearch ( settings, sortOutput );
 
         rc = 0;
     }

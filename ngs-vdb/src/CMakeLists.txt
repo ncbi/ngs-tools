@@ -4,6 +4,9 @@ add_library ( ngs-vdb
                 VdbReadCollection.cpp
                 FragmentBlobIterator.cpp
                 FragmentBlob.cpp
+                VdbReference.cpp
+                ReferenceBlob.cpp
+                ReferenceBlobIterator.cpp
                 VdbAlignment.cpp
                 NGS-VDB.cpp )
 

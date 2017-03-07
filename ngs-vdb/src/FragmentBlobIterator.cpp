@@ -36,13 +36,15 @@
 #include <ngs/itf/ErrBlock.hpp>
 
 #include <../libs/ngs/NGS_FragmentBlobIterator.h>
+#include <../libs/ngs/NGS_FragmentBlob.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
-
 using namespace ncbi :: ngs :: vdb;
 
 FragmentBlobIterator :: FragmentBlobIterator ( FragmentBlobIteratorRef ref ) throw ()
-: self ( ref )
+: self ( 0 )
 {
+    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    self = NGS_FragmentBlobIteratorDuplicate ( ref, ctx);
 }
 
 FragmentBlobIterator &
@@ -66,10 +68,7 @@ FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj 
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_FragmentBlobIteratorRelease ( self, ctx) )
-    {
-        self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx);
-    }
+    self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx);
     if ( FAILED () )
     {
         :: ngs :: ErrBlock err;
@@ -111,8 +110,13 @@ FragmentBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
     }
     if ( blob == 0 )
     {
-        throw :: ngs :: ErrorMsg( "No more blobs ");
+        throw :: ngs :: ErrorMsg( "No more blobs" );
     }
-    return FragmentBlob ( blob );
+    FragmentBlob ret ( blob );
+    ON_FAIL ( NGS_FragmentBlobRelease ( blob, ctx ) )
+    {
+        throw :: ngs :: ErrorMsg( "NGS_FragmentBlobRelease() failed" );
+    }
+    return ret;
 }
 

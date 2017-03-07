@@ -38,6 +38,7 @@
 #include <../libs/ngs/NGS_ReadCollection.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 
+#include <../libs/ngs/NGS_FragmentBlobIterator.h>
 
 using namespace ncbi :: ngs :: vdb;
 
@@ -78,7 +79,12 @@ VdbReadCollection :: getFragmentBlobs() const throw ( :: ngs :: ErrorMsg )
 
     TRY ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) )
     {
-        return FragmentBlobIterator ( iter );
+        FragmentBlobIterator ret ( iter );
+        ON_FAIL ( NGS_FragmentBlobIteratorRelease ( iter, ctx ) )
+        {
+            throw :: ngs :: ErrorMsg( "NGS_FragmentBlobIteratorRelease() failed" );
+        }
+        return ret;
     }
     :: ngs :: ErrBlock err;
     NGS_ErrBlockThrow ( &err, ctx );

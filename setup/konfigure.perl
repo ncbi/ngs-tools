@@ -438,7 +438,8 @@ my @dependencies;
 my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
     $_ = $href->{name};
-    my ($I, $L) = ($href->{Include});
+    my $I = $href->{Include};
+    my @L;
     my $o = "with-$_-prefix";
     ++$DEPEND_OPTIONS{$o};
     if ($OPT{$o}) {
@@ -448,9 +449,10 @@ foreach my $href (DEPENDS()) {
             my $t = File::Spec->catdir($I, 'libxml2');
             $I = $t if (-e $t);
         }
-        $L = File::Spec->catdir($OPT{$o}, 'lib');
+        push ( @L, File::Spec->catdir($OPT{$o}, 'lib') );
+        push ( @L, File::Spec->catdir($OPT{$o}, 'lib64') );
     }
-    my ($i, $l) = find_lib($_, $I, $L);
+    my ($i, $l) = find_lib($_, $I, @L);
     if (defined $i || $l) {
         my $d = 'HAVE_' . uc($_) . ' = 1';
         push @dependencies, $d;
@@ -485,6 +487,7 @@ foreach my $href (@REQ) {
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L|D/;
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
+    $need_itf = 1 if ($a{type} =~ /I/);
     my $need_jar = $a{type} =~ /J/;
 
     my ($bin, $inc, $lib, $ilib, $src)
@@ -530,12 +533,13 @@ foreach my $href (@REQ) {
                     undef $il;
                     ++$has_option{sources};
                 }
-                my ($fi, $fl, $fil)
+                my ($fi, $fl, $fil, $fs)
                     = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
                     ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
@@ -892,9 +896,11 @@ EndText
     L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
     L($F);
 
-    print $F <<EndText;
+# $PACKAGE_NAME and library version
 # \$(VERSION) is defined in a separate file which is updated every release
-include \$(TOP)/build/Makefile.vers
+    L($F, "include \$(TOP)/" . CONFIG_OUT() . "/Makefile.vers" );
+
+    print $F <<EndText;
 
 empty :=
 space := \$(empty) \$(empty)
@@ -1068,7 +1074,6 @@ EndText
 	# creation of Makefile.config.install is disabled, since nobody uses it now 
 	# and I need to remove versions from prl scripts
 	if (0) {
-
 	    # create Makefile.config.install
 	    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
 	    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
@@ -1440,17 +1445,33 @@ sub check_tool {
     }
 }
 
-sub check_no_array_bounds {
-    check_compiler('O', '-Wno-array-bounds');
-}
-
 sub check_static_libstdcpp {
     my $option = '-static-libstdc++';
-    my $save = $TOOLS;
-    $TOOLS = $CPP;
-    $_ = check_compiler('O', $option);
-    $TOOLS = $save;
-    $_ ? $option : ''
+
+    print "checking whether $CPP accepts $option... ";
+
+    my $log = 'int main() {}\n';
+    my $cmd = $log;
+    $cmd =~ s/\\n/\n/g;
+    my $gcc = "echo -e '$log' | $CPP -xc $option - 2>&1";
+    print "\n\t\trunning $gcc\n" if ($OPT{'debug'});
+    my $out = `$gcc`;
+    my $ok = $? == 0;
+    if ( $ok && $out ) {
+        $ok = 0 if ( $out =~ /unrecognized option '-static-libstdc\+\+'/ );
+    }
+    print "$out\t" if ($OPT{'debug'});
+    println $ok ? 'yes' : 'no';
+
+    unlink 'a.out';
+
+    return '' if (!$ok);
+
+    return $option;
+}
+
+sub check_no_array_bounds {
+    check_compiler('O', '-Wno-array-bounds');
 }
 
 sub find_lib {
@@ -1458,7 +1479,7 @@ sub find_lib {
 }
 
 sub check_compiler {
-    my ($t, $n, $i, $l) = @_;
+    my ($t, $n, $I, @l) = @_;
     my $tool = $TOOLS;
 
     if ($t eq 'L') {
@@ -1504,37 +1525,54 @@ sub check_compiler {
             return;
         }
 
-        if ($i && ! -d $i) {
-            print "'$i': " if ($OPT{'debug'});
+        if ($I && ! -d $I) {
+            print "'$I': " if ($OPT{'debug'});
             println 'no';
             return;
         }
-        if ($l && ! -d $l) {
-            print "'$l': " if ($OPT{'debug'});            println 'no';
-            return;
+
+        for ( my $i = 0; $i <= $#l; ++ $i ) {
+            print "'$l[$i]': " if ($OPT{'debug'});
+            if ( $l [ $i ] ) {
+                if ( -d $l [ $i ] ) {
+                    last;
+                } elsif ( $i ==  $#l ) {
+                    println 'no';
+                    return;
+                }
+            }
         }
 
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
-        my $gcc = "| $tool -xc $flags " . ($i ? "-I$i " : ' ')
+        push ( @l, '' ) unless ( @l );
+        for my $i ( 0 .. $#l ) {
+            my $l = $l [ $i ];
+            next if ( $l && ! -d $l );
+            my $gcc = "| $tool -xc $flags " . ($I ? "-I$I " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
-        $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
+            $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
-        open GCC, $gcc or last;
-        print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
-        print GCC "$cmd" or last;
-        my $ok = close GCC;
-        print "\t" if ($OPT{'debug'});
-        println $ok ? 'yes' : 'no';
+            open GCC, $gcc or last;
+            print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
+            print GCC "$cmd" or last;
+            my $ok = close GCC;
+            print "\t" if ($OPT{'debug'});
+            if ( $ok ) {
+                println 'yes';
+            } else {
+                println 'no' if ( $i == $#l );
+            }
 
-        unlink 'a.out';
+            unlink 'a.out';
 
-        return if (!$ok);
+            return if ( ! $ok && ( $i == $#l ) );
 
-        return 1 if ($t eq 'O');
+            return 1 if ($t eq 'O');
 
-        return ($i, $l);
+            return ($I, $l) if ( $ok) ;
+        }
     }
 
     println "cannot run $tool: skipped";

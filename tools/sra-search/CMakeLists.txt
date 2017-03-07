@@ -1,4 +1,11 @@
-add_executable ( sra-search main.cpp vdb-search.cpp searchblock.cpp )
+add_executable ( sra-search
+    main.cpp
+    searchblock.cpp
+    fragmentmatchiterator.cpp
+    blobmatchiterator.cpp
+    referencematchiterator.cpp
+    vdb-search.cpp
+)
 
 include_directories ( ${CMAKE_SOURCE_DIR} )
 

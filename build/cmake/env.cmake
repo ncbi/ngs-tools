@@ -1,7 +1,7 @@
 #/////////////////////// Cache variables, may be overridden at config time:
 
 if (UNIX)
-	set ( OLD_OUTDIR $ENV{HOME}/ncbi-outdir )
+	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR )
 elseif (WIN32)
 	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR )
 else ()

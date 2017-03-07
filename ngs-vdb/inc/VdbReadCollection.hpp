@@ -33,6 +33,7 @@
 #endif
 
 #include <ngs-vdb/inc/FragmentBlobIterator.hpp>
+#include <ngs-vdb/inc/VdbReferenceIterator.hpp>
 
 namespace ncbi
 {
@@ -47,6 +48,16 @@ namespace ncbi
                 :: ngs :: ReadCollection toReadCollection () const { return *this; }
 
                 FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
+
+                /* getReferences
+                *  returns an iterator of all References used
+                *  iterator will be empty if no Reads are aligned
+                */
+                VdbReferenceIterator getReferences () const throw ( :: ngs :: ErrorMsg );
+
+                /* getReference
+                */
+                VdbReference getReference ( const :: ngs :: String & spec ) const throw ( :: ngs :: ErrorMsg );
 
             public:
 

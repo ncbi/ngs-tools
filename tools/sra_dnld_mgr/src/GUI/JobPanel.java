@@ -136,6 +136,8 @@ public class JobPanel extends JPanel
 
             case START    : progress_panel.start(); break;
             case STOP     : progress_panel.stop(); break;
+                
+            case FAILED   : progress_panel.stop(); break;
         }
     }
     

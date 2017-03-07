@@ -1,5 +1,19 @@
 # NCBI External Developer Release:
 
+## NGS Tools 2.8.2
+**March 6, 2017**
+
+  **build**: Added ability to specify ncbi-vdb/configure --with-magic-prefix. Look for libraries in (lib lib64) when running "configure --with-...-prefix"  
+  **build**: configure detects location of ngs libraries  
+  **build**: configure was fixed to skip options unrecognized by gcc 4.4.7  
+  **build**: created sra-toolkit Debian package  
+  **build**: fixed a bug in 'configure' when in could not find source files in repository saved with non-standard name  
+  **kns**: SRA tools respect standard set of environment variables for proxy specification  
+  **kns**: updated mbedtls library to version 2.4.1  
+  **ngs, sra-search**: now supports search on reference  
+  **ngs-tools**: updated the NCBI download page to incorporate ngs versions into 3rd party package names  
+
+
 ## NGS Tools 2.8.0
 **October 7, 2016**
 

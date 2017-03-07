@@ -1,6 +1,15 @@
 include_directories ("..")
 
-add_executable ( test-sra-search test-sra-search.cpp ../vdb-search.cpp ../searchblock.cpp)
+# test-sra-search
+
+add_executable ( test-sra-search
+    test-sra-search.cpp
+    ../vdb-search.cpp
+    ../searchblock.cpp
+    ../blobmatchiterator.cpp
+    ../fragmentmatchiterator.cpp
+    ../referencematchiterator.cpp
+)
 add_dependencies ( test-sra-search sra-search ngs-vdb )
 
 target_link_libraries ( test-sra-search
@@ -9,7 +18,22 @@ target_link_libraries ( test-sra-search
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
 )
 
-# white box test
+# test-searchblock
+
+add_executable ( test-searchblock
+    test-searchblock.cpp
+    ../searchblock.cpp
+)
+
+add_dependencies ( test-sra-search sra-search ngs-vdb )
+target_link_libraries ( test-searchblock
+    ngs-vdb
+	${SYS_LIBRARIES}
+    ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
+)
+
+# white box tests
+add_test ( SearchBlockWhiteBox test-searchblock )
 add_test ( SraSearchWhiteBox test-sra-search )
 
 # command line tests
@@ -65,50 +89,47 @@ if ( NOT WIN32)
     # Slow tests (have to have "Slow" in the name, run without: "ctest -E Slow", run only: "ctest -R Slow"
 	# single run, single threaded
 	add_test ( NAME SraSearchSlow-3.0-single-run-default WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.0-single-run-default            --sort --args "AGCTAGCTAGCT SRR000001" )
+				${SRA_SEARCH} 3.0-single-run-default            --args "AGCTAGCTAGCT --nothreads SRR000001" )
 	add_test ( NAME SraSearchSlow-3.1-single-run-fgrep-standard WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.1-single-run-fgrep-standard     --sort --args "AGCTAGCTAGCT -a FgrepStandard SRR000001" )
+				${SRA_SEARCH} 3.1-single-run-fgrep-standard     --args "AGCTAGCTAGCT --nothreads -a FgrepStandard SRR000001" )
 	add_test ( NAME SraSearchSlow-3.2-single-run-fgrep-boyer-moore WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.2-single-run-fgrep-boyer-moore  --sort --args "AGCTAGCTAGCT --algorithm FgrepBoyerMoore    SRR000001" )
+				${SRA_SEARCH} 3.2-single-run-fgrep-boyer-moore  --args "AGCTAGCTAGCT --nothreads --algorithm FgrepBoyerMoore    SRR000001" )
 	add_test ( NAME SraSearchSlow-3.3-single-run-fgrep-aho WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.3-single-run-fgrep-aho          --sort --args "AGCTAGCTAGCT --algorithm FgrepAho           SRR000001" )
+				${SRA_SEARCH} 3.3-single-run-fgrep-aho          --args "AGCTAGCTAGCT --nothreads --algorithm FgrepAho           SRR000001" )
 	add_test ( NAME SraSearchSlow-3.4-single-run-agrep-dp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.4-single-run-agrep-dp           --sort --args "AGCTAGCTAGCT --algorithm AgrepDP            SRR000001" )
+				${SRA_SEARCH} 3.4-single-run-agrep-dp           --args "AGCTAGCTAGCT --nothreads --algorithm AgrepDP            SRR000001" )
 	add_test ( NAME SraSearchSlow-3.5-single-run-agrep-wumanber WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.5-single-run-agrep-wumanber     --sort --args "AGCTAGCTAGCT --algorithm AgrepWuManber      SRR000001" )
+				${SRA_SEARCH} 3.5-single-run-agrep-wumanber     --args "AGCTAGCTAGCT --nothreads --algorithm AgrepWuManber      SRR000001" )
 	add_test ( NAME SraSearchSlow-3.6-single-run-agrep-myers WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.6-single-run-agrep-myers        --sort --args "AGCTAGCTAGCT --algorithm AgrepMyers         SRR000001" )
+				${SRA_SEARCH} 3.6-single-run-agrep-myers        --args "AGCTAGCTAGCT --nothreads --algorithm AgrepMyers         SRR000001" )
 	add_test ( NAME SraSearchSlow-3.7-single-run-agrep-myers-unltd WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.7-single-run-agrep-myers-unltd  --sort --args "AGCTAGCTAGCT --algorithm AgrepMyersUnltd    SRR000001" )
+				${SRA_SEARCH} 3.7-single-run-agrep-myers-unltd  --args "AGCTAGCTAGCT --nothreads --algorithm AgrepMyersUnltd    SRR000001" )
 	add_test ( NAME SraSearchSlow-3.8-single-run-nucstrstr WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.8-single-run-nucstrstr          --sort --args "AGCTAGCTAGCT --algorithm NucStrstr          SRR000001" )
+				${SRA_SEARCH} 3.8-single-run-nucstrstr          --args "AGCTAGCTAGCT --nothreads --algorithm NucStrstr          SRR000001" )
 	add_test ( NAME SraSearchSlow-3.9-single-run-smith-waterman WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 3.9-single-run-smith-waterman     --sort --args "AGCTAGCTAGCT --algorithm SmithWaterman      SRR000001" )
+				${SRA_SEARCH} 3.9-single-run-smith-waterman     --args "AGCTAGCTAGCT --nothreads --algorithm SmithWaterman -m 4 SRR000001" )
 
 	# multiple runs, single threaded
 	add_test ( NAME SraSearchSlow-4.0-multiple-runs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 4.0-multiple-runs --args "TACTGGGCGTAAAGCGTGCGCAGGCGGT --algorithm NucStrstr SRR600096 SRR600097" )
+				${SRA_SEARCH} 4.0-multiple-runs --args "TACTGGGCGTAAAGCGTGCGCAGGCGGT --nothreads --algorithm NucStrstr SRR600096 SRR600097" )
 
 	# query expressions
 	add_test ( NAME SraSearchSlow-5.0-run-nucstrstr-with-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 5.0-run-nucstrstr-with-expression --sort --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --algorithm NucStrstr --expression  SRR000001" )
+				${SRA_SEARCH} 5.0-run-nucstrstr-with-expression --sort --args "AAAAAAACCCCCCCAAAAAAACCCCCCC\\|\\|AGCTAGCTAGCT --nothreads --algorithm NucStrstr --expression  SRR000001" )
 
 	# imperfect match
 	add_test ( NAME SraSearchSlow-6.4-imperfect-match-agrep-dp WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.4-imperfect-match-agrep-dp           --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepDP            SRR000001" )
+				${SRA_SEARCH} 6.4-imperfect-match-agrep-dp           --args "AGCTAGCTAGCT --nothreads --score 90 --algorithm AgrepDP            SRR000001" )
 	add_test ( NAME SraSearchSlow-6.5-imperfect-match-agrep-wumanber WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.5-imperfect-match-agrep-wumanber     --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepWuManber      SRR000001" )
+				${SRA_SEARCH} 6.5-imperfect-match-agrep-wumanber     --args "AGCTAGCTAGCT --nothreads --score 90 --algorithm AgrepWuManber      SRR000001" )
 	add_test ( NAME SraSearchSlow-6.6-imperfect-match-agrep-myers WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.6-imperfect-match-agrep-myers        --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyers         SRR000001" )
+				${SRA_SEARCH} 6.6-imperfect-match-agrep-myers        --args "AGCTAGCTAGCT --nothreads --score 90 --algorithm AgrepMyers         SRR000001" )
 	add_test ( NAME SraSearchSlow-6.7-imperfect-match-agrep-myers-unltd WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.7-imperfect-match-agrep-myers-unltd  --sort --args "AGCTAGCTAGCT --score 90 --algorithm AgrepMyersUnltd    SRR000001" )
+				${SRA_SEARCH} 6.7-imperfect-match-agrep-myers-unltd  --args "AGCTAGCTAGCT --nothreads --score 90 --algorithm AgrepMyersUnltd    SRR000001" )
 	add_test ( NAME SraSearchSlow-6.9-imperfect-match-smith-waterman WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 6.9-imperfect-match-smith-waterman     --sort --args "AGCTAGCTAGCT --score 90 --algorithm SmithWaterman      SRR000001" )
+				${SRA_SEARCH} 6.9-imperfect-match-smith-waterman     --args "AGCTAGCTAGCT --nothreads --score 90 --algorithm SmithWaterman -m 100      SRR000001" )
 
 	# multi-threading
-	# multiple runs, single-threaded
-	add_test ( NAME SraSearchSlow-7.0-nothreads WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 7.0-nothreads --args "ACGTAGGGTCC --nothreads SRR600094 SRR600095 SRR600096 SRR600099" )
 	# multiple runs, thread per accession
 	add_test ( NAME SraSearchSlow-7.1-threads-unsorted WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.1-threads-unsorted --sort --args "ACGTAGGGTCC --threadperacc --threads 4 SRR600094 SRR600095 SRR600096 SRR600099" )
@@ -118,13 +139,24 @@ if ( NOT WIN32)
 	# multiple runs, thread per blob
 	add_test ( NAME SraSearchSlow-7.3-threads-multiple WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.3-threads-multiple --sort --args "ACGTAGGGTCC --threads 2 SRR600094 SRR600095 SRR600096 SRR600099" )
-
 	# sorting the output
 	add_test ( NAME SraSearchSlow-7.4-threads-sort WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 7.4-threads-sort --args "ACGTAGGGTCC --threads 4 SRR600096 SRR600095 --sort" )
 
 	# nothing found
 	add_test ( NAME SraSearchSlow-8.0-nothing-found WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC SRR000001" )
+				${SRA_SEARCH} 8.0-nothing-found --rc 1 --args "TTTTTTTTAAAAAAACCCC --nothreads SRR000001" )
+
+	# reference mode
+	add_test ( NAME SraSearchSlow-9.0-reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 9.0-reference --args "ACGTAGGGTCC SRR600094 --reference" )
+
+	# reference mode, multiple references, one accession
+	add_test ( NAME SraSearchSlow-9.1-reference-multiple-refs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 9.1-reference --args "ACGTAGGGTCC SRR600094 --reference NC_000007.13,doesnotexist,NC_000001.10" )
+
+	# reference mode, multiple references, accessions
+	add_test ( NAME SraSearchSlow-9.2-reference-multiple-refs-multiple-runs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 9.2-reference --args "ACGTAGGGTCC SRR600095 SRR600094 --reference NC_000007.13,NC_000001.10" )
 
 endif ()
