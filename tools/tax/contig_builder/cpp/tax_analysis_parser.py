@@ -150,7 +150,8 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose mode')
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
-    parser.add_argument('-r', '--rebuild-timeout', help='delay between rebuilds in seconds')
+    parser.add_argument('-r', '--rebuild-timeout', type=float, help='delay between rebuilds in seconds')
+    parser.add_argument('--connection-timeout', type=float, help='connection timeout, to wait until rebuilt is completed')
     parser.add_argument('path', nargs='?', help='path ot file with tax analysis output, if empty reads from stdin')
     args = parser.parse_args()
     
@@ -169,7 +170,7 @@ def main():
         logger.info('Reading stdin')
         f = sys.stdin
 
-    with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout) as conn:
+    with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
         xml = parse(f, conn)
     print etree.tostring(xml, pretty_print=True)
 

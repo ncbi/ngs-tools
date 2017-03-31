@@ -240,7 +240,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
     parser.add_argument('-f', '--force-rebuild', action='store_true')
-    parser.add_argument('-r', '--rebuild-timeout', help='delay between rebuilds in seconds')
+    parser.add_argument('-r', '--rebuild-timeout', type=float, help='delay between rebuilds in seconds')
     parser.add_argument('--connection-timeout', type=float, help='connection timeout, to wait until rebuilt is completed')
     parser.add_argument('-d', '--debug', action='store_true', help='enable debug logging')
     parser.add_argument('-q', '--quiet', action='store_true', help='disable info logging')
