@@ -10,7 +10,7 @@ from lxml.builder import E
 
 import gettax
 
-__version__ = '0.4'
+__version__ = '0.5'
 logger = logging.getLogger('tax_analysis_parser')
 
 def get_lineage(tax_id, cache, conn):
