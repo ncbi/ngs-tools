@@ -119,7 +119,7 @@ def iterate_merged_spots(f):
         parts = line.split('\t')
         spot = parts[0]
         hits = set(map(int, parts[1:]))
-        assert hits, 'not hits for spot'
+        assert hits, 'no hits for spot'
         if spot == last_spot:
             last_hits |= hits
         else:
@@ -172,6 +172,7 @@ def main():
 
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
         xml = parse(f, conn)
+    xml = E.taxon_tree(xml, parser_version=__version__)
     print etree.tostring(xml, pretty_print=True)
 
 if __name__ == '__main__':
