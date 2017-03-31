@@ -11,6 +11,8 @@ import re
 import functools
 import collections
 import datetime
+import signal
+import time
 
 logger = logging.getLogger('aligns_to_dbss')
 TIMESTAMP_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -33,20 +35,12 @@ def exit_on_exception(fn):
             os._exit(5)
     return wrapped
 
-SIGNAL_NAMES = [
-    None,
-    'SIGHUP', 'SIGINT', 'SIGQUIT', 'SIGILL', 'SIGTRAP', 'SIGABRT', 'SIGBUS', 'SIGFPE', 'SIGKILL', 'SIGBUS',
-    'SIGSEGV', 'SIGSYS', 'SIGPIPE', 'SIGALRM', 'SIGTERM', 'SIGUSR1', 'SIGUSR2', 'SIGCHLD', 'SIGPWR', 'SIGWINCH',
-    'SIGURG', 'SIGPOLL', 'SIGSTOP', 'SIGTSTP', 'SIGCONT', 'SIGTTIN', 'SIGTTOU', 'SIGVTALRM', 'SIGPROF', 'SIGXCPU',
-    'SIGXFSZ', 'SIGWAITING', 'SIGLWP', 'SIGAIO',
-]
-assert len(SIGNAL_NAMES) == 35
+SIGNAL_NAMES = dict((number, name) for name, number in signal.__dict__.items()
+                    if name.startswith('SIG') and not name.startswith('SIG_'))
+
 def format_returncode(returncode):
     if returncode < 0:
-        try:
-            return '%s (rc=%s)' % (SIGNAL_NAMES[-returncode], returncode)
-        except KeyError:
-            return 'unknown signal'
+        return '%s (rc=%s)' % (SIGNAL_NAMES.get(-returncode, 'unknown signal'), returncode)
     else:
         return 'rc=%s' % returncode
 
@@ -133,7 +127,12 @@ def process(path, dbs, dbss, unaligned_only, first_step_output, tax_list):
     logger.info('Tax list extracted')
     
     if process.returncode != 0:
-        raise GlueError('first pass finished with %s' % format_returncode(process.returncode), 1)
+        msg = 'first pass finished with %s' % format_returncode(process.returncode)
+        if process.returncode < 0: # forward signals to self
+            logger.info('%s, forwarding to self', msg)
+            os.kill(os.getpid(), -process.returncode)
+            time.sleep(0.1)
+        raise GlueError(msg, 1)
     if tax_list.tell() == 0:
         logger.info('Tax list is empty, no point in doing second step, quitting')
         return
@@ -150,7 +149,12 @@ def process(path, dbs, dbss, unaligned_only, first_step_output, tax_list):
     process.wait()
     logger.info('Second pass done')
     if process.returncode != 0:
-        raise GlueError('second pass finished with %s' % format_returncode(process.returncode), 2)
+        msg = 'second pass finished with %s' % format_returncode(process.returncode)
+        if process.returncode < 0: # forward signals to self
+            logger.info('%s, forwarding to self', msg)
+            os.kill(os.getpid(), -process.returncode)
+            time.sleep(0.1)
+        raise GlueError(msg, 2)
 
 if __name__ == '__main__':
     # logging.basicConfig(level=logging.DEBUG)
