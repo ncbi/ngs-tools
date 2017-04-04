@@ -4,7 +4,7 @@
 
 void check_hash(hash_t kmer, int kmer_len, Kmers &kmers, tax_id_t tax_id, list<hash_t> &result_hashes)
 {
-	kmer = seq_transform<hash_t>::min_hash_variant2(kmer, kmer_len);
+	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
 
 	if (kmers.has_kmer_but_not_tax(kmer, tax_id))
 		result_hashes.push_back(kmer);
@@ -130,7 +130,7 @@ int load_kmers(Kmers &kmers, const string &filename)
 
 		{
 			hash_t hash = Hash<hash_t>::hash_of(kmer);
-			hash = seq_transform<hash_t>::min_hash_variant2(hash, kmer_len);
+			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
 			kmers.add_kmer(hash, tax_id);
 		}
 #endif

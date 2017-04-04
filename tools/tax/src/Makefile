@@ -30,9 +30,11 @@ $(BDIR)/%.d: ;
 # link rules
 PROGRAMS := \
 	aligns_to \
-	aligns_to_build_index_db \
-	contig_builder \
-	kmers_stat
+	build_index \
+	check_index \
+	db_fasta_to_bin\
+	filter_db \
+	sort_dbs
 TESTS := $(wildcard tests/*.cpp)
 TESTS := $(TESTS:%.cpp=%) # strip extension
 

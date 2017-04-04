@@ -21,14 +21,24 @@
 using namespace std;
 using namespace std::chrono;
 
-#include "time.h"
+//#include "time.h"
+void print_current_time() // todo: move out
+{
+	auto t = std::time(nullptr);
+	auto timeinfo = std::localtime(&t);
+	const int BUFFER_SIZE = 256;
+	char buffer[BUFFER_SIZE];
+	strftime(buffer, BUFFER_SIZE, "%m/%d/%Y %H:%M:%S", timeinfo);
+	cerr << "time is " << buffer << endl;
+}
+
 
 //const int KMER_LEN = 32;
 
 hash_t kmer_from(const char *s, int from, int len)
 {
 	hash_t kmer = Hash<hash_t>::hash_of(s + from, len);
-	return seq_transform<hash_t>::min_hash_variant2(kmer, len);
+	return seq_transform<hash_t>::min_hash_variant(kmer, len);
 }
 
 uint64_t fnv1_hash (void *key, int n_bytes)

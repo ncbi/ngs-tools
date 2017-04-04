@@ -67,7 +67,7 @@ struct seq_transform
 
 		return min_hash;
 	}
-    
+
 	static hash_t bit_reverse(hash_t hash, int kmer_len);
 
     static hash_t to_rev_complement(hash_t hash, int kmer_len);

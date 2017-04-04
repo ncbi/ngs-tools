@@ -4,6 +4,9 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <stdexcept>
+
+// todo: throw runtime_error
 
 template <class C>
 void load_vector(const std::string &filename, std::vector<C> &hash_array, size_t offset = 0)
