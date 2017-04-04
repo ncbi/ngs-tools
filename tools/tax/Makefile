@@ -3,11 +3,12 @@
 
 # build dir creation
 BDIR := .build
-$(shell mkdir -p $(BDIR) $(BDIR)/tests >/dev/null)
+OUTDIR := bin
+$(shell mkdir -p $(OUTDIR) $(BDIR) $(BDIR)/src $(BDIR)/src/tests >/dev/null)
 
 # compilation settings
 NGS_PATH := /panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/ngs/ngs-versions/1.2.5/linux/release/x86_64
-export CPATH := $(NGS_PATH)/include:.
+export CPATH := $(NGS_PATH)/include:src
 export LIBRARY_PATH := $(NGS_PATH)/lib
 export LD_LIBRARY_PATH := $(NGS_PATH)/lib
 CXXFLAGS += -g -std=c++11 -O3 -fopenmp 
@@ -15,7 +16,7 @@ LDFLAGS += -fopenmp
 LDLIBS += -lncbi-ngs-c++-static -lngs-c++-static -lncbi-vdb-static -ldl
 
 # compilation rule
-SOURCES := $(wildcard *.cpp tests/*.cpp)
+SOURCES := $(wildcard src/*.cpp src/tests/*.cpp)
 OBJECTS = $(patsubst %.cpp, $(BDIR)/%.o, $(SOURCES))
 DEPFLAGS = -MT $@ -MMD -MP -MF $(BDIR)/$*.d.tmp
 $(OBJECTS): $(BDIR)/%.o : %.cpp $(BDIR)/%.d
@@ -35,29 +36,37 @@ PROGRAMS := \
 	db_fasta_to_bin\
 	filter_db \
 	sort_dbs
-TESTS := $(wildcard tests/*.cpp)
-TESTS := $(TESTS:%.cpp=%) # strip extension
+PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
+TESTS := $(wildcard src/tests/*.cpp)
+TESTS := $(TESTS:%.cpp=$(BDIR)/%)
 
 BINARIES := $(PROGRAMS) $(TESTS)
-MAIN_OBJECTS = $(BINARIES:%=$(BDIR)/%.o)
+MAIN_OBJECTS = $(BINARIES:%=%.o)
 SHARED_OBJECTS := $(filter-out $(MAIN_OBJECTS), $(OBJECTS))
 
-$(BINARIES): %: $(BDIR)/%.o $(SHARED_OBJECTS)
+$(BINARIES): %: %.o $(SHARED_OBJECTS)
 	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+INSTALLED_BINARIES := $(notdir $(PROGRAMS))
+INSTALLED_BINARIES := $(INSTALLED_BINARIES:%=$(OUTDIR)/%)
+
+$(INSTALLED_BINARIES): $(OUTDIR)/%: $(BDIR)/src/%
+	cp $^ $@
 
 # phony targets
 .PHONY: all clean test
 
-all: $(BINARIES)
+all: $(INSTALLED_BINARIES)
 
 check: $(TESTS)
-	@for t in $(TESTS); do \
+	@cd src; \
+	for t in $(TESTS); do \
 		echo "Running $$t:"; \
-		$$t || exit 1; \
-		echo ;\
+		../$$t || exit 1; \
+		echo ; \
 	done
 
 .DEFAULT_GOAL := all
 
 clean:
-	rm -rf $(BINARIES) $(BDIR)
+	rm -rf $(INSTALLED_BINARIES) $(BDIR)
