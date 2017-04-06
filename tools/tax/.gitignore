@@ -1,0 +1,5 @@
+.build
+# ignore binaries
+bin/*
+# keep scripts
+!bin/*.*
