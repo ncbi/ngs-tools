@@ -4,7 +4,7 @@
 # build dir creation
 BDIR := .build
 OUTDIR := bin
-$(shell mkdir -p $(OUTDIR) $(BDIR) $(BDIR)/src $(BDIR)/src/tests >/dev/null)
+$(shell mkdir -p $(BDIR) $(BDIR)/src $(BDIR)/src/tests >/dev/null)
 
 # compilation settings
 NGS_PATH := /panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/ngs/ngs-versions/1.2.5/linux/release/x86_64
