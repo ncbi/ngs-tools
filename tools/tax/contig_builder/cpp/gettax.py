@@ -114,15 +114,15 @@ def create_db(src, dst):
     conn = sqlite3.connect(dst, isolation_level='EXCLUSIVE')
     temp_dir = tempfile.mkdtemp()
     try:
-        conn.execute('drop table if exists taxons')
         conn.execute('''        
-create table taxons (
+create table if not exists taxons (
     tax_id int primary key,
     parent_tax_id int,
     rank text,
     scientific_name text
     )
 ''')
+        conn.execute('delete from taxons')
         
         logger.info('extracting')
         tar = tarfile.open(src)
