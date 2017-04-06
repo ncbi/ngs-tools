@@ -203,11 +203,17 @@ def connect(taxdump, sqlite_cache=None, rebuild_timeout=None, connection_timeout
             rebuild = True
         elif cache_mtime < dump_mtime:
             time_since_last_rebuild = time.time() - cache_mtime
+            
             if rebuild_timeout is None or time_since_last_rebuild > rebuild_timeout:
                 logger.debug('rebuilding cache because it is out of date')
                 rebuild = True
         if rebuild:
-            create_db(taxdump, sqlite_cache)
+            try:
+                create_db(taxdump, sqlite_cache)
+            except sqlite3.OperationalError as e:
+                if 'database is locked' not in str(e):
+                    raise
+                logger.info('database is already being rebuilt, skipping')
 
     assert os.path.exists(sqlite_cache), 'cache does not exist: %s' % sqlite_cache
     logger.debug('Using cache: %s', sqlite_cache)
