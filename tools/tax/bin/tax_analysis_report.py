@@ -88,7 +88,7 @@ def main():
     filtering = parser.add_argument_group('filtering options')
     filtering.add_argument('--cutoff-percent', metavar='NUMBER', help='cutoff percent, default is %(default)s', default='0.01', type=float)
     filtering.add_argument('--cutoff-hit-count', metavar='NUMBER', help='cutoff hit count, disabled by default', default='0', type=int)
-    parser.add_argument('path', nargs='?', help='path ot file with tax analysis xml tree, if not specified reads from stdin')
+    parser.add_argument('path', nargs='?', help='path to file with tax analysis xml tree, if not specified reads from stdin')
     args = parser.parse_args()
 
     if args.verbose:
