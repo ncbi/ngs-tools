@@ -150,8 +150,8 @@ def main():
     parser.add_argument('-v', '--verbose', action='store_true', help='enable verbose mode')
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
-    parser.add_argument('-r', '--rebuild-timeout', type=float, help='delay between rebuilds in seconds')
-    parser.add_argument('--connection-timeout', type=float, help='connection timeout, to wait until rebuilt is completed')
+    parser.add_argument('-r', '--rebuild-timeout', type=float, help='minimum delay between cache rebuilds in seconds')
+    parser.add_argument('--connection-timeout', type=float, help='cache connection timeout, to wait until rebuild is completed')
     parser.add_argument('path', nargs='?', help='path ot file with tax analysis output, if empty reads from stdin')
     args = parser.parse_args()
     
