@@ -17,10 +17,15 @@ def flatten(arg):
     else:
         return [arg]
 
+def sorted_children(node):
+    def key(subnode):
+        return int(subnode.attrib['total_count'])
+    return sorted(node, key=key, reverse=True)
+
 def format_node(node, grand_total, offset, args):
     rank = node.attrib.get('rank')
     if not rank:
-        for subnode in node:
+        for subnode in sorted_children(node):
             yield format_node(subnode, grand_total, offset, args)
     else:
         name = node.attrib['name']
@@ -43,7 +48,7 @@ def format_node(node, grand_total, offset, args):
         pattern = '%s%s\t%' + percent_precision + 'f%%  (%' + hits_precision + 'd hits)'
         yield pattern % (offset, name, percent, total_count)
         
-        for subnode in node:
+        for subnode in sorted_children(node):
             yield format_node(subnode, grand_total, offset+args.indent, args)
 
 def pad_tree(lines, separator):
