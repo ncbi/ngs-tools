@@ -34,13 +34,13 @@ def format_node(node, grand_total, offset, args):
             return
 
         if args.no_padding:
-            percent_precision = ''
+            percent_precision = '.%s' % args.precision
             hits_precision = ''
         else:
-            percent_precision = '5'
+            percent_precision = '%s.%s' % (args.precision + 3, args.precision)
             hits_precision = str(len(str(grand_total)))
             
-        pattern = '%s%s\t%' + percent_precision + '.2f%%  (%' + hits_precision + 'd hits)'
+        pattern = '%s%s\t%' + percent_precision + 'f%%  (%' + hits_precision + 'd hits)'
         yield pattern % (offset, name, percent, total_count)
         
         for subnode in node:
@@ -79,6 +79,7 @@ def main():
     formatting.add_argument('--indent', metavar='STR', help='indentation string, default is two spaces', default='  ')
     formatting.add_argument('--separator', metavar='STR', help='name/stats separator string, default is four spaces', default='    ')
     formatting.add_argument('--no-padding', action='store_true', help='disable tree padding')
+    formatting.add_argument('--precision', metavar='NUMBER', help='count of digits after decimal point, default is %(default)s', default=2, type=int)
     filtering = parser.add_argument_group('filtering options')
     filtering.add_argument('--cutoff-percent', metavar='NUMBER', help='cutoff percent, default is %(default)s', default='0.01', type=float)
     filtering.add_argument('--cutoff-hit-count', metavar='NUMBER', help='cutoff hit count, disabled by default', default='0', type=int)
