@@ -124,7 +124,7 @@ void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int k
 			}
 
 		if (chosen_kmer_pos < 0)
-			throw "has_kmer_found but cannot find for which thread";
+			throw std::runtime_error("has_kmer_found but cannot find for which thread");
 	}
 	else
 #endif
@@ -143,7 +143,7 @@ void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int k
 		chosen_kmer_pos = min_hash_pos;
 
 		if (chosen_kmer_pos < 0)
-			throw "cannot find min hash";
+			throw std::runtime_error("cannot find min hash");
 	}
 
 	kmers.add_kmer(kmer_from(s, chosen_kmer_pos, kmer_len), tax_id);
@@ -167,24 +167,13 @@ void process_clean_string(Kmers &kmers, p_string p_str, int window_size, tax_id_
 
 int calculate_window_size_(size_t filesize, bool eukariota, bool virus)
 {
-	size_t K = 1000;
-	size_t M = 1000*K;
-	size_t G = 1000*M;
-
-	if (filesize < 2087819 || virus)
+	if (virus)
 		return 200;
 
-	if (filesize < 2932668)
-		return 1000;
-
-	if (filesize < 4774843 || !eukariota)
+	if (!eukariota)
 		return 2000;
 
-	if (filesize < 500*M)
-		return 4000;
-
 	return 8000;
-//	return (filesize/(4*G)) * 8000;
 }
 
 int calculate_window_size(size_t filesize, bool eukariota, bool virus, int window_divider)
@@ -192,6 +181,7 @@ int calculate_window_size(size_t filesize, bool eukariota, bool virus, int windo
 	const int MIN_WINDOW_SIZE = 64;
 	return std::max(MIN_WINDOW_SIZE, calculate_window_size_(filesize, eukariota, virus) / window_divider);
 }
+
 // todo: switch to seq_loader
 struct ReadySeq
 {

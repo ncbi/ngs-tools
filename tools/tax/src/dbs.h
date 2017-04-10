@@ -35,7 +35,6 @@
 struct DBS
 {
 	static const int VERSION = 1;
-//	typedef uint64_t hash_t;
 
 	#pragma pack(push)
 	#pragma pack(4)
@@ -46,20 +45,11 @@ struct DBS
 		int tax_id;
 
 		KmerTax(hash_t kmer = 0, int tax_id = 0) : kmer(kmer), tax_id(tax_id){}
-
-		//bool operator < (const KmerTax &x) const
-		//{
-		//	if (tax_id == x.tax_id)
-		//		return kmer < x.kmer;
-
-		//	return tax_id < x.tax_id;
-		//}
 	};
 
 	#pragma pack(pop)
 
 	typedef std::vector<KmerTax> Kmers;
-//	typedef vector<hash_t> Hashes;
 
 	struct DBSHeader
 	{
@@ -74,10 +64,9 @@ struct DBS
 		f.flush();
 
 		size_t kmers_size = kmers.size();
-//		cerr << "kmer len: " << kmer_len << endl;
-//		cerr << "kmers: " << kmers_size << endl;
 		DBSHeader header(kmer_len);
 
+		// todo: save_structure, save_vector
 		f.write((char*)&header, sizeof(header));
 		f.write((char*)&kmers_size, sizeof(kmers_size));
 		f.write((char*)&kmers[0], kmers.size()*sizeof(kmers[0]));

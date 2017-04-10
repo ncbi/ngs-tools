@@ -39,7 +39,7 @@ struct Config
 		if (argc < 3)
 		{
 			print_usage();
-			throw "";
+			exit(1);
 		}
 
 		input_filename = argv[1];

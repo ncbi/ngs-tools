@@ -41,10 +41,10 @@ struct Fasta
 		std::string line;
 		std::getline(f, line);
 		if (line.empty())
-			throw "fasta file is empty";
+			throw std::runtime_error("fasta file is empty");
 
 		if (!is_description(line))
-			throw "this is not a fasta file";
+			throw std::runtime_error("this is not a fasta file");
 
 		last_desc = line;
 	}
@@ -90,6 +90,7 @@ struct Fasta
 		return prev_desc.empty() ? prev_desc : prev_desc.substr(1);
 	}
 
+    // todo: remove duplicate
 	static size_t filesize(const std::string &filename) 
 	{
 		std::ifstream f(filename, std::ios_base::binary);

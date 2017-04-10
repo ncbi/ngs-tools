@@ -28,26 +28,11 @@
 #define HASH_H_INCLUDED
 
 #include <algorithm>
-//typedef uint64_t hash_t;
 
 template <class hash_t>
 struct Hash
 {
-/*
-	static const int MAX_HASH_BITS = 16;
-
-	static size_t hash_bits(int kmer_len)
-	{
-		return std::min(MAX_HASH_BITS, kmer_len);
-	}
-
-	static hash_t hash_mask(int kmer_len)
-	{
-		return hash_t(1) << (kmer_len * 2); 
-	}
-
-	*/
-	// todo: works only for 16, 32, 64
+	// works only for 16, 32, 64
 	template <class To>
 	static To left(hash_t x)
 	{
@@ -84,14 +69,7 @@ struct Hash
 		u.x_big = x;
 
 		return u.x_small.lo;
-
-//		return To(x);
 	}
-
-	//static hash_t hash_values(int kmer_len)
-	//{
-	//	return hash_t(1) << hash_bits(kmer_len);
-	//}
 
 	static unsigned int hash_bits(int kmer_len)
 	{
@@ -178,7 +156,6 @@ namespace std
 		size_t operator() (__uint128_t x) const
 		{
 			return Hash<__uint128_t>::left<uint64_t>(x) ^ Hash<__uint128_t>::right<uint64_t>(x);
-				//  size_t(x); // todo: left xor right
 		}
 	};
 }

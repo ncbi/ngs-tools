@@ -46,7 +46,7 @@ struct FileListLoader
 	{
 		std::ifstream f(file_list);
 		if (f.fail() || f.bad())
-			throw std::string("cannot open file list ") + file_list;
+			throw std::runtime_error(std::string("cannot open file list ") + file_list);
 
 		while (!f.eof())
 		{
@@ -54,17 +54,14 @@ struct FileListLoader
 			f >> f_rec.filesize;
 			char ch;
 			f.get(ch);
-//			std::getchar(f, ch);
 			if (ch != '\t')
-				throw "invalid separator";
+				throw std::runtime_error("invalid separator in file list - tab expected");
 
 			std::getline(f, f_rec.filename);
-//			f >> ;
 
 			if (f_rec.filename.empty())
 				break;
 
-//			std::cout << f_rec.filename << std::endl;
 			files.push_back(f_rec);
 		}
 	}

@@ -24,27 +24,56 @@
 *
 */
 
-#ifndef STRINGN_H_INCLUDED
-#define STRINGN_H_INCLUDED
+#ifndef TEXT_LOADER_MT_H_INCLUDED
+#define TEXT_LOADER_MT_H_INCLUDED
 
-#include <iostream>
+#include <string>
+#include <fstream>
+#include <stdexcept>
 
-static int string_compare(const char *a, const char *b, unsigned int len)
+struct TextLoaderSTNoStore
 {
-	for (unsigned int i=0; i<len; i++)
+	std::ifstream f;
+
+	TextLoaderSTNoStore(const std::string &filename) : f(filename)
 	{
-		int diff = int(a[i]) - int(b[i]);
-		if (diff != 0)
-			return diff;
+		if (f.fail())
+			throw std::runtime_error("cannot open input file");
 	}
 
-	return 0;
-}
+	bool load_next_sequence(std::string &s)
+	{
+		s.clear();
+		while (s.empty() && !f.eof())
+			std::getline(f, s);
 
-static void print_string(const char *s, int len)
+		return !s.empty();
+	}
+};
+
+struct FastaWithTaxonomyLoader
 {
-	for (int i=0; i<len; i++)
-		std::cout << s[i];
-}
+	std::ifstream f;
+
+	FastaWithTaxonomyLoader(const std::string &filename) : f(filename)
+	{
+		if (f.fail())
+			throw std::runtime_error("cannot open input file");
+	}
+
+	bool load_next_sequence(std::string &s, int &tax_id)
+	{
+		s.clear();
+		tax_id = 0;
+		if (f.fail() || f.eof())
+			return false;
+
+		f >> s;
+		f >> tax_id;
+
+		return !s.empty();
+	}
+
+};
 
 #endif

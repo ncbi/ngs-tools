@@ -29,7 +29,6 @@
 
 struct DBSJob : public Job
 {
-//	typedef uint64_t hash_t;
 	struct KmerTax : public DBS::KmerTax
 	{
 		KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
@@ -40,15 +39,6 @@ struct DBSJob : public Job
 		}
 	};
 
-//	struct KmerTax
-//	{
-//		hash_t kmer;
-//		int tax_id;
-////		KmerTax(hash_t kmer, int tax_id) : kmer(kmer), tax_id(tax_id){} // do not want it to be called when loading
-//	static KmerTax kmer_tfrom(hash_t kmer, int tax_id) { KmerTax t; t.kmer = kmer; t.tax_id = tax_id; return t; }
-//
-//	};
-//
 	const Config &config;
 	typedef vector<KmerTax> HashSortedArray;
 

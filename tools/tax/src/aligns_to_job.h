@@ -29,7 +29,6 @@
 
 #include <time.h>
 #include <thread>
-//#include <set>
 #include "reader.h"
 #include "fasta_reader.h"
 
@@ -76,14 +75,8 @@ struct Job
         params.unaligned_only = unaligned_only;
         auto reader = Reader::create(contig_filename, params);
 
-        //std::set<std::string> all_processed_spots;
-        //std::set<std::string> all_identified_spots;
         #pragma omp parallel
         {
-            // TODO: inefficient, remove
-            //std::set<std::string> processed_spots;
-            //std::set<std::string> identified_spots;
-            
             std::vector<MatchId> matched_ids;
             std::vector<Reader::Fragment> chunk;
             bool done = false;
@@ -113,13 +106,6 @@ struct Job
                 }
             }
 
-            /*
-            #pragma omp critical (merge)
-            {
-                all_identified_spots.insert(identified_spots.begin(), identified_spots.end());
-                all_processed_spots.insert(processed_spots.begin(), processed_spots.end());
-            }
-            */
         }
 
         progress.report(1, true); // always report 100%, needed by pipeline for proper progress report

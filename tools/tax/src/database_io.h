@@ -39,14 +39,14 @@ void load_vector(const std::string &filename, std::vector<C> &hash_array, size_t
 {
 	std::ifstream f(filename, std::ios::binary | std::ios::in);
 	if (f.fail() || f.eof())
-		throw std::string("cannot open ") + filename;
+		throw std::runtime_error(std::string("cannot open ") + filename);
 
 	f.seekg(offset);
 
 	size_t size = 0;
 	f.read((char*)&size, sizeof(size));
 	if (!size)
-		throw std::string("cannot read db ") + filename;
+		throw std::runtime_error(std::string("cannot read db ") + filename);
 
 	hash_array.resize(size);
 	f.read((char*)&hash_array[0], hash_array.size() * sizeof(hash_array[0]));
@@ -60,7 +60,7 @@ void load_structure(const std::string &filename, C &c)
 {
 	std::ifstream f(filename, std::ios::binary | std::ios::in);
 	if (f.fail() || f.eof())
-		throw std::string("cannot open ") + filename;
+		throw std::runtime_error(std::string("cannot open ") + filename);
 
 	f.read((char*)&c, sizeof(c));
 }

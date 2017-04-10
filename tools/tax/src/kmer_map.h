@@ -56,7 +56,6 @@ struct KmerMap
 	};
 
 	typedef std::unordered_map<hash_t, Count> CountMap;
-//	typedef std::map<hash_t, Count> CountMap;
 	std::vector< CountMap > count;
 	std::vector< std::mutex > bucket_mutex;
 	std::vector<long long unsigned int> bucket_weight;
@@ -94,8 +93,6 @@ struct KmerMap
 
 	void reserve(size_t size, float max_load_factor = 4.0f) // todo: tune max load factor
 	{
-//		const float MAX_LOAD_FACTOR = 4.0f;
-//		std::cerr << "reserve " << size/count.size() << " for each" << std::endl;
 		for (auto &c : count)
 		{
 			c.max_load_factor(max_load_factor);
@@ -119,10 +116,10 @@ struct KmerMap
 	{
 		auto &bucket = count[get_count_bucket(hash)];
 		auto it = bucket.find(hash);
-		if (it == bucket.end()) // || it->second.deleted)
+		if (it == bucket.end())
 			return Count();
 
-		return it->second; //.count;
+		return it->second;
 	}
 
 	void remove(hash_t hash)
@@ -166,8 +163,6 @@ struct KmerMap
 		bool complement = false, reverse = false;
 		hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len, &complement, &reverse);
 		auto c = get_full(hash);
-//		if (!c.count)
-	//		throw std::runtime_error("originally_reversed test for non-existing");
 
 		*orig_complement = complement != c.complement; 
 		*orig_reverse = reverse != c.reverse; 
@@ -214,7 +209,6 @@ struct KmerMap
 			CountMap new_bucket;
 			new_bucket.max_load_factor(MAX_OPTIMIZED_LOAD_FACTOR);
 			new_bucket.reserve(bucket_frequent[bucket_i]);
-//			std::cerr << "reserving " << bucket_frequent[bucket_i] << std::endl;
 			auto &bucket = count[bucket_i];
 			bucket_weight[bucket_i] = 0;
 
@@ -225,7 +219,6 @@ struct KmerMap
 					bucket_weight[bucket_i] += c->second.count;
 				}
 
-//			std::cerr << "result size " << new_bucket.size() << std::endl;
 			bucket.swap(new_bucket);
 		}
 	}

@@ -55,12 +55,8 @@ struct TaxIdTree
 
 	tax_id_t consensus_of(tax_id_t tax_a, tax_id_t tax_b) const
 	{
-//		std::cerr << "consensus of " << tax_a << " and " << tax_b << std::endl;
 		if (tax_a == ROOT || tax_b == ROOT)
 			return ROOT;
-
-//		if (tax_a == tax_b)
-//			return tax_a;
 
 		if (a_sub_b(tax_a, tax_b))
 			return tax_b;
@@ -87,7 +83,7 @@ struct TaxIdTree
 		{
 			auto message = std::string("no such tax_id as ") + std::to_string(tax_id);
 			std::cerr << message << std::endl;
-			throw message;
+			throw std::runtime_error(message);
 		}
 
 		return it->second;
@@ -105,7 +101,7 @@ struct TaxIdTreeLoader
 	{
 		std::ifstream f(filename);
 		if (f.fail() || f.eof())
-			throw std::string("cannot open file ") + filename;
+			throw std::runtime_error(std::string("cannot open file ") + filename);
 
 		while (!f.eof())
 		{
@@ -114,41 +110,13 @@ struct TaxIdTreeLoader
 			f >> parent;
 
 			if (!x || !parent)
-				throw std::string("bad tax id: ") + std::to_string(x);
+				throw std::runtime_error(std::string("bad tax id: ") + std::to_string(x));
 
 			tax_id_tree.nodes[x] = new TaxIdTree::Node(x, parent); // yes, we should free this memory. later...
 		}
 
 		calculate_subids(tax_id_tree);
 	}
-
-#if 0
-	static void	add_subids_recursive(TaxIdTree &tax_id_tree, tax_id_t to, tax_id_t what_to_add, std::set<tax_id_t> &what_to_add_more)
-	{
-		if (to == TaxIdTree::ROOT)
-			return;
-
-		auto to_ptr = tax_id_tree.get_node_ptr(to);
-		auto before = to_ptr->subids.size();
-		{
-			to_ptr->subids.insert(what_to_add);
-			to_ptr->subids.insert(what_to_add_more.begin(), what_to_add_more.end());
-		}
-
-		if (to_ptr->subids.size() != before)
-			add_subids(tax_id_tree, to_ptr->parent_tax_id, to_ptr->tax_id, to_ptr->subids);
-	}
-
-	static void calculate_subids_recursive(TaxIdTree &tax_id_tree) // todo: optimize
-	{
-		for (auto &n : tax_id_tree.nodes)
-		{
-			auto tax_id = n.first;
-			auto *node = n.second;
-			add_subids(tax_id_tree, node->parent_tax_id, tax_id, node->subids);
-		}
-	}
-#else
 
 	static void calculate_subids(TaxIdTree &tax_id_tree)
 	{
@@ -161,22 +129,14 @@ struct TaxIdTreeLoader
 
 	static void calculate_subids(TaxIdTree &tax_id_tree, const std::set<TaxIdTree::Node*> &nodes)
 	{
-//		std::cout << "calc subids for " << nodes.size() << std::endl;
-
 		std::set<TaxIdTree::Node*> parents;
 		for (auto n : nodes)
 			if (n->parent_tax_id != TaxIdTree::ROOT)
 				parents.insert(tax_id_tree.get_node_ptr(n->parent_tax_id));
 
-		//std::set<TaxIdTree::Node*> diff;
-		//auto it = set_difference(nodes.begin(), nodes.end(), parents.begin(), parents.end(), std::inserter(diff, diff.end()));
-		//for (; it!= diff.end(); it++)
 		for (auto n : nodes)
 			if (parents.find(n) == parents.end())
-			{
-	//			TaxIdTree::Node *n = *it;
 				add_subids(tax_id_tree, n->parent_tax_id, n->tax_id, n->subids);
-			}
 
 		if (!parents.empty())
 			calculate_subids(tax_id_tree, parents);
@@ -192,8 +152,6 @@ struct TaxIdTreeLoader
 		to_ptr->subids.insert(what_to_add);
 		to_ptr->subids.insert(what_to_add_more.begin(), what_to_add_more.end());
 	}
-
-#endif
 
 };
 

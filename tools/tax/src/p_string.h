@@ -27,33 +27,32 @@
 #ifndef P_STRING_H_INCLUDED
 #define P_STRING_H_INCLUDED
 
-#include "stringn.h"
-
 struct p_string
 {
 	const char *s;
-	int len; // todo: unsigned or size_t ?
+	int len;
 
-	p_string(const char *s, int len) : s(s), len(len) 
-	{
-//			std::cout << s << " " << len << std::endl;
-	}
+	p_string(const char *s, int len) : s(s), len(len) {}
 
 	bool operator < (const p_string &x) const
 	{
-//			std::cout << x.len << " " << len << std::endl;
 		if (x.len != len)
-			throw "p_string operator < x.len != len";
+			throw std::runtime_error("p_string operator < x.len != len");
 
 		return string_compare(s, x.s, len) < 0;
 	}
+
+	static int string_compare(const char *a, const char *b, int len)
+	{
+		for (int i=0; i < len; i++)
+		{
+			int diff = int(a[i]) - int(b[i]);
+			if (diff != 0)
+				return diff;
+		}
+
+		return 0;
+	}
 };
-
-
-static void print_string(p_string p)
-{
-	print_string(p.s, p.len);
-}
-
 
 #endif

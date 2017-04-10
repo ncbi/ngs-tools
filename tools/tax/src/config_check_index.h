@@ -38,7 +38,7 @@ struct ConfigCheckIndex
 		if (argc != 4)
 		{
 			print_usage();
-			throw "";
+			exit(1);
 		}
 
 		file_list = std::string(argv[1]);

@@ -112,7 +112,7 @@ size_t check_kmers(Kmers &kmers, const string &filename, tax_id_t tax_id, int km
 void fail(const std::string &message)
 {
 	std::cerr << message << std::endl;
-	throw message;
+	throw std::runtime_error(message);
 }
 
 int load_kmers(Kmers &kmers, const string &filename)
@@ -136,19 +136,6 @@ int load_kmers(Kmers &kmers, const string &filename)
 		if (kmer.length() != kmer_len)
 			fail("wrong kmer len for " + kmer);
 
-#if 0
-		std::getline(f, line);
-		std::stringstream ss(line);
-		Kmers::TaxIds taxes;
-		while (ss.good())
-		{
-			int tax_id;
-			ss >> tax_id;
-			if (!tax_id)
-				fail("bad tax id while loading kmers");
-			taxes.insert(tax_id);
-		}
-#else
 		int tax_id;
 		f >> tax_id;
 		if (!tax_id)
@@ -159,7 +146,6 @@ int load_kmers(Kmers &kmers, const string &filename)
 			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
 			kmers.add_kmer(hash, tax_id);
 		}
-#endif
 	}
 
 	return kmer_len;

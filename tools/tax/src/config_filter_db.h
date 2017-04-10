@@ -39,7 +39,7 @@ struct ConfigFilterDB
 		if (argc < 2)
 		{
 			print_usage();
-			throw "";
+			exit(1);
 		}
 
 		input_file = std::string(argv[1]);

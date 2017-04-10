@@ -45,8 +45,6 @@ using namespace std::chrono;
 
 const string VERSION = "0.35";
 
-#include "merge.h"
-
 typedef uint64_t hash_t;
 
 #include "dbs.h"
@@ -60,7 +58,7 @@ int main(int argc, char const *argv[])
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     
     cerr << "aligns_to version " << VERSION << endl;
-    cerr << "hardware threads: "  << std::thread::hardware_concurrency() << ", omp therads: " << omp_get_max_threads() << std::endl;
+    cerr << "hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads() << std::endl;
     Config config(argc, argv);
 
     auto before = high_resolution_clock::now();
@@ -107,7 +105,7 @@ int main(int argc, char const *argv[])
 
     cerr << "total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
 
-    exit(0); // dont want to wait for destructors
+//    std::exit(0); // dont want to wait for destructors
     return 0;
 }
 
