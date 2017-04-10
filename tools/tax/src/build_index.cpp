@@ -52,7 +52,6 @@ int main(int argc, char const *argv[])
 		cerr << "window divider: " << config.window_divider << endl;
 		cerr << "kmer len: " << config.kmer_len << endl;
 
-		print_current_time();
 		auto before = high_resolution_clock::now();
 
 		FileListLoader file_list(config.file_list);

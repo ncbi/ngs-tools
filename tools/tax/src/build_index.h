@@ -47,20 +47,6 @@
 using namespace std;
 using namespace std::chrono;
 
-//#include "time.h"
-void print_current_time() // todo: move out
-{
-	auto t = std::time(nullptr);
-	auto timeinfo = std::localtime(&t);
-	const int BUFFER_SIZE = 256;
-	char buffer[BUFFER_SIZE];
-	strftime(buffer, BUFFER_SIZE, "%m/%d/%Y %H:%M:%S", timeinfo);
-	cerr << "time is " << buffer << endl;
-}
-
-
-//const int KMER_LEN = 32;
-
 hash_t kmer_from(const char *s, int from, int len)
 {
 	hash_t kmer = Hash<hash_t>::hash_of(s + from, len);

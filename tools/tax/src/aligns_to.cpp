@@ -51,20 +51,9 @@ typedef uint64_t hash_t;
 
 #include "dbs.h"
 #include "aligns_to_job.h"
-//#include "database_io.h"
 #include "aligns_to_db_job.h"
 #include "aligns_to_dbs_job.h"
 #include "aligns_to_dbss_job.h"
-
-void print_current_time()
-{
-	auto t = std::time(nullptr);
-	auto timeinfo = std::localtime(&t);
-	const int BUFFER_SIZE = 256;
-	char buffer[BUFFER_SIZE];
-	strftime(buffer, BUFFER_SIZE, "%m/%d/%Y %H:%M:%S", timeinfo);
-	cerr << "time is " << buffer << endl;
-}
 
 int main(int argc, char const *argv[])
 {
@@ -74,7 +63,6 @@ int main(int argc, char const *argv[])
     cerr << "hardware threads: "  << std::thread::hardware_concurrency() << ", omp therads: " << omp_get_max_threads() << std::endl;
     Config config(argc, argv);
 
-    print_current_time();
     auto before = high_resolution_clock::now();
 
     Job *job = nullptr;

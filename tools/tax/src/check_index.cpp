@@ -35,7 +35,6 @@ int main(int argc, char const *argv[])
 		ConfigCheckIndex config(argc, argv);
 		cerr << "check_index version 0.10 " << endl;
 
-		print_current_time();
 		auto before = high_resolution_clock::now();
 
 		FileListLoader file_list(config.file_list);
