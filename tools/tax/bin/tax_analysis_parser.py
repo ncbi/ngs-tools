@@ -118,7 +118,7 @@ def iterate_merged_spots(f):
     for line in f:
         parts = line.split('\t')
         spot = parts[0]
-        hits = set(map(int, parts[1:]))
+        hits = set(int(p.split('x')[0]) for p in parts[1:])
         assert hits, 'no hits for spot'
         if spot == last_spot:
             last_hits |= hits
