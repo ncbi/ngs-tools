@@ -70,8 +70,7 @@ typedef list<Annot> Annotation;
 
 void save_annotation(const string &filename, const Annotation &annotation)
 {
-	ofstream f(filename); //, std::ios::text| std::ios::out);
-	f.flush();
+	ofstream f(filename);
 	for (auto &a : annotation)
 		f << a.tax_id << '\t' << a.count << endl;
 }
@@ -91,7 +90,7 @@ Annotation get_annotation(const Kmers &kmers)
 			start = i;
 			current_tax = kmers[i].tax_id;
 			if (current_tax <= 0)
-				throw "invalid taxonomy";
+				throw std::runtime_error("invalid taxonomy");
 		}
 
 	a.push_back(Annot(current_tax, kmers.size() - start));
@@ -100,44 +99,16 @@ Annotation get_annotation(const Kmers &kmers)
 
 int main(int argc, char const *argv[])
 {
-    try
-    {
-		Config config(argc, argv);
-		cerr << "sort_dbs version " << VERSION << endl;
+	Config config(argc, argv);
+	cerr << "sort_dbs version " << VERSION << endl;
 
-		Kmers kmers;
-		auto kmer_len = DBS::load_dbs(config.input_filename, kmers);
-		std::sort(kmers.begin(), kmers.end(), split_by_tax_less);
-		Hashes hashes;
-		to_hashes(kmers, hashes);
-		DBS::save_dbs(config.out_filename, hashes, kmer_len);
-		save_annotation(config.out_filename + ".annotation", get_annotation(kmers));
+	Kmers kmers;
+	auto kmer_len = DBS::load_dbs(config.input_filename, kmers);
+	std::sort(kmers.begin(), kmers.end(), split_by_tax_less);
+	Hashes hashes;
+	to_hashes(kmers, hashes);
+	DBS::save_dbs(config.out_filename, hashes, kmer_len);
+	save_annotation(config.out_filename + ".annotation", get_annotation(kmers));
 
-		exit(0); // dont want to wait for destructors
-        return 0;
-    }
-    catch ( exception & x )
-    {
-        cerr << x.what() << endl;
-//		cerr << "exit 3" << endl;
-		return 3;
-    }
-    catch ( string & x )
-    {
-        cerr << x << endl;
-//		cerr << "exit 4" << endl;
-		return 4;
-    }
-    catch ( const char * x )
-    {
-        cerr << x << endl;
-//		cerr << "exit 5" << endl;
-		return 5;
-    }
-    catch ( ... )
-    {
-        cerr << "unknown exception" << endl;
-//		cerr << "exit 6" << endl;
-		return 6;
-    }
+    return 0;
 }
