@@ -41,8 +41,6 @@ using namespace std::chrono;
    inline int omp_get_max_threads() { return 0; }
 #endif
 
-#define COUNT_MATCHES 0
-
 const string VERSION = "0.35";
 
 typedef uint64_t hash_t;

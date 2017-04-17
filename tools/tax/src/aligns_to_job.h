@@ -35,15 +35,8 @@
 struct BasicMatchId
 {
 	int seq_id;
-#if COUNT_MATCHES
-	int matches;
-#endif
-	BasicMatchId(int seq_id, int matches) : seq_id(seq_id)
-#if COUNT_MATCHES
-		, matches(matches)
-#endif
-	{}
 
+	BasicMatchId(int seq_id, int matches) : seq_id(seq_id){}
 	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
 };
 

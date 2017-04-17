@@ -54,7 +54,7 @@ struct DBJob : public Job
 					if (in_db(hash) > 0)
 						found++;
 
-					return COUNT_MATCHES || !found;
+					return !found;
 				});
 
 			return found;
