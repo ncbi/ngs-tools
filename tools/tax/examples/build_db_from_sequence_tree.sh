@@ -1,5 +1,5 @@
 set -e
-bin_dir=../bin/
+bin_dir=../bin
 name=example
 du -h -a -b . | grep "sequence_tree.*\.fasta$" | sort -n -r > ./files.list.$name
 $bin_dir/build_index ./files.list.$name ./example_data/tax.parents 1000 32 > ./$name.kmers 2>./$name.kmers.log
