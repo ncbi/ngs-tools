@@ -34,12 +34,17 @@ struct DBSSJob : public DBSJob
 	DBSSJob(const Config &config) : DBSJob(config)
 	{
 		DBSIO::DBSHeader header;
-		load_structure(config.dbss, header);
+
+	    std::ifstream f(config.dbss, std::ios::binary | std::ios::in);
+	    if (f.fail() || f.eof())
+		    throw std::runtime_error(std::string("cannot open dbss ") + config.dbss);
+
+		IO::read(f, header);
 		kmer_len = header.kmer_len;
 
 		DBSAnnotation annotation;
 		auto sum_offset = load_dbs_annotation(config.dbss + ".annotation", annotation);
-		if (sum_offset != filesize(config.dbss))
+		if (sum_offset != IO::filesize(config.dbss))
 			throw std::runtime_error("inconsistent dbss annotation file");
 
 		auto tax_list = load_tax_list(config.dbss_tax_list);
@@ -138,7 +143,7 @@ struct DBSSJob : public DBSJob
                 auto tax_id = tax_list[i];
                 for (auto& annot : annotation) {
                     if (annot.tax_id == tax_id) {
-                        load_vector_no_size(f, hashes, annot.offset, annot.count);
+                        IO::load_vector_no_size(f, hashes, annot.offset, annot.count);
                         tax_hash_array.reserve(hashes.size());
                         for (auto hash: hashes) {
                             tax_hash_array.emplace_back(hash, tax_list[i]);

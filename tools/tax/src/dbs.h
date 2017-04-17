@@ -27,7 +27,7 @@
 #ifndef DBS_H_INCLUDED
 #define DBS_H_INCLUDED
 
-#include "database_io.h"
+#include "io.h"
 #include <string>
 #include <fstream>
 #include <iostream>

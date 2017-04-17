@@ -88,16 +88,19 @@ struct IO
     template <class C>
     static void load_vector_no_size(std::ifstream &f, std::vector<C> &v, size_t offset, size_t size)
     {
-//	    v.clear();
-//	    v.resize(size);
 	    f.seekg(offset);
 	    if (!f)
 		    throw std::runtime_error("load_vector_no_size::cannot seek to offset");
 
-//	    f.read((char*)&v[0], v.size() * sizeof(v[0]));
         load_vector_data(f, v, size);
     }
 
+    static size_t filesize(const std::string &filename) 
+    {
+	    std::ifstream f(filename, std::ios_base::binary);
+	    f.seekg(0, std::ios_base::end);
+	    return f.tellg();
+    }
 };
 
 #endif
