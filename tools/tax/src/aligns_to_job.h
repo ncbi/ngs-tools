@@ -45,21 +45,19 @@ struct BasicPrinter
 	std::ostream &out_f;
 	BasicPrinter(std::ostream &out_f) : out_f(out_f){}
 
-	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const vector<BasicMatchId> &ids)
+	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
 	{
 		for (auto seq_id : ids)
-		{
 			out_f << processing_sequences[seq_id.seq_id].spotid << std::endl;
-		}
 	}
 };
 
 struct Job
 {
-	virtual void run(const string &contig_filename, std::ostream &out_f) = 0;
+	virtual void run(const std::string &contig_filename, std::ostream &out_f) = 0;
 
 	template <class Matcher, class Printer, class MatchId = BasicMatchId>
-	static void run(const string &contig_filename, Printer &print, Matcher &matcher, size_t min_sequence_len, const string &spot_filter_file, bool unaligned_only)
+	static void run(const std::string &contig_filename, Printer &print, Matcher &matcher, size_t min_sequence_len, const std::string &spot_filter_file, bool unaligned_only)
 	{
 		Progress progress;
         Reader::Params params;
@@ -140,7 +138,7 @@ private:
             if (percent != last_reported) {
                 auto timestamp = time(nullptr);
                 if (force || (timestamp > last_timestamp + 5)) {
-                    cerr << '\r' << percent << "% processed" << endl;
+                    std::cerr << '\r' << percent << "% processed" << std::endl;
                     last_reported = percent;
                     last_timestamp = timestamp;
                 }

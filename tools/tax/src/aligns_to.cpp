@@ -32,16 +32,13 @@
 #include <thread>
 #include <list>
 
-using namespace std;
-using namespace std::chrono;
-
 #ifdef _OPENMP
    #include <omp.h>
 #else
    inline int omp_get_max_threads() { return 0; }
 #endif
 
-const string VERSION = "0.35";
+const std::string VERSION = "0.36";
 
 typedef uint64_t hash_t;
 
@@ -50,6 +47,9 @@ typedef uint64_t hash_t;
 #include "aligns_to_db_job.h"
 #include "aligns_to_dbs_job.h"
 #include "aligns_to_dbss_job.h"
+
+using namespace std;
+using namespace std::chrono;
 
 int main(int argc, char const *argv[])
 {

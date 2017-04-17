@@ -27,9 +27,11 @@
 #ifndef ALIGNS_TO_DB_JOB_H_INCLUDED
 #define ALIGNS_TO_DB_JOB_H_INCLUDED
 
+#include "aligns_to_job.h"
+
 struct DBJob : public Job
 {
-	typedef vector<hash_t> HashSortedArray;
+	typedef std::vector<hash_t> HashSortedArray;
 
 	HashSortedArray hash_array;
 	size_t kmer_len;
@@ -46,7 +48,7 @@ struct DBJob : public Job
 		size_t kmer_len;
 		Matcher(const HashSortedArray &hash_array, size_t kmer_len) : hash_array(hash_array), kmer_len(kmer_len){}
 
-		int operator() (const string &seq) const 
+		int operator() (const std::string &seq) const 
 		{
 			int found = 0;
 			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
@@ -67,7 +69,7 @@ struct DBJob : public Job
 		}
 	};
 
-	virtual void run(const string &filename, std::ostream &out_f)
+	virtual void run(const std::string &filename, std::ostream &out_f)
 	{
 		Matcher m(hash_array, kmer_len);
 		BasicPrinter print(out_f);

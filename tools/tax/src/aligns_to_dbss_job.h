@@ -27,6 +27,7 @@
 #ifndef ALIGNS_TO_DBSS_JOB_H_INCLUDED
 #define ALIGNS_TO_DBSS_JOB_H_INCLUDED
 
+#include "aligns_to_dbs_job.h"
 #include <set>
 
 struct DBSSJob : public DBSJob

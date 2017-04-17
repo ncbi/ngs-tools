@@ -27,6 +27,8 @@
 #ifndef ALIGNS_TO_DBS_JOB_H_INCLUDED
 #define ALIGNS_TO_DBS_JOB_H_INCLUDED
 
+#include "aligns_to_job.h"
+
 struct DBSJob : public Job
 {
 	struct KmerTax : public DBS::KmerTax
@@ -40,7 +42,7 @@ struct DBSJob : public Job
 	};
 
 	const Config &config;
-	typedef vector<KmerTax> HashSortedArray;
+	typedef std::vector<KmerTax> HashSortedArray;
 
 	HashSortedArray hash_array;
     static const int DEFAULT_KMER_LEN = 32;
@@ -54,7 +56,7 @@ protected:
 
 public:
 
-	struct Hits : public map<tax_t, int>
+	struct Hits : public std::map<tax_t, int>
 	{
 		operator bool() const { return size() != 0; }
 
@@ -69,7 +71,7 @@ public:
 
 	struct Matcher
 	{
-        typedef vector<pair<size_t, size_t> > HashLookupTable;
+        typedef std::vector< std::pair<size_t, size_t> > HashLookupTable;
 		const HashSortedArray &hash_array;
         HashLookupTable hash_lookup_table;
         int hash_lookup_shift;
@@ -123,7 +125,7 @@ public:
             return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
         }
 
-		Hits operator() (const string &seq) const 
+		Hits operator() (const std::string &seq) const 
 		{
 			Hits hits;
 			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
@@ -199,7 +201,7 @@ public:
         const bool print_counts;
 		TaxPrinter(std::ostream &out_f, bool print_counts) : out_f(out_f), print_counts(print_counts) {}
 
-		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const vector<TaxMatchId> &ids)
+		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
 		{
 			for (auto seq_id : ids)
 			{
@@ -219,7 +221,7 @@ public:
         }
 	};
 
-	virtual void run(const string &filename, std::ostream &out_f)
+	virtual void run(const std::string &filename, std::ostream &out_f)
 	{
 		Matcher m(hash_array, kmer_len);
 		TaxPrinter print(out_f, config.print_counts);
