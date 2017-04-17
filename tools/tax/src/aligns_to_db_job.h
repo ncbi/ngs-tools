@@ -37,7 +37,7 @@ struct DBJob : public Job
 
 	DBJob(const Config &config) : config(config)
 	{
-		kmer_len = DBS::load_dbs(config.db, hash_array);
+		kmer_len = DBSIO::load_dbs(config.db, hash_array);
 	}
 
 	struct Matcher

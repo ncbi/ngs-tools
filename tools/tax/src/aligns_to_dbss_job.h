@@ -33,7 +33,7 @@ struct DBSSJob : public DBSJob
 {
 	DBSSJob(const Config &config) : DBSJob(config)
 	{
-		DBS::DBSHeader header;
+		DBSIO::DBSHeader header;
 		load_structure(config.dbss, header);
 		kmer_len = header.kmer_len;
 
@@ -73,7 +73,7 @@ struct DBSSJob : public DBSJob
 		if (f.fail())
 			throw std::runtime_error("cannot open annotation file");
 
-		size_t offset = sizeof(DBS::DBSHeader) + sizeof(size_t);
+		size_t offset = sizeof(DBSIO::DBSHeader) + sizeof(size_t);
 		tax_id_t prev_tax = 0;
 
 		while (!f.eof())

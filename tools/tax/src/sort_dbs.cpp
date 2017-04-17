@@ -103,11 +103,11 @@ int main(int argc, char const *argv[])
 	cerr << "sort_dbs version " << VERSION << endl;
 
 	Kmers kmers;
-	auto kmer_len = DBS::load_dbs(config.input_filename, kmers);
+	auto kmer_len = DBSIO::load_dbs(config.input_filename, kmers);
 	std::sort(kmers.begin(), kmers.end(), split_by_tax_less);
 	Hashes hashes;
 	to_hashes(kmers, hashes);
-	DBS::save_dbs(config.out_filename, hashes, kmer_len);
+	DBSIO::save_dbs(config.out_filename, hashes, kmer_len);
 	save_annotation(config.out_filename + ".annotation", get_annotation(kmers));
 
     return 0;

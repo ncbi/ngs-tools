@@ -34,8 +34,6 @@
 
 struct DBS
 {
-	static const int VERSION = 1;
-
 	#pragma pack(push)
 	#pragma pack(4)
 
@@ -50,6 +48,11 @@ struct DBS
 	#pragma pack(pop)
 
 	typedef std::vector<KmerTax> Kmers;
+};
+
+struct DBSIO
+{
+	static const int VERSION = 1;
 
 	struct DBSHeader
 	{
@@ -61,32 +64,28 @@ struct DBS
 	static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len)
 	{
 		std::ofstream f(out_file);
-		f.flush();
-
-		size_t kmers_size = kmers.size();
 		DBSHeader header(kmer_len);
-
-		// todo: save_structure, save_vector
-		f.write((char*)&header, sizeof(header));
-		f.write((char*)&kmers_size, sizeof(kmers_size));
-		f.write((char*)&kmers[0], kmers.size()*sizeof(kmers[0]));
+        IO::write(f, header);
+        IO::save_vector(f, kmers);
 	}
 
 	template <class C>
 	static size_t load_dbs(const std::string &filename, std::vector<C> &kmers)
 	{
-		DBSHeader header;
-		load_structure(filename, header);
-		std::cerr << "version: " << header.version << std::endl;
-		std::cerr << "kmer len: " << header.kmer_len << std::endl;
+    	std::ifstream f(filename, std::ios::binary | std::ios::in);
+	    if (f.fail() || f.eof())
+		    throw std::runtime_error(std::string("cannot load dbs ") + filename);
 
+        DBSHeader header;
+        IO::read(f, header);
 		if (header.version != VERSION)
-			throw std::runtime_error("unsupported version");
+			throw std::runtime_error("unsupported dbs file version");
 
-		if (header.kmer_len < 10 || header.kmer_len > 64)
-			throw std::runtime_error("invalid kmer_len");
+        IO::load_vector(f, kmers);
 
-		load_vector(filename, kmers, sizeof(header));
+		if (header.kmer_len < 1 || header.kmer_len > 64)
+			throw std::runtime_error("load_dbs:: invalid kmer_len");
+
 		return header.kmer_len;
 	}
 };

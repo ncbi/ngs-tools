@@ -231,7 +231,7 @@ struct DBSBasicJob : public DBSJob
 {
 	DBSBasicJob(const Config &config) : DBSJob(config)
 	{
-		kmer_len = DBS::load_dbs(config.dbs, hash_array);
+		kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
 	}
 };
 

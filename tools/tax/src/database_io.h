@@ -27,12 +27,7 @@
 #ifndef DATABASE_IO_H_INCLUDED
 #define DATABASE_IO_H_INCLUDED
 
-#include <string>
-#include <vector>
-#include <fstream>
-#include <stdexcept>
-
-// todo: throw runtime_error
+#include "io.h"
 
 template <class C>
 void load_vector(const std::string &filename, std::vector<C> &hash_array, size_t offset = 0)

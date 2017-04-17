@@ -91,7 +91,7 @@ void process_without_taxonomy(const string &fasta_db, const string &out_file)
 	}
 
 	sort(kmers.begin(), kmers.end());
-	DBS::save_dbs(out_file, kmers, kmer_len);
+	DBSIO::save_dbs(out_file, kmers, kmer_len);
 }
 
 typedef DBS::KmerTax KmerTax;
@@ -124,7 +124,7 @@ void process_with_taxonomy(const string &fasta_db, const string &out_file)
 	}
 
 	sort(kmers.begin(), kmers.end(), kmer_less);
-	DBS::save_dbs(out_file, kmers, kmer_len);
+	DBSIO::save_dbs(out_file, kmers, kmer_len);
 }
 
 bool has_taxonomy_info(const string &filename)
