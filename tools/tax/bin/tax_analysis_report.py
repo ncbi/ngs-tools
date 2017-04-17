@@ -2,8 +2,6 @@
 
 import sys
 import argparse
-import collections
-import itertools
 import logging
 import types
 
@@ -22,34 +20,53 @@ def sorted_children(node):
         return int(subnode.attrib['total_count'])
     return sorted(node, key=key, reverse=True)
 
-def format_node(node, grand_total, offset, args):
-    rank = node.attrib.get('rank')
-    if not rank:
-        for subnode in sorted_children(node):
-            yield format_node(subnode, grand_total, offset, args)
-    else:
-        name = node.attrib['name']
-        total_count = int(node.attrib['total_count'])
-        if total_count < args.cutoff_hit_count:
-            return
-        
-        rate = float(total_count) / grand_total
-        percent = rate*100
-        if percent < args.cutoff_percent:
-            return
+def check_cutoff(value, total, args):
+    if value < args.cutoff_hit_count:
+        return True
+    rate = float(value) / total
+    percent = rate * 100
+    if percent < args.cutoff_percent:
+        return True
+    return False
 
-        if args.no_padding:
-            percent_precision = '.%s' % args.precision
-            hits_precision = ''
+def format_node(node, grand_total, offset, args):
+    self_count = int(node.attrib['self_count'])
+    if len(node) == 1 and check_cutoff(self_count, grand_total, args):
+        if args.skip == 'none':
+            skip = False
+        elif args.skip == 'unranked':
+            rank = node.attrib.get('rank')
+            skip = rank is None
+        elif args.skip == 'all':
+            skip = True
         else:
-            percent_precision = '%s.%s' % (args.precision + 3, args.precision)
-            hits_precision = str(len(str(grand_total)))
-            
-        pattern = '%s%s\t%' + percent_precision + 'f%%  (%' + hits_precision + 'd hits)'
-        yield pattern % (offset, name, percent, total_count)
+            assert False
+        if skip:
+            for subnode in sorted_children(node):
+                yield format_node(subnode, grand_total, offset, args)
+            return
         
-        for subnode in sorted_children(node):
-            yield format_node(subnode, grand_total, offset+args.indent, args)
+    name = node.attrib['name']
+    total_count = int(node.attrib['total_count'])
+
+    if check_cutoff(total_count, grand_total, args):
+        return
+
+    rate = float(total_count) / grand_total
+    percent = rate*100
+
+    if args.no_padding:
+        percent_precision = '.%s' % args.precision
+        hits_precision = ''
+    else:
+        percent_precision = '%s.%s' % (args.precision + 3, args.precision)
+        hits_precision = str(len(str(grand_total)))
+
+    pattern = '%s%s\t%' + percent_precision + 'f%%  (%' + hits_precision + 'd hits)'
+    yield pattern % (offset, name, percent, total_count)
+
+    for subnode in sorted_children(node):
+        yield format_node(subnode, grand_total, offset+args.indent, args)
 
 def pad_tree(lines, separator):
     max_name_len = 0
@@ -67,7 +84,7 @@ def format_tax_tree(tree, args):
     root = tree[0]
     total_count = int(root.attrib['total_count'])
 
-    res = [format_node(node, total_count, '', args) for node in root]
+    res = [format_node(node, total_count, '', args) for node in sorted_children(root)]
     res = flatten(res)
     if args.no_padding:
         for idx in range(len(res)):
@@ -88,6 +105,13 @@ def main():
     filtering = parser.add_argument_group('filtering options')
     filtering.add_argument('--cutoff-percent', metavar='NUMBER', help='cutoff percent, default is %(default)s', default='0.01', type=float)
     filtering.add_argument('--cutoff-hit-count', metavar='NUMBER', help='cutoff hit count, disabled by default', default='0', type=int)
+    filtering.add_argument('--skip', metavar='MODE',
+                           help='''skip nodes with only one child
+                           and less than cutoff exact hits,
+                           "unranked" only skips nodes with no taxonomic rank,
+                           "none" disables skipping,
+                           default is "%(default)s"''',
+                           choices=['all', 'unranked', 'none'], default='all')
     parser.add_argument('path', nargs='?', help='path to file with tax analysis xml tree, if not specified reads from stdin')
     args = parser.parse_args()
 
