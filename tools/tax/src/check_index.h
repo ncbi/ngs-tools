@@ -24,9 +24,25 @@
 *
 */
 
-#include "build_index.h"
+//#include "build_index.h"
+#include <iostream>
+#include <chrono>
+#include <thread>
+#include <omp.h>
+#include "kmers.h"
+#include "kmer_io.h"
+#include "kmer_hash.h"
+#include "ready_seq.h"
+#include "filename_meta.h"
+#include "file_list_loader.h"
+
+#include "ready_seq.h"
 #include "config_check_index.h"
 #include <sstream>
+
+using namespace std;
+using namespace std::chrono;
+
 
 void check_hash(hash_t kmer, int kmer_len, Kmers &kmers, tax_id_t tax_id, list<hash_t> &result_hashes)
 {

@@ -26,8 +26,10 @@
 
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
 
 #include "config_filter_db.h"
+
 using namespace std;
 
 const string VERSION = "0.11";
@@ -77,7 +79,7 @@ int main(int argc, char const *argv[])
 		
 	ifstream f(config.input_file);
 	if (f.fail())
-		throw "cannot open input file";
+		throw std::runtime_error("cannot open input file");
 
 	if (config.only_tax)
 		cerr << "keep only tax " << config.only_tax << endl;

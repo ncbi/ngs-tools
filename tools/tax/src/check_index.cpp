@@ -27,6 +27,7 @@
 #include "check_index.h"
 #include "tax_id_tree.h"
 #include "config_check_index.h"
+#include "filename_meta.h"
 
 int main(int argc, char const *argv[])
 {
@@ -48,7 +49,7 @@ int main(int argc, char const *argv[])
 	size_t total_size = 0;
 	for (auto &file_list_element : file_list.files)
 	{
-		auto tax_id = tax_id_from(file_list_element.filename);
+		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		cerr << file_list_element.filesize << "\t" << tax_id << "\t" << file_list_element.filename << endl;
 		total_size += check_kmers(kmers, file_list_element.filename, tax_id, kmer_len);
 		{
@@ -61,7 +62,7 @@ int main(int argc, char const *argv[])
 		}
 	}
 
-	print_kmers(kmers, kmer_len);
+	KmerIO::print_kmers(kmers, kmer_len);
 
 	cerr << "total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count() << endl;
 }
