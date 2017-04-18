@@ -53,6 +53,12 @@ struct TaxIdTree
 //	typedef std::map<tax_id_t, std::unique_ptr<Node> > Nodes;
 	Nodes nodes;
 
+    ~TaxIdTree()
+    {
+        for (auto &n : nodes)
+            delete n.second;
+    }
+
 	tax_id_t consensus_of(tax_id_t tax_a, tax_id_t tax_b) const
 	{
 		if (tax_a == ROOT || tax_b == ROOT)
@@ -112,7 +118,7 @@ struct TaxIdTreeLoader
 			if (!x || !parent)
 				throw std::runtime_error(std::string("bad tax id: ") + std::to_string(x));
 
-			tax_id_tree.nodes[x] = new TaxIdTree::Node(x, parent); // yes, we should free this memory. later...
+			tax_id_tree.nodes[x] = new TaxIdTree::Node(x, parent);
 		}
 
 		calculate_subids(tax_id_tree);

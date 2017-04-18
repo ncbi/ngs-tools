@@ -25,15 +25,7 @@
 */
 
 #include <ctime>
-#include "kmer_map.h"
-//#include "kmer_loader.h"
-//#include "reduce.h"
 #include "seq_transform.h"
-//#include "contig_builder.h"
-//#include "begins.h"
-//#include "coverage.h"
-//#include "reduce.h"
-//#include "contig_cutter.h"
 #include <iostream>
 #include <chrono>
 #include <assert.h>

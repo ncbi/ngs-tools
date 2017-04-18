@@ -31,6 +31,7 @@
 #include <vector>
 #include <algorithm>
 #include "hash.h"
+#include "seq_transform.h"
 
 using namespace std;
 typedef uint64_t hash_t;
@@ -39,27 +40,10 @@ typedef uint64_t hash_t;
 
 const string VERSION = "0.22";
 
-char complement(char ch)
+string reverse_complement(string s) // yes, by value
 {
-	switch (ch)
-	{
-		case 'A': return 'T';
-		case 'T': return 'A';
-		case 'C': return 'G';
-		case 'G': return 'C';
-	};
-
-	throw std::runtime_error(string("bad letter to reverse: ") + string(1, ch));
-}
-
-// todo: reuse seq_transform
-string reverse_complement(string s)
-{
-	std::reverse(s.begin(), s.end());
-	for (char &ch : s)
-		ch = complement(ch);
-
-	return s;
+    seq_transform_actg::to_rev_complement(s);
+    return s;
 }
 
 hash_t hash_of(const string &s)

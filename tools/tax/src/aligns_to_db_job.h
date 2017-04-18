@@ -28,6 +28,10 @@
 #define ALIGNS_TO_DB_JOB_H_INCLUDED
 
 #include "aligns_to_job.h"
+#include "hash.h"
+#include "seq_transform.h"
+#include <map>
+#include <omp.h>
 
 struct DBJob : public Job
 {

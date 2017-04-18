@@ -26,7 +26,6 @@
 
 #include "config_align_to.h"
 
-#include "kmer_map.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
