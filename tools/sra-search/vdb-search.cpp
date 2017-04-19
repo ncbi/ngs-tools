@@ -171,7 +171,8 @@ VdbSearch :: Settings :: Settings ()
     m_threads ( 2 ),
     m_useBlobSearch ( true ),
     m_referenceDriven ( false ),
-    m_maxMatches ( 0 )
+    m_maxMatches ( 0 ),
+    m_unaligned ( false )
 {
 }
 
@@ -232,7 +233,12 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
 
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
-        if ( m_settings . m_referenceDriven )
+        if ( m_settings . m_unaligned )
+        {   // force single-thread fragment mode
+            m_settings . m_useBlobSearch = false;
+            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, ( ngs :: Read :: ReadCategory )  ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned  ) ) );
+        }
+        else if ( m_settings . m_referenceDriven )
         {   // no reference blob search for now
             m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }

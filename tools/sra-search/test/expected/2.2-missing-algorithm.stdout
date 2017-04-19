@@ -30,4 +30,5 @@ Options:
   --sort                    Sort output by accession/read/fragment
   --reference [refName,...] Scan reference(s) for potential matches; all references if none specified
   -m|--max <number>         Stop after N matches
+  -U|--unaligned            Search in unaligned and partially aligned reads only
 

@@ -80,6 +80,7 @@ public:
         bool                        m_referenceDriven;  // default false
         ReferenceSpecs              m_references;       // default empty (all references)
         unsigned int                m_maxMatches;       // default 0 (unlimited)
+        bool                        m_unaligned;        // default false
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );

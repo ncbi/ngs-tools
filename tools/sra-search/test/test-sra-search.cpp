@@ -618,6 +618,16 @@ FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearch
 //TODO: reference-driven, specify multiple reference slices, match against different accessions
 //TODO: reference-driven search on a slice that wraps around the end of a circular reference
 
+// Unaligned reads only
+FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )
+{
+    m_settings . m_unaligned  = true;
+    SetupSingleThread ( "AGCTAGCTAGCT", VdbSearch :: FgrepDumb, "SRR600099" );
+
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.3576765" ),  m_fragment );
+    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+}
+
 int
 main( int argc, char *argv [] )
 {

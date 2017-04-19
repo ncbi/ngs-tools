@@ -165,6 +165,7 @@ static void handle_help ( const char * appName )
          << "  --sort                    Sort output by accession/read/fragment" << endl
          << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
          << "  -m|--max <number>         Stop after N matches" << endl
+         << "  -U|--unaligned            Search in unaligned and partially aligned reads only" << endl
          ;
 
     cout << endl;
@@ -287,6 +288,10 @@ main( int argc, char *argv [] )
                     throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "'");
                 }
                 settings . m_maxMatches = ( unsigned int ) maxMatches;
+            }
+            else if ( arg == "-U" || arg == "--unaligned" )
+            {
+                settings . m_unaligned = true;
             }
             else
             {
