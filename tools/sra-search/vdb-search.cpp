@@ -236,7 +236,7 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
         if ( m_settings . m_unaligned )
         {   // force single-thread fragment mode
             m_settings . m_useBlobSearch = false;
-            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, ( ngs :: Read :: ReadCategory )  ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned  ) ) );
+            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, true ) );
         }
         else if ( m_settings . m_referenceDriven )
         {   // no reference blob search for now

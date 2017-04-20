@@ -622,10 +622,12 @@ FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearch
 FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )
 {
     m_settings . m_unaligned  = true;
-    SetupSingleThread ( "AGCTAGCTAGCT", VdbSearch :: FgrepDumb, "SRR600099" );
+    SetupSingleThread ( "CACAG", VdbSearch :: FgrepDumb, "SRR600099" );
 
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.3576765" ),  m_fragment );
-    REQUIRE ( ! m_s -> NextMatch ( m_accession, m_fragment ) );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR0.1" ),  m_fragment );
+    // thee would be many hits on aligned fragments in between
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.438" ),  m_fragment );
+    //etc...
 }
 
 int
