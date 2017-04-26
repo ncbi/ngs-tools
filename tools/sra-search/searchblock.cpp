@@ -152,7 +152,7 @@ AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
 
 NucStrstrSearch :: NucStrstrSearch ( const string& p_query, bool p_positional, bool p_useBlobSearch )
 :   SearchBlock ( p_query ),
-    m_positional ( p_positional || p_useBlobSearch ) // always use positional mode when searching blob-by-blob since it is the only one reporting position of the match
+    m_positional ( p_positional || p_useBlobSearch ) // when searching blob-by-blob, have to use positional mode since it reports position of the match, required in blob mode
 {
     rc_t rc = NucStrstrMake ( &m_nss, m_positional ? 1 : 0, m_query . c_str (), m_query . size () );
     if ( rc != 0 )

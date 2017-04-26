@@ -169,6 +169,7 @@ VdbSearch :: Settings :: Settings ()
     m_isExpression ( false ),
     m_minScorePct ( 100 ),
     m_threads ( 2 ),
+    m_threadPerAcc ( false ),
     m_useBlobSearch ( true ),
     m_referenceDriven ( false ),
     m_maxMatches ( 0 ),
@@ -228,18 +229,18 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         m_settings . m_useBlobSearch = false; // SW takes too long on big buffers
     }
+    if ( m_settings . m_unaligned )
+    {   // unaligned goes by fragments, single threaded
+        m_settings . m_useBlobSearch = false;
+        m_settings . m_threads = 1;
+    }
 
     CheckArguments ( m_settings );
 
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
-        if ( m_settings . m_unaligned )
-        {   // force single-thread fragment mode
-            m_settings . m_useBlobSearch = false;
-            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, true ) );
-        }
-        else if ( m_settings . m_referenceDriven )
-        {   // no reference blob search for now
+        if ( m_settings . m_referenceDriven )
+        {
             m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }
         else if ( m_settings . m_useBlobSearch )
@@ -248,7 +249,7 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
         }
         else
         {
-            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i ) );
+            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, m_settings . m_unaligned ) );
         }
     }
 }
@@ -436,8 +437,8 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
         return false;
     }
 
-    if ( m_settings . m_referenceDriven )
-    {   // reference-driven mode, always single threaded for now
+    if ( m_settings . m_referenceDriven || m_settings . m_threads == 1  )
+    {   // fragment or reference-driven mode, single threaded
         while ( ! m_searches . empty () )
         {
             if (m_buf == 0)
@@ -462,8 +463,8 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
         }
         return false;
     }
-    else if ( m_settings . m_threads > 0 ) // fragment-driven mode, multi-threaded
-    {
+    else
+    {   // multi-threaded mode. thread per accession or per blob, not per fragment, since accessing the same blob from diff threads leads to trouble in VDB
         if ( m_output == 0 ) // first call to NextMatch() - set up
         {
             size_t threadNum = m_settings . m_threads;
@@ -478,7 +479,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
             for ( unsigned  int i = 0 ; i != threadNum; ++i )
             {
                 KThread* t;
-                rc_t rc = KThreadMake ( &t, m_settings . m_useBlobSearch ? SearchBlobPerThread : SearchAccPerThread, m_searchBlock );
+                rc_t rc = KThreadMake ( &t, m_settings . m_threadPerAcc ? SearchAccPerThread : SearchBlobPerThread, m_searchBlock );
                 if ( rc != 0 )
                 {
                     throw ( ErrorMsg ( "KThreadMake failed" ) );
@@ -493,33 +494,6 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
             ++m_matchCount;
             return true;
         }
-        return false;
-    }
-    else
-    {   // fragment-driven, no threads, return one result at a time
-        while ( ! m_searches . empty () )
-        {
-            if (m_buf == 0)
-            {
-                m_buf = m_searches.front()->NextBuffer();
-            }
-
-            while (m_buf != 0)
-            {
-                if (m_buf->NextMatch(p_fragmentId))
-                {
-                    p_accession = m_buf->AccessionName();
-                    ++m_matchCount;
-                    return true;
-                }
-                delete m_buf;
-                m_buf = m_searches.front()->NextBuffer();
-            }
-
-            delete m_searches . front ();
-            m_searches . pop ();
-        }
-
         return false;
     }
 }

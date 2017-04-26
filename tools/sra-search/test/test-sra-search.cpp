@@ -88,14 +88,14 @@ public:
 
     void SetupSingleThread ( const string& p_query, VdbSearch :: Algorithm p_algorithm, const string& p_accession = string() )
     {
-        m_settings . m_threads = 0;
+        m_settings . m_threads = 1;
         Setup ( p_query, p_algorithm, p_accession );
     }
 
-    void SetupMultiThread ( const string& p_query, VdbSearch :: Algorithm p_algorithm, unsigned int p_threads, bool p_blobs, const string& p_accession = string() )
+    void SetupMultiThread ( const string& p_query, VdbSearch :: Algorithm p_algorithm, unsigned int p_threads, const string& p_accession = string() )
     {
         m_settings . m_threads = p_threads;
-        m_settings . m_useBlobSearch = p_blobs;
+        m_settings . m_useBlobSearch = true;
         Setup ( p_query, p_algorithm, p_accession );
     }
 
@@ -327,20 +327,20 @@ FIXTURE_TEST_CASE ( SmithWaterman_ImperfectMatch, VdbSearchFixture )
 
 ///////// Multi threading
 
-FIXTURE_TEST_CASE ( SingleAccession_FirstMatches_BlobBased_WGS, VdbSearchFixture )
+FIXTURE_TEST_CASE ( SingleAccession_Threaded, VdbSearchFixture )
 {
-    const string Accession = "ALWZ01";
-    SetupMultiThread ( "A", VdbSearch :: FgrepDumb, 2, true, Accession ); // will hit (almost) every fragment
-    // observe some results coming back and stop by destroying the search object
-    for ( unsigned int i = 0 ; i < 20; ++i )
-    {
-        REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    }
+    const string Sra1 = "SRR600094";
+    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, 2, Sra1 );
+
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    CHECK_EQ ( Sra1 + ".FR1.101989",  m_fragment );
+    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
+    CHECK_EQ ( Sra1 + ".FR0.101990",  m_fragment );
 }
 
 FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
-{
-    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, 4, true, "SRR000001" ); // 4 blob-based threads on one run
+{   // used to crash randomly
+    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, 4, "SRR000001" ); // 4 blob-based threads on one run
 
     unsigned int count = 0;
     while (  m_s -> NextMatch ( m_accession, m_fragment ) )  // used to have a random crash inside VDB
@@ -348,17 +348,6 @@ FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
         ++count;
     }
     REQUIRE_EQ ( 12u, count );
-}
-
-FIXTURE_TEST_CASE ( SingleAccession_Threaded_OnBlobs, VdbSearchFixture )
-{
-    const string Sra1 = "SRR600094";
-    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: NucStrstr, 2, false, Sra1 );
-
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    CHECK_EQ ( Sra1 + ".FR1.101989",  m_fragment );
-    REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) );
-    CHECK_EQ ( Sra1 + ".FR0.101990",  m_fragment );
 }
 
 // Reference-driven mode
@@ -625,7 +614,7 @@ FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )
     SetupSingleThread ( "CACAG", VdbSearch :: FgrepDumb, "SRR600099" );
 
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR0.1" ),  m_fragment );
-    // thee would be many hits on aligned fragments in between
+    // there would be many hits on aligned fragments in between
     REQUIRE ( m_s -> NextMatch ( m_accession, m_fragment ) ); REQUIRE_EQ ( string ( "SRR600099.FR1.438" ),  m_fragment );
     //etc...
 }

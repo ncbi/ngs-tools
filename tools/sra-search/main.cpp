@@ -160,7 +160,6 @@ static void handle_help ( const char * appName )
          << "  -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);" << endl
          << "                            supported for all variants of Agrep and SmithWaterman." << endl
          << "  -T|--threads <number>     The number of threads to use; 2 by deafult" << endl
-         << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
          << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
@@ -248,13 +247,9 @@ main( int argc, char *argv [] )
                 }
                 settings . m_threads = ( unsigned int ) threads;
             }
-            else if ( arg == "--nothreads" )
-            {
-                settings . m_threads = 0;
-            }
             else if ( arg == "--threadperacc" )
             {
-                settings . m_useBlobSearch = false;
+                settings . m_threadPerAcc = true;
             }
             else if ( arg == "--sort" )
             {

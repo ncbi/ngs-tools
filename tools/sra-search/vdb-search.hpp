@@ -76,6 +76,7 @@ public:
         bool                        m_isExpression;     // default false
         unsigned int                m_minScorePct;      // default 100
         unsigned int                m_threads;          // default 2
+        unsigned int                m_threadPerAcc;     // default false
         bool                        m_useBlobSearch;    // default true
         bool                        m_referenceDriven;  // default false
         ReferenceSpecs              m_references;       // default empty (all references)
