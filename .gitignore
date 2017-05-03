@@ -31,3 +31,4 @@ core
 /build/cmake/*/
 OUTDIR.*
 core
+.gdb_history

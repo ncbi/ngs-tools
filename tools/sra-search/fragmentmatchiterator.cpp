@@ -45,19 +45,18 @@ public:
     {
     }
 
-    virtual bool NextMatch ( std::string& p_fragmentId )
+    virtual SearchBuffer :: Match * NextMatch ()
     {
         if ( ! m_done )
         {
             StringRef bases = m_fragment . getFragmentBases();
             if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
             {
-                p_fragmentId = m_fragment . getFragmentId () . toString ();
                 m_done = true;
-                return true;
+                return new Match ( m_accession, m_fragment );
             }
         }
-        return false;
+        return 0;
     }
 
     virtual std::string BufferId () const

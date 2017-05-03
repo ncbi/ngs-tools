@@ -27,7 +27,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <cerrno>
-#include <set>
+#include <map>
 #include <sstream>
 
 #include <strtol.h>
@@ -86,7 +86,7 @@ struct FragmentId_Less
     }
 };
 
-typedef set < string, FragmentId_Less > Results;
+typedef map < string, string, FragmentId_Less > Results;
 
 static
 bool
@@ -100,21 +100,31 @@ DoSearch ( const VdbSearch :: Settings& p_settings, bool p_sortOutput  )
     if ( p_sortOutput )
     {
         Results results;
-        while ( s . NextMatch ( acc, fragId ) )
+        while ( true )
         {
-            results . insert ( fragId );
+            VdbSearch :: Match m;
+            if ( ! s . NextMatch ( m ) )
+            {
+                break;
+            }
+            results [ m . m_fragmentId ] = m . m_formatted;
         }
         for ( Results::const_iterator i = results.begin(); i != results.end(); ++i)
         {
-            cout << *i << endl;
+            cout << i -> second << endl;
         }
         ret = results . size () > 0;
     }
     else
     {
-        while ( s . NextMatch ( acc, fragId ) )
+        while ( true )
         {
-            cout << fragId << endl;
+            VdbSearch :: Match m;
+            if ( ! s . NextMatch ( m ) )
+            {
+                break;
+            }
+            cout << m . m_formatted << endl;
             ret = true;
         }
     }
@@ -165,6 +175,7 @@ static void handle_help ( const char * appName )
          << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
          << "  -m|--max <number>         Stop after N matches" << endl
          << "  -U|--unaligned            Search in unaligned and partially aligned reads only" << endl
+         << "  --fasta [ <lineWidth> ]   Output in FASTA format with specified line width (default 70 bases)" << endl
          ;
 
     cout << endl;
@@ -287,6 +298,24 @@ main( int argc, char *argv [] )
             else if ( arg == "-U" || arg == "--unaligned" )
             {
                 settings . m_unaligned = true;
+            }
+            else if ( arg == "--fasta" )
+            {
+                if ( i + 1 < argc )
+                {   // check for an integer parameter
+                    char* endptr;
+                    int32_t lineLength = strtoi32 ( argv [ i + 1 ], &endptr, 10 );
+                    if ( *endptr == 0 )
+                    {
+                        if ( lineLength <= 0 )
+                        {
+                            throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "' (has to be a positive integer)");
+                        }
+                        settings . m_fastaLineLength = lineLength;
+                        ++ i;
+                    }
+                }
+                settings . m_fasta = true;
             }
             else
             {

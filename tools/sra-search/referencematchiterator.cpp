@@ -94,15 +94,15 @@ public:
         delete m_fragIt;
     }
 
-    virtual bool NextMatch ( string& p_fragmentId ) = 0;
-
     virtual string BufferId () const
     {
         return m_reference . getCanonicalName ();
     }
 
+    Fragment GetCurrentFragment () { assert ( m_fragIt != 0 ); return * m_fragIt; }
+
 protected:
-    bool NextFragment ( string& p_fragmentId )
+    bool NextFragment ()
     {
         while ( true ) // for each alignment on the slice
         {
@@ -130,7 +130,6 @@ protected:
                         {
                             // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
                             m_reported . insert ( fragId );
-                            p_fragmentId = fragId;
                             return true;
                         }
                     }
@@ -193,7 +192,7 @@ public:
         //TODO: handle wraparound slices of circular references
     }
 
-    virtual bool NextMatch ( string& p_fragmentId )
+    virtual SearchBuffer :: Match * NextMatch ()
     {
         while ( true )  // for each match on the reference
         {
@@ -222,9 +221,10 @@ public:
                 m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) ( m_start + m_offset + hitStart ), hitEnd - hitStart ) );
                 m_offset += hitEnd; //TODO: this may be too far
             }
-            if ( NextFragment ( p_fragmentId ) )
+
+            if ( NextFragment () )
             {
-                return true;
+                return new Match ( m_accession, GetCurrentFragment () );
             }
         }
     }
@@ -286,11 +286,11 @@ public:
         }
     }
 
-    virtual bool NextMatch ( string& p_fragmentId )
+    virtual SearchBuffer :: Match * NextMatch ()
     {
         if ( m_bases . size () == 0 )
         {
-            return false;
+            return 0;
         }
 
         while ( true ) // for each blob
@@ -343,18 +343,17 @@ public:
                     m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) inReference, hitEnd - hitStart ) );
                 }
 
-                if ( NextFragment ( p_fragmentId ) )
+                if ( NextFragment () )
                 {
-                    return true;
+                    return new Match ( m_accession, GetCurrentFragment () );
                 }
-
             }
 
             m_offsetInReference += m_unpackedBlobSize;
 
             if ( m_lastBlob )
             {
-                return false;
+                return 0;
             }
 
             m_curBlob = m_nextBlob;
