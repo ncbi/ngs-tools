@@ -54,7 +54,7 @@ public:
             {
                 p_fragmentId = m_fragment . getFragmentId () . toString ();
                 m_done = true;
-                return true;
+                return new Match ( m_accession, m_fragment . getFragmentId () . toString (), string ( bases . data (), bases . size () ) );
             }
         }
         return false;

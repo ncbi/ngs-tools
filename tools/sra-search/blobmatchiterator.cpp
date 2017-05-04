@@ -52,6 +52,12 @@ public:
         m_blob ( p_blob ),
         m_startInBlob ( 0 )
     {
+        KLockAddRef ( m_dbLock );
+    }
+
+    ~BlobSearchBuffer ()
+    {
+        KLockRelease ( m_dbLock );
     }
 
     virtual bool NextMatch ( std::string& p_fragmentId )
@@ -66,28 +72,39 @@ public:
             hitStart += m_startInBlob;
             hitEnd += m_startInBlob;
 
+            string fragId;
             uint64_t startInBlob;
             uint64_t lengthInBases;
-            uint64_t fragEnd;
             bool biological;
 
             KLockAcquire ( m_dbLock );
-            m_blob . GetFragmentInfo ( hitStart, p_fragmentId, startInBlob, lengthInBases, biological );
+            try
+            {
+                m_blob . GetFragmentInfo ( hitStart, fragId, startInBlob, lengthInBases, biological );
+            }
+            catch ( ... )
+            {
+                KLockUnlock ( m_dbLock );
+                throw;
+            }
             KLockUnlock ( m_dbLock );
 
-            fragEnd = startInBlob + lengthInBases;
+            uint64_t fragEnd = startInBlob + lengthInBases; // relative to the start of the blob
+
             if ( biological )
             {
-                if ( hitEnd < fragEnd ||                                                                    // inside a fragment: report and move to the next fragment; or
-                    m_searchBlock -> FirstMatch ( m_blob . Data () + hitStart, fragEnd - hitStart  ) )    // result crosses fragment boundary: retry within the fragment
+                if ( hitEnd < fragEnd ||                                                                  // inside a fragment: report and move to the next fragment; or
+                    m_searchBlock -> FirstMatch ( m_blob . Data () + startInBlob, lengthInBases  ) )    // result crosses fragment boundary: retry within the fragment
                 {
+                    Match * ret = 0;
+                    ret = new Match ( m_accession, fragId, string ( m_blob . Data () + startInBlob, lengthInBases ) );
                     m_startInBlob = fragEnd; // search will resume with the next fragment
-                    return true;
+                    p_fragmentId = fragId;
+                    return ret;
                 }
                 // false hit
             }
-            // move on to the next fragment
-            m_startInBlob = fragEnd;
+            m_startInBlob = fragEnd; // search will resume with the next fragment
         }
         m_startInBlob = 0;
         return false;

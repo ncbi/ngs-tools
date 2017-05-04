@@ -35,8 +35,23 @@
 class SearchBuffer
 {
 public:
-    SearchBuffer ( SearchBlock* p_sb, const std::string& p_accession )
-    :   m_searchBlock ( p_sb),
+    struct Match
+    {
+        Match( const std :: string & p_accession, const std :: string & p_fragmentId, const std :: string & p_bases )
+        :   m_accession ( p_accession ),
+            m_fragmentId ( p_fragmentId ),
+            m_bases ( p_bases )
+        {
+        }
+
+        std :: string   m_accession;
+        std :: string   m_fragmentId;
+        std :: string   m_bases;
+    };
+
+public:
+    SearchBuffer ( SearchBlock * p_sb, const std :: string & p_accession )
+    :   m_searchBlock ( p_sb ),
         m_accession ( p_accession )
     {
     }
