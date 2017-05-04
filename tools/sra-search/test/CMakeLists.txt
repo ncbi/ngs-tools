@@ -162,6 +162,10 @@ if ( NOT WIN32)
 	add_test ( NAME SraSearchSlow-9.2-reference-multiple-refs-multiple-runs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 9.2-reference --args "ACGTAGGGTCC SRR600095 SRR600094 --reference NC_000007.13,NC_000001.10" )
 
+	# reference mode, expressions not allowed
+	add_test ( NAME SraSearch-9.3-reference-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
+				${SRA_SEARCH} 9.3-reference-expression --args "ACGTAGGGTCC SRR600094 --reference --expression" --rc 1)
+
     # unaligned reads only
 	add_test ( NAME SraSearchSlow-10.0-unaligned WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 10.0-unaligned --args "AGCTAGCTAGCT SRR600099 --unaligned" )

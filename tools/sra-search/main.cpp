@@ -277,8 +277,8 @@ main( int argc, char *argv [] )
                     {
                         settings . m_references . push_back ( name );
                     }
+                    ++i;
                 }
-                ++i;
             }
             else if ( arg == "-m" || arg == "--max" )
             {
@@ -328,6 +328,10 @@ main( int argc, char *argv [] )
         if ( settings . m_query . empty () || settings . m_accessions . size () == 0 )
         {
             throw invalid_argument ( "Missing arguments" );
+        }
+        if ( settings . m_referenceDriven && settings . m_isExpression )
+        {
+            throw invalid_argument ( "Options --reference and --expression cannot be used together" );
         }
 
         found = DoSearch ( settings, sortOutput );

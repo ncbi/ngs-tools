@@ -32,3 +32,4 @@ core
 OUTDIR.*
 core
 .gdb_history
+*.diff
