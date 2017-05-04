@@ -54,6 +54,12 @@ public:
         m_blob ( p_blob ),
         m_startInBlob ( 0 )
     {
+        KLockAddRef ( m_dbLock );
+    }
+
+    ~BlobSearchBuffer ()
+    {
+        KLockRelease ( m_dbLock );
     }
 
     virtual SearchBuffer :: Match * NextMatch ()
