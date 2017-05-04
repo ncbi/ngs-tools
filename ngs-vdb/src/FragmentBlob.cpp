@@ -36,6 +36,7 @@
 #include <ngs/itf/ErrBlock.hpp>
 
 #include <../libs/ngs/NGS_FragmentBlob.h>
+#include <../libs/ngs/NGS_Id.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 #include <../libs/ngs/NGS_String.h>
 #include <../libs/ngs/NGS_Id.h>
@@ -110,27 +111,25 @@ FragmentBlob :: Size() const throw ()
 }
 
 void
-FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, std::string & p_readId, int32_t & p_fragNum, uint64_t& p_startInBlob, uint64_t& p_lengthInBases, bool& p_biological ) const
+FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, std::string & p_fragId, uint64_t& p_startInBlob, uint64_t& p_lengthInBases, bool& p_biological ) const
     throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     int64_t rowId;
     uint64_t fragStart;
     uint64_t baseCount;
-    TRY ( NGS_FragmentBlobInfoByOffset ( self, ctx, p_offset, & rowId, & fragStart, & baseCount, & p_fragNum ) )
+    int32_t fragNum;
+    TRY ( NGS_FragmentBlobInfoByOffset ( self, ctx, p_offset, & rowId, & fragStart, & baseCount, & fragNum ) )
     {
-        if ( p_fragNum >= 0 )
+        if ( fragNum >= 0 )
         {
-            TRY ( const NGS_String* run = NGS_FragmentBlobRun (self,  ctx ) )
+            TRY ( const NGS_String * run = NGS_FragmentBlobRun ( self, ctx ) )
             {
-                TRY ( const NGS_String* readId = NGS_IdMake ( ctx, run, NGSObject_Read, rowId ) )
+                TRY ( const NGS_String* readId = NGS_IdMakeFragment ( ctx, run, false, rowId, fragNum ) )
                 {
-                    TRY ( p_readId = std::string ( NGS_StringData ( readId, ctx ), NGS_StringSize ( readId, ctx ) ) );
+                    TRY ( p_fragId = std::string ( NGS_StringData ( readId, ctx ), NGS_StringSize ( readId, ctx ) ) );
                     {
-                        TRY ( NGS_String* fragId = NGS_IdMakeFragment ( ctx, run, false, rowId, p_fragNum ) )
-                        {
-                            p_biological = true;
-                        }
+                        p_biological = true;
                     }
                 }
             }
@@ -138,7 +137,7 @@ FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, std::string & p_readId, int
         else
         {
             p_biological = false;
-            p_readId . empty ();
+            p_fragId . empty ();
         }
     }
     if ( FAILED () )

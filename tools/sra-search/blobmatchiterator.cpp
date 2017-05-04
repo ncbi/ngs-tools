@@ -54,6 +54,12 @@ public:
         m_blob ( p_blob ),
         m_startInBlob ( 0 )
     {
+        KLockAddRef ( m_dbLock );
+    }
+
+    ~BlobSearchBuffer ()
+    {
+        KLockRelease ( m_dbLock );
     }
 
     virtual SearchBuffer :: Match * NextMatch ()
@@ -68,8 +74,7 @@ public:
             hitStart += m_startInBlob;
             hitEnd += m_startInBlob;
 
-            string readId;
-            int32_t fragmentNum;
+            string fragId;
             uint64_t startInBlob;
             uint64_t lengthInBases;
             bool biological;
@@ -77,7 +82,7 @@ public:
             KLockAcquire ( m_dbLock );
             try
             {
-                m_blob . GetFragmentInfo ( hitStart, readId, fragmentNum, startInBlob, lengthInBases, biological );
+                m_blob . GetFragmentInfo ( hitStart, fragId, startInBlob, lengthInBases, biological );
             }
             catch ( ... )
             {
@@ -86,36 +91,21 @@ public:
             }
             KLockUnlock ( m_dbLock );
 
-            uint64_t fragEnd = startInBlob + lengthInBases;
-            m_startInBlob = fragEnd; // search will resume with the next fragment
+            uint64_t fragEnd = startInBlob + lengthInBases; // relative to the start of the blob
 
             if ( biological )
             {
                 if ( hitEnd < fragEnd ||                                                                  // inside a fragment: report and move to the next fragment; or
-                    m_searchBlock -> FirstMatch ( m_blob . Data () + hitStart, fragEnd - hitStart  ) )    // result crosses fragment boundary: retry within the fragment
+                    m_searchBlock -> FirstMatch ( m_blob . Data () + startInBlob, lengthInBases  ) )    // result crosses fragment boundary: retry within the fragment
                 {
                     Match * ret = 0;
-                    KLockAcquire ( m_dbLock );
-                    try
-                    {   // this code will access the sequence table, keep it locked
-                        Read read = m_coll . toReadCollection () . getRead ( readId );
-                        read . nextFragment ();
-                        for ( uint32_t i = 0 ; i < fragmentNum; ++ i )
-                        {
-                            read . nextFragment ();
-                        }
-                        ret = new Match ( m_accession, read );
-                    }
-                    catch ( ... )
-                    {
-                        KLockUnlock ( m_dbLock );
-                        throw;
-                    }
-                    KLockUnlock ( m_dbLock );
+                    ret = new Match ( m_accession, fragId, string ( m_blob . Data () + startInBlob, lengthInBases ) );
+                    m_startInBlob = fragEnd; // search will resume with the next fragment
                     return ret;
                 }
                 // false hit
             }
+            m_startInBlob = fragEnd; // search will resume with the next fragment
         }
         m_startInBlob = 0;
         return 0;
