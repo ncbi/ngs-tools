@@ -38,10 +38,10 @@ class SearchBuffer
 public:
     struct Match
     {
-        Match( const std :: string & p_accession, ngs :: Fragment p_fragment )
+        Match( const std :: string & p_accession, const std :: string & p_fragmentId, const std :: string & p_bases )
         :   m_accession ( p_accession ),
-            m_fragmentId ( p_fragment . getFragmentId () . toString () ),
-            m_bases ( p_fragment . getFragmentBases () . toString () )
+            m_fragmentId ( p_fragmentId ),
+            m_bases ( p_bases )
         {
         }
 

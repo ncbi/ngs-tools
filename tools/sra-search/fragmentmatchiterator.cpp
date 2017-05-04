@@ -53,7 +53,7 @@ public:
             if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
             {
                 m_done = true;
-                return new Match ( m_accession, m_fragment );
+                return new Match ( m_accession, m_fragment . getFragmentId () . toString (), string ( bases . data (), bases . size () ) );
             }
         }
         return 0;

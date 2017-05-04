@@ -56,7 +56,7 @@ ReverseComplementDNA ( const string& p_source)
             case 'T' : ch = 'A'; break;
             case 'N' : ch = 'N'; break;
             default:
-                assert(false);
+                throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
         }
         ret += ch;
     }
@@ -224,7 +224,8 @@ public:
 
             if ( NextFragment () )
             {
-                return new Match ( m_accession, GetCurrentFragment () );
+                Fragment frag = GetCurrentFragment ();
+                return new Match ( m_accession, frag . getFragmentId () . toString (), frag . getFragmentBases () . toString () );
             }
         }
     }
@@ -345,7 +346,8 @@ public:
 
                 if ( NextFragment () )
                 {
-                    return new Match ( m_accession, GetCurrentFragment () );
+                    Fragment frag = GetCurrentFragment ();
+                    return new Match ( m_accession, frag . getFragmentId () . toString (), frag . getFragmentBases () . toString () );
                 }
             }
 
