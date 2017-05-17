@@ -243,15 +243,15 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         if ( m_settings . m_referenceDriven )
         {
-            m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
+            m_searches . push ( new ReferenceSearch ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }
         else if ( m_settings . m_useBlobSearch )
         {
-            m_searches . push ( new BlobMatchIterator ( m_sbFactory, *i ) );
+            m_searches . push ( new BlobSearch ( m_sbFactory, *i ) );
         }
         else
         {
-            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, m_settings . m_unaligned ) );
+            m_searches . push ( new FragmentSearch ( m_sbFactory, *i, m_settings . m_unaligned ) );
         }
     }
 }
@@ -292,7 +292,7 @@ VdbSearch :: GetSupportedAlgorithms ()
     return ret;
 }
 
-rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
+rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *self, void *data )
 {
     assert ( data );
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
@@ -301,138 +301,37 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
     while ( ! sb . m_quitting )
     {
         KLockAcquire ( sb . m_searchQueueLock );
-        if ( sb . m_search . empty () )
+        MatchIterator* it = 0;
+        while ( ! sb . m_quitting && ! sb . m_search . empty () )
         {
-            KLockUnlock ( sb . m_searchQueueLock );
-            break;
-        }
-
-        MatchIterator* it = sb . m_search . front ();
-        sb . m_search . pop ();
-
-        KLockUnlock ( sb . m_searchQueueLock );
-
-        SearchBuffer* buf = it -> NextBuffer();
-        while ( buf != 0 && ! sb . m_quitting )
-        {
-            while ( ! sb . m_quitting )
+            it = sb . m_search . front () -> NextIterator ();
+            if ( it == 0 )
             {
-                SearchBuffer :: Match * m = buf -> NextMatch ();
-                if ( m == 0 )
-                {
-                    break;
-                }
-                sb . m_output . Push ( m );
-            }
-            delete buf;
-            if ( sb . m_quitting )
-            {
-                break;
-            }
-            buf = it -> NextBuffer();
-        }
-        delete it;
-    }
-
-    sb . m_output . ProducerDone();
-    return 0;
-}
-
-rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
-{
-    assert ( data );
-    SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
-    assert ( sb . m_searchQueueLock );
-    if ( VdbSearch :: logResults && ! sb . m_search . empty () )
-    {
-        KLockAcquire ( sb . m_searchQueueLock );
-        cout << "Thread " << (void*)self << " sb=" << (void*)sb . m_search . front () << endl;
-        KLockUnlock ( sb . m_searchQueueLock );
-    }
-
-    while ( ! sb . m_quitting )
-    {
-        KLockAcquire ( sb . m_searchQueueLock );
-        if ( VdbSearch :: logResults )
-        {
-            cout << "Thread " << (void*)self << " locked" << endl;
-        }
-
-        SearchBuffer* buf = 0;
-        if ( ! sb . m_search . empty () )
-        {
-            if ( VdbSearch :: logResults )
-            {
-                cout << "Thread " << (void*)self << " NextBuffer()" << endl;
-            }
-            buf = sb . m_search . front () -> NextBuffer();
-            while ( buf == 0 && ! sb . m_quitting )
-            {   // no more blobs, discard the accession
                 delete sb . m_search . front ();
                 sb . m_search . pop ();
-                if ( sb . m_search . empty () )
-                {
-                    break;
-                }
-                if ( VdbSearch :: logResults )
-                {
-                    cout << "Thread " << (void*)self << " new accession, NextBuffer()" << endl;
-                }
-                buf = sb . m_search . front () -> NextBuffer();
+            }
+            else
+            {
+                break;
             }
         }
         KLockUnlock ( sb . m_searchQueueLock );
 
-        if ( sb . m_quitting )
+        if ( it == 0 )
         {
-            if ( VdbSearch :: logResults )
-            {
-                KLockAcquire ( sb . m_searchQueueLock );
-                cout << "Thread " << (void*)self << " cancelled" << endl;
-                KLockUnlock ( sb . m_searchQueueLock );
-            }
             break;
         }
-        else
+
+        while ( ! sb . m_quitting )
         {
-            if ( buf == 0 )
+            SearchBuffer :: Match * m = it -> NextMatch ();
+            if ( m == 0 )
             {
-                if ( VdbSearch :: logResults )
-                {
-                    KLockAcquire ( sb . m_searchQueueLock );
-                    cout << "Thread " << (void*)self << " done" << endl;
-                    KLockUnlock ( sb . m_searchQueueLock );
-                }
                 break;
             }
-
-            string id;
-            id = buf->BufferId();
-            if ( VdbSearch :: logResults )
-            {
-                KLockAcquire ( sb . m_searchQueueLock );
-                cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << " unlocked " << id << endl;
-                KLockUnlock ( sb . m_searchQueueLock );
-            }
-
-            while ( ! sb . m_quitting )
-            {
-                SearchBuffer :: Match * m = buf -> NextMatch ();
-                if ( m == 0 )
-                {
-                    break;
-                }
-                sb . m_output . Push ( m );
-            }
-
-            if ( VdbSearch :: logResults )
-            {
-                KLockAcquire ( sb . m_searchQueueLock );
-                cout << "Thread " << (void*)self << " buf=" << (void*)buf << " bufId=" << id << ( sb . m_quitting ? " cancelled" : " deleted" ) << endl;
-                KLockUnlock ( sb . m_searchQueueLock );
-            }
+            sb . m_output . Push ( m );
         }
-        delete buf;
+        delete it;
     }
 
     sb . m_output . ProducerDone();
@@ -469,69 +368,39 @@ VdbSearch :: NextMatch ( Match & p_match )
         return false;
     }
 
-    if ( m_settings . m_referenceDriven || m_settings . m_threads == 1  )
-    {   // fragment or reference-driven mode, single threaded
-        while ( ! m_searches . empty () )
-        {
-            if (m_buf == 0)
-            {
-                m_buf = m_searches.front()->NextBuffer();
-            }
+    if ( m_output == 0 ) // first call to NextMatch() - set up worker threads
+    {
+        size_t threadNum = m_settings . m_threads;
 
-            while (m_buf != 0)
-            {
-                SearchBuffer :: Match * m = m_buf->NextMatch();
-                if ( m != 0 )
-                {
-                    ++ m_matchCount;
-                    FormatMatch ( * m, p_match );
-                    delete m;
-                    return true;
-                }
-                delete m_buf;
-                m_buf = m_searches.front()->NextBuffer();
-            }
-
-            delete m_searches . front ();
-            m_searches . pop ();
+        if ( ! m_settings . m_useBlobSearch && threadNum > m_searches . size () )
+        {   // in thread-per-accession mode, no need for more threads than there are accessions
+            threadNum = m_searches . size ();
         }
-        return false;
+
+        m_output = new OutputQueue ( threadNum );
+        m_searchBlock = new SearchThreadBlock ( m_searches, *m_output );
+        for ( unsigned  int i = 0 ; i != threadNum; ++i )
+        {
+            KThread* t;
+            rc_t rc = KThreadMake ( & t, ThreadPerIterator, m_searchBlock );
+            if ( rc != 0 )
+            {
+                throw ( ErrorMsg ( "KThreadMake failed" ) );
+            }
+            m_threadPool . push_back ( t );
+        }
     }
-    else
-    {   // multi-threaded mode. thread per accession or per blob, not per fragment, since accessing the same blob from diff threads leads to trouble in VDB
-        if ( m_output == 0 ) // first call to NextMatch() - set up
-        {
-            size_t threadNum = m_settings . m_threads;
 
-            if ( ! m_settings . m_useBlobSearch && threadNum > m_searches . size () )
-            {   // in thread-per-accession mode, no need for more threads than there are accessions
-                threadNum = m_searches . size ();
-            }
-
-            m_output = new OutputQueue ( threadNum );
-            m_searchBlock = new SearchThreadBlock ( m_searches, *m_output );
-            for ( unsigned  int i = 0 ; i != threadNum; ++i )
-            {
-                KThread* t;
-                rc_t rc = KThreadMake ( &t, m_settings . m_threadPerAcc ? SearchAccPerThread : SearchBlobPerThread, m_searchBlock );
-                if ( rc != 0 )
-                {
-                    throw ( ErrorMsg ( "KThreadMake failed" ) );
-                }
-                m_threadPool . push_back ( t );
-            }
-        }
-        // block until a result appears on the output queue or all searches are marked as completed
-        SearchBuffer :: Match * m = m_output -> Pop ();
-        if ( m != 0 )
-        {
-            ++m_matchCount;
-            FormatMatch ( * m, p_match );
-            delete m;
-            return true;
-        }
-        return false;
+    // block until a result appears on the output queue or all searches are marked as completed
+    SearchBuffer :: Match * m = m_output -> Pop ();
+    if ( m != 0 )
+    {
+        ++m_matchCount;
+        FormatMatch ( * m, p_match );
+        delete m;
+        return true;
     }
+    return false;
 }
 
 //////////////////// VdbSearch :: SearchBlockFactory

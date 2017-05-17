@@ -131,6 +131,7 @@ FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, std::string & p_fragId, uin
                     {
                         p_biological = true;
                     }
+                    NGS_StringRelease ( readId, ctx );
                 }
             }
         }

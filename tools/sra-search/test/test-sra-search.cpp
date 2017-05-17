@@ -120,7 +120,6 @@ public:
 
 //TODO: bad query string
 //TODO: bad accession name
-
 FIXTURE_TEST_CASE ( Create_Destroy, VdbSearchFixture )
 {
     VdbSearch :: Settings s;
@@ -395,52 +394,19 @@ FIXTURE_TEST_CASE ( Threads_RandomCrash, VdbSearchFixture )
 
 // Reference-driven mode
 
-class DummySearchBlockFactory : public SearchBlock :: Factory
-{
-public:
-    virtual SearchBlock* MakeSearchBlock () const
-    {
-        return new FgrepSearch ( "", FgrepSearch :: FgrepDumb );
-    }
-};
-
-FIXTURE_TEST_CASE ( ReferenceMatchIterator_Construct, VdbSearchFixture )
-{
-    DummySearchBlockFactory factory;
-    ReferenceMatchIterator it ( factory, "SRR600094" );
-    SearchBuffer* buf = it . NextBuffer ();
-    REQUIRE_NOT_NULL ( buf );
-    delete buf;
-}
-
-FIXTURE_TEST_CASE ( ReferenceMatchIterator_AccessionName, VdbSearchFixture )
-{
-    string accName ( "SRR600094" );
-    DummySearchBlockFactory factory;
-    ReferenceMatchIterator it ( factory, accName );
-    SearchBuffer* buf = it . NextBuffer ();
-    REQUIRE_NOT_NULL ( buf );
-    REQUIRE_EQ ( accName, buf -> AccessionName () );
-    delete buf;
-}
-
-FIXTURE_TEST_CASE ( ReferenceMatchIterator_BufferId, VdbSearchFixture )
-{
-    string accName ( "SRR833251" );
-    DummySearchBlockFactory factory;
-    ReferenceMatchIterator it ( factory, accName );
-
-    SearchBuffer* buf = it . NextBuffer ();
-    REQUIRE_NOT_NULL ( buf );
-    REQUIRE_EQ ( string("gi|169794206|ref|NC_010410.1|"), buf -> BufferId () );
-    delete buf;
-}
-
 FIXTURE_TEST_CASE ( ReferenceDriven_ReferenceNotFound, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
     m_settings . m_references . push_back ( ReferenceSpec ( "NOT_ME_GUV" ) );
     SetupSingleThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, "SRR600094" );
+    REQUIRE ( ! NextMatch () );
+}
+
+FIXTURE_TEST_CASE ( ReferenceDriven_ReferenceNotFound_MultiThread, VdbSearchFixture )
+{
+    m_settings . m_referenceDriven = true;
+    m_settings . m_references . push_back ( ReferenceSpec ( "NOT_ME_GUV" ) );
+    SetupMultiThread ( "ACGTAGGGTCC", VdbSearch :: FgrepDumb, 2, "SRR600094" );
     REQUIRE ( ! NextMatch () );
 }
 
@@ -502,6 +468,7 @@ FIXTURE_TEST_CASE ( ReferenceDriven_AllReferences_NoDuplicates_Blobs, VdbSearchF
     REQUIRE_EQ ( string ( "SRR600094.FR0.101991" ), NextFragmentId () );
 }
 
+#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
 {
     const string Query = "TTGAAGAGATCCGACATCA";
@@ -513,6 +480,7 @@ FIXTURE_TEST_CASE ( ReferenceDriven_MatchAcrossBlobBoundary, VdbSearchFixture )
     SetupSingleThread ( Query, VdbSearch :: FgrepDumb );
     REQUIRE_EQ ( string("SRR600094.FR0.1647758"), NextFragmentId () ); // aligns into the above region, across the blob boundary
 }
+#endif
 
 FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_MatchAcrossEndOfCirular, VdbSearchFixture )
 {
@@ -609,7 +577,7 @@ FIXTURE_TEST_CASE ( ReferenceDriven_MultipleReferences_MultipleAccessions, VdbSe
 }
 
 // Reference-driven mode on a reference slice
-
+#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_SingleSlice_SingleAccession, VdbSearchFixture )
 {
     m_settings . m_referenceDriven = true;
@@ -626,6 +594,8 @@ FIXTURE_TEST_CASE ( ReferenceDriven_NoBlobs_SingleSlice_SingleAccession, VdbSear
 
     REQUIRE ( ! NextMatch () );
 }
+
+//TODO: multiple slices per reference
 
 FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearchFixture )
 {
@@ -648,6 +618,7 @@ FIXTURE_TEST_CASE ( ReferenceDriven_Blobs_SingleSlice_SingleAccession, VdbSearch
 //TODO: reference-driven, specify multiple reference slices, single accession
 //TODO: reference-driven, specify multiple reference slices, match against different accessions
 //TODO: reference-driven search on a slice that wraps around the end of a circular reference
+#endif
 
 // Unaligned reads only
 FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )

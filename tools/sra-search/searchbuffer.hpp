@@ -66,8 +66,6 @@ public:
     // NULL if no more matches
     virtual Match * NextMatch () = 0;
 
-    virtual std :: string BufferId () const  = 0;
-
     const std :: string & AccessionName () const { return m_accession; }
 
 protected:
