@@ -152,15 +152,15 @@ if ( NOT WIN32)
 
 	# reference mode
 	add_test ( NAME SraSearchSlow-9.0-reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 9.0-reference --sort --args "ACGTAGGGTCC SRR600094 --reference" )
+				${SRA_SEARCH} 9.0-reference --sort --args "ACGTAGGGTCC SRR600094 --reference -T 6" )
 
 	# reference mode, multiple references, one accession
 	add_test ( NAME SraSearchSlow-9.1-reference-multiple-refs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 9.1-reference --sort --args "ACGTAGGGTCC SRR600094 --reference NC_000007.13,doesnotexist,NC_000001.10" )
+				${SRA_SEARCH} 9.1-reference --sort --args "ACGTAGGGTCC SRR600094 --reference NC_000007.13,doesnotexist,NC_000001.10 -T 6" )
 
 	# reference mode, multiple references, accessions
 	add_test ( NAME SraSearchSlow-9.2-reference-multiple-refs-multiple-runs WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
-				${SRA_SEARCH} 9.2-reference --sort --args "ACGTAGGGTCC SRR600095 SRR600094 --reference NC_000007.13,NC_000001.10" )
+				${SRA_SEARCH} 9.2-reference --sort --args "ACGTAGGGTCC SRR600095 SRR600094 --reference NC_000007.13,NC_000001.10 -T 6" )
 
 	# reference mode, expressions not allowed
 	add_test ( NAME SraSearch-9.3-reference-expression WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh

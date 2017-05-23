@@ -143,7 +143,7 @@ protected:
                     if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
                     {
                         string fragId = m_fragIt -> getFragmentId () . toString ();
-                        KLockUnlock ( m_dbLock );
+                        KLockAcquire ( m_dbLock );
                         if ( m_reported . find ( fragId ) == m_reported.end () )
                         {
                             // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
@@ -281,8 +281,10 @@ public:
 
         while ( true ) // for each blob
         {
-
+            KLockAcquire ( m_dbLock );
             m_unpackedBlobSize = m_curBlob . UnpackedSize ();
+            KLockUnlock ( m_dbLock );
+
             m_reverse = false;
             m_offsetInBlob = 0;
 
