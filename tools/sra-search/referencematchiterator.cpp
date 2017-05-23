@@ -223,7 +223,7 @@ public:
                 {
                     if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, hitStart, hitEnd ) )
                     {   // no more reverse matches on this reference; the end.
-                        return false;
+                        return 0;
                     }
                 }
                 // cout << "Match on " << BufferId () << " at " << ( m_start + m_offset + hitStart ) << "-" << ( m_start + m_offset + hitEnd ) << ( m_refSearch == 0 ? " (reverse)" : "" ) << endl;
