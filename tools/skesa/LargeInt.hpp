@@ -75,6 +75,8 @@ extern std::array<const char, 4> bin2NT;
 
 inline static u_int64_t oahash64 (u_int64_t elem)
 {
+    //    return std::hash<u_int64_t>()(elem); 
+    
     u_int64_t code = elem;
     code = code ^ (code >> 14); //supp
     code = (~code) + (code << 18);

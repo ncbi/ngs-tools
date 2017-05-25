@@ -45,7 +45,7 @@ vector<pair<double,char>> FilteredNodeSuccessors(CDBGraph::Node node, CDBGraph& 
     sort(successors.begin(), successors.end(), [&](const CDBGraph::Successor& a, const CDBGraph::Successor& b) {return graph.Abundance(a.m_node) > graph.Abundance(b.m_node);});
     for(auto& suc : successors)
         rslt.push_back(make_pair(graph.Abundance(suc.m_node),suc.m_nt));
-    graph_digger.FilterNeighbors(successors);
+    graph_digger.FilterNeighbors(successors, true);
     for(auto& r :  rslt) {
         char nt = r.second;
         if(reverse)
@@ -68,7 +68,7 @@ int main(int argc, const char* argv[])
         ("lowcount", value<int>()->default_value(6), "Minimal count for filtering")
         ("genome", value<string>(), "Assembled genome")
         ("kmer", value<int>(), "Kmer length for testing")
-        ("testkmer", value<string>(), "Build contig for test kmer");
+        ("test_kmer", value<string>(), "Build contig for test kmer");
 
     string dbg;
     string genome_file;
@@ -234,15 +234,88 @@ int main(int argc, const char* argv[])
             cerr << "Wrong test_kmer size" << endl;
             return 1;
         }
-        CDBGraphDigger graph_digger(*graphp, fraction, jump, low_count); 
+        CDBGraphDigger graph_digger(*graphp, fraction, jump+test_kmer.size(), low_count, true);         
+        //        CDBGraphDigger graph_digger(*graphp, fraction, jump, low_count, false);         
         
         CDBGraph::Node node = graphp->GetNode(test_kmer);
         if(!node) {
-            cerr << "Kmer: " << kmer << " not in graph" << endl;
+            cerr << "Kmer: " << test_kmer << " not in graph" << endl;
             return 1;
         }
-        SContig contig = graph_digger.GetContigForKmer(node, 0);
-        cout << string(contig.m_seq.begin(), contig.m_seq.end()) << endl;
+        SContig scontig = graph_digger.GetContigForKmer(node, 0);
+
+        if(scontig.LenMax() == 0) {
+            cerr << "No assebly" << endl;
+            return 0;
+        }
+
+        /*
+        TContigSequenceList contigs(1, scontig.m_seq);
+        CombineSimilarContigs(contigs, 0, test_kmer.size()-1);
+        auto& contig = contigs.front();
+        */
+
+        auto& contig = scontig.m_seq;
+
+        /*
+        int num = 0;
+        for(auto& chunk : contig) {
+            cerr << "Chunk" << ++num << endl;
+            for(auto& seq : chunk) {
+                for(char c : seq)
+                    cerr << c;
+                cerr << endl;
+            }
+        }
+        */
+
+        
+        string first_variant;
+        for(auto& lst : contig) {
+            for(char c : lst.front()) {
+                if(c != '-')
+                    first_variant.push_back(c);
+            }
+        }
+        CReadHolder rh(false);
+        rh.PushBack(first_variant);
+        double abundance = 0; // average count of kmers in contig
+        for(CReadHolder::kmer_iterator itk = rh.kbegin(graphp->KmerLen()); itk != rh.kend(); ++itk) {
+            CDBGraph::Node node = graphp->GetNode(*itk);
+            abundance += graphp->Abundance(node);
+        }
+        abundance /= first_variant.size()-graphp->KmerLen()+1;
+        cout << ">Contig_" << abundance << "\n" << first_variant << endl;
+
+        int pos = 0;
+        for(unsigned chunk = 0; chunk < contig.size()-1; ++chunk) { //output variants
+            int chunk_len = 0;
+            for(char c : contig[chunk].front()) {
+                if(c != '-')
+                    ++chunk_len;
+            }
+            if(contig.VariableChunk(chunk)) {
+                int left = min(100,(int)contig[chunk-1].front().size());
+                int right = min(100,(int)contig[chunk+1].front().size());
+                int var = 0;
+                auto it = contig[chunk].begin();
+                for(++it; it != contig[chunk].end(); ++it) {
+                    auto& variant = *it;
+                    cout << ">Variant_" << ++var << "_for_Contig:" << pos-left+1 << "_" << pos+chunk_len+right << "\n";
+                    for(int l = left ; l > 0; --l)
+                        cout << *(contig[chunk-1].front().end()-l);
+                    for(char c : variant) {
+                        if(c != '-')
+                            cout << c;
+                    }
+                    for(int r = 0; r < right; ++r)
+                        cout << contig[chunk+1].front()[r];
+                    cout << endl;
+                }
+            }
+            pos += chunk_len;
+        }
+            
     } else {
         cerr << "Provide genome or test_kmer" << endl;
         cerr << all << "\n";

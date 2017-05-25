@@ -31,8 +31,10 @@
 #include <bitset>
 #include <unordered_map>
 #include <unordered_set>
+#include <set>
 #include <deque>
 #include <forward_list>
+#include <stack>
 #include <atomic>
 #include <future>
 #include <thread>
@@ -40,6 +42,7 @@
 #include <cmath>
 
 #include "Integer.hpp"
+#include "glb_align.hpp"
 
 // This file contains classes which facilitate basic operation of storing reads, counting kmers,
 // and creating and traversing a de Bruijn graph
@@ -358,7 +361,7 @@ namespace DeBruijn {
         int KmerLen() const { return m_kmer_len; }
 
         template <typename Prob> 
-        void GetInfo(Prob& prob) { apply_visitor(get_info<Prob>(prob), m_container); } // scans the containier and calls prob(v) for each mapped element
+        void GetInfo(Prob& prob) { apply_visitor(get_info<Prob>(prob), m_container); } // scans the containier and calls prob(k, v) for each mapped element
 
     private:
 
@@ -367,7 +370,7 @@ namespace DeBruijn {
             get_info(Prob& p) : prob(p) {}
             template <typename T> void operator()(T& v) const {
                 for(auto& val : v)
-                    prob(val.second);
+                    prob(TKmer(val.first), val.second);
             }
 
             Prob& prob;
@@ -592,31 +595,39 @@ namespace DeBruijn {
         const uint64_t* getPointer(const Node& node) { return m_graph_kmers.getPointer(node/2-1); }        
 
         // multithread safe way to set visited value; returns true if value was as expected before and has been successfully changed
-        // 1 is used for permanent holding; 2 is used for temporary holding
+        // 1 is used for permanent holding; 2 is used for temporary holding; 3 for multi contig
         bool SetVisited(const Node& node, uint8_t value=1, uint8_t expected=0) {
             return m_visited[node/2-1].Set(value, expected);
         }
+        void SetTempHolding(const Node& node) { SetVisited(node, 2, 1); }
+        void SetMultContig(const Node& node) { SetVisited(node, 3, 1); }
 
         bool ClearVisited(const Node& node) { // multithread safe way to clear visited value; returns true if value was set before
-            if(m_visited[node/2-1].Set(0, 1))
-                return true;
-            else
-                return m_visited[node/2-1].Set(0, 2);
+            return m_visited[node/2-1].Set(0, 1) || m_visited[node/2-1].Set(0, 2) || m_visited[node/2-1].Set(0, 3);
         }
 
         uint8_t IsVisited(const Node& node) const { // returns visited value
             return m_visited[node/2-1];
         }
+        bool IsMultContig(const Node& node) const { return IsVisited(node) == 3; }
 
         void ClearHoldings() { // clears temporary holdings
             for(auto& v : m_visited) 
                 if(v == 2) v = 0;            
+        }
+
+        void ClearAllVisited() { // clears all visited
+            for(auto& v : m_visited) 
+                v = 0;            
         }
         
         struct Successor {
             Successor(const Node& node, char c) : m_node(node), m_nt(c) {}
             Node m_node;
             char m_nt;
+            bool operator == (const Successor& other) const { return m_node == other.m_node; }
+            bool operator != (const Successor& other) const { return m_node != other.m_node; }
+            bool operator < (const Successor& other) const { return m_node < other.m_node; }
         };
         
         // Returns successors of a node 
@@ -701,8 +712,10 @@ namespace DeBruijn {
     public:
         CReadHolder(bool contains_paired) :  m_total_seq(0), m_front_shift(0), m_contains_paired(contains_paired) {};
 
-        // inserts read at the end 
-        void PushBack(const string& read) {
+        // inserts read at the end
+        //        void PushBack(const string& read) {
+        template <typename Container>
+        void PushBack(const Container& read) {
             int shift = (m_total_seq*2 + m_front_shift)%64;
             for(int i = (int)read.size()-1; i >= 0; --i) {  // put backward for kmer compatibility
                 if(shift == 0)
@@ -712,6 +725,22 @@ namespace DeBruijn {
             }
             m_read_length.push_back(read.size());
             m_total_seq += read.size();
+        }
+
+        template <typename RandomIterator>
+        void PushBack(RandomIterator begin, uint32_t len) {
+            int shift = (m_total_seq*2 + m_front_shift)%64;
+            for(RandomIterator it = begin+len-1; ; --it) {
+                if(shift == 0)
+                    m_storage.push_back(0);
+                m_storage.back() += ((find(bin2NT.begin(), bin2NT.end(),  *it) - bin2NT.begin()) << shift);
+                shift = (shift+2)%64;
+
+                if(it == begin)
+                    break;
+            }
+            m_read_length.push_back(len);
+            m_total_seq += len;
         }
 
         // insert sequence from other container
@@ -977,6 +1006,393 @@ namespace DeBruijn {
         int m_front_shift;
         bool m_contains_paired;
     };
+
+    typedef deque<char> TVariation;
+    struct SeqInterval {
+        SeqInterval(TVariation::iterator b, TVariation::iterator e) : begin(b), end(e) {}
+        bool operator<(const SeqInterval& other) const { return lexicographical_compare(begin, end, other.begin, other.end); }
+        bool operator==(const SeqInterval& other) const { return equal(begin, end, other.begin); }
+        
+        TVariation::iterator begin;
+        TVariation::iterator end;
+    };
+    typedef forward_list<TVariation> TLocalVariants;
+    class CContigSequence : public deque<TLocalVariants> {
+    public:
+        int m_left_repeat = 0;     // number of bases which COULD be in repeat
+        int m_right_repeat = 0;    // number of bases which COULD be in repeat 
+        bool m_circular = false;
+
+        int VariantsNumber(int chunk) { return distance((*this)[chunk].begin(), (*this)[chunk].end()); }
+        bool UniqueChunk(int chunk) const {
+            auto it = (*this)[chunk].begin();
+            return (it != (*this)[chunk].end() && ++it == (*this)[chunk].end());
+        }
+        bool VariableChunk(int chunk) const {
+            auto it = (*this)[chunk].begin();
+            return (it != (*this)[chunk].end() && ++it != (*this)[chunk].end());
+        }
+        size_t ChunkLenMax(int chunk) const {
+            size_t mx = 0;
+            for(auto& seq : (*this)[chunk])
+                mx = max(mx, seq.size());
+            return mx;
+        }
+        size_t ChunkLenMin(int chunk) const {
+            size_t mn = numeric_limits<size_t>::max();
+            for(auto& seq : (*this)[chunk])
+                mn = min(mn, seq.size());            
+            return mn;
+        }
+        size_t LenMax() const { 
+            size_t len = 0;
+            for(unsigned chunk = 0; chunk < size(); ++chunk)
+                len += ChunkLenMax(chunk);
+            return len; 
+        }
+        size_t LenMin() const { 
+            size_t len = 0;
+            for(unsigned chunk = 0; chunk < size(); ++chunk)
+                len += ChunkLenMin(chunk);
+            return len; 
+        }
+
+        void InsertNewVariant() { back().emplace_front(); }
+        void InsertNewVariant(char c) { back().emplace_front(1, c); }
+        template <typename ForwardIterator>
+        void InsertNewVariant(ForwardIterator b, ForwardIterator e) { back().emplace_front(b, e); }
+
+        void ExtendTopVariant(char c) { back().front().push_back(c); }
+        template <typename ForwardIterator>
+        void ExtendTopVariant(ForwardIterator b, ForwardIterator e) { back().front().insert(back().front().end(), b, e); }
+
+        void InsertNewChunk() { emplace_back(); }
+        template <typename ForwardIterator>
+        void InsertNewChunk(ForwardIterator b, ForwardIterator e) {
+            InsertNewChunk();
+            InsertNewVariant(b, e);
+        }
+
+        void StabilizeVariantsOrder() {
+            for(auto& chunk : *this) 
+                chunk.sort();
+        }
+        void ReverseComplement() {
+            std::swap(m_left_repeat, m_right_repeat);
+            reverse(begin(), end());
+            for(auto& chunk : *this) {
+                for(auto& seq : chunk)
+                    ReverseComplementSeq(seq.begin(), seq.end());
+            }
+            StabilizeVariantsOrder();
+        }
+        void RemoveShortUniqIntervals(int min_uniq_len) {
+            if(size() >= 5) {
+                for(unsigned i = 2; i < size()-2; ) {
+                    if((int)ChunkLenMax(i) < min_uniq_len) {
+                        auto& new_chunk = *insert(begin()+i+2, TLocalVariants()); // empty chunk
+                        for(auto& var1 : (*this)[i-1]) {
+                            for(auto& var2 : (*this)[i+1]) {
+                                new_chunk.push_front(var1);
+                                auto& seq = new_chunk.front();
+                                seq.insert(seq.end(), (*this)[i].front().begin(), (*this)[i].front().end());
+                                seq.insert(seq.end(), var2.begin(), var2.end());
+                            }
+                        }
+                        erase(begin()+i-1, begin()+i+2);
+                    } else {
+                        i += 2;
+                    }
+                }
+            }
+        }
+        void ContractVariableIntervals() {
+            if(size() > 2) {
+                for(unsigned i = 1; i < size()-1; ++i) {
+                    if(VariableChunk(i)) {
+                        bool all_same = true;
+                        while(all_same) {
+                            for(auto& seq : (*this)[i]) {
+                                if(seq.empty() || seq.front() != (*this)[i].front().front()) {
+                                    all_same = false;
+                                    break;
+                                }
+                            }
+                            if(all_same) {
+                                (*this)[i-1].front().push_back((*this)[i].front().front());
+                                for(auto& seq : (*this)[i])
+                                    seq.pop_front();
+                            }
+                        }
+                        all_same = true;
+                        while(all_same) {
+                            for(auto& seq : (*this)[i]) {
+                                if(seq.empty() || seq.back() != (*this)[i].front().back()) {
+                                    all_same = false;
+                                    break;
+                                }
+                            }
+                            if(all_same) {
+                                (*this)[i+1].front().push_front((*this)[i].front().back());
+                                for(auto& seq : (*this)[i])
+                                    seq.pop_back();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bool AllSameL(int chunk, int shift) const {
+            if(!VariableChunk(chunk))
+                return false;
+            
+            auto Symbol_i = [](const TVariation& seq, const TVariation& next, unsigned i) {
+                if(i < seq.size())
+                    return seq[i];
+                else if(i < seq.size()+next.size()-1 )  // -1 - we don't want to absorb all next
+                    return next[i-seq.size()];
+                else
+                    return char(0);
+            };
+
+            char symb = Symbol_i((*this)[chunk].front(), (*this)[chunk+1].front(), shift);
+            if(!symb)
+                return false;
+
+            auto it = (*this)[chunk].begin();
+            for(++it; it != (*this)[chunk].end(); ++it) {
+                if(Symbol_i(*it, (*this)[chunk+1].front(), shift) != symb)
+                    return false;
+            }
+           
+            return true;
+        }
+
+        bool AllSameR(int chunk, int shift) const {
+            if(!VariableChunk(chunk))
+                return false;
+            
+            auto Symbol_i = [](const TVariation& seq, const TVariation& prev, unsigned i) {
+                if(i < seq.size())
+                    return seq[seq.size()-1-i];
+                else if(i < seq.size()+prev.size()-1)  // -1 - we don't want to absorb all prev
+                    return prev[prev.size()+seq.size()-1-i];
+                else
+                    return char(0);
+            };
+            
+            char symb = Symbol_i((*this)[chunk].front(), (*this)[chunk-1].front(), shift);
+            if(!symb)
+                return false;
+
+            auto it = (*this)[chunk].begin();
+            for(++it; it != (*this)[chunk].end(); ++it) {
+                if(Symbol_i(*it, (*this)[chunk-1].front(), shift) != symb)
+                    return false;
+            }
+           
+            return true;
+        }
+        
+        
+        void IncludeRepeatsInVariableIntervals() {
+            for(unsigned chunk = 1; chunk < size()-1; chunk += 2) {
+                int min_len = ChunkLenMin(chunk);
+                for(int shift = 0; AllSameL(chunk, shift); ++shift) {
+                    if(shift >= min_len) {
+                        for(auto& seq : (*this)[chunk]) {
+                            seq.push_back((*this)[chunk+1].front().front());
+                        }
+                        (*this)[chunk+1].front().pop_front();
+                        ++min_len;
+                    }
+                }
+
+                for(int shift = 0; AllSameR(chunk, shift); ++shift) {
+                    if(shift >= min_len) {
+                        for(auto& seq : (*this)[chunk]) {
+                            seq.push_front((*this)[chunk-1].front().back());
+                        }
+                        (*this)[chunk-1].front().pop_back();
+                    }
+                }
+            }
+        }
+               
+    };
+
+    typedef list<CContigSequence> TContigSequenceList;
+
+    void CombineSimilarContigs(TContigSequenceList& contigs) {
+        int match = 1;
+        int mismatch = 2;
+        int gap_open = 5;
+        int gap_extend = 2;
+        SMatrix delta(match, mismatch);
+
+        list<string> all_variants;
+        for(auto& contig : contigs) {
+            list<string> variants;
+            for(auto& seq : contig[0])
+                variants.emplace_back(seq.begin(), seq.end());
+            for(unsigned l = 1; l < contig.size(); ++l) {
+                if(contig.UniqueChunk(l)) {
+                    for(auto& seq : variants)
+                        seq.insert(seq.end(), contig[l].front().begin(), contig[l].front().end());
+                } else {
+                    list<string> new_variants;
+                    for(auto& seq : variants) {
+                        for(auto& var : contig[l]) {
+                            new_variants.push_back(seq);
+                            new_variants.back().insert(new_variants.back().end(), var.begin(), var.end());
+                        }
+                    }
+                    swap(variants, new_variants);
+                }
+            }
+            all_variants.splice(all_variants.end(), variants);
+        }
+        all_variants.sort([](const string& a, const string& b) { return a.size() > b.size(); });
+
+        list<list<TVariation>> all_groups;
+        while(!all_variants.empty()) {
+            string& query = all_variants.front();
+            list<TVariation> group;
+            auto it_loop = all_variants.begin();
+            for(++it_loop; it_loop != all_variants.end(); ) {
+                auto it = it_loop++;
+                string& subject = *it;
+                if(query.size()-subject.size() > 0.1*query.size())
+                    continue;
+
+                //                CCigar cigar = LclAlign(query.c_str(), query.size(), subject.c_str(), subject.size(), gap_open, gap_extend, delta.matrix);
+                CCigar cigar = BandAlign(query.c_str(), query.size(), subject.c_str(), subject.size(), gap_open, gap_extend, delta.matrix, 0.1*query.size());
+                if(cigar.QueryRange().first != 0 || cigar.QueryRange().second != (int)query.size()-1)
+                    continue;
+                if(cigar.SubjectRange().first != 0 || cigar.SubjectRange().second != (int)subject.size()-1)
+                    continue;
+                if(cigar.Matches(query.c_str(), subject.c_str()) < 0.9*query.size())
+                    continue;
+
+                TCharAlign align = cigar.ToAlign(query.c_str(), subject.c_str());
+                if(group.empty()) {
+                    group.emplace_back(align.first.begin(), align.first.end());
+                    group.emplace_back(align.second.begin(), align.second.end());
+                } else {
+                    TVariation& master = group.front();
+                    int mpos = 0;
+                    TVariation new_member;
+                    for(unsigned i = 0; i < align.first.size(); ++i) {
+                        if(align.first[i] == master[mpos]) {
+                            new_member.push_back(align.second[i]);
+                            ++mpos;
+                        } else if(master[mpos] == '-') {
+                            while(master[mpos] == '-') {
+                                new_member.push_back('-');
+                                ++mpos;
+                            }
+                            new_member.push_back(align.second[i]);
+                            ++mpos;                                                       
+                        } else {  // align.first[i] == '-'
+                            for(TVariation& seq : group)
+                                seq.insert(seq.begin()+mpos, '-');
+                            new_member.push_back(align.second[i]);
+                            ++mpos;
+                        }
+                    }
+                    group.push_back(new_member);
+                }
+                all_variants.erase(it);                
+            }
+            if(group.empty())
+                group.emplace_back(query.begin(), query.end());
+            all_groups.push_back(move(group));
+            all_variants.pop_front();
+        }
+
+        TContigSequenceList new_contigs;
+        for(auto& group : all_groups) {
+            if(group.size() == 1) {
+                new_contigs.push_back(CContigSequence());
+                new_contigs.back().InsertNewChunk(group.front().begin(), group.front().end());
+                continue;
+            } 
+
+            auto NextMismatch = [&](unsigned pos) {
+                for( ; pos < group.front().size(); ++pos) {
+                    for(auto& seq : group) {
+                        if(seq[pos] != group.front()[pos])
+                            return pos;
+                    }
+                }
+                return pos;
+            };
+            
+            CContigSequence combined_seq;
+            int min_uniq_len = 21;
+            for(unsigned mism = NextMismatch(0); mism < group.front().size(); mism = NextMismatch(0)) {
+                if(mism > 0) {
+                    combined_seq.InsertNewChunk(group.front().begin(), group.front().begin()+mism);
+                    for(auto& seq : group)
+                        seq.erase(seq.begin(), seq.begin()+mism);
+                }
+                for(unsigned len = 1; len <= group.front().size(); ) {
+                    unsigned next_mism = NextMismatch(len);
+                    if(next_mism >= len+min_uniq_len || next_mism == group.front().size()) {
+                        map<SeqInterval,set<SeqInterval>> varmap;
+                        for(auto& seq : group)
+                            varmap[SeqInterval(seq.begin(), seq.begin()+len)].emplace(seq.begin()+len, seq.end());
+                        bool all_same = true;
+                        for(auto it = varmap.begin(); all_same && ++it != varmap.end(); ) {
+                            if(varmap.begin()->second != it->second)
+                                all_same = false;
+                        }
+                        if(all_same) {
+                            combined_seq.InsertNewChunk(varmap.begin()->first.begin, varmap.begin()->first.end);
+                            for(auto it = varmap.begin(); ++it != varmap.end(); )
+                                combined_seq.InsertNewVariant(it->first.begin, it->first.end);
+                            for(auto& seq : group)
+                                seq.erase(seq.begin(), seq.begin()+len);
+                            group.sort();
+                            group.erase(unique(group.begin(),group.end()), group.end());
+                            break;
+                        }
+                    }
+                    len = next_mism+1;
+                }
+            }
+            if(!group.front().empty())
+                combined_seq.InsertNewChunk(group.front().begin(), group.front().end());
+
+            for(auto& chunk : combined_seq) {
+                for(auto& seq : chunk)
+                    seq.erase(remove(seq.begin(),seq.end(),'-'), seq.end());
+            }
+            
+            new_contigs.push_back(move(combined_seq));
+        }
+
+        swap(contigs, new_contigs);
+
+        /*
+
+        for(auto& contig : new_contigs) {
+            cerr << "Contig" << endl;
+            int num = 0;
+            for(auto& chunk : contig) {
+                cerr << "Chunk" << ++num << endl;
+                for(auto& seq : chunk) {
+                    for(char c : seq)
+                        cerr << c;
+                    cerr << endl;
+                }
+            }
+        }
+
+        exit(0);
+        */
+    }    
 
     typedef list<string> TStrList;
     typedef deque<CDBGraph::Successor> TBases;

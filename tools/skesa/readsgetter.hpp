@@ -27,12 +27,6 @@
 #ifndef _ReadsGetter_
 #define _ReadsGetter_
 
-#include <ngs/ncbi/NGS.hpp>
-#include <ngs/ErrorMsg.hpp>
-#include <ngs/ReadCollection.hpp>
-#include <ngs/ReadIterator.hpp>
-#include <ngs/Read.hpp>
-
 #include <boost/iostreams/device/file.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/seek.hpp>
@@ -40,6 +34,8 @@
 #include <boost/regex.hpp>
 
 #include "DBGraph.hpp"
+#include "counter.hpp"
+#include "ngs_includes.hpp"
 
 namespace DeBruijn {
 
@@ -99,12 +95,140 @@ namespace DeBruijn {
             else
                 cerr << "Total reads: " << total << endl;
             cerr << "Reads acquired in " << timer.Elapsed();
+
+            m_kmer_for_adapters = 19;
+            m_adapters = CKmerMap<int>(m_kmer_for_adapters);   
         }
         virtual ~CReadsGetter() {}
 
         list<array<CReadHolder,2>>& Reads() { return m_reads; }
+
+        void ClipAdaptersFromReads(double vector_percent, int memory) {        
+            CStopWatch timer;
+            timer.Restart();
+
+            int64_t total_reads = 0;
+            int64_t total_seq = 0;
+            for(const auto& reads : m_reads) {
+                total_reads += reads[0].ReadNum()+reads[1].ReadNum(); 
+                total_seq += reads[0].TotalSeq()+reads[1].TotalSeq();
+            }
+            int max_count = vector_percent *total_reads;
+
+            int num = 0;
+            {
+                int min_count_for_adapters = 100;
+                int64_t GB = 1000000000;
+                CKmerCounter kmer_counter(m_reads, m_kmer_for_adapters, min_count_for_adapters, true, GB*memory, m_ncores);
+                TKmerCount& kmers = kmer_counter.Kmers(); 
+
+                for(size_t index = 0; index < kmers.Size(); ++index) {
+                    pair<TKmer,size_t> kcount = kmers.GetKmerCount(index);
+                    int count = kcount.second;  // clips out upper portion      
+                    if(count > max_count) {
+                        m_adapters[kcount.first] = count;
+                        m_adapters[revcomp(kcount.first, m_kmer_for_adapters)] = count;
+                        //                        cerr << "Adapter: " << kcount.first.toString(m_kmer_for_adapters) << " " << count << endl;
+                        ++num;
+                    }
+                }
+            }            
+
+            if(m_adapters.Size() > 0) {
+                list<function<void()>> jobs;
+                for(auto& reads : m_reads)
+                    jobs.push_back(bind(&CReadsGetter::ClipAdaptersFromReadsJob, this, ref(reads)));
+                RunThreads(m_ncores, jobs);
+            }
+
+            int64_t total_reads_after = 0;
+            int64_t total_seq_after = 0;
+            for(const auto& reads : m_reads) {
+                total_reads_after += reads[0].ReadNum()+reads[1].ReadNum(); 
+                total_seq_after+= reads[0].TotalSeq()+reads[1].TotalSeq();
+            }
+
+            cerr << "Adapters clipped in " << timer.Elapsed();                                               
+            cerr << "Adapters: " << num << " Reads before: " << total_reads << " Sequence before: " << total_seq << " Reads after: " << total_reads_after << " Sequence after: " << total_seq_after << endl;
+        }
+
+        CKmerMap<int>& Adapters() { return m_adapters; }
     
     private:
+
+        // adapter position in read; -1 if not found
+        int FindAdapterInRead(const CReadHolder::string_iterator& is) {
+            int kmer_len = m_adapters.KmerLen();
+            int rlen = is.ReadLen();
+            if(rlen < kmer_len)
+                return -1;
+                
+            int knum = rlen-kmer_len+1;
+            CReadHolder::kmer_iterator ik = is.KmersForRead(kmer_len);
+            ik += knum-1; // points         to first kmer
+            int pos = 0;
+            for( ; knum > 0; --knum, ik += -1, ++pos) {
+                if(m_adapters.Find(*ik) != nullptr)
+                    return pos;
+            }
+
+            return -1;                
+        }
+
+        void ClipAdaptersFromReadsJob(array<CReadHolder,2>& reads) {
+            array<CReadHolder,2> cleaned_reads{true, false};
+
+            {
+                CReadHolder::string_iterator is1 = reads[0].sbegin();
+                CReadHolder::string_iterator is2 = reads[0].sbegin();
+                ++is2;
+                for( ; is2 != reads[0].send(); ++is1, ++is1, ++is2, ++is2) {
+                    int p1 = FindAdapterInRead(is1);
+                    int p2 = FindAdapterInRead(is2);
+                    if(p1 < 0 && p2 < 0) {              // no adapters      
+                        cleaned_reads[0].PushBack(is1);
+                        cleaned_reads[0].PushBack(is2);                                 
+                    } else if(p1 == 0 && p2 == 0) {     // both start from adapter      
+                        continue;
+                    } else if(p1 == 0) {                // first starts from adapter        
+                        if(p2 < 0)
+                            cleaned_reads[1].PushBack(is2);
+                        else
+                            cleaned_reads[1].PushBack((*is2).substr(0, p2));
+                    } else if(p2 == 0) {                // second starts from adapter       
+                        if(p1 < 0)
+                            cleaned_reads[1].PushBack(is1); 
+                        else
+                            cleaned_reads[1].PushBack((*is1).substr(0, p1));
+                    } else {                            // some clipping but keep both      
+                        if(p1 < 0)
+                            cleaned_reads[0].PushBack(is1);
+                        else 
+                            cleaned_reads[0].PushBack((*is1).substr(0, p1));
+                        
+                        if(p2 < 0)
+                            cleaned_reads[0].PushBack(is2);
+                        else 
+                            cleaned_reads[0].PushBack((*is2).substr(0, p2));
+                    }
+                }
+            }
+
+            {
+                for(CReadHolder::string_iterator is = reads[1].sbegin() ;is != reads[1].send(); ++is) {
+                    int p = FindAdapterInRead(is);
+                    if(p < 0)
+                        cleaned_reads[1].PushBack(is); 
+                    else if(p == 0)
+                        continue;
+                    else
+                        cleaned_reads[1].PushBack((*is).substr(0, p));
+                }
+            }
+
+            reads[0].Swap(cleaned_reads[0]);
+            reads[1].Swap(cleaned_reads[1]);
+        }
 
         // insert read from source_name to rholder
         static void InsertRead(string& read, CReadHolder& rholder, const string& source_name) {
@@ -130,7 +254,7 @@ namespace DeBruijn {
             if(best_len > 0) 
                 rholder.PushBack(read.substr(best_start, best_len));
             else
-                rholder.PushBack("");  // keep a bogus read for paired  
+                rholder.PushBack(string());  // keep a bogus read for paired  
         }
 
         typedef tuple<string,size_t,size_t> TSlice;
@@ -377,6 +501,8 @@ namespace DeBruijn {
         bool m_usepairedends;
         bool m_gzipped;
         list<array<CReadHolder,2>> m_reads;
+        int m_kmer_for_adapters;
+        CKmerMap<int> m_adapters;   
     };
 
 }; // namespace

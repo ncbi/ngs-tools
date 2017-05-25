@@ -116,6 +116,14 @@ public:
     }
     IntegerTemplate(const std::string& kmer) : IntegerTemplate(kmer.begin(), kmer.end()) {}
 
+    //TODO remove duplication
+    IntegerTemplate(std::deque<char>::const_iterator begin, std::deque<char>::const_iterator end) : IntegerTemplate(end-begin, 0)  {
+        for(auto i = begin; i != end; ++i) {
+            *this = (*this) << 2;
+            *this = *this + (std::find(bin2NT.begin(), bin2NT.end(), *i) - bin2NT.begin());
+        }
+    }
+
     /**Construct from a different size IntegerTemplate
        Will clip (or add) extra nucs on the LEFT of the string
     */

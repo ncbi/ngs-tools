@@ -36,19 +36,158 @@
 using namespace std;
 namespace DeBruijn {
 
+    class CCentinel {
+    public:
+        CCentinel(size_t size) { m_centinel.resize(size, 0); }
+        void GrabBucket(size_t index) {            
+            while(!m_centinel[index].Set(1, 0));
+        }
+        void ReleaseBucket(size_t index) { 
+            m_centinel[index] = 0;
+        }
+    protected:
+        vector<SAtomic<uint8_t>> m_centinel;
+    };
+
+    //hash CANNOT CONTAIN default value of MappedValue
+    template <typename MappedValue, typename Inserter> class CKmerHashMapSimple : public CCentinel {
+    public:
+        CKmerHashMapSimple(int kmer_len, size_t size) : CCentinel(size), m_table_size(size), m_kmer_len(kmer_len) {
+            m_hash_table = CreateVariant<TKmerAndV<MappedValue>, TLargeIntVecV, MappedValue>((m_kmer_len+31)/32);
+            apply_visitor(resize(m_table_size), m_hash_table);
+        }
+        int KmerLen() const { return m_kmer_len; }
+        size_t TableSize() const { return m_table_size; }
+        // returns false if table is full
+        bool Insert(const TKmer& kmer, const Inserter& inserter) { return apply_visitor(insert(kmer, inserter, this), m_hash_table); }
+        MappedValue* Find(const TKmer& kmer) { return apply_visitor(find(kmer, this), m_hash_table); }
+    
+    private:
+        //returns pointer to mapped value if exists, otherwise nullptr
+        struct find : public boost::static_visitor<MappedValue*> {
+            find(const TKmer& k, CKmerHashMapSimple* p) : kmer(k), callerp(p) {}
+            template <typename T> MappedValue* operator()(T& v) const {
+                typedef typename  T::value_type::first_type large_t;
+                const large_t& k = kmer.get<large_t>();
+                size_t index = kmer.oahash()%callerp->m_table_size;
+                for(size_t step = 0; step < callerp->m_table_size; ++step, index = (index+1)%callerp->m_table_size) {
+                    auto& bucket = v[index];
+                    if(bucket.second == MappedValue())   // empty
+                        return nullptr;
+                    else if(bucket.first == k)
+                        return &bucket.second;
+                }
+                return nullptr;
+            } 
+            const TKmer& kmer;
+            CKmerHashMapSimple* callerp;
+        };
+        struct insert : public boost::static_visitor<bool> {
+            insert(const TKmer& k, const Inserter& i, CKmerHashMapSimple* p) : kmer(k), inserter(i), callerp(p) {}
+            template <typename T> bool operator()(T& v) const {
+                typedef typename  T::value_type::first_type large_t;
+                const large_t& k = kmer.get<large_t>();
+                size_t index = kmer.oahash()%callerp->m_table_size;
+                for(size_t step = 0; step < callerp->m_table_size; ++step, index = (index+1)%callerp->m_table_size) {
+                    auto& bucket = v[index];
+                    callerp->GrabBucket(index);
+                    if(bucket.second == MappedValue()) {  // empty
+                        bucket.first = k;
+                        inserter(bucket.second);
+                        callerp->ReleaseBucket(index);
+                        return true;
+                    } else if(bucket.first == k) {        // kmer match
+                        inserter(bucket.second);
+                        callerp->ReleaseBucket(index);
+                        return true;
+                    }                        
+                    callerp->ReleaseBucket(index);
+                }
+
+                return false;
+            }
+
+            const TKmer& kmer;
+            const Inserter& inserter;
+            CKmerHashMapSimple* callerp;
+        };
+        struct resize : public boost::static_visitor<> { 
+            resize(size_t s) : size(s) {}
+            template <typename T> void operator()(T& v) const { v.resize(size); }            
+            size_t size;
+        };
+
+        TKmerAndV<MappedValue> m_hash_table;
+        size_t m_table_size;
+        int m_kmer_len;
+    };
+
+    //hash CANNOT CONTAIN default value of V
     template <typename V> class CKmerHashMap {
     public:
         CKmerHashMap(int kmer_len, size_t size) : m_table_size(size), m_kmer_len(kmer_len) {
             m_hash_table = CreateVariant<TKmerHashTable<V>, TOneWayListVec, V>((m_kmer_len+31)/32);
             apply_visitor(resize(m_table_size), m_hash_table);
-        } 
+        }
+        //OK to use in multiple threads if noone changes the hash
+        const V* Find(const TKmer& kmer) const { return apply_visitor(find(kmer), m_hash_table); }
+        // MUST be sandwiched between GrabBucket/ReleaseBucket
+        V* FindOrInsertInBucket(const TKmer& kmer, size_t index) {return apply_visitor(find_or_insert(kmer,index), m_hash_table); }
         int KmerLen() const { return m_kmer_len; }
         size_t TableSize() const { return m_table_size; }
 
     protected:
+        // if kmer already included returns pointer to mapped value
+        // if not inserts a new entry and returns pointer to default value
+        // caller MUST update the mapped value
+        struct find_or_insert : public boost::static_visitor<V*> {
+            find_or_insert(const TKmer& k, size_t i) : kmer(k), index(i) {}
+            template <typename T> V* operator()(T& v) const {
+                typedef typename  T::value_type::large_t large_t;
+                const large_t& k = kmer.get<large_t>();
+                auto& bucket = v[index];
+                if(bucket.m_data.second == V()) {
+                    bucket.m_data.first = k;
+                    return &bucket.m_data.second;
+                } else if(bucket.m_data.first == k) {
+                    return &bucket.m_data.second;
+                }
+
+                for(auto& elem : bucket.m_extra) {
+                    if(elem.first == k)
+                        return &elem.second;
+                }
+
+                bucket.m_extra.emplace_front(k, V());
+                return &bucket.m_extra.front().second;                
+            }
+            const TKmer& kmer;
+            size_t index;
+        };
+        //returns pointer to mapped value if exists, otherwise nullptr
+        struct find : public boost::static_visitor<const V*> {
+            find(const TKmer& k) : kmer(k) {}
+            template <typename T> const V* operator()(T& v) const {
+                typedef typename  T::value_type::large_t large_t;
+                auto& bucket = v[kmer.oahash()%v.size()];
+                if(bucket.m_data.second == V())
+                    return nullptr;
+                const large_t& k = kmer.get<large_t>();
+                if(bucket.m_data.first == k)
+                    return &bucket.m_data.second;
+                for(auto& elem : bucket.m_extra) {
+                    if(elem.first == k)
+                        return &elem.second;
+                }
+                return nullptr;            
+            } 
+            const TKmer& kmer;
+        };
+
+
         // returns position of element if found
         template <typename Bucket, typename element_t = typename Bucket::element_t>
-        static element_t* find(Bucket& bucket, const TKmer& kmer) {
+        static element_t* find_in_bucket(Bucket& bucket, const TKmer& kmer) {
             typedef typename Bucket::large_t large_t;
 
             if(bucket.m_data.second == V())
@@ -123,17 +262,10 @@ namespace DeBruijn {
         uint32_t m_count;
         uint32_t m_plus_count;
     };
-    class CKmerHashCount : public CKmerHashMap<SKmerCounter> {
+    class CKmerHashCount : public CKmerHashMap<SKmerCounter>, CCentinel {
     public:
-        CKmerHashCount(int kmer_len, size_t size) : CKmerHashMap(kmer_len, size) {
-            m_centinel.resize(m_table_size, 0);
-        }
-        void GrabBucket(size_t index) {            
-            while(!m_centinel[index].Set(1, 0));
-        }
-        void ReleaseBucket(size_t index) { 
-            m_centinel[index] = 0;
-        }
+        CKmerHashCount(int kmer_len, size_t size) : CKmerHashMap(kmer_len, size), CCentinel(size) {}
+
         // returnts true if kmer was new
         bool UpdateCount(const TKmer& kmer, bool is_plus) {
             size_t index = kmer.oahash()%m_table_size;
@@ -158,7 +290,6 @@ namespace DeBruijn {
     private:
         struct info : public boost::static_visitor<> {
             template <typename T> void operator()(T& v) const { 
-                typedef typename T::value_type::element_t element_t;
                 map<int,int> numbers;
                 for(auto& bucket : v) {
                     int num = distance(bucket.m_extra.begin(), bucket.m_extra.end());
@@ -255,8 +386,6 @@ namespace DeBruijn {
             size_t index;
             bool is_plus;
         };
-
-        vector<SAtomic<uint8_t>> m_centinel;
     };
 
 
@@ -280,7 +409,8 @@ namespace DeBruijn {
             int hash_num = ceil(log(2.)*bloom_table_size/estimated_kmer_num);
             cerr << "Bloom table size: " << bloom_table_size << " Hash num:" << hash_num << endl;
 
-            CConcurrentBlockedBloomFilter bloom(bloom_table_size, 2, 512, hash_num);
+            //REMOVE            CConcurrentBlockedBloomFilter bloom(bloom_table_size, 2, 512, hash_num);
+            CConcurrentBlockedBloomFilter bloom(bloom_table_size, 8, 512, hash_num);
             {
                 list<function<void()>> jobs;
                 for(auto& job_input : reads) {

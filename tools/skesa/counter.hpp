@@ -65,8 +65,7 @@ namespace DeBruijn {
             int max_cycles = 10;  // maximum cycles allowed
             int64_t mbuf = 2*GB;  // memory buffer for allocation uncertainity
             if(mem_needed >= max_cycles*(mem_available-mbuf)) {
-                double extra_mem = mem_needed/double(max_cycles)+mbuf-mem_available;
-                throw runtime_error("Provide at least "+to_string(ceil(extra_mem/GB))+" GB of additional memory (at least 16 GB is recommended for 20x coverage of genomes of size 5 Mb)");
+                throw runtime_error("Memory provided is insufficient to do runs in 10 cycles for the read coverage. We find that 16 Gb for 20x coverage of a 5 Mb genome is usually sufficient");
             }
             int cycles = ceil(double(mem_needed)/(mem_available-mbuf));
 

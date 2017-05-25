@@ -28,7 +28,7 @@
 #include "glb_align.hpp"
 #include <sstream>
 #include <limits>
-#include <cmath>
+#include <iostream>
 
 using namespace std;
 namespace DeBruijn {
@@ -48,6 +48,12 @@ void CCigar::PushFront(const SElement& el) {
     else
         m_elements.front().m_len += el.m_len;
 }
+
+void CCigar::PushFront(const CCigar other_cigar) {
+    for(auto it = other_cigar.m_elements.rbegin(); it != other_cigar.m_elements.rend(); ++it)
+        PushFront(*it);
+}
+
 
 void CCigar::PushBack(const SElement& el) {
     if(el.m_type == 'M') {
@@ -246,6 +252,38 @@ CCigar BackTrack(int ia, int ib, char* m, int nb) {
     return track;
 }
 
+CCigar BackTrackBand(int ia, int ib, char* m, int band) {
+    CCigar track(ia, ib);
+    while((ia >= 0 || ib >= 0) && !(*m&Zero)) {
+        if(*m&Agap) {
+            int len = 1;
+            while(!(*m&Astart)) {
+                ++len;
+                --m;
+            }
+            --m;
+            ib -= len;
+            track.PushFront(CCigar::SElement(len,'D'));
+        } else if(*m&Bgap) {
+            int len = 1;
+            while(!(*m&Bstart)) {
+                ++len;
+                m -= band+1;
+            }
+            m -= band+1;
+            ia -= len;
+            track.PushFront(CCigar::SElement(len,'I'));
+        } else {
+            track.PushFront(CCigar::SElement(1,'M'));
+            --ia;
+            --ib;
+            m -= band+2;
+        }
+    }
+
+    return track;
+}
+
 class CScore {
 public:
     // we keep score and tiebreaker in int64 integer
@@ -268,11 +306,17 @@ private:
 };
 
 struct SRawMemory {
-    SRawMemory(int na, int nb) {
+    SRawMemory(size_t na, size_t nb) {
         s = new CScore[nb+1];
         sm = new CScore[nb+1];
         gapb = new CScore[nb+1];
         mtrx = new  char[(na+1)*(nb+1)];
+    }
+    SRawMemory(size_t na, size_t nb, size_t band) {
+        s = new CScore[nb+1];
+        sm = new CScore[nb+1];
+        gapb = new CScore[nb+1];
+        mtrx = new  char[(na+1)*(band+2)]; // one extra element on each side
     }
     ~SRawMemory() {
         delete[] s;
@@ -681,6 +725,98 @@ CCigar VariBandAlign(const  char* a, int na, const  char*  b, int nb, int rho, i
     return BackTrack(ia, ib, m, nb);
 }
 
+CCigar BandAlign(const  char* a, int na, const  char*  b, int nb, int rho, int sigma, const char delta[256][256], int band) {
+    //	rho - new gap penalty (one base gap rho+sigma)
+    // sigma - extension penalty
+
+    band = 2*(band/2)+1;   // odd
+
+    SRawMemory memory(na, nb, band);
+	CScore* s = memory.s;       // best scores in current a-raw
+	CScore* sm = memory.sm;     // best scores in previous a-raw
+	CScore* gapb = memory.gapb; // best score with b-gap
+    char* mtrx = memory.mtrx;   // backtracking info (Astart/Bstart gap start, Agap/Bgap best score has gap and should be backtracked to Asrt/Bsart; Zero stop bactracking)
+
+    CScore rsa(-rho-sigma, 0);   // new gapa
+    CScore rsb(-rho-sigma, 1);   // new gapb  
+
+    for(int i = 0; i <= nb; ++i) {
+        s[i] = CScore();
+        sm[i] = CScore();
+        gapb[i] = CScore();
+    }
+    for(int i = 0; i < band+2; ++i)
+        mtrx[i] = Zero;    
+
+    CScore max_score;
+    char* max_ptr = mtrx;
+	
+	for(int i = 0; i < min(na, nb+band/2); ++i) {
+		int ai = a[i];
+		const char* matrix = delta[ai];
+        int bleft = max(0, i-band/2);
+        int bright = i+band/2;
+        char* m = mtrx+size_t(i+1)*(band+2)+band-(bright-bleft+1);
+        *m = Zero;
+        bright = min(bright, nb-1);
+
+		CScore gapa;
+        CScore* sp = s+bleft;
+        *sp = CScore();
+		for(int j = bleft; j <= bright; ) {
+			*(++m) = 0;
+			CScore ss = sm[j]+CScore(matrix[(int)b[j]], 1);  // diagonal extension
+
+            gapa += CScore(-sigma, 0);  // gapa extension
+			if(*sp+rsa > gapa) {
+				gapa = *sp+rsa;
+				*m |= Astart;
+			}
+			
+			CScore& gapbj = gapb[++j];
+			gapbj += CScore(-sigma, 1); // gapb extension
+			if(sm[j]+rsb > gapbj) {
+				gapbj = sm[j]+rsb;
+				*m |= Bstart;
+			}
+			 
+			if(gapa > gapbj) {
+				if(ss > gapa) {
+					*(++sp) = ss;
+                    if(ss > max_score) {
+                        max_score = ss;
+                        max_ptr = m;
+                    }
+				} else {
+					*(++sp) = gapa;
+					*m |= Agap;
+				}
+			} else {
+				if(ss > gapbj) {
+					*(++sp) = ss;
+                    if(ss > max_score) {
+                        max_score = ss;
+                        max_ptr = m;
+                    }
+				} else {
+					*(++sp) = gapbj;
+					*m |= Bgap;
+				}
+			}
+            if(sp->Score() <= 0) {
+                *sp = CScore();
+                *m |= Zero;  
+            }
+		}
+        *(++m) = Zero;
+		swap(sm,s);
+	}
+  
+    int ia = (max_ptr-mtrx)/(band+2)-1;
+    int ib = (max_ptr-mtrx)%(band+2)-1+ia-band/2;
+    return BackTrackBand(ia, ib, max_ptr, band);
+}
+
 
 SMatrix::SMatrix(int match, int mismatch) { // matrix for DNA
 
@@ -741,28 +877,6 @@ SMatrix::SMatrix() { // matrix for proteins
             matrix[(int)tolower(c)][(int)d] = score;
         }
     }
-}
-
-double Entropy(const string& seq) {
-    int length = seq.size();
-    if(length == 0)
-        return 0;
-    double tA = 1.e-8;
-    double tC = 1.e-8;
-    double tG = 1.e-8;
-    double tT = 1.e-8;
-    for(char c : seq) {
-        switch(c) {
-        case 'A': tA += 1; break;
-        case 'C': tC += 1; break;
-        case 'G': tG += 1; break;
-        case 'T': tT += 1; break;
-        default: break;
-        }
-    }
-    double entropy = -(tA*log(tA/length)+tC*log(tC/length)+tG*log(tG/length)+tT*log(tT/length))/(length*log(4.));
-    
-    return entropy;
 }
 
 }; // namespace

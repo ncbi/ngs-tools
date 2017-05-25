@@ -41,14 +41,19 @@ namespace DeBruijn {
 
 #define MaxPrec 16  // kmer up to 512
 
+    template<template<int, typename...> class BoundedType, typename... V> 
+    using BoostVariant = boost::variant<BoundedType<1,V...>,  BoundedType<2,V...>,  BoundedType<3,V...>,  BoundedType<4,V...>,
+                                        BoundedType<5,V...>,  BoundedType<6,V...>,  BoundedType<7,V...>,  BoundedType<8,V...>, 
+                                        BoundedType<9,V...>,  BoundedType<10,V...>, BoundedType<11,V...>, BoundedType<12,V...>,
+                                        BoundedType<13,V...>, BoundedType<14,V...>, BoundedType<15,V...>, BoundedType<16,V...>>;
+
     // for TKmer
-    typedef boost::variant<LargeInt<1>,LargeInt<2>,LargeInt<3>,LargeInt<4>,LargeInt<5>,LargeInt<6>,LargeInt<7>,LargeInt<8>,
-                           LargeInt<9>,LargeInt<10>,LargeInt<11>,LargeInt<12>,LargeInt<13>,LargeInt<14>,LargeInt<15>,LargeInt<16>> TLargeIntN;    
+    typedef BoostVariant<LargeInt> TLargeIntN;
+
 
     // for TKmerCount
     template<int N> using TLargeIntVec = vector<pair<LargeInt<N>,size_t>>;
-    typedef boost::variant<TLargeIntVec<1>,TLargeIntVec<2>,TLargeIntVec<3>,TLargeIntVec<4>,TLargeIntVec<5>,TLargeIntVec<6>,TLargeIntVec<7>,TLargeIntVec<8>,
-                           TLargeIntVec<9>,TLargeIntVec<10>,TLargeIntVec<11>,TLargeIntVec<12>,TLargeIntVec<13>,TLargeIntVec<14>,TLargeIntVec<15>,TLargeIntVec<16>> TKmerCountN;
+    typedef BoostVariant<TLargeIntVec> TKmerCountN;
         
     // for TKmerMap
     struct SKmerHash {
@@ -56,8 +61,7 @@ namespace DeBruijn {
         size_t operator() (const T& kmer) const { return kmer.oahash(); }
     };
     template<int N, class V> using TLargeIntMap = unordered_map<LargeInt<N>,V,SKmerHash>;
-    template<class V> using TKmerMapN =  boost::variant<TLargeIntMap<1,V>,TLargeIntMap<2,V>,TLargeIntMap<3,V>,TLargeIntMap<4,V>,TLargeIntMap<5,V>,TLargeIntMap<6,V>,TLargeIntMap<7,V>,TLargeIntMap<8,V>,
-                                                        TLargeIntMap<9,V>,TLargeIntMap<10,V>,TLargeIntMap<11,V>,TLargeIntMap<12,V>,TLargeIntMap<13,V>,TLargeIntMap<14,V>,TLargeIntMap<15,V>,TLargeIntMap<16,V>>;
+    template<class V> using TKmerMapN = BoostVariant<TLargeIntMap, V>;
 
     // for CKmerHashCount
     template<int N, class V>
@@ -70,8 +74,11 @@ namespace DeBruijn {
         list_t m_extra;
     };
     template<int N, class V> using TOneWayListVec = vector<SOneWayList<N,V>>;
-    template<class V> using TKmerHashTable = boost::variant<TOneWayListVec<1,V>,TOneWayListVec<2,V>,TOneWayListVec<3,V>,TOneWayListVec<4,V>,TOneWayListVec<5,V>,TOneWayListVec<6,V>,TOneWayListVec<7,V>,TOneWayListVec<8,V>,
-                                                            TOneWayListVec<9,V>,TOneWayListVec<10,V>,TOneWayListVec<11,V>,TOneWayListVec<12,V>,TOneWayListVec<13,V>,TOneWayListVec<14,V>,TOneWayListVec<15,V>,TOneWayListVec<16,V>>;
+    template<class V> using TKmerHashTable = BoostVariant<TOneWayListVec, V>;
+
+    // for CKmerHashMapSimple
+    template<int N, class V> using TLargeIntVecV = vector<pair<LargeInt<N>,V>>;
+    template<class V> using  TKmerAndV = BoostVariant<TLargeIntVecV, V>;
 
     
     // This variadic template could be used in construsctors of all boost::variants used in this code

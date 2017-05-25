@@ -75,7 +75,7 @@ public:
     };
     typedef map<string, SContigData> TContigs;
 
-    CGuidedAssembler(int kmer_len, int min_count, double fraction, int memory, int match, int mismatch, int gap_open, int gap_extend, int drop_off, int ncores, list<array<CReadHolder,2>>& raw_reads) : 
+    CGuidedAssembler(int kmer_len, int min_count, double fraction, int memory, int match, int mismatch, int gap_open, int gap_extend, int drop_off, int ncores, list<array<CReadHolder,2>>& raw_reads, ifstream& targets_in) : 
         m_kmer_len(kmer_len), m_match(match), m_mismatch(mismatch), m_gap_open(gap_open), m_gap_extend(gap_extend), m_drop_off(drop_off), m_delta(match, mismatch), 
         m_ncores(ncores), m_raw_reads(raw_reads) {
 
@@ -83,10 +83,10 @@ public:
         //read fasta
         {
             char c;
-            if(!(cin >> c) || c != '>')
+            if(!(targets_in >> c) || c != '>')
                 throw runtime_error("Invalid fasta file format for targets");
             string record;
-            while(getline(cin, record, '>')) {
+            while(getline(targets_in, record, '>')) {
                 size_t first_ret = min(record.size(),record.find('\n'));
                 if(first_ret == string::npos)
                     throw runtime_error("Invalid fasta file format for targets");
@@ -158,31 +158,6 @@ public:
         }
         cerr << "Assembling in " << timer.Elapsed();
 
-        //replace remaining SNPs by ambiguous symbols
-        timer.Restart();
-        {
-            map<int, list<pair<deque<char>,SContigData>>> len_contigs;
-            for(auto& rslt : m_rslts) {
-                const string& contig = rslt.first;
-                SContigData& info = rslt.second;
-                len_contigs[contig.size()].emplace_back(deque<char>(contig.begin(),contig.end()),info);
-            }
-            m_rslts.clear();
-            
-            list<function<void()>> jobs;
-            for(auto& len_group : len_contigs)
-                jobs.push_back(bind(&CGuidedAssembler::FindSNPsJob, this, ref(len_group.second)));
-            RunThreads(ncores, jobs);
-
-            for(auto& len_group : len_contigs) {
-                for(auto& mem : len_group.second) {
-                    string contig(mem.first.begin(), mem.first.end());
-                    m_rslts[contig] = mem.second;
-                }
-            }                
-        }
-        cerr << "Additional SNP detection in in " << timer.Elapsed();
-
         timer.Restart();
         {
             vector<SAtomic<uint8_t>> centinel;
@@ -216,6 +191,31 @@ public:
             }
         }
         cerr << "Clean contigs in " << timer.Elapsed();                
+
+        //replace remaining SNPs by ambiguous symbols
+        timer.Restart();
+        {
+            map<int, list<pair<deque<char>,SContigData>>> len_contigs;
+            for(auto& rslt : m_rslts) {
+                const string& contig = rslt.first;
+                SContigData& info = rslt.second;
+                len_contigs[contig.size()].emplace_back(deque<char>(contig.begin(),contig.end()),info);
+            }
+            m_rslts.clear();
+            
+            list<function<void()>> jobs;
+            for(auto& len_group : len_contigs)
+                jobs.push_back(bind(&CGuidedAssembler::FindSNPsJob, this, ref(len_group.second)));
+            RunThreads(ncores, jobs);
+
+            for(auto& len_group : len_contigs) {
+                for(auto& mem : len_group.second) {
+                    string contig(mem.first.begin(), mem.first.end());
+                    m_rslts[contig] = mem.second;
+                }
+            }                
+        }
+        cerr << "Additional SNP detection in in " << timer.Elapsed();
         
         timer.Restart();
         {
@@ -1404,21 +1404,43 @@ private:
         }
     }
 
-    pair<string, bool> ExtendToFirstFork(CDBGraph::Node node, unordered_set<CDBGraph::Node>& used_nodes, int direction) const {
+    pair<string, bool> ExtendToFirstFork(CDBGraph::Node node, unordered_set<size_t>& used_node_indexes) const {
         string s;
         while(true) {
-            vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
-            //            vector<CDBGraph::Successor> successors = m_graphp->GetNodeSuccessors(node);
-            //            m_graphdiggerp->FilterNeighbors(successors);
+            //            vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
+            vector<CDBGraph::Successor> successors = m_graphp->GetNodeSuccessors(node);
+            m_graphdiggerp->FilterNeighbors(successors, true);
             if(successors.empty())
                 return make_pair(s, true);                            
             if(successors.size() != 1)
-                return make_pair(s, false);                        
+                return make_pair(s, false);
+            CDBGraph::Node rev_node = CDBGraph::ReverseComplement(successors[0].m_node);
+            vector<CDBGraph::Successor> predecessors = m_graphp->GetNodeSuccessors(rev_node);
+            m_graphdiggerp->FilterNeighbors(predecessors, true);
+
+            if(predecessors.size() == 1 && 
+               predecessors[0].m_node == CDBGraph::ReverseComplement(node) &&
+               used_node_indexes.insert(successors[0].m_node/2).second) { // good extension
+
+                s.push_back(successors[0].m_nt);
+                node = successors[0].m_node;
+            } else {
+                s.erase(s.end()-min((int)s.size(), m_graphp->KmerLen()-1), s.end()); // clip kmer-1 (which go into repeat) if possible
+                return make_pair(s, predecessors.empty());
+            }
+            /*
+            if(predecessors.empty())
+                return make_pair(s, true);                            
+            if(predecessors.size() != 1 || predecessors[0].m_node != CDBGraph::ReverseComplement(node))
+                return make_pair(s, false);
+
             node = successors[0].m_node;
-            if(used_nodes.insert(direction > 0 ? node : m_graphp->ReverseComplement(node)).second)
+
+            if(used_node_indexes.insert(node/2).second) // insert index not node
                 s.push_back(successors[0].m_nt);
             else
-                return make_pair(s, false);            
+                return make_pair(s, false); 
+            */           
         }
     }
     void AssemblerJob(TContigs& rslts) {
@@ -1481,11 +1503,10 @@ private:
                 }
             }            
 
-            bool skip_target = false;
             TContigs rslts_for_target;
             int all_max_score = 0;
 
-            for(int dir = 0; dir < 2 && !skip_target; ++dir) {
+            for(int dir = 0; dir < 2; ++dir) {
                 unordered_map<CDBGraph::Node, int> target_kmers(initial_target_kmers);
                 while(!target_kmers.empty()) {
                     unordered_map<CDBGraph::Node, int>::iterator first_kmerp;
@@ -1504,6 +1525,9 @@ private:
                             kmer_score -= m_match+m_mismatch;
                     }
                     target_kmers.erase(first_kmerp);
+
+                    bool skip_kmer = false;
+
                     list<tuple<int,int,string>> left_extensions;
                     if(first_matching_kmer > 0) {
                         string left_target = target.substr(0, first_matching_kmer);
@@ -1519,13 +1543,13 @@ private:
                                 ReverseComplementSeq(rslt.m_seq.begin(), rslt.m_seq.end());
                                 left_extensions.emplace_back(rslt.m_score, rslt.m_tlen, rslt.m_seq);
                                 if(left_extensions.size() > m_max_variants) {
-                                    skip_target = true;
+                                    skip_kmer = true;
                                     break;
                                 }                                
                             }
                         }
-                        if(skip_target)
-                            break;
+                        if(skip_kmer)
+                            continue;
                     }
                     if(left_extensions.empty())
                         left_extensions.emplace_back(0, 0, "");
@@ -1542,13 +1566,13 @@ private:
                                 CGudedPath::SPathChunk rslt = extender.GetBestPart();
                                 right_extensions.emplace_back(rslt.m_score, rslt.m_tlen, rslt.m_seq);
                                 if(right_extensions.size() > m_max_variants) {
-                                    skip_target = true;
+                                    skip_kmer = true;
                                     break;
                                 }                                
                             }                      
                         }
-                        if(skip_target)
-                            break;
+                        if(skip_kmer)
+                            continue;
                     }
                     if(right_extensions.empty())
                         right_extensions.emplace_back(0, 0, "");
@@ -1560,18 +1584,20 @@ private:
                         for(auto& right : right_extensions) {
                             int score = get<0>(left)+kmer_score+get<0>(right);
                             int tlen = get<1>(left)+m_kmer_len+get<1>(right);
+
                             if(score <= max_score-m_drop_off || tlen <= 0.5*target.size())
                                 continue;
                             
                             string extension = get<2>(left)+kmer_seq+get<2>(right);                            
                             CCigar cigar = LclAlign(extension.c_str(), extension.size(), target.c_str(), target.size(), m_gap_open, m_gap_extend, m_delta.matrix);
+
                             if(cigar.SubjectRange().second-cigar.SubjectRange().first+1 <= 0.5*target.size())
                                 continue;
                             score = cigar.Score(extension.c_str(), target.c_str(), m_gap_open, m_gap_extend, m_delta.matrix);
                             all_max_score = max(all_max_score, score);
                             extension = extension.substr(cigar.QueryRange().first, cigar.QueryRange().second-cigar.QueryRange().first+1);
                             
-                            unordered_set<CDBGraph::Node> used_nodes;
+                            unordered_set<size_t> used_node_indexes;
                             {
                                 string ext_first(extension);
                                 for(char& c : ext_first)
@@ -1579,7 +1605,7 @@ private:
                                 CReadHolder rh(false);
                                 rh.PushBack(ext_first);
                                 for(CReadHolder::kmer_iterator itk = rh.kbegin(m_kmer_len); itk != rh.kend(); ++itk)
-                                    used_nodes.insert(m_graphp->GetNode(*itk));
+                                    used_node_indexes.insert(m_graphp->GetNode(*itk)/2);   // insert index not node
                             }                                
 
                             int left_pos = 0;
@@ -1589,7 +1615,7 @@ private:
                             for(char& c : right_kmer)
                                 c = FromAmbiguousIUPAC[c].front();
                             CDBGraph::Node right_node = m_graphp->GetNode(right_kmer);
-                            auto rslt = ExtendToFirstFork(right_node, used_nodes, 1);
+                            auto rslt = ExtendToFirstFork(right_node, used_node_indexes);
                             extension += rslt.first;
                             bool right_dead_end = rslt.second;
 
@@ -1597,7 +1623,7 @@ private:
                             for(char& c : left_kmer)
                                 c = FromAmbiguousIUPAC[c].front();
                             CDBGraph::Node left_node = m_graphp->GetNode(left_kmer);
-                            rslt = ExtendToFirstFork(m_graphp->ReverseComplement(left_node), used_nodes, -1);
+                            rslt = ExtendToFirstFork(m_graphp->ReverseComplement(left_node), used_node_indexes);
                             bool left_dead_end = rslt.second;
                             string left_extra = rslt.first;
                             ReverseComplementSeq(left_extra.begin(), left_extra.end());
@@ -1621,21 +1647,16 @@ private:
                 }            
             }
 
-            if(skip_target) {
-                lock_guard<mutex> guard(m_out_mutex);
-                cerr << "Too many variants for target: " << acc << endl;
-            } else {
-                for(auto& rslt : rslts_for_target) {
-                    int score = get<0>(rslt.second.m_tinfo.front());
-                    if(score <= all_max_score-m_drop_off)
-                        continue;
+            for(auto& rslt : rslts_for_target) {
+                int score = get<0>(rslt.second.m_tinfo.front());
+                if(score <= all_max_score-m_drop_off)
+                    continue;
 
-                    SContigData& cdata = rslts[rslt.first];
-                    cdata.m_status |= rslt.second.m_status;
-                    auto& lst = cdata.m_tinfo;
-                    AddInfo(lst, rslt.first.size(), rslt.second.m_tinfo); 
-                }
-            }
+                SContigData& cdata = rslts[rslt.first];
+                cdata.m_status |= rslt.second.m_status;
+                auto& lst = cdata.m_tinfo;
+                AddInfo(lst, rslt.first.size(), rslt.second.m_tinfo); 
+            }            
         }               
     }
 
@@ -1665,6 +1686,8 @@ private:
 
 };
 
+
+
 int main(int argc, const char* argv[]) {
     for(int n = 0; n < argc; ++n)
         cerr << argv[n] << " ";
@@ -1672,6 +1695,7 @@ int main(int argc, const char* argv[]) {
 
     int ncores;
     double fraction;
+    double vector_percent;
     int min_count;
     int kmer;
     int match;
@@ -1685,6 +1709,7 @@ int main(int argc, const char* argv[]) {
     bool gzipped;
     int memory;
 
+    ifstream targets_in;
     ofstream contigs_out;
     ofstream profile_out;
 
@@ -1693,11 +1718,12 @@ int main(int argc, const char* argv[]) {
         ("help,h", "Produce help message")
         ("memory", value<int>()->default_value(32), "Memory available (GB) [integer]")
         ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]")
-        ("contigs_out", value<string>(), "Output file for contigs (stdout if not specified) [string]")
         ("profile_out", value<string>(), "Output file for coverage profile (optional) [string]");
 
     options_description input("Input/output options : at least one input providing reads for assembly must be specified");
     input.add_options()
+        ("contigs_out", value<string>(), "Output file for contigs (stdout if not specified) [string]")
+        ("targets", value<string>(), "Input file with target sequences [string]")
         ("fasta", value<vector<string>>(), "Input fasta file(s) (could be used multiple times for different runs) [string]")
         ("fastq", value<vector<string>>(), "Input fastq file(s) (could be used multiple times for different runs) [string]")
         ("sra_run", value<vector<string>>(), "Input sra run accession (could be used multiple times for different runs) [string]")
@@ -1705,14 +1731,15 @@ int main(int argc, const char* argv[]) {
 
     options_description assembly("Assembly options");
     assembly.add_options()
-        ("kmer", value<int>()->default_value(21), "Minimal kmer length for assembly [integer]")
+        ("kmer", value<int>()->default_value(41), "Minimal kmer length for assembly [integer]")
         ("min_count", value<int>()->default_value(2), "Minimal count for kmers retained for comparing alternate choices [integer]")
+        ("vector_percent", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
         ("fraction", value<double>()->default_value(0.05, "0.05"), "Maximum noise to signal ratio acceptable for extension [float [0,1)]")
         ("match", value<int>()->default_value(1), "Bonus for match")
         ("mismatch", value<int>()->default_value(2), "Penalty for mismatch")
         ("gap_open", value<int>()->default_value(5), "Penalty for gap opening")
         ("gap_extend", value<int>()->default_value(2), "Penalty for gap extension")
-        ("drop_off", value<int>()->default_value(25), "Maximal decrease of score");
+        ("drop_off", value<int>()->default_value(100), "Maximal decrease of score");
 
     options_description all("");
     all.add(general).add(input).add(assembly); 
@@ -1727,6 +1754,18 @@ int main(int argc, const char* argv[]) {
             return 1;
         }
 
+        if(!argm.count("targets")) {
+            cerr << "Provide target sequences" << endl;
+            cerr << all << "\n";
+            return 1;
+        } else {
+            targets_in.open(argm["targets"].as<string>());
+            if(!targets_in.is_open()) {
+                cerr << "Can't open file " << argm["targets"].as<string>() << endl;
+                exit(1);
+            }
+        }
+        
         if(!argm.count("fasta") && !argm.count("fastq") && !argm.count("sra_run")) {
             cerr << "Provide some input reads" << endl;
             cerr << all << "\n";
@@ -1786,6 +1825,16 @@ int main(int argc, const char* argv[]) {
             cerr << "Value of --min_count must be > 0" << endl;
             exit(1);
         }
+        vector_percent = argm["vector_percent"].as<double>();
+        if(fraction >= 1.) {
+            cerr << "Value of --vector_percent  must be < 1" << endl;
+            exit(1);
+        }
+        if(fraction < 0.) {
+            cerr << "Value of --vector_percent  must be >= 0" << endl;
+            exit(1);
+        }
+
         kmer = argm["kmer"].as<int>();
         if(kmer%2 ==0) {
             cerr << "Kmer must be an odd number" << endl;
@@ -1821,7 +1870,28 @@ int main(int argc, const char* argv[]) {
         drop_off = argm["drop_off"].as<int>();
 
         CReadsGetter readsgetter(sra_list, fasta_list, fastq_list, ncores, true, gzipped);
-        CGuidedAssembler gassembler(kmer, min_count, fraction, memory, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads());
+
+        readsgetter.ClipAdaptersFromReads(vector_percent, memory);
+        if(readsgetter.Adapters().Size() > 0) {
+            struct PrintAdapters {
+                PrintAdapters(int kmer_len) : vec_kmer_len(kmer_len) {}
+                int vec_kmer_len;
+                set<pair<int, string>> adapters;
+                void operator()(const TKmer& kmer, int count) {
+                    TKmer rkmer = revcomp(kmer, vec_kmer_len);
+                    if(kmer < rkmer)
+                        adapters.emplace(count, kmer.toString(vec_kmer_len));
+                    else 
+                        adapters.emplace(count, rkmer.toString(vec_kmer_len)); 
+                }
+            };
+            PrintAdapters prob(readsgetter.Adapters().KmerLen());
+            readsgetter.Adapters().GetInfo(prob);
+            for(auto it = prob.adapters.rbegin(); it != prob.adapters.rend(); ++it)
+                cerr << "Adapter: " << it->second << " " << it->first << endl;
+        }
+
+        CGuidedAssembler gassembler(kmer, min_count, fraction, memory, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in);
 
         CGuidedAssembler::TContigs rslts = gassembler.Contigs();
 

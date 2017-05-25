@@ -31,6 +31,7 @@
 #include <string> 
 #include <list> 
 #include <vector> 
+#include <cmath>
 
 using namespace std;
 namespace DeBruijn {
@@ -48,6 +49,7 @@ public:
     };
     void PushFront(const SElement& el);
     void PushBack(const SElement& el);
+    void PushFront(const CCigar other_cigar);
     string CigarString(int qstart, int qlen) const; // qstart, qlen identify notaligned 5'/3' parts
     string DetailedCigarString(int qstart, int qlen, const  char* query, const  char* subject) const;
     TRange QueryRange() const { return TRange(m_qfrom, m_qto); }
@@ -71,8 +73,11 @@ CCigar LclAlign(const  char* query, int querylen, const  char* subject, int subj
 //Smith-Waterman with optional NW ends
 CCigar LclAlign(const  char* query, int querylen, const  char* subject, int subjectlen, int gopen, int gapextend, bool pinleft, bool pinright, const char delta[256][256]);
 
-//reduced matrix Smith-Waterman
+//variable band Smith-Waterman (traceback matrix full)
 CCigar VariBandAlign(const  char* query, int querylen, const  char* subject, int subjectlen, int gopen, int gapextend, const char delta[256][256], const TRange* subject_limits);
+
+//band Smith-Waterman (traceback matrix banded)
+CCigar BandAlign(const  char* query, int querylen, const  char* subject, int subjectlen, int gopen, int gapextend, const char delta[256][256], int band);
 
 struct SMatrix
 {
@@ -100,7 +105,28 @@ int EditDistance(const T &s1, const T & s2) {
 	return prevCol[len2];
 }
 
-double Entropy(const string& seq);
+
+template<class RandomIterator>
+double Entropy(RandomIterator start, size_t length) {
+    if(length == 0)
+        return 0;
+    double tA = 1.e-8;
+    double tC = 1.e-8;
+    double tG = 1.e-8;
+    double tT = 1.e-8;
+    for(auto it = start; it != start+length; ++it) {
+        switch(*it) {
+        case 'A': tA += 1; break;
+        case 'C': tC += 1; break;
+        case 'G': tG += 1; break;
+        case 'T': tT += 1; break;
+        default: break;
+        }
+    }
+    double entropy = -(tA*log(tA/length)+tC*log(tC/length)+tG*log(tG/length)+tT*log(tT/length))/(length*log(4.));
+    
+    return entropy;
+}
 
 }; // namespace
 

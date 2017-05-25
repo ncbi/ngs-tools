@@ -769,7 +769,7 @@ private:
                 int qleft = 0;
                 int qright = qlen-1;
                 int qlength = qlen;
-                                                                
+
                 if(!m_blast_hits.empty() && locus_hits.size() > 1 && one_alignment) {  // single alignment with multiple blast hits
                     left = locus_hits.front().m_sfrom;
                     right = locus_hits.back().m_sto;
@@ -898,7 +898,7 @@ private:
                 srange.first += left;
                 srange.second += left;
 
-                /*                                                
+                /*
                 cerr << qrange.first+1 << " " << qrange.second+1 << " " << srange.first+1 << " " << srange.second+1 << endl;
                 TCharAlign align = cigar.ToAlign(seq.c_str()+qleft, contig.c_str()+left);
                 for(unsigned i = 0; i < align.first.size(); ++i)
@@ -1134,7 +1134,7 @@ private:
                 bool possibly_partial = (left->m_sfrom < left->m_qfrom || candidate.m_sto > contig_len-(qlen-candidate.m_qto));
                 int len = candidate.m_qto-left->m_qfrom+1;
                 if(candidate.m_score > 0.5*len && (possibly_partial || len > 0.75*qlen)) {
-                    if(tandems.empty() || tandems.back().back().m_contig_key != contig_key 
+                    if(tandems.empty() || tandems.front().back().m_contig_key != contig_key 
                        || candidate.m_sto+(qlen-candidate.m_qto)+qlen/2 < tandems.front().front().m_sfrom-tandems.front().front().m_qfrom
                        || (&candidate == left && candidate.m_qfrom==0 && candidate.m_qto == qlen-1)) {
                         tandems.push_front(vector<SHit>());
