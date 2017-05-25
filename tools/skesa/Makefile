@@ -59,21 +59,31 @@ LIBS = \
 %.o: %.cpp
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-all: skesa wgmlst dbgtester guidedassembler
+all: skesa wgmlst dbgtester guidedassembler k_aligner
 
-skesa.o: readsgetter.hpp counter.hpp graphdigger.hpp assembler.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
-skesa: skesa.o 
+
+glb_align.o: glb_align.hpp Makefile
+
+skesa.o: readsgetter.hpp ngs_includes.hpp counter.hpp graphdigger.hpp assembler.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp Makefile
+skesa: skesa.o glb_align.o
 	$(CC) -o $@ $^ $(LIBS)
 
-wgmlst.o: KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
-glb_align.o: glb_align.hpp
+wgmlst.o: KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp Makefile
 wgmlst: wgmlst.o glb_align.o
 	$(CC) -o $@ $^ $(LIBS)
 
-dbgtester.o: graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
-dbgtester: dbgtester.o
-	$(CC) -o $@ $< $(LIBS)
+dbgtester.o: graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp Makefile
+dbgtester: dbgtester.o glb_align.o
+	$(CC) -o $@ $^ $(LIBS)
 
-guidedassembler.o: guidedpath.hpp readsgetter.hpp counter.hpp graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
+guidedassembler.o: guidedpath.hpp readsgetter.hpp ngs_includes.hpp counter.hpp graphdigger.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp Makefile
 guidedassembler: guidedassembler.o glb_align.o
+	$(CC) -o $@ $^ $(LIBS)
+
+k_aligner.o: glb_align.hpp ngs_includes.hpp KmerInit.hpp  DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp concurrenthash.hpp Makefile
+k_aligner: k_aligner.o glb_align.o
+	$(CC) -o $@ $^ $(LIBS)
+
+kmercounter.o: readsgetter.hpp ngs_includes.hpp concurrenthash.hpp KmerInit.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp Makefile
+kmercounter: kmercounter.o glb_align.o
 	$(CC) -o $@ $^ $(LIBS)
