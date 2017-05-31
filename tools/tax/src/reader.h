@@ -38,7 +38,7 @@ typedef std::unique_ptr<Reader> ReaderPtr;
 class Reader {
 public:
     static const size_t DEFAULT_CHUNK_SIZE = 1024; // todo: tune
-    
+
     struct Fragment
     {
         std::string spotid; // unique spot identifier, multiple fragments can have the same spotid
@@ -50,17 +50,17 @@ public:
         size_t spot_count;
         size_t expected_spot_count; // hint, tries to account for filtering
         int frags_per_spot;
-        
+
         SourceStats(size_t spot_count, int frags_per_spot = 1)
             : spot_count(spot_count)
             , expected_spot_count(spot_count)
             , frags_per_spot(frags_per_spot)
         {}
         SourceStats() : SourceStats(0) {}
-        
+
         size_t frag_count() const { return spot_count * frags_per_spot; }
         size_t expected_frag_count() const { return expected_spot_count * frags_per_spot; }
-        
+
         bool operator== (const SourceStats& other) const {
             return spot_count == other.spot_count
                 && expected_spot_count == other.expected_spot_count
@@ -72,7 +72,7 @@ public:
 
     // returns stats of original file
     virtual SourceStats stats() const = 0;
-    
+
     // returns [0-1] value
     virtual float progress() const = 0;
 

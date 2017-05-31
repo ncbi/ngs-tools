@@ -31,7 +31,7 @@ TEST(seq_transform_1) {
     int KMER_LEN = 32;
     typedef uint64_t hash_t;
     auto hash = Hash<hash_t>::hash_of("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC");
-    seq_transform<hash_t>::for_all_1_char_variations_do(hash, KMER_LEN, [&](hash_t hash) 
+    seq_transform<hash_t>::for_all_1_char_variations_do(hash, KMER_LEN, [&](hash_t hash)
                                                         {
                                                             cout << Hash<hash_t>::str_from_hash(hash, KMER_LEN) << endl;
                                                             return true;
@@ -56,7 +56,7 @@ TEST(seq_transform_3) {
 	equal(seq_transform<uint64_t>::bit_reverse(1, 1), 1);
 	equal(seq_transform<uint64_t>::bit_reverse(1, 2), 1 << 2);
 	equal(seq_transform<uint64_t>::bit_reverse(44, 3), 14); // 101100
-	
+
 	equal(seq_transform<uint64_t>::bit_reverse(41191556913, 18), 20620627302);
 	// 100110010111001101010100011100110001
 	// 010011001101000101011100110101100110

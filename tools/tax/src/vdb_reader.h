@@ -28,7 +28,7 @@
 
 #include "reader.h"
 
-#include <ncbi-vdb/NGS.hpp>
+#include <ngs/ncbi/NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>
@@ -39,7 +39,7 @@ protected:
     const bool read_qualities;
 	ngs::ReadCollection run;
     size_t spot_idx;
-    
+
     BaseVdbReader(const std::string& acc, bool read_qualities)
         : read_qualities(read_qualities)
         , run(ncbi::NGS::openReadCollection( acc ))
@@ -97,14 +97,14 @@ protected:
         SourceStats res;
         res.spot_count = run.getReadCount(category);
         res.expected_spot_count = res.spot_count;
-        
+
         auto it = run.getReads(ngs::Read::all);
         if (it.nextRead()) {
             res.frags_per_spot = it.getNumFragments();
         } else {
             res.frags_per_spot = 0;
         }
-        
+
         return res;
     }
 
@@ -119,7 +119,7 @@ protected:
     }
 
 public:
-    
+
     static bool is_aligned(const std::string& acc) {
         auto run = ncbi::NGS::openReadCollection(acc);
         auto alit = run.getAlignments(ngs::Alignment::primaryAlignment);
@@ -143,9 +143,9 @@ public:
         spot_count = run.getReadCount(category);
         eof = !it.nextRead();
     }
-    
+
     SourceStats stats() const override { return stats_for_category(category); }
-                   
+
     float progress() const override {
         return spot_count ? float(spot_idx) / spot_count : 1;
     }
@@ -185,7 +185,7 @@ private:
     size_t alignment_idx;
     size_t alignment_count;
     size_t spot_count;
-    
+
 public:
 	AlignedVdbReader(const std::string& acc, bool read_qualities = false)
         : BaseVdbReader(acc, read_qualities)

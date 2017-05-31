@@ -24,7 +24,11 @@
 *
 */
 
+#include <map>
+#include <memory>
+
 #include "tests.h"
+
 
 TEST(hash_1) {
     string seq = "TCTCCGAGCCCACGAGAC";

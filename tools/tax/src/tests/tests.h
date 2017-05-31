@@ -31,6 +31,8 @@
 #include <assert.h>
 #include <cstring>
 
+#include "hash.h"
+
 using namespace std;
 using namespace std::chrono;
 
@@ -67,7 +69,7 @@ public:
         }
         return count;
     }
-    
+
     int main(int argc, const char* const* argv) {
         if (argc > 1) {
             std::cerr << "Running " << (argc - 1) << " tests" << std::endl;
@@ -88,7 +90,7 @@ public:
         }
         return 0;
     }
-    
+
 private:
     struct Test {
         const char* name;
