@@ -52,7 +52,9 @@ using namespace std::chrono;
 
 int main(int argc, char const *argv[])
 {
+    #ifdef __GNUC__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+    #endif
     
     cerr << "aligns_to version " << VERSION << endl;
     cerr << "hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads() << std::endl;
