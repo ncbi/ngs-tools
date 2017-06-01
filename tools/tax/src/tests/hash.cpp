@@ -54,7 +54,7 @@ TEST(hash_left_right) {
 }
 
 TEST(hash_left_right_long) {
-#if defined ( __GNUC__ ) && __GNUC__ <= 4
+#if defined ( __GNUC__ )
     string seq_left  = "TATACGATCGAGGTCATCGACCTGATGAAGGA";
     string seq_right = "CCCGGCCTTGGCGCAGCGCGACCAGATCGTCG";
 
@@ -70,6 +70,7 @@ TEST(hash_left_right_long) {
 }
 
 TEST(hash_next) {
+#if defined ( __GNUC__ )
     string read = "CTATACGATCGAGGTCATCGACCTGATGAAGGACCCGGCCTTGGCGCAGCGCGACCAGATCGTCGCGATCCCGACGCTG";
     auto hash0 = Hash<__uint128_t>::hash_of(&read[0], 64);
     auto hash1 = Hash<__uint128_t>::hash_of(&read[1], 64);
@@ -91,6 +92,7 @@ TEST(hash_next) {
 
     hash = Hash<__uint128_t>::hash_next(&read[5], hash, 64);
     equal(hash == hash5, true);
+#endif
 }
 
 TEST(hash_for_all) {
