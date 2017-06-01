@@ -56,7 +56,7 @@ public:
     }
 
     int run(const char* name = nullptr) {
-        int count;
+        int count = 0;
         for (auto& test: tests) {
             if (!name && test.disabled) {
                 std::cerr << "WARNING: skipping disabled test " << test.name << std::endl;
