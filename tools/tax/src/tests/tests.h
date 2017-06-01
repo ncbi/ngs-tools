@@ -36,7 +36,7 @@
 using namespace std;
 using namespace std::chrono;
 
-#define ASSERT_EQUALS(a, b) { auto&& aa = a; auto&& bb = b; if (!(aa == bb)) { std::cerr << aa << " != " << bb << std::endl << std::flush; __assert (#a " == " #b, __FILE__, __LINE__); } }
+#define ASSERT_EQUALS(a, b) { auto&& aa = a; auto&& bb = b; if (!(aa == bb)) { std::cerr << aa << " != " << bb << std::endl << std::flush; assert(a == b); } }
 #define ASSERT(a) assert(a)
 #define equal ASSERT_EQUALS // backwrad compatibility
 
