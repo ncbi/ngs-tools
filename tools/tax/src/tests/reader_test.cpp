@@ -106,7 +106,7 @@ struct Helper {
 
 TEST(vdb_reader) {
     { // all
-        VdbReader reader("tests/data/SRR1068106");
+        VdbReader reader("./tests/data/SRR1068106");
         Reader::Fragment f;
 
         ASSERT(reader.read(&f));
@@ -131,7 +131,7 @@ TEST(vdb_reader) {
 
     // unaligned only
     {
-        VdbReader reader("tests/data/SRR1068106", false, true);
+        VdbReader reader("./tests/data/SRR1068106", false, true);
         Reader::Fragment f;
 
         ASSERT(reader.read(&f));
@@ -159,7 +159,7 @@ TEST(vdb_reader) {
 }
 
 TEST(vdb_reader_paired) {
-    VdbReader reader("tests/data/ERR333883");
+    VdbReader reader("./tests/data/ERR333883");
     auto fragments = read_all(&reader);
     ASSERT_EQUALS(fragments.size(), 6);
     ASSERT_EQUALS(fragments[0].spotid, "1");
@@ -178,7 +178,7 @@ TEST(vdb_reader_paired) {
 }
 
 TEST(fasta_reader) {
-    FastaReader reader("tests/data/SRR1068106.fasta");
+    FastaReader reader("./tests/data/SRR1068106.fasta");
     Reader::Fragment f;
 
     ASSERT(reader.read(&f));
@@ -200,27 +200,27 @@ TEST(fasta_reader) {
     ASSERT(reader.stats() == Reader::SourceStats(got_spots));
     ASSERT_EQUALS(reader.progress(), 1);
 
-    auto _unix = Helper<FastaReader>::read_all("tests/data/SRR1068106.fasta");
-    auto dos = Helper<FastaReader>::read_all("tests/data/SRR1068106.fasta.dos");
+    auto _unix = Helper<FastaReader>::read_all("./tests/data/SRR1068106.fasta");
+    auto dos = Helper<FastaReader>::read_all("./tests/data/SRR1068106.fasta.dos");
     ASSERT(_unix == dos);
 }
 
 TEST(vdb_fasta_equal) {
     {
-        auto vdb = Helper<VdbReader>::read_all_bases("tests/data/SRR1068106");
-        auto fasta = Helper<FastaReader>::read_all_bases("tests/data/SRR1068106.fasta");
+        auto vdb = Helper<VdbReader>::read_all_bases("./tests/data/SRR1068106");
+        auto fasta = Helper<FastaReader>::read_all_bases("./tests/data/SRR1068106.fasta");
         ASSERT(fasta == vdb);
     }
     {
-        auto vdb = Helper<VdbReader>::read_all_bases("tests/data/SRR1068106", false, true);
-        auto fasta = Helper<FastaReader>::read_all_bases("tests/data/SRR1068106.unaligned.fasta");
+        auto vdb = Helper<VdbReader>::read_all_bases("./tests/data/SRR1068106", false, true);
+        auto fasta = Helper<FastaReader>::read_all_bases("./tests/data/SRR1068106.unaligned.fasta");
         ASSERT(fasta == vdb);
     }
 }
 
 TEST(vdb_qualities_reader) {
-    auto no_qual = Helper<VdbReader>::read_all_bases("tests/data/SRR1068106", false);
-    auto with_qual = Helper<VdbReader>::read_all_bases("tests/data/SRR1068106", true);
+    auto no_qual = Helper<VdbReader>::read_all_bases("./tests/data/SRR1068106", false);
+    auto with_qual = Helper<VdbReader>::read_all_bases("./tests/data/SRR1068106", true);
     ASSERT_EQUALS(no_qual.size(), with_qual.size());
     ASSERT(no_qual != with_qual);
     ASSERT_EQUALS(with_qual[4], "AAGTCGTAACAAGGTCTCCGTTGGTGAACCAGCGGAGGGATCATTACCGAGTTTACAACTCCCAAACCCCTGTGAACATACCACTTGTTGCCTCGGCGGATCAGCCCGCTCCCGGTAAAACGGGACGGCCCGCCAGAGGACCCCTAAACTCTGTTTCTATATGTAACTTCTGAGTAAAACCATAAATAAATCAAAACCTTCAACAACGGATCTCTTGGTTCTGGCATCGATGAAGAACGCAGCAAAATGCGATAAGTAATGTGAATTGCAGAATTCAGTGAATCATCGAATCTTTGAACGCACATTGCGCCCGCCAGTATTCTGGCGGGCATGCCTGTTCGAGCGTCATTTCAACCCTCAAGCACAGCTTGGTGTTGGGACTCGCGTTAATTCGCGTTCCTCAAATTGATTGGCGGT!ACGTCGAGCTTCCATAGCGTAGTAGT");
@@ -241,10 +241,10 @@ void test_aligned_vdb_reader(const char* path, bool read_qualities) {
     ASSERT(VdbReader(path, read_qualities).stats() == AlignedVdbReader(path, read_qualities).stats());
 }
 TEST(aligned_vdb_reader) {
-    test_aligned_vdb_reader("tests/data/SRR1068106", false); // has aligned and unaligned single reads
-    test_aligned_vdb_reader("tests/data/SRR1068106", true);
-    test_aligned_vdb_reader("tests/data/ERR333883", false); // has aligned, unaligned and partially aligned _paired_ reads
-    test_aligned_vdb_reader("tests/data/ERR333883", true);
+    test_aligned_vdb_reader("./tests/data/SRR1068106", false); // has aligned and unaligned single reads
+    test_aligned_vdb_reader("./tests/data/SRR1068106", true);
+    test_aligned_vdb_reader("./tests/data/ERR333883", false); // has aligned, unaligned and partially aligned _paired_ reads
+    test_aligned_vdb_reader("./tests/data/ERR333883", true);
 }
 
 template <typename ReaderType>
@@ -261,9 +261,9 @@ void test_mt_reader(const char* type, const char* path) {
     }
 }
 TEST(mt_reader) {
-    test_mt_reader<FastaReader>("fasta", "tests/data/SRR1068106.fasta");
-    test_mt_reader<VdbReader>("vdb", "tests/data/SRR1068106");
-    test_mt_reader<AlignedVdbReader>("aligned vdb", "tests/data/SRR1068106");
+    test_mt_reader<FastaReader>("fasta", "./tests/data/SRR1068106.fasta");
+    test_mt_reader<VdbReader>("vdb", "./tests/data/SRR1068106");
+    test_mt_reader<AlignedVdbReader>("aligned vdb", "./tests/data/SRR1068106");
 }
 
 TEST(filtering_reader) {
@@ -293,9 +293,9 @@ TEST(filtering_reader) {
             {"79", "AAGTCGTAACAAGGTCTCCGTTGGTGAACCAGCGGAGGGATCATTACCGAGTTTACAACTCCCAAACCCCTGTGAACATACCACTTGTTGCCTCGGCGGATCAGCCCGCTCCCGGTAAAACGGGACGGCCCGCCAGAGGACCCCTAAACTCTGTTTCTATATGTAACTTCTGAGTAAAACCATAAATAAATCAAAACTTTCAACAACGGATCTCTTGGTTCTGGCATCGATGAAGAACGCAGCAAAATGCGATAAGTAATGTGAATTGCAGAATTCAGTGAATCATCGAATCTTTGAACGCACATTGCGCCCGCCAGTATTCTGGCGGGCATGCCTGTTCGAGCGTCATTTCAACCCTCAAGCACAGCTTGGTGTTGGGACTCGCGTTAATTCGCGTTCCTCAAATTGATTGGCGGTCACGTCGAGCTTCCATAGCGTAGTAGTAAAACCCTCGTTACTGGTAATCGTCGCGGCCACGCCG"},
             {"123", "AAGTCGTAACAAGGTCTCCGTTGGTGAACCAGCGGAGGGATCATTACCGAGTTTACAACTCCCAAACCCCTGTGAACATACCACTTGTTGCCTCGGCGGATCAGCCCGCTCCCGGTAAACGGGACGGCCCGCCAGAGGACCCCTAAACTCTGTTTCTATATGTAACTTCTGAGTAAAACCATAAATAAATCAAAACTTTCAACAACGGATCTCTTGGTTCTGGCATCGATGAAGAACGCAGCAAAATGCGATAAGTAATGTGAATTGCAGAATTCAGTGAATCATCGAATCTTTGAACGCACATTGCGCCCGCCAGTATTCTGGCGGGCATGCCTGTTCGAGCGTCATTTCAACCCTCAAGCACAGCTTGGTGTTGGGACTCGCGTTAATTCGCGTTCCTCAAATTGATCGGCGGTCACGTCGAGCTTCCATAGCGTAGTAGTAAAACCCTCGTTACTGGTAATCGTCGCGGCCACG"},
         };
-        IncludeFileSpotFilter file_filter("tests/data/filter.spots");
+        IncludeFileSpotFilter file_filter("./tests/data/filter.spots");
         ASSERT_EQUALS(file_filter.expected_spot_count(), 5);
-        FilteringReader<VdbReader, IncludeFileSpotFilter> reader(file_filter, "tests/data/SRR1068106");
+        FilteringReader<VdbReader, IncludeFileSpotFilter> reader(file_filter, "./tests/data/SRR1068106");
         auto stats = reader.stats();
         auto file_result = read_all(&reader);
         ASSERT(file_result == file_expected);
@@ -304,8 +304,8 @@ TEST(filtering_reader) {
     }
 
     {
-        ExcludeFileSpotFilter file_filter("tests/data/filter.spots");
-        FilteringReader<VdbReader, ExcludeFileSpotFilter> reader(file_filter, "tests/data/SRR1068106");
+        ExcludeFileSpotFilter file_filter("./tests/data/filter.spots");
+        FilteringReader<VdbReader, ExcludeFileSpotFilter> reader(file_filter, "./tests/data/SRR1068106");
         auto file_result = read_all(&reader);
         ASSERT_EQUALS(file_result.size(), 226 - 5);
     }
@@ -334,41 +334,41 @@ TEST(splitting_cutting_reader) {
 
 TEST(reader_factory) {
     { // simple
-        auto vdb = read_all_bases(Reader::create("tests/data/SRR1068106"));
-        auto fasta = read_all_bases(Reader::create("tests/data/SRR1068106.fasta"));
+        auto vdb = read_all_bases(Reader::create("./tests/data/SRR1068106"));
+        auto fasta = read_all_bases(Reader::create("./tests/data/SRR1068106.fasta"));
         std::sort(vdb.begin(), vdb.end());
         std::sort(fasta.begin(), fasta.end());
         ASSERT(fasta == vdb);
     }
     { // filtering
         Reader::Params params;
-        auto all = read_all_bases(Reader::create("tests/data/SRR1068106", params));
-        params.filter_file = "tests/data/filter.spots";
-        auto filtered = read_all_bases(Reader::create("tests/data/SRR1068106", params));
+        auto all = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
+        params.filter_file = "./tests/data/filter.spots";
+        auto filtered = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         ASSERT(all != filtered);
         ASSERT_EQUALS(filtered.size(), 5);
     }
 
     // no way to test qualities with this file, all of them are already Ns =(
     /*{ // qualities
-        auto no_qual = read_all_bases(Reader::create("tests/data/SRR1068106", nullptr, false));
-        auto with_qual = read_all_bases(Reader::create("tests/data/SRR1068106", nullptr, true));
+        auto no_qual = read_all_bases(Reader::create("./tests/data/SRR1068106", nullptr, false));
+        auto with_qual = read_all_bases(Reader::create("./tests/data/SRR1068106", nullptr, true));
         ASSERT_EQUALS(no_qual.size(), with_qual.size());
         ASSERT(no_qual != with_qual);
     }*/
     { // split
         Reader::Params params;
-        auto cut = read_all_bases(Reader::create("tests/data/SRR1068106", params));
+        auto cut = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         params.split_non_atgc = true;
-        auto split = read_all_bases(Reader::create("tests/data/SRR1068106", params));
+        auto split = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         ASSERT(cut.size() < split.size());
     }
     { // unaligned
         Reader::Params params;
-        auto full = read_all_bases(Reader::create("tests/data/SRR1068106", params));
+        auto full = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         params.unaligned_only = true;
-        auto unaligned = read_all_bases(Reader::create("tests/data/SRR1068106", params));
-        auto unaligned2 = read_all_bases(Reader::create("tests/data/SRR1068106.unaligned.fasta"));
+        auto unaligned = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
+        auto unaligned2 = read_all_bases(Reader::create("./tests/data/SRR1068106.unaligned.fasta"));
         ASSERT(full != unaligned);
         ASSERT(unaligned == unaligned2);
     }
