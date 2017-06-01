@@ -30,6 +30,7 @@
 #include <chrono>
 #include <assert.h>
 #include <cstring>
+#include <vector>
 
 #include "hash.h"
 

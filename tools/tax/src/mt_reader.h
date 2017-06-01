@@ -160,7 +160,7 @@ public:
         threads.resize(thread_count);
 
         #pragma omp parallel for
-        for (size_t i = 0; i < thread_count; ++i) {
+        for (auto i = 0; i < thread_count; ++i) {
             threads[i] = std::unique_ptr<Thread>(new Thread(args...));
         }
         

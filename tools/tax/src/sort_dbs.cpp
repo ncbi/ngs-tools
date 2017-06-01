@@ -30,6 +30,7 @@
 #include <list>
 #include <fstream>
 #include <algorithm>
+#include <stdint.h>
 
 using namespace std;
 

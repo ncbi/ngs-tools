@@ -48,7 +48,7 @@ private:
     void read_line(std::string& line) {
         std::getline(f, line);
         // handling windows line endings
-        if (!line.empty() and *line.rbegin() == '\r') {
+        if (!line.empty() && *line.rbegin() == '\r') {
             line.erase(line.size() - 1);
         }
     }
