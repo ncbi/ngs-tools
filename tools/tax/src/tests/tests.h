@@ -37,8 +37,24 @@
 using namespace std;
 using namespace std::chrono;
 
-#define ASSERT_EQUALS(a, b) { auto&& aa = a; auto&& bb = b; if (!(aa == bb)) { std::cerr << aa << " != " << bb << std::endl << std::flush; assert(a == b); } }
-#define ASSERT(a) assert(a)
+#if defined(__GNUC__)
+#define __ASSERT_FUNCTION __PRETTY_FUNCTION__
+#elif defined(_MSC_VER)
+#define __ASSERT_FUNCTION __FUNCSIG__
+#else
+#define __ASSERT_FUNCTION __func__ // standard in C99 / C++11
+#endif
+
+#define ASSERT_EQUALS(a, b) { \
+        auto&& aa = a; \
+        auto&& bb = b; \
+        if (!(aa == bb)) { \
+            std::cerr << __FILE__ << ":" << __LINE__ << ": " << __ASSERT_FUNCTION << ": Assertion '" << #a << "' == '" << #b "' failed."  << std::endl; \
+            std::cerr << "\t" << aa << " != " << bb << std::endl << std::flush; \
+            abort(); \
+        } \
+    }
+#define ASSERT(a) if (!(a)) { std::cerr << __FILE__ << ":" << __LINE__ << ": " << __ASSERT_FUNCTION << ": Assertion '" << #a << "' failed." << std::endl; abort(); }
 #define equal ASSERT_EQUALS // backwrad compatibility
 
 // test manager
