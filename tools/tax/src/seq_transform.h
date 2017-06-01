@@ -115,6 +115,7 @@ struct seq_transform
 
 };
 
+/*
 template <>
 uint64_t seq_transform<uint64_t>::bit_reverse(uint64_t hash, int kmer_len)
 {
@@ -130,6 +131,8 @@ uint64_t seq_transform<uint64_t>::bit_reverse(uint64_t hash, int kmer_len)
     dst >>= sizeof(uint64_t) * 8 - kmer_len * 2;
     return dst;
 }
+*/
+
 template <typename hash_t> 
 hash_t seq_transform<hash_t>::bit_reverse(hash_t hash, int kmer_len)
 {
@@ -150,6 +153,7 @@ uint64_t seq_transform<uint64_t>::to_rev_complement(uint64_t hash, int kmer_len)
     uint64_t comp = hash ^ comp_xor;
     return bit_reverse(comp, kmer_len);
 }
+
 template <typename hash_t>
 hash_t seq_transform<hash_t>::to_rev_complement(hash_t hash, int kmer_len)
 {

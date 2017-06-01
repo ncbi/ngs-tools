@@ -43,7 +43,11 @@ TEST(seq_transform_2) 	{
     int KMER_LEN = 32;
     typedef uint64_t hash_t;
     auto hash = Hash<hash_t>::hash_of("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC");
+    equal(hash, 115348763461549301ULL);
+    equal(Hash<hash_t>::str_from_hash(hash, KMER_LEN), string("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC"));
     auto hash_rev_compl = Hash<hash_t>::hash_of("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT");
+    equal(hash_rev_compl, 17696177292584799466ULL);
+    equal(Hash<hash_t>::str_from_hash(hash_rev_compl, KMER_LEN), string("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT"));
 
     equal(seq_transform<hash_t>::min_hash_variant(hash, KMER_LEN), hash);
     equal(seq_transform<hash_t>::min_hash_variant(hash_rev_compl, KMER_LEN), hash);
