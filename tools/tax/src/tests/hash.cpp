@@ -54,6 +54,7 @@ TEST(hash_left_right) {
 }
 
 TEST(hash_left_right_long) {
+#if defined ( __GNUC__ ) && __GNUC__ <= 4
     string seq_left  = "TATACGATCGAGGTCATCGACCTGATGAAGGA";
     string seq_right = "CCCGGCCTTGGCGCAGCGCGACCAGATCGTCG";
 
@@ -65,6 +66,7 @@ TEST(hash_left_right_long) {
 
     equal(Hash<__uint128_t>::left<uint64_t>(hash_full), hash_left);
     equal(Hash<__uint128_t>::right<uint64_t>(hash_full), hash_right);
+#endif
 }
 
 TEST(hash_next) {
