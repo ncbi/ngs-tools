@@ -49,6 +49,7 @@ TEST(seq_transform_2) 	{
     equal(hash_rev_compl, 17696177292584799466ULL);
     equal(Hash<hash_t>::str_from_hash(hash_rev_compl, KMER_LEN), string("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT"));
 
+    equal(hash_rev_compl, seq_transform<hash_t>::to_rev_complement(hash, KMER_LEN));
     equal(seq_transform<hash_t>::min_hash_variant(hash, KMER_LEN), hash);
     equal(seq_transform<hash_t>::min_hash_variant(hash_rev_compl, KMER_LEN), hash);
 }
