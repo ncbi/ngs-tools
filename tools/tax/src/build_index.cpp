@@ -27,6 +27,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <array>
 #include <omp.h>
 #include "kmers.h"
 #include "kmer_io.h"
@@ -57,10 +58,9 @@ int calculate_window_size_(size_t filesize, bool eukaryota, bool virus)
 	return 8000;
 }
 
-int calculate_window_size(size_t filesize, bool eukaryota, bool virus, int window_divider)
+int calculate_window_size(size_t filesize, bool eukaryota, bool virus, int window_divider, int min_window_size)
 {
-	const int MIN_WINDOW_SIZE = 64;
-	return std::max(MIN_WINDOW_SIZE, calculate_window_size_(filesize, eukaryota, virus) / window_divider);
+	return std::max(min_window_size, calculate_window_size_(filesize, eukaryota, virus) / window_divider);
 }
 
 void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int kmer_len)
@@ -180,7 +180,7 @@ int main(int argc, char const *argv[])
 	size_t total_size = 0;
 	for (auto &file_list_element : file_list.files)
 	{
-		auto window_size = calculate_window_size(file_list_element.filesize, FilenameMeta::is_eukaryota(file_list_element.filename), FilenameMeta::is_virus(file_list_element.filename), config.window_divider);
+		auto window_size = calculate_window_size(file_list_element.filesize, FilenameMeta::is_eukaryota(file_list_element.filename), FilenameMeta::is_virus(file_list_element.filename), config.window_divider, config.min_window_size);
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		cerr << file_list_element.filesize << "\t" << window_size << "\t" << tax_id << "\t" << file_list_element.filename << endl;
 		total_size += add_kmers(kmers, file_list_element.filename, tax_id, window_size, config.kmer_len);

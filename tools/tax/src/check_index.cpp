@@ -27,6 +27,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <array>
 #include <omp.h>
 #include "kmers.h"
 #include "kmer_io.h"

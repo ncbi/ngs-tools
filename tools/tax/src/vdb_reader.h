@@ -33,6 +33,7 @@
 #include <ngs/ReadCollection.hpp>
 #include <ngs/ReadIterator.hpp>
 #include <ngs/Read.hpp>
+#include <klib/printf.h>
 
 class BaseVdbReader: public Reader {
 protected:
@@ -74,7 +75,8 @@ protected:
                 //auto spotid = it.getReadId();
                 //output->spotid.assign(spotid.data(), spotid.size());
                 char buffer[32];
-                auto written = snprintf(buffer, sizeof(buffer), "%zd", numeric_spot_id);
+                size_t written;
+                string_printf(buffer, sizeof(buffer), &written, "%zd", numeric_spot_id);
                 assert(written < sizeof(buffer));
                 output->spotid = buffer;
             } else {

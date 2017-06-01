@@ -139,7 +139,7 @@ struct DBSSJob : public DBSJob
                 throw std::runtime_error("cannot open dbss file");
             std::vector<hash_t> hashes;
             #pragma omp for
-            for (size_t i = 0; i < tax_list.size(); i++) {
+            for (auto i = 0; i < tax_list.size(); i++) {
                 auto& tax_hash_array = tax_hash_arrays[i];
                 auto tax_id = tax_list[i];
                 for (auto& annot : annotation) {

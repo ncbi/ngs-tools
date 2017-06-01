@@ -69,14 +69,14 @@ public:
 
 class IncludeFileSpotFilter final: public BaseFileSpotFilter {
 public:
-    using BaseFileSpotFilter::BaseFileSpotFilter;
+    IncludeFileSpotFilter(const std::string& path) : BaseFileSpotFilter(path) {}
     size_t expected_spot_count() const override { return file_spots.size(); }
     bool is_good(const std::string& spotid) const override { return file_spots.count(spotid) > 0; }
 };
 
 class ExcludeFileSpotFilter final: public BaseFileSpotFilter {
 public:
-    using BaseFileSpotFilter::BaseFileSpotFilter;
+    ExcludeFileSpotFilter(const std::string& path) : BaseFileSpotFilter(path) {}
     bool is_good(const std::string& spotid) const override { return file_spots.count(spotid) == 0; }
 };
 
