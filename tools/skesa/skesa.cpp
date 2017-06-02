@@ -53,13 +53,13 @@ int main(int argc, const char* argv[]) {
     ofstream dbg_out;
     int memory;
     int max_kmer_paired = 0;
-    int genome_size = 0;
     vector<string> sra_list;
     vector<string> fasta_list;
     vector<string> fastq_list;
     bool gzipped;
     int mincontig;
     bool allow_snps;
+    bool estimate_min_count = true;
 
     options_description general("General options");
     general.add_options()
@@ -79,11 +79,10 @@ int main(int argc, const char* argv[]) {
     options_description assembly("Assembly options");
     assembly.add_options()
         ("kmer", value<int>()->default_value(21), "Minimal kmer length for assembly [integer]")
-        ("min_count", value<int>()->default_value(2), "Minimal count for kmers retained for comparing alternate choices [integer]")
+        ("min_count", value<int>(), "Minimal count for kmers retained for comparing alternate choices [integer]")
         ("vector_percent ", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
         ("use_paired_ends", "Use pairing information from paired reads in input [flag]")
         ("insert_size", value<int>(), "Expected insert size for paired reads (if not provided, it will be estimated) [integer]")
-        ("genome_size", value<int>(), "Expected genome size [integer]")
         ("steps", value<int>()->default_value(11), "Number of assembly iterations from minimal to maximal kmer length in reads [integer]")
         ("max_kmer_count", value<int>()->default_value(10), "Minimum acceptable average count for estimating the maximal kmer length in reads [integer]")
         ("fraction", value<double>()->default_value(0.1, "0.1"), "Maximum noise to signal ratio acceptable for extension [float [0,1)]")
@@ -178,8 +177,17 @@ int main(int argc, const char* argv[]) {
         }
         if(argm.count("insert_size"))
             max_kmer_paired = argm["insert_size"].as<int>();
-        if(argm.count("genome_size"))
-            genome_size = argm["genome_size"].as<int>();
+
+        min_count = 2;
+        if(argm.count("min_count")) {
+            min_count = argm["min_count"].as<int>();
+            estimate_min_count = false;
+        }
+        if(min_count <= 0) {
+            cerr << "Value of --min_count must be > 0" << endl;
+            exit(1);
+        }
+
         if(max_kmer_paired < 0) {
             cerr << "Value of --insert_size must be >= 0" << endl;
             exit(1);
@@ -187,11 +195,6 @@ int main(int argc, const char* argv[]) {
         mincontig = argm["min_contig"].as<int>();
         if(mincontig <= 0) {
             cerr << "Value of --min_contig must be > 0" << endl;
-            exit(1);
-        }
-        min_count = argm["min_count"].as<int>();
-        if(min_count <= 0) {
-            cerr << "Value of --min_count must be > 0" << endl;
             exit(1);
         }
         min_kmer = argm["kmer"].as<int>();
@@ -317,20 +320,9 @@ int main(int argc, const char* argv[]) {
             for(auto it = prob.adapters.rbegin(); it != prob.adapters.rend(); ++it)
                 cerr << "Adapter: " << it->second << " " << it->first << endl;
         }
-        
-        if(genome_size > 0) {
-            double total_seq = 0;
-            for(auto& reads : readsgetter.Reads())
-                total_seq += reads[0].TotalSeq()+reads[1].TotalSeq();
-            int new_min_count = total_seq/genome_size/50+0.5;
-            if(new_min_count > min_count) {
-                cerr << "WARNING: --min_count changed from " << min_count << " to " << new_min_count << " because of high coverage" << endl;
-                min_count = new_min_count;
-            }
-        }
 
         int low_count = max(min_count, 2); 
-        CDBGAssembler assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, memory, ncores, readsgetter.Reads(), seeds, allow_snps); 
+        CDBGAssembler assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, memory, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count); 
 
         CDBGraph& first_graph = *assembler.Graphs().begin()->second;
         int first_kmer_len = first_graph.KmerLen();

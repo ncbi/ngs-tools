@@ -70,7 +70,7 @@ namespace DeBruijn {
         // raw_reads - reads (for effective multithreading, number of elements in the list should be >= ncores)
         
         CDBGAssembler(double fraction, int jump, int low_count, int steps, int min_count, int min_kmer, bool usepairedends, 
-                      int max_kmer_paired, int maxkmercount, int memory, int ncores, list<array<CReadHolder,2>>& raw_reads, TStrList seeds, bool allow_snps) : 
+                      int max_kmer_paired, int maxkmercount, int memory, int ncores, list<array<CReadHolder,2>>& raw_reads, TStrList seeds, bool allow_snps, bool estimate_min_count) : 
             m_fraction(fraction), m_jump(jump), m_low_count(low_count), m_steps(steps), m_min_count(min_count), m_min_kmer(min_kmer), m_usepairedends(usepairedends),
             m_max_kmer_paired(max_kmer_paired), m_maxkmercount(maxkmercount), m_memory(memory), m_ncores(ncores), m_raw_reads(raw_reads) {
 
@@ -82,18 +82,19 @@ namespace DeBruijn {
             }    
             m_connected_reads.resize(m_raw_reads.size(), {CReadHolder(false), CReadHolder(true)});
 
-            //graph for minimal kmer
-            double average_count = GetGraph(m_min_kmer, m_raw_reads, true);
-            if(average_count == 0)
-                throw runtime_error("Reads are too short for selected minimal kmer length");
-
-            // estimate genome
             double total_seq = 0;
             size_t total_reads = 0;
             for(auto& reads : m_raw_reads) {
                 total_seq += reads[0].TotalSeq()+reads[1].TotalSeq();
                 total_reads += reads[0].ReadNum()+reads[1].ReadNum();
             }
+ 
+            //graph for minimal kmer
+            double average_count = GetGraph(m_min_kmer, m_raw_reads, true, estimate_min_count ? total_seq : 0);
+            if(average_count == 0)
+                throw runtime_error("Reads are too short for selected minimal kmer length");
+
+            // estimate genome
             int read_len = total_seq/total_reads+0.5;
             cerr << endl << "Average read length: " << read_len << endl;
             size_t genome_size = m_graphs[m_min_kmer]->GenomeSize();
@@ -893,16 +894,35 @@ namespace DeBruijn {
         // kmer_len - the size of the kmer
         // reads - reads from input or connected internally
         // is_stranded - whether or not stranded information is meaningful
-        double GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded) {
+        double GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded, double total_seq = 0) {
             CKmerCounter kmer_counter(reads, kmer_len, m_min_count, is_stranded, AvailableMemory(), m_ncores);
+            if(kmer_counter.Kmers().Size() == 0)
+                return 0;
+
+            TKmerCount& sorted_kmers =  kmer_counter.Kmers();
+
+            if(total_seq > 0) {
+                map<int,size_t> hist;
+                for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
+                    ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically
+                }
+                TBins bins(hist.begin(), hist.end());
+                int genome_size = CalculateGenomeSize(bins);
+                if(genome_size > 0) {
+                    int new_min_count = total_seq/genome_size/50+0.5;
+                    if(new_min_count > m_min_count) {
+                        cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
+                        m_min_count = new_min_count;                
+                        m_low_count = m_min_count;
+                        sorted_kmers.RemoveLowCountKmers(m_min_count);
+                    }
+                }
+            }            
             if(kmer_counter.Kmers().Size() == 0)
                 return 0;
                 
             double average_count = kmer_counter.AverageCount();
             kmer_counter.GetBranches();
-            TKmerCount& sorted_kmers =  kmer_counter.Kmers();
-            if(sorted_kmers.Size() == 0)
-                return 0;
 
             map<int,size_t> hist;
             for(size_t index = 0; index < sorted_kmers.Size(); ++index) {

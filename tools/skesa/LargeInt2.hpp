@@ -70,9 +70,9 @@ template<>  class LargeInt<2>
 public:
     /** Constructor.
      * \param[in] c : initial value of the large integer. */
-    LargeInt<2>(const __uint128_t& c=0)  {  value[0] = c;  }
+    LargeInt<2>(const __uint128_t& c=0) noexcept {  value[0] = c;  }
 
-    LargeInt<2>(const std::string& kmer) : LargeInt<2>(0) {
+    LargeInt<2>(const std::string& kmer) noexcept : LargeInt<2>(0) {
         int sizeKmer = kmer.size();
         for (int i = 0; i < sizeKmer; i++) {
             operator<<=(2);
@@ -81,7 +81,7 @@ public:
     }  
 
     template <typename T>
-    LargeInt<2>(const T& a, const T& b) : LargeInt<2>(0) {
+    LargeInt<2>(const T& a, const T& b) noexcept : LargeInt<2>(0) {
         for(T i = a; i < b; ++i) {
             operator<<=(2);
             value[0] += std::find(bin2NT.begin(), bin2NT.end(),  *i) - bin2NT.begin();

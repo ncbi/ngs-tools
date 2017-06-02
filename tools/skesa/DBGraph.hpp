@@ -68,6 +68,7 @@ namespace DeBruijn {
         } 
         bool Set(T value, T expected = 0) { return m_atomic.compare_exchange_strong(expected, value); }
         operator T() const { return m_atomic.load(); }
+        T Load() const { return m_atomic.load(); }
 
         atomic<T> m_atomic;
     };
@@ -164,6 +165,7 @@ namespace DeBruijn {
             Sort();
             apply_visitor(uniq(min_count), m_container);
         }
+        void RemoveLowCountKmers(int min_count) { apply_visitor(remove_low_count(min_count), m_container); }
         void MergeTwoSorted(const CKmerCount& other) { // merges with other assuming both sorted
             if(m_kmer_len != other.KmerLen())
                 throw runtime_error("Can't merge kmers of different lengths");
@@ -255,6 +257,16 @@ namespace DeBruijn {
             template <typename T> void operator() (T& a, T& b) const { a.swap(b); }
             template <typename T, typename U> void operator() (T& a, U& b)  const { throw runtime_error("Can't swap different type containers"); }
         };
+        
+        struct remove_low_count : public boost::static_visitor<> {
+            remove_low_count(int mc) : min_count(mc) {}
+            template <typename T> void operator() (T& v) const {
+                v.erase(remove_if(v.begin(), v.end(), [this](const typename T::value_type& pair) { return (uint32_t)pair.second < this->min_count; }), v.end());
+            }
+
+            unsigned min_count;
+        };
+
         struct uniq : public boost::static_visitor<> {
             uniq(int mc) : min_count(mc) {}
             template <typename T> void operator() (T& v) const {
@@ -455,6 +467,7 @@ namespace DeBruijn {
                 gsize += bin.first*bin.second;
         }
 
+        // step back over repeats and plasmids that are not likely to be more than 20 percent of the genome
         int rl = 0;
         size_t gs = 0;
         for(auto& bin : bins) {
@@ -464,21 +477,28 @@ namespace DeBruijn {
                 break;
         }
 
+        // find histogram portion with biggest volume and estimate genome size as number of kmers in the portion
         int valley = -1;
         int rlimit = rl;
         size_t genome = 0;
+        size_t genome_vol = 0;
 
         while(true) {
             int v = FindValleyAndPeak(bins, rl);
 
             size_t g = 0;
+            size_t g_vol = 0;
             for(int i = max(0, v); i <= rl; ++i)
+            {
+                g_vol += (bins[i].first*bins[i].second);
                 g += bins[i].second;
+            }
 
-            if((v >= 0 && g > genome) || g > 10*genome) {
+            if((v >= 0 && g > genome) || g_vol > genome_vol) {
                 valley = v;
                 rlimit = rl;
                 genome = g;
+                genome_vol = g_vol;
                 //                cerr << valley << " " << rlimit << " " << genome << endl;
             }
 
@@ -488,6 +508,17 @@ namespace DeBruijn {
         }
         
         return make_pair(valley, rlimit);
+    }
+
+    int CalculateGenomeSize(const TBins& bins) {
+        pair<int,int> grange =  HistogramRange(bins);
+        if(grange.first < 0)
+            grange.first = 0;
+        int genome = 0;
+        for(int i = grange.first; i <= grange.second; ++i)
+            genome += bins[i].second;            
+        
+        return genome;
     }
 
     // Implementation of de Bruijn graph based on TKmerCount which stores kmer (smaller in the bit encoding of self and its reverse
@@ -681,17 +712,7 @@ namespace DeBruijn {
         }
 
         // useus simple heuristic to evaluate the genome size
-        int GenomeSize() const {
-            pair<int,int> grange =  HistogramRange(m_bins);
-            if(grange.first < 0)
-                grange.first = 0;
-            int genome = 0;
-            for(int i = grange.first; i <= grange.second; ++i)
-                genome += m_bins[i].second;            
-        
-            return genome;
-        }
-
+        int GenomeSize() const { return CalculateGenomeSize(m_bins); }
         // returns histogram
         const TBins& GetBins() const { return m_bins; }
 
