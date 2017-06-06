@@ -37,7 +37,7 @@
    inline int omp_get_max_threads() { return 0; }
 #endif
 
-const std::string VERSION = "0.36";
+const std::string VERSION = "0.37";
 
 typedef uint64_t hash_t;
 

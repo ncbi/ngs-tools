@@ -49,7 +49,7 @@ public:
 };
 
 uint8_t reverse_byte_kmers(uint8_t src) {
-    uint8_t dst;
+    uint8_t dst = 0;
     dst |= (src & 3);
 	src >>= 2;
     dst <<= 2;
@@ -115,7 +115,6 @@ struct seq_transform
 
 };
 
-/*
 template <>
 uint64_t seq_transform<uint64_t>::bit_reverse(uint64_t hash, int kmer_len)
 {
@@ -131,7 +130,6 @@ uint64_t seq_transform<uint64_t>::bit_reverse(uint64_t hash, int kmer_len)
     dst >>= sizeof(uint64_t) * 8 - kmer_len * 2;
     return dst;
 }
-*/
 
 template <typename hash_t> 
 hash_t seq_transform<hash_t>::bit_reverse(hash_t hash, int kmer_len)
