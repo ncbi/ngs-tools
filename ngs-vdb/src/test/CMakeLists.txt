@@ -10,5 +10,5 @@ target_link_libraries ( test-ngs-vdb
 )
 
 # white box test
-add_test ( NgsVdbWhiteBox test-ngs-vdb )
+add_test ( NgsVdbWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-ngs-vdb )
 
