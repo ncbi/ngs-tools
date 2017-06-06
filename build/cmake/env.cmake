@@ -1,12 +1,13 @@
 #/////////////////////// Cache variables, may be overridden at config time:
 
 if (UNIX)
-	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR )
+	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../ncbi-outdir CACHE PATH "common output directory for all projects" )
 elseif (WIN32)
-	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR )
+	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR CACHE PATH "common output directory for all projects" )
 else ()
     message ( FATAL_ERROR "Unsupported OS" )
 endif()
+
 set ( CMAKE_OUTDIR ${CMAKE_BINARY_DIR} )
 
 # by default, look for sister repositories sources side by side with ngs-tools
@@ -203,7 +204,7 @@ else()
         ExternalProject_Add ( ngs
             SOURCE_DIR ${NGS_ROOT}
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java
+            BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk TOP=${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java TOP=${NGS_ROOT}/ngs-java
             INSTALL_COMMAND ""
         )
     endif()
@@ -287,7 +288,7 @@ else ()
             DEPENDS ngs
             SOURCE_DIR ${VDB_ROOT}
             CONFIGURE_COMMAND ""
-            BUILD_COMMAND make -C ${VDB_ROOT}
+            BUILD_COMMAND make -C ${VDB_ROOT} TOP=${VDB_ROOT}
             INSTALL_COMMAND ""
         )
     endif()

@@ -333,7 +333,10 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
     if ( VdbSearch :: logResults && ! sb . m_search . empty () )
     {
         KLockAcquire ( sb . m_searchQueueLock );
-        cout << "Thread " << (void*)self << " sb=" << (void*)sb . m_search . front () << endl;
+        if ( ! sb . m_search . empty () )
+        {
+            cout << "Thread " << (void*)self << " sb=" << (void*)sb . m_search . front () << endl;
+        }
         KLockUnlock ( sb . m_searchQueueLock );
     }
 

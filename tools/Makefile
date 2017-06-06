@@ -22,39 +22,25 @@
 #
 # ===========================================================================
 
-by_default: default
+default all std: cmake
 
+#-------------------------------------------------------------------------------
+# environment
+#
 TOP ?= $(abspath ..)
 MODULE = tools
 
-include $(TOP)/build/Makefile.shell
+include $(TOP)/build/Makefile.env
 
-include $(TOP)/build/Makefile.config
+test runtests: ctest
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =  \
-	fastrq-dump \
-
-ifneq (win,$(BUILD_OS))
-ifneq (rwin,$(BUILD_OS))
-	SUBDIRS += cg-load pileup-stats
-endif
-endif
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS) 
+.PHONY: default std all test runtests
 
 #-------------------------------------------------------------------------------
-# pass-through
+# std
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+clean: stdclean
 
-.PHONY: out debug profile release GCC ICC VC++
+.PHONY: clean
+
+

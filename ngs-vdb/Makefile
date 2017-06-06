@@ -27,8 +27,8 @@ default all std: cmake
 #-------------------------------------------------------------------------------
 # environment
 #
-TOP ?= $(abspath ../..)
-MODULE = tools/sra-search
+TOP ?= $(abspath ..)
+MODULE = ngs-vdb
 
 include $(TOP)/build/Makefile.env
 
