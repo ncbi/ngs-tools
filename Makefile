@@ -22,84 +22,34 @@
 #
 # ===========================================================================
 
+default all std: cmake
 
 #-------------------------------------------------------------------------------
 # environment
 #
 TOP ?= $(CURDIR)
-include $(TOP)/build/Makefile.shell
+include $(TOP)/build/Makefile.env
 
+test runtests: ctest
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS = \
-	ngs-vdb/src \
-	tools/sra-search \
-	tools/dump_ref_fasta
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-default: $(SUBDIRS)
-
-#test: $(SUBDIRS) runtests
-test runtests:
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(SUBDIRS_ALL):
+.PHONY: default std all test runtests
 
 #-------------------------------------------------------------------------------
 # std
 #
-$(SUBDIRS_STD):
+clean: stdclean
+	@ -rm -rf $(ILIBDIR) $(BINDIR)
+
+.PHONY: clean
 
 #-------------------------------------------------------------------------------
 # install
 #
-install:
-	@ echo "Checking make status of tools..."
-	@ $(MAKE) -s --no-print-directory TOP=$(CURDIR) std
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install install
+install: cinstall
 
 uninstall:
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install uninstall
 
 .PHONY: install uninstall
-
-#-------------------------------------------------------------------------------
-# pass-through targets
-#
-COMPILERS = GCC CLANG
-ARCHITECTURES = i386 x86_64
-CONFIG = debug release
-PUBLISH =
-REPORTS = bindir targdir osdir config compilers architecture architectures
-PASSTHRUS = \
-	out \
-	CC $(COMPILERS) \
-	$(ARCHITECTURES) \
-	$(CONFIG) $(PUBLISH) \
-	purify purecov \
-	local static dynamic \
-    slowtests
-
-$(PASSTHRUS):
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env $@
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env rebuild-dirlinks config
-
-$(REPORTS):
-	@ $(MAKE) -s TOP=$(CURDIR) -f build/Makefile.env $@
-
-.PHONY: $(PASSTHRUS) $(RHOSTS) $(REPORTS)
-
 
 #-------------------------------------------------------------------------------
 # configuration help
@@ -107,18 +57,15 @@ $(REPORTS):
 help configure:
 	@ echo "Before initial build, run './configure --build-prefix=<out>' from"
 	@ echo "the project root to set the output directory of your builds."
+	@ echo "Run ./configure -h for full description."
 	@ echo
-	@ echo "To select a compiler, run 'make <comp>' where"
-	@ echo "comp = { "$(COMPILERS)" }."
-	@ echo
-	@ echo "For hosts that support cross-compilation ( only Macintosh today ),"
-	@ echo "you can run 'make <arch>' where arch = { "$(ARCHITECTURES)" }."
-	@ echo
-	@ echo "To set a build configuration, run 'make <config>' where"
-	@ echo "config = { "$(CONFIG)" }."
-	@ echo
-	@ echo "To select a remote build configuration, run 'make <rhost>' where"
-	@ echo "rhost = { "$(RHOSTS)" }."
+	@ echo "Targets:"
+	@ echo "all, std        : full build"
+	@ echo "clean           : remove build results"
+	@ echo "test, runtests  : build and run tests"
+	@ echo "                  to control which tests are executed, use 'make test CTEST=<any part of a test's name>"
+	@ echo "                  e.g. 'make test CTEST=Slow' will run all tests with 'Slow' in their name"
+	@ echo "install         : build, install to $(INST_BINDIR)"
 	@ echo
 
 .PHONY: help configure
