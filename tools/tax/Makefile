@@ -65,6 +65,8 @@ PROGRAMS := \
 	check_index \
 	db_fasta_to_bin\
 	filter_db \
+	contig_builder \
+	fasta_contamination \
 	sort_dbs
 PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
 TESTS := $(wildcard src/tests/*.cpp)
