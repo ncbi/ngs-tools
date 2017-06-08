@@ -224,7 +224,7 @@ public:
 	virtual void run(const std::string &filename, std::ostream &out_f)
 	{
 		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(out_f, config.print_counts);
+		TaxPrinter print(out_f, !config.hide_counts);
 		Job::run<Matcher, TaxPrinter, TaxMatchId>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
 	}
 };
