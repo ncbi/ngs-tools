@@ -37,6 +37,8 @@ struct FileListLoader
 	{
 		size_t filesize;
 		std::string filename;
+        File() = default;
+        File(size_t filesize, const std::string &filename) : filesize(filesize), filename(filename){}
 	};
 
 	typedef std::vector<File> Files;
@@ -44,6 +46,12 @@ struct FileListLoader
 
 	FileListLoader(const std::string &file_list)
 	{
+        if (ends_with(file_list, ".fasta"))
+        {
+            files.push_back(File(0, file_list));
+            return;
+        }
+
 		std::ifstream f(file_list);
 		if (f.fail() || f.bad())
 			throw std::runtime_error(std::string("cannot open file list ") + file_list);
@@ -66,6 +74,13 @@ struct FileListLoader
 		}
 	}
 
+    static bool ends_with(const std::string &s, const std::string &end)
+    {
+        if (end.size() > s.size()) 
+            return false;
+
+        return std::equal(end.rbegin(), end.rend(), s.rbegin());
+    }
 };
 
 #endif
