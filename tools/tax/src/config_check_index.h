@@ -28,6 +28,7 @@
 #define CONFIG_CHECK_INDEX_H_INCLUDED
 
 #include <string>
+#include "log.h"
 
 struct ConfigCheckIndex
 {
@@ -48,7 +49,7 @@ struct ConfigCheckIndex
 
 	static void print_usage()
 	{
-		std::cerr << "need <files.list> <tax.parents> <kmers file>" << std::endl;
+        LOG("need <files.list> <tax.parents> <kmers file>");
 	}
 };
 

@@ -32,6 +32,8 @@
 #include <algorithm>
 #include <stdint.h>
 
+#include "log.h"
+
 using namespace std;
 
 const string VERSION = "0.12";
@@ -101,7 +103,7 @@ Annotation get_annotation(const Kmers &kmers)
 int main(int argc, char const *argv[])
 {
 	Config config(argc, argv);
-	cerr << "sort_dbs version " << VERSION << endl;
+	LOG("sort_dbs version " << VERSION);
 
 	Kmers kmers;
 	auto kmer_len = DBSIO::load_dbs(config.input_filename, kmers);

@@ -187,7 +187,7 @@ struct KmerMap
 			CountMap new_bucket;
 			new_bucket.max_load_factor(MAX_OPTIMIZED_LOAD_FACTOR);
 			new_bucket.reserve(bucket_frequent[bucket_i]);
-//			std::cerr << "reserving " << bucket_frequent[bucket_i] << std::endl;
+//			LOG("reserving " << bucket_frequent[bucket_i]);
 			auto &bucket = count[bucket_i];
 			bucket_weight[bucket_i] = 0;
 
@@ -198,7 +198,7 @@ struct KmerMap
 					bucket_weight[bucket_i] += c->second.count;
 				}
 
-//			std::cerr << "result size " << new_bucket.size() << std::endl;
+//			LOG("result size " << new_bucket.size());
 			bucket.swap(new_bucket);
 		}
 	}

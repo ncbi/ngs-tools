@@ -25,14 +25,8 @@ struct Config
 		}
 		else
 		{
-			//accession = getenv("accession");
-			//if ( !accession || !accession[0] )
-			//{
-			//	print_usage();
-                throw std::runtime_error("missing accession");
-			//}
-
-			//parse_options(argc, argv, 1);
+            LOG("missing accession");
+            exit(1);
 		}
 	}
 
@@ -43,13 +37,13 @@ struct Config
 
 	static void print_usage()
 	{
-		std::cerr << "need <accession> [options]" << std::endl;
-		std::cerr << "options:" << std::endl;
-		std::cerr << "-unaligned_only" << std::endl;
-		std::cerr << "-min_contig_len <number>" << std::endl;
-//		std::cerr << "-max_ram <gigabytes>" << std::endl;
-        std::cerr << "-filter_file <filename>" << std::endl;
-        std::cerr << "-exclude_filter" << std::endl;
+        LOG("need <accession> [options]" << std::endl
+            << "options:" << std::endl
+            << "-unaligned_only" << std::endl
+            << "-min_contig_len <number>" << std::endl
+ //		<< "-max_ram <gigabytes>" << std::endl
+            << "-filter_file <filename>" << std::endl
+            << "-exclude_filter");
 	}
 
 	void parse_options(int argc, char const *argv[], int pos)
@@ -67,8 +61,10 @@ struct Config
 //				pos++;
 			else if (get_str_value("-filter_file", argv, argc, pos, &filter_file))
 				pos++;
-			else
-				throw std::runtime_error(std::string("bad option: ") + arg);
+			else {
+                LOG("bad option: " << arg);
+                exit(1);
+            }
 		}
 	}
 
@@ -77,8 +73,10 @@ struct Config
 		if (option_name != argv[pos])
 			return false;
 
-		if (pos + 1 >= argc)
-			throw std::string("missing value for ") + option_name;
+		if (pos + 1 >= argc) {
+            LOG("missing value for " << option_name);
+            exit(1);
+        }
 
 		*value = std::string(argv[pos + 1]);
 

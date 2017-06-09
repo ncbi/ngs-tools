@@ -38,8 +38,8 @@ Strings build_contigs(MainKmerMap &kmers, int MIN_SEQUENCE_LEN)
 {
 	auto before = high_resolution_clock::now();
 	Begins<MainKmerMap> begins(kmers);
-	cerr << "building begins time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( high_resolution_clock::now() - before ).count() << endl;
-	std::cerr << "mem usage before build_contigs (G) " << mem_usage()/1000000000 << std::endl;
+	LOG("building begins time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( high_resolution_clock::now() - before ).count());
+	LOG("mem usage before build_contigs (G) " << mem_usage()/1000000000);
 
 	typename MainKmerMap::hash_t hash = 0;
 
@@ -70,9 +70,9 @@ Strings build_contigs(MainKmerMap &kmers, int MIN_SEQUENCE_LEN)
 		perf_contig += high_resolution_clock::now() - before;
 	}
 
-	cerr << "building contigs time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( high_resolution_clock::now() - before_loop ).count() << endl;
-	cerr << "perf begin   (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( perf_begin ).count() << endl;
-	cerr << "perf contig  (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( perf_contig ).count() << endl;
+	LOG("building contigs time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( high_resolution_clock::now() - before_loop ).count());
+	LOG("perf begin   (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( perf_begin ).count());
+	LOG("perf contig  (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( perf_contig ).count());
 
 	return contigs;
 }
@@ -118,12 +118,12 @@ int main(int argc, char const *argv[])
 {
 	Config config(argc, argv);
 	ngs::String acc = config.accession;
-	cerr << "assembler version " << VERSION << endl;
-	cerr << "accession: " << acc << endl;
-	cerr << "-unaligned_only: " << config.unaligned_only << endl;
-	cerr << "-min_contig_len: " << config.min_contig_len << endl;
-	cerr << "-filter_file: " << config.filter_file << endl;
-    cerr << "-exclude_filter: " << config.exclude_filter << endl;
+	LOG("assembler version " << VERSION);
+	LOG("accession: " << acc);
+	LOG("-unaligned_only: " << config.unaligned_only);
+	LOG("-min_contig_len: " << config.min_contig_len);
+	LOG("-filter_file: " << config.filter_file);
+    LOG("-exclude_filter: " << config.exclude_filter);
 
 	auto before = high_resolution_clock::now();
 
@@ -135,10 +135,10 @@ int main(int argc, char const *argv[])
     Strings contigs_seqs = build_contigs(kmers, config.min_contig_len);
     double contig_percent = print_seqs(contigs_seqs, kmers, "_");
 
-	cerr << "reported contigs % " << contig_percent << endl;
-	cerr << "reported contigs count " << contigs_seqs.size() << endl;
-//	cerr << "reported sum % " << contig_percent + cont_percent << endl;
-	cerr << "total time (s) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
+	LOG("reported contigs % " << contig_percent);
+	LOG("reported contigs count " << contigs_seqs.size());
+//	LOG("reported sum % " << contig_percent + cont_percent);
+	LOG("total time (s) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 
     return 0;
 }

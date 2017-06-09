@@ -35,6 +35,8 @@
 #include <memory>
 #include <algorithm>
 
+#include "log.h"
+
 typedef unsigned int tax_id_t;
 
 struct TaxIdTree
@@ -88,7 +90,7 @@ struct TaxIdTree
 		if (it == nodes.end())
 		{
 			auto message = std::string("no such tax_id as ") + std::to_string(tax_id);
-			std::cerr << message << std::endl;
+			LOG(message);
 			throw std::runtime_error(message);
 		}
 

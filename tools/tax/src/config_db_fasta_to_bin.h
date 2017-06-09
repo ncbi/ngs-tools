@@ -29,6 +29,7 @@
 
 #include <string>
 #include <iostream>
+#include "log.h"
 
 struct Config
 {
@@ -48,7 +49,7 @@ struct Config
 
 	static void print_usage()
 	{
-		std::cerr << "need <fasta db> <out file>" << std::endl;
+		LOG("need <fasta db> <out file>");
 	}
 
 };

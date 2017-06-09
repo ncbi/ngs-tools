@@ -29,7 +29,7 @@ struct Config
 	void fail() const
 	{
 		print_usage();
-		throw "";
+        exit(1);
 	}
 
 	static void print_usage()

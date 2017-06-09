@@ -31,6 +31,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "log.h"
+
 template <typename ReaderType>
 class MTReader final: public Reader {
 private:
@@ -64,7 +66,7 @@ private:
             try {
                 run_impl(chunk_size, start_chunk_idx, mutex, ready);
             } catch (ngs::ErrorMsg error) {
-                std::cerr << "Exception in reader thread: " << error.what() << std::endl;
+                LOG("Exception in reader thread: " << error.what());
                 std::terminate();
             }
         }

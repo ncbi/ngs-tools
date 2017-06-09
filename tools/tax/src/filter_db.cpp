@@ -28,6 +28,7 @@
 #include <fstream>
 #include <stdexcept>
 
+#include "log.h"
 #include "config_filter_db.h"
 
 using namespace std;
@@ -36,7 +37,7 @@ const string VERSION = "0.11";
 
 void dont_pass(const string &kmer, unsigned int tax_id)
 {
-	cerr << kmer << endl;
+    cerr << kmer << endl;
 }
 
 void pass(const string &kmer, unsigned int tax_id)
@@ -75,14 +76,14 @@ int main(int argc, char const *argv[])
 {
 	ConfigFilterDB config(argc, argv);
 
-	cerr << "filter_db version " << VERSION << endl;
+	LOG("filter_db version " << VERSION);
 		
 	ifstream f(config.input_file);
 	if (f.fail())
 		throw std::runtime_error("cannot open input file");
 
 	if (config.only_tax)
-		cerr << "keep only tax " << config.only_tax << endl;
+		LOG("keep only tax " << config.only_tax);
 
 	string kmer;
 	unsigned int tax_id;

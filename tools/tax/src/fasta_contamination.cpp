@@ -9,6 +9,7 @@
 
 typedef uint64_t hash_t;
 
+#include "log.h"
 #include "dbs.h"
 //#include "aligns_to_dbs_job.h"
 #include "fasta.h"
@@ -149,7 +150,7 @@ int main(int argc, char const *argv[])
 
         #pragma omp critical (read)
         {
-		    cerr << contamination.total_hits << "\thits\t" << file_list_element.filename << endl;
+		    LOG(contamination.total_hits << "\thits\t" << file_list_element.filename);
             if (contamination.total_hits > 0)
                 contaminations.push_back(contamination);
 //            if (contamination.total_hits > 0)
@@ -164,5 +165,5 @@ int main(int argc, char const *argv[])
     for (auto &r : contaminations)
         print(r);
 
-	cerr << "total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count() << endl;
+	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }

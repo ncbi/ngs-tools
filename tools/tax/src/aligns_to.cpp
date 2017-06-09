@@ -56,8 +56,8 @@ int main(int argc, char const *argv[])
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
     
-    cerr << "aligns_to version " << VERSION << endl;
-    cerr << "hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads() << std::endl;
+    LOG("aligns_to version " << VERSION);
+    LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads());
     Config config(argc, argv);
 
     auto before = high_resolution_clock::now();
@@ -73,15 +73,15 @@ int main(int argc, char const *argv[])
     else
         Config::fail();
 
-    cerr << "loading time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
+    LOG("loading time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
     if (job->db_kmers() > 0)
-        cerr << "kmers " << job->db_kmers() << " (" << (job->db_kmers() / 1000 / 1000) << "m)" << endl;
+        LOG("kmers " << job->db_kmers() << " (" << (job->db_kmers() / 1000 / 1000) << "m)");
 
     if (!config.contig_files.empty())
 	{
         for (auto &filename : config.contig_files)
             {
-                cerr << filename << endl;
+                LOG(filename);
                 before = high_resolution_clock::now();
                 {
                     ofstream out_f(filename + ".matches");
@@ -90,7 +90,7 @@ int main(int argc, char const *argv[])
                 }
 
                 auto processing_time = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
-                cerr << "processing time (sec) " << processing_time << endl;
+                LOG("processing time (sec) " << processing_time);
             }
     }
     else
@@ -98,11 +98,11 @@ int main(int argc, char const *argv[])
         if (config.contig_file.empty())
             throw std::runtime_error("contig file(s) is empty");
 
-        cerr << config.contig_file << endl;
+        LOG(config.contig_file);
         job->run(config.contig_file, cout);
     }
 
-    cerr << "total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
+    LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 
 //    std::exit(0); // dont want to wait for destructors
     return 0;

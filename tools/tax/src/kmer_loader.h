@@ -4,6 +4,7 @@
 #include "mem_usage.h"
 #include "reader.h"
 #include "vdb_reader.h"
+#include "log.h"
 
 struct KmerLoader
 {
@@ -23,7 +24,7 @@ struct KmerLoader
 	{
 		auto before = std::chrono::high_resolution_clock::now();
         load_32(accession);
-		std::cerr << "loading total time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count() << std::endl;
+		LOG("loading total time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count());
 	}
 
 	template <class hash_t>
@@ -36,15 +37,15 @@ struct KmerLoader
 	{
 		auto before = std::chrono::high_resolution_clock::now();
 		load_min_mem_map<KmerMap32>(accession, kmers, NoCheck<KmerMap32::hash_t>());
-		std::cerr << "32mer loading time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count() << std::endl;
-		std::cerr << "32mer real size: " << kmers.size() << std::endl;
+		LOG("32mer loading time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count());
+		LOG("32mer real size: " << kmers.size());
 
 		before = std::chrono::high_resolution_clock::now();
-		std::cerr << "mem usage " << mem_usage()/1000000000 << "G" << std::endl;
+		LOG("mem usage " << mem_usage()/1000000000 << "G");
 		kmers.optimize();
-		std::cerr << "32mer optimization time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count() << std::endl;
-		std::cerr << "32mer optimized size: " << kmers.size() << std::endl;
-		std::cerr << "mem usage " << mem_usage()/1000000000 << "G" << std::endl;
+		LOG("32mer optimization time is (ms) " << std::chrono::duration_cast<std::chrono::milliseconds>( std::chrono::high_resolution_clock::now() - before ).count());
+		LOG("32mer optimized size: " << kmers.size());
+		LOG("mem usage " << mem_usage()/1000000000 << "G");
 	}
 
 	template <class KmerMap, class Predicate>

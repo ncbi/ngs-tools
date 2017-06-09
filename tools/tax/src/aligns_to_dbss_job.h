@@ -157,10 +157,10 @@ struct DBSSJob : public DBSJob
         }
         assert(hash_array.size() == total_hashes_count);
         
-        std::cerr << "dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)" << std::endl;
+        LOG("dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)");
         assert(!hash_array.empty());
         std::sort(hash_array.begin(), hash_array.end());
-        std::cerr << "dbss parts merged" << std::endl;
+        LOG("dbss parts merged");
 	}
 };
 

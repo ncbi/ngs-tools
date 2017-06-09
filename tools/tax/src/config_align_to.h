@@ -32,6 +32,7 @@
 #include <fstream>
 #include <list>
 #include <stdexcept>
+#include "log.h"
 
 struct Config
 {
@@ -96,16 +97,17 @@ struct Config
 	static void fail(const char* reason = "invalid arguments")
 	{
 		print_usage();
-		throw std::runtime_error(reason);
+        LOG(reason);
+        exit(1);
 	}
 
 	static void print_usage()
 	{
-        std::cerr << "need <database> [-spot_filter <spot or read file>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl;
-		std::cerr << "where <database> is one of:" << std::endl;
-		std::cerr << "-db <database>" << std::endl;
-		std::cerr << "-dbs <database +tax>" << std::endl;
-		std::cerr << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl;
+        LOG("need <database> [-spot_filter <spot or read file>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl 
+            << "where <database> is one of:" << std::endl
+            << "-db <database>" << std::endl
+            << "-dbs <database +tax>" << std::endl
+            << "-dbss <sorted database +tax> -tax_list <tax_list file>")
 	}
 
 private:
