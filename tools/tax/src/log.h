@@ -8,7 +8,7 @@
     auto t = time(nullptr); \
     auto lt = std::localtime(&t); \
     char timestamp[24]; \
-    auto written = strftime(timestamp, 24, "%Y-%m-%d %H-%M-%S", lt); \
+    auto written = strftime(timestamp, 24, "%Y-%m-%d %H:%M:%S", lt); \
     assert(written < 24); \
     std::cerr << timestamp << "\t" << expr << std::endl; \
 }
