@@ -139,7 +139,7 @@ private:
             if (percent != last_reported) {
                 auto timestamp = time(nullptr);
                 if (force || (timestamp > last_timestamp + 5)) {
-                    LOG('\r' << percent << "% processed");
+                    LOG(percent << "% processed");
                     last_reported = percent;
                     last_timestamp = timestamp;
                 }
