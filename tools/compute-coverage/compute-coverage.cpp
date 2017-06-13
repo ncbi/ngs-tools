@@ -1,0 +1,114 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+#include <ngs/ncbi/NGS.hpp> // openReadCollection
+#include <vector>
+
+using std::cerr;
+using std::cout;
+using std::endl;
+
+////////////////////////////////////////////////////////////////////////////////
+
+int main ( int argc, char const * argv [] ) {
+    const char * accession ( "SRR543323" );
+    if ( argc != 2 ) {
+        cout << "Usage: " << argv [ 0 ] << " <accession>" << endl;
+//      return EXIT_FAILURE;
+    }
+    else
+        accession = argv [ 1 ];
+
+    try {
+        ngs::ReadCollection run ( ncbi::NGS::openReadCollection ( accession ) );
+
+        ngs::ReferenceIterator ri ( run . getReferences () );
+        while ( ri . nextReference () ) {
+            ngs::PileupIterator pi
+                ( ri . getPileups ( ngs::Alignment::primaryAlignment ) );
+
+            int num = 0;
+            typedef std::vector < int > TVector;
+            TVector rc;
+            TVector::size_type max = 0;
+
+            while ( pi . nextPileup () ) {
+                uint32_t depth ( pi . getPileupDepth () );
+                if ( depth > 0 ) {
+                    if ( max < depth ) {
+                        rc . resize ( depth + 1 );
+                        max = depth;
+                    }
+                    rc [ depth ] ++;
+                    ++ num;
+                }
+            }
+
+            int64_t q [ 5 ];
+            for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i )
+                q [ i ] = -1;
+
+            for ( TVector::size_type i = 1, c = 0; i < rc . size (); ++ i ) {
+                c += rc [ i ];
+
+                if ( q [ 0 ] == -1 && .10 * num < c )
+                     q [ 0 ] = i;
+                if ( q [ 1 ] == -1 && .25 * num < c )
+                     q [ 1 ] = i;
+                if ( q [ 2 ] == -1 && .50 * num < c )
+                     q [ 2 ] = i;
+                if ( q [ 3 ] == -1 && .75 * num < c )
+                     q [ 3 ] = i;
+                if ( q [ 4 ] == -1 && .90 * num < c ) {
+                     q [ 4 ] = i;
+                     break;
+                }
+            }
+
+            cout << ri . getCanonicalName ();
+            for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i ) {
+                if ( q [ i ] == -1 )
+                    break;
+                cout <<  "\t" << q [ i ];
+            }
+            cout << endl;
+        }
+
+        return EXIT_SUCCESS;
+    }
+    
+    catch ( ngs::ErrorMsg & e ) {
+        cerr << "Error: " << e . toString () << endl;
+    }
+    catch ( std::exception & e ) {
+        cerr << "Error: " << e . what () << endl;
+    }
+    catch ( ... ) {
+        cerr << "Error: unknown exception" << endl;
+    }
+
+    return EXIT_FAILURE;
+}
