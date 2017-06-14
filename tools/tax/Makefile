@@ -67,6 +67,8 @@ PROGRAMS := \
 	filter_db \
 	contig_builder \
 	fasta_contamination \
+	find_closest_profile_linear \
+	get_profile \
 	sort_dbs
 PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
 TESTS := $(wildcard src/tests/*.cpp)
