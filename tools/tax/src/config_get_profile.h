@@ -36,7 +36,7 @@ struct Config
 
 	static void print_usage()
 	{
-		std::cerr << "need <files.list> <kmer len> <min hash count>" << std::endl;
+		std::cerr << "need <files.list or .fasta> <kmer len> <min hash count>" << std::endl;
 	}
 
 };

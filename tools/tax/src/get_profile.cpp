@@ -12,6 +12,8 @@ typedef uint64_t hash_t;
 #include "hash.h"
 #include "fasta.h"
 
+#include <omp.h>
+
 using namespace std;
 using namespace std::chrono;
 
@@ -41,7 +43,7 @@ struct MinHash
     {
         for (int i = 0; i < best.size(); i++)
         {
-            auto h = hash ^ xors[i];
+            hash_t h = hash ^ xors[i];
             if (h < best[i].hash)
                 best[i] = Best(h, kmer);
         }
@@ -66,6 +68,8 @@ hash_t hash_of(hash_t hash)
 
 void update_min_hash(MinHash &min_hash, const string &seq, int kmer_len)
 {
+    cerr << '.';
+
     Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
     {
         hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
@@ -105,12 +109,9 @@ bool file_exists(const string &filename)
 
 void get_profile(const string &filename, int kmer_len, int min_hash_count)
 {
-    if (!file_exists(filename) || file_exists(save_file(filename)))
-        return;
-
     MinHash min_hash(min_hash_count);
 
-    cerr << "loading " << filename << endl;
+    cout << "loading " << filename << endl;
 
     Fasta fasta(filename);
     string seq;
@@ -118,6 +119,7 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
     while (fasta.get_next_sequence(seq))
         update_min_hash(min_hash, seq, kmer_len);
 
+    cout << endl;
     save(save_file(filename), min_hash);
 }
 
