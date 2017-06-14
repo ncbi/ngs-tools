@@ -53,9 +53,17 @@ private:
         }
     }
 
+    static bool ends_with(const std::string &s, const std::string &end)
+    {
+        if (end.size() > s.size()) 
+            return false;
+
+        return std::equal(end.rbegin(), end.rend(), s.rbegin());
+    }
 public:
+
     static bool is_fasta(const std::string &filename) {
-        return filename.find(".fasta") != std::string::npos;
+        return ends_with(filename, ".fasta") || ends_with(filename, ".fa");
     }
     
 	FastaReader(const std::string &filename)

@@ -30,6 +30,7 @@
 #include <string>
 #include <fstream>
 #include <list>
+#include "fasta_reader.h"
 
 struct FileListLoader
 {
@@ -46,7 +47,7 @@ struct FileListLoader
 
 	FileListLoader(const std::string &file_list)
 	{
-        if (ends_with(file_list, ".fasta"))
+        if (FastaReader::is_fasta(file_list))
         {
             files.push_back(File(0, file_list));
             return;
@@ -73,14 +74,6 @@ struct FileListLoader
 			files.push_back(f_rec);
 		}
 	}
-
-    static bool ends_with(const std::string &s, const std::string &end)
-    {
-        if (end.size() > s.size()) 
-            return false;
-
-        return std::equal(end.rbegin(), end.rend(), s.rbegin());
-    }
 };
 
 #endif
