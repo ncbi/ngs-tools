@@ -87,7 +87,7 @@ namespace DeBruijn {
 
 class IntegerTemplate
 {
-private:
+protected:
 
     typedef TLargeIntN Type;
 

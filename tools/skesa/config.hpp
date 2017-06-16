@@ -24,5 +24,6 @@
 *
 */
 
-
-#define INT128_FOUND            1
+// It appears that int128 is not faster than int64[2] and wastes some memory because of additional padding
+// disabled for now
+#define INT128_FOUND            0

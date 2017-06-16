@@ -1750,6 +1750,9 @@ int main(int argc, const char* argv[]) {
         notify(argm);    
 
         if(argm.count("help")) {
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
             cerr << all << "\n";
             return 1;
         }

@@ -62,18 +62,14 @@ typedef vector<char> TSeqV;
 typedef pair<string, TSeqV> TSeq;
 typedef list<TSeq> TSeqHolder;
 typedef pair<int, const TSeq*> TKmerPos;
-typedef forward_list<TKmerPos> TKmerLocations;
+typedef CForwardList<TKmerPos> TKmerLocations;
 
-mutex out_mutex;
-
-class CKmerLocationsHash : public CKmerHashMap<TKmerLocations>, CCentinel {
+class CKmerLocationsHash : public CKmerHashMap<TKmerLocations, 8> {
 public:
-    CKmerLocationsHash(int kmer_len, size_t size) : CKmerHashMap(kmer_len, size), CCentinel(size) {}
+    CKmerLocationsHash(int kmer_len, size_t size) : CKmerHashMap(kmer_len, size) {}
     void Insert(const TKmer& kmer, int pos, const TSeq* contigp) {
         size_t index = kmer.oahash()%m_table_size;
-        GrabBucket(index);
-        FindOrInsertInBucket(kmer, index)->emplace_front(pos, contigp);
-        ReleaseBucket(index);
+        FindOrInsertInBucket(kmer, index)->PushFront(TKmerPos(pos,contigp));
     }
 };
 
@@ -679,6 +675,9 @@ int main(int argc, const char* argv[]) {
         notify(argm);    
 
         if(argm.count("help")) {
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
             cerr << all << "\n";
             return 1;
         }

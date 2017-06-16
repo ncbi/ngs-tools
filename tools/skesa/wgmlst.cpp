@@ -124,6 +124,41 @@ public:
         }
     }
 
+    void ReadBadBases(ifstream& bad_bases_file) {
+        m_bad_bases.clear();
+        string line;
+        int line_num = 0;
+        while(getline(bad_bases_file, line)) {
+            ++line_num;
+            istringstream ss(line);
+            vector<string> tokens;
+            string tk;
+            while(ss >> tk)
+                tokens.push_back(tk);
+            if(tokens.size() < 2)
+                throw runtime_error("Invalid format for bad bases in line "+to_string(line_num));
+            string::size_type idx;
+            int base = stoi(tokens[1], &idx);
+            if(idx != tokens[1].size())
+                throw runtime_error("Invalid format for bad bases in line "+to_string(line_num));
+            string& contig_acc = tokens[0];
+            int index = m_genome_acc_to_index[contig_acc]-1; // it starts from 1
+            if(index < 0)
+                throw runtime_error("Unknown genome accession in bad bases file");
+            if(!m_bad_bases[index].insert(base-1).second)
+                throw runtime_error("Do not expect to have same position present multiple times in bad bases input");
+        }
+    }
+
+    bool AllGoodBases(int contig_index, int from, int to) {
+        if(!m_bad_bases.count(contig_index))
+            return true;
+
+        auto& bad_bases = m_bad_bases[contig_index];
+        auto lb = bad_bases.lower_bound(from);
+        return (lb == bad_bases.end() || *lb > to);
+    }
+
     void ReadBlastHits(boost::iostreams::filtering_istream& blast_file) {
         m_blast_hits.clear();
 
@@ -312,7 +347,10 @@ public:
                     if(ifrag.m_contig != jfrag.m_contig || jfrag.m_from > ifrag.m_to)
                         break;
 
-                    if(ifrag.m_to-jfrag.m_from+1 > m_consistent_bases) {
+                    /* long enough overlap or one strictly contained and shorter than other */
+                    if((ifrag.m_to-jfrag.m_from+1 > m_consistent_bases && jfrag.m_from > ifrag.m_from) ||
+                       (jfrag.m_from > ifrag.m_from && jfrag.m_to <= ifrag.m_to) ||
+                       (jfrag.m_from == ifrag.m_from && jfrag.m_to < ifrag.m_to)) {
                         int ilength = ifrag.m_to-ifrag.m_from+1;
                         int jlength = jfrag.m_to-jfrag.m_from+1;
                         if(ilength < jlength)
@@ -363,7 +401,7 @@ public:
                         length = ifrag.m_to-jfrag.m_from+1;
                     else
                         length = jfrag.m_to-jfrag.m_from+1;
-                    if(length > m_consistent_bases) {
+                    if(length > m_consistent_bases ||(ifrag.m_from == jfrag.m_from && ifrag.m_to == jfrag.m_to)) {
                         ifrag.m_print = false;
                         jfrag.m_print = false;
 
@@ -443,6 +481,25 @@ public:
                 ind = jnd;
             }
             cerr << same_count << " loci present in multiple places on the genome" << endl;
+
+            /* check if region overlaps bad bases */
+            int bad_count = 0;
+            for(auto i = overlap_data.begin(); i != overlap_data.end(); ++i) {
+                SFragment& fragment = get<2>(*i); 
+                if(fragment.m_print && !AllGoodBases(fragment.m_contig, fragment.m_from, fragment.m_to)) {
+                    ++bad_count;
+                    fragment.m_print = false;
+                    cerr << "BAD_BASE\t";
+                    cerr << get<0>(m_genome[fragment.m_contig]) << '\t';
+                    cerr << fragment.m_from+1 << '\t';
+                    cerr << fragment.m_to+1 << '\t';
+                    cerr << get<0>(*i) << '\t';
+                    cerr << get<1>(*i) << '\t';
+                    cerr << fixed << setprecision(2) << fragment.m_identity << '\t';
+                    cerr << fragment.m_to-fragment.m_from+1 << endl;
+                }
+            }
+            cerr << bad_count << " loci overlap bad bases on the genome" << endl;
 
             overlap_data.sort(SCompareOverlapsByLocation);            
             /* print kept locations to m_output_loci : results */
@@ -1355,6 +1412,7 @@ private:
     TAlles  m_alleles;
     TGenome m_genome;
     map<string, int> m_genome_acc_to_index;
+    map<int, set<int>> m_bad_bases;
     TKmerToGenome m_genome_kmers;
     map<string, map<int,TLinkedHits>> m_blast_hits;
 
@@ -1394,6 +1452,7 @@ int main(int argc, const char* argv[])
     arguments.add_options()
         ("help,h", "Produce help message")
         ("genome", value<string>()->required(), "Assembled genome (required)")
+        ("bad_bases", value<string>(), "Positions of low quality genome bases (optional)")
         ("alleles", value<string>()->required(), "Alleles (required)")
         ("output_mappings", value<string>(), "Output allele mappings (optional, default cout)")
         ("output_loci", value<string>(), "Output new loci (optional)")
@@ -1413,6 +1472,7 @@ int main(int argc, const char* argv[])
     int min_kmer_bases;
     double min_fraction_of_matches;
     boost::iostreams::filtering_istream genome_file;
+    ifstream bad_bases_file;
     boost::iostreams::filtering_istream alleles_file;
     boost::iostreams::filtering_istream blast_file;
     int match;
@@ -1429,6 +1489,9 @@ int main(int argc, const char* argv[])
         store(parse_command_line(argc, argv, arguments), argmap);
 
         if(argmap.count("help")) {
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
             cerr << arguments << "\n";
             return 1;
         }
@@ -1450,6 +1513,15 @@ int main(int argc, const char* argv[])
             if(file.size() > 3 &&  file.substr(file.size()-3) == ".gz")
                 genome_file.push(boost::iostreams::gzip_decompressor());
             genome_file.push(f);
+        }
+
+        if(argmap.count("bad_bases")) {
+            string file = argmap["bad_bases"].as<string>();
+            bad_bases_file.open(file);
+            if(!bad_bases_file.is_open()) {
+                cerr << "Can't open file " << file << endl;
+                return 1; 
+            }    
         }
 
         {
@@ -1521,6 +1593,9 @@ int main(int argc, const char* argv[])
 
         timer.Restart();
         wg_mlst.ReadGenome(genome_file);
+        if(bad_bases_file.is_open())
+            wg_mlst.ReadBadBases(bad_bases_file);
+
         if(blast_hits_present) {
             wg_mlst.ReadBlastHits(blast_file);
             //            cerr << "Genome and blast hits input in " << timer.Elapsed();

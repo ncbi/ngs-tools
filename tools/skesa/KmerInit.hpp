@@ -62,24 +62,6 @@ namespace DeBruijn {
     };
     template<int N, class V> using TLargeIntMap = unordered_map<LargeInt<N>,V,SKmerHash>;
     template<class V> using TKmerMapN = BoostVariant<TLargeIntMap, V>;
-
-    // for CKmerHashCount
-    template<int N, class V>
-    struct SOneWayList {
-        typedef LargeInt<N> large_t;
-        typedef pair<large_t,V> element_t;
-        typedef forward_list<element_t> list_t;
-
-        element_t m_data;
-        list_t m_extra;
-    };
-    template<int N, class V> using TOneWayListVec = vector<SOneWayList<N,V>>;
-    template<class V> using TKmerHashTable = BoostVariant<TOneWayListVec, V>;
-
-    // for CKmerHashMapSimple
-    template<int N, class V> using TLargeIntVecV = vector<pair<LargeInt<N>,V>>;
-    template<class V> using  TKmerAndV = BoostVariant<TLargeIntVecV, V>;
-
     
     // This variadic template could be used in construsctors of all boost::variants used in this code
     template<typename Variant, template<int, typename...> class BoundedType, typename... Params>

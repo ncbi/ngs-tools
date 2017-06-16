@@ -931,6 +931,13 @@ namespace DeBruijn {
                 }
                 return read;
             }
+            // returns inversed binary sequence (not complemented) 
+            // assumes that destination is extended properly and filled with 0s    
+            void BSeq(int shift, uint64_t* destination) const {
+                size_t position = m_position+m_readholderp->m_front_shift+2*shift;
+                size_t len = 2*(ReadLen()-shift);
+                m_readholderp->CopyBits(position, position+len, destination, 0, (len+63)/64);
+            }
             string_iterator& operator++() {
                 if(m_read == m_readholderp->m_read_length.size())
                     return *this;
