@@ -229,15 +229,15 @@ namespace NSRefVariation
     char const OPTION_COUNT_STRAND[] = "count-strand";
     //char const ALIAS_COUNT_STRAND[]  = "s";
     char const* USAGE_COUNT_STRAND[] = { "controls relative orientation of 3' and 5' fragments. "
-        "\""COUNT_STRAND_NONE_STR"\" - do not count (default). "
-        "\""COUNT_STRAND_COUNTERALIGNED_STR"\" - as in Illumina. "
-        "\""COUNT_STRAND_COALIGNED_STR"\" - as in 454 or IonTorrent. ", NULL };
+        "\"" COUNT_STRAND_NONE_STR "\" - do not count (default). "
+        "\"" COUNT_STRAND_COUNTERALIGNED_STR "\" - as in Illumina. "
+        "\"" COUNT_STRAND_COALIGNED_STR "\" - as in 454 or IonTorrent. ", NULL };
 
     char const OPTION_ALG[] = "algorithm";
     //char const ALIAS_ALG[]  = "a";
     char const* USAGE_ALG[] = { "the algorithm to use for searching. "
-        "\""PARAM_ALG_SW"\" means Smith-Waterman. "
-        "\""PARAM_ALG_RA"\" means Rolling bulldozer algorithm\n", NULL };
+        "\"" PARAM_ALG_SW "\" means Smith-Waterman. "
+        "\"" PARAM_ALG_RA "\" means Rolling bulldozer algorithm\n", NULL };
 
     ::OptDef Options[] =
     {
