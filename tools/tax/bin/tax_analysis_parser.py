@@ -10,7 +10,7 @@ from lxml.builder import E
 
 import gettax
 
-__version__ = '0.5'
+__version__ = '0.6'
 logger = logging.getLogger('tax_analysis_parser')
 
 def get_lineage(tax_id, cache, conn):
@@ -131,10 +131,12 @@ def iterate_merged_spots(f):
     if last_spot:
         yield last_hits
 
-def parse(f, conn, wgs_mode):
+def parse(f, conn, wgs_mode, include_tax_ids=[]):
     '''parses tax_analysis output file'''
     counter = collections.Counter()
     counter[1] = 0 # explicitly add root
+    for tax_id in include_tax_ids:
+        counter[tax_id] = 0
 
     lineage_cache = {}
 
@@ -163,6 +165,7 @@ def main():
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
     parser.add_argument('-r', '--rebuild-timeout', type=float, help='minimum delay between cache rebuilds in seconds')
+    parser.add_argument('-i', '--include-tax-id', type=int, action='append', help='include taxon into tax tree even if it has no hits')
     parser.add_argument('--connection-timeout', type=float, help='cache connection timeout, to wait until rebuild is completed')
     parser.add_argument('--wgs-mode', action='store_true', help='''
 In regular mode parser assigns single consensus tax_id for each input sequence.
@@ -189,7 +192,7 @@ With this flag parser builds hierarchy based on count of kmer hits, not the coun
         f = sys.stdin
 
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
-        xml = parse(f, conn, args.wgs_mode)
+        xml = parse(f, conn, args.wgs_mode, args.include_tax_id)
     xml = E.taxon_tree(xml, parser_version=__version__)
     print etree.tostring(xml, pretty_print=True)
 
