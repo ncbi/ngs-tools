@@ -192,7 +192,7 @@ With this flag parser builds hierarchy based on count of kmer hits, not the coun
         f = sys.stdin
 
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
-        xml = parse(f, conn, args.wgs_mode, args.include_tax_id)
+        xml = parse(f, conn, args.wgs_mode, args.include_tax_id or [])
     xml = E.taxon_tree(xml, parser_version=__version__)
     print etree.tostring(xml, pretty_print=True)
 
