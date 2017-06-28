@@ -30,12 +30,7 @@
 #include <chrono>
 #include <thread>
 #include <list>
-
-#ifdef _OPENMP
-   #include <omp.h>
-#else
-   inline int omp_get_max_threads() { return 0; }
-#endif
+#include "omp_adapter.h"
 
 const std::string VERSION = "0.39";
 

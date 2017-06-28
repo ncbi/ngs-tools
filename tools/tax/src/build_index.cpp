@@ -28,7 +28,7 @@
 #include <chrono>
 #include <thread>
 #include <array>
-#include <omp.h>
+#include "omp_adapter.h"
 #include "kmers.h"
 #include "kmer_io.h"
 #include "kmer_hash.h"
@@ -80,7 +80,7 @@ void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int k
 	bool has_kmer_found = false;
 
 	#pragma omp parallel num_threads(THREADS)
-	for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i+=THREADS)
+	for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i += omp_get_num_threads())
 	{
 		hash_t kmer = KmerIO::kmer_from(s, i, kmer_len);
 

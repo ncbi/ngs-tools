@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <chrono>
-#include <omp.h>
+#include "omp_adapter.h"
 
 typedef uint64_t hash_t;
 
@@ -141,9 +141,7 @@ int main(int argc, char const *argv[])
     list<Contamination> contaminations; // todo: list ?
 
 	#pragma omp parallel num_threads(THREADS) 
-	for (int i = omp_get_thread_num(); i < file_list.files.size(); i+=THREADS)
-//	#pragma omp parallel for num_threads(THREADS) 
-//    for (int i = 0; i < file_list.files.size(); i++)
+	for (int i = omp_get_thread_num(); i < file_list.files.size(); i += omp_get_num_threads())
 	{
         auto file_list_element = file_list.files[i];
 		auto contamination = check_for_contamination(file_list_element.filename, kmer_len, hash_array);

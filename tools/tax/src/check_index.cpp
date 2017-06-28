@@ -28,7 +28,7 @@
 #include <chrono>
 #include <thread>
 #include <array>
-#include <omp.h>
+#include "omp_adapter.h"
 #include "kmers.h"
 #include "kmer_io.h"
 #include "kmer_hash.h"
@@ -72,7 +72,7 @@ void check_clean_string(Kmers &kmers, p_string p_str, tax_id_t tax_id, int kmer_
 	array<ThreadFinding, THREADS> thread_findings;
 
 	#pragma omp parallel num_threads(THREADS)
-	for (int i = omp_get_thread_num(); i <= len - kmer_len; i+=THREADS)
+	for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
 	{
 		auto thread_id = omp_get_thread_num();
 

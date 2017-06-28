@@ -12,7 +12,7 @@ typedef uint64_t hash_t;
 #include "hash.h"
 #include "fasta.h"
 
-#include <omp.h>
+#include "omp_adapter.h"
 
 using namespace std;
 using namespace std::chrono;

@@ -8,7 +8,7 @@
 #include <iostream>
 #include "seq_transform.h"
 #include "hash.h"
-#include <omp.h>
+#include "omp_adapter.h"
 
 template <class _hash_t, int _kmer_len, int _count_buckets>
 struct KmerMap 

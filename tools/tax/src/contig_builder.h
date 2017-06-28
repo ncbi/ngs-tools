@@ -13,7 +13,7 @@
 #include <map>
 #include <chrono>
 #include <thread>
-#include <omp.h>
+#include "omp_adapter.h"
 
 #include "hash.h"
 
