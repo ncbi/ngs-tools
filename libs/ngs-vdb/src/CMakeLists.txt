@@ -1,4 +1,4 @@
-include_directories ( ${CMAKE_SOURCE_DIR} )
+include_directories ( ${CMAKE_SOURCE_DIR}/libs )
 
 add_library ( ngs-vdb
                 VdbReadCollection.cpp

@@ -12,7 +12,7 @@ set(CMAKE_MODULE_PATH
 )
 include ( env )
 
-add_subdirectory(ngs-vdb)
+add_subdirectory(libs)
 add_subdirectory(tools)
 
 set ( CPACK_PACKAGE_NAME ngs-tools )
