@@ -26,12 +26,13 @@ find_program(VDB_DUMP vdb-dump)
         set ( CMD ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader ${VDB_DUMP} ${CMAKE_CURRENT_SOURCE_DIR} )
 
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bio-end/input)
         add_test ( NAME bio-end-makeinputs
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/bio-end-makeinputs
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test ( NAME BioEnd-Excl-1
-                COMMAND ${CMD} bio-end excl-1 0 n ${VDB_INCDIR} # -L=debug
+                COMMAND ${CMD} bio-end excl-1 0 n ${VDB_INCDIR} -L=debug
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME BioEnd-Excl-2
@@ -70,6 +71,7 @@ find_program(VDB_DUMP vdb-dump)
         #
         add_executable ( idx-text-makeinputs idx-text/makeinputs )
 
+        file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/idx-text/input)
         add_dependencies ( idx-text-makeinputs general-writer )
         target_link_libraries ( idx-text-makeinputs
             general-writer
