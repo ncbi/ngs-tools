@@ -1451,6 +1451,7 @@ int main(int argc, const char* argv[])
     options_description arguments("Program arguments");
     arguments.add_options()
         ("help,h", "Produce help message")
+        ("version,v", "Print version")
         ("genome", value<string>()->required(), "Assembled genome (required)")
         ("bad_bases", value<string>(), "Positions of low quality genome bases (optional)")
         ("alleles", value<string>()->required(), "Alleles (required)")
@@ -1494,6 +1495,14 @@ int main(int argc, const char* argv[])
 #endif
             cerr << arguments << "\n";
             return 1;
+        }
+
+        if(argmap.count("version")) {
+            cerr << "WGMLST v.1.0" << endl;
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
+            return 0;
         }
 
         // must be after "help" if thre are 'required' options

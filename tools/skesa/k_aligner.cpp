@@ -644,6 +644,7 @@ int main(int argc, const char* argv[]) {
     options_description general("General options");
     general.add_options()
         ("help,h", "Produce help message")
+        ("version,v", "Print version")
         ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]");
 
     options_description input("Input/output");
@@ -680,6 +681,14 @@ int main(int argc, const char* argv[]) {
 #endif
             cerr << all << "\n";
             return 1;
+        }
+
+        if(argm.count("version")) {
+            cerr << "k_aligner v.1.0" << endl;
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
+            return 0;
         }
 
         if(!argm.count("sra_run")) {

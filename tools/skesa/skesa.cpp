@@ -64,6 +64,7 @@ int main(int argc, const char* argv[]) {
     options_description general("General options");
     general.add_options()
         ("help,h", "Produce help message")
+        ("version,v", "Print version")
         ("memory", value<int>()->default_value(32), "Memory available (GB) [integer]")
         ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]");
 
@@ -111,6 +112,14 @@ int main(int argc, const char* argv[]) {
 #endif
             cerr << all << "\n";
             return 1;
+        }
+
+        if(argm.count("version")) {
+            cerr << "SKESA v.1.0" << endl;
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
+            return 0;
         }
 
         if(!argm.count("fasta") && !argm.count("fastq") && !argm.count("sra_run")) {

@@ -61,7 +61,8 @@ int main(int argc, const char* argv[])
 {
     options_description all("Test options");
     all.add_options()
-        ("help", "Produce help message")
+        ("help,h", "Produce help message")
+        ("version,v", "Print version")
         ("dbg", value<string>(), "de Bruijn graph")
         ("fraction", value<double>()->default_value(0.1, "0.1"), "Threshold for extension")
         ("mindeadend", value<int>()->default_value(50), "Ignore dead ends shorter than this")
@@ -89,6 +90,14 @@ int main(int argc, const char* argv[])
 #endif
             cerr << all << "\n";
             return 1;
+        }
+
+        if(argm.count("version")) {
+            cerr << "dbgtester v.1.0" << endl;
+#ifdef SVN_REV
+            cerr << "SVN revision:" << SVN_REV << endl << endl;
+#endif
+            return 0;
         }
 
         if(argm.count("dbg"))
