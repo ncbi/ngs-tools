@@ -7,7 +7,7 @@ die "add sra-pileup to PATH to run $0" if ( $? );
 my $last_ref = "";
 
 if ( $#ARGV != 0 ) {
-    print STDERR "Usage: $0 <accession>\n";
+    die "Usage: $0 <accession>\n";
 }
 my $run = $ARGV[0];
 $run = "SRR543323" unless ( $run );

@@ -24,91 +24,217 @@
 *
 */
 
-#include <ngs/ncbi/NGS.hpp> // openReadCollection
-#include <vector>
+#include <align/reference.h> // ReferenceList_Release
+#include <align/unsupported_pileup_estimator.h> // ReleasePileupEstimator
+#include <klib/rc.h>
+#include <iostream> // cout
+#include <cstdlib> // EXIT_SUCCESS
 
 using std::cerr;
 using std::cout;
 using std::endl;
 
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
+
+static rc_t PileupEstimatorRelease ( PileupEstimator * self ) {
+    return ReleasePileupEstimator ( self );
+}
+
+static rc_t ReferenceListRelease ( const ReferenceList * self ) {
+    ReferenceList_Release ( self );
+    return 0;
+}
+
+static rc_t ReferenceObjRelease ( const ReferenceObj * self ) {
+    ReferenceObj_Release ( self );
+    return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 int main ( int argc, char const * argv [] ) {
+    bool TESTING = getenv ( "VDB_TEST" ) != NULL;
     const char * accession ( "SRR543323" );
     if ( argc != 2 ) {
-        cout << "Usage: " << argv [ 0 ] << " <accession>" << endl;
-//      return EXIT_FAILURE;
+        cerr << "Usage: " << argv [ 0 ] << " <accession>" << endl;
+        return EXIT_FAILURE;
     }
     else
         accession = argv [ 1 ];
 
-    try {
-        ngs::ReadCollection run ( ncbi::NGS::openReadCollection ( accession ) );
+    const VDBManager * mgr = NULL;
+    rc_t rc = VDBManagerMakeRead ( & mgr, NULL );
+    if ( rc != 0 )
+        cerr << rc << " while calling VDBManagerMakeRead()" << endl;
+    const ReferenceList * rl = NULL;
+    if ( rc == 0 ) {
+        rc = ReferenceList_MakePath ( & rl, mgr, accession, 0, 0, NULL, 0 );
+        if ( rc != 0 )
+            cerr << rc << " while calling ReferenceList_MakePath"
+                                          "(" << accession << ")" << endl;
+    }
 
-        ngs::ReferenceIterator ri ( run . getReferences () );
-        while ( ri . nextReference () ) {
-            ngs::PileupIterator pi
-                ( ri . getPileups ( ngs::Alignment::primaryAlignment ) );
+    PileupEstimator * pe = NULL;
+    if ( rc == 0 ) {
+        rc = MakePileupEstimator ( & pe, accession, 0, NULL, NULL, 0, true );
+        if ( rc != 0 )
+            cerr << rc << " while calling MakePileupEstimator"
+                                          "(" << accession << ")" << endl;
+    }
 
-            int num = 0;
-            typedef std::vector < int > TVector;
-            TVector rc;
-            TVector::size_type max = 0;
+    uint32_t count = 0;
+    if ( rc == 0 ) {
+        rc = ReferenceList_Count ( rl, & count );
+        if ( rc != 0 )
+            cerr << rc << " while calling ReferenceList_Count"
+                                          "(" << accession << ")" << endl;
+    }
 
-            while ( pi . nextPileup () ) {
-                uint32_t depth ( pi . getPileupDepth () );
-                if ( depth > 0 ) {
-                    if ( max < depth ) {
-                        rc . resize ( depth + 1 );
-                        max = depth;
+    int ALLOCATED = 100;
+    int * RC = static_cast < int * > ( calloc ( ALLOCATED, sizeof RC [ 0 ] ) );
+    if ( RC == NULL ) {
+        rc = RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
+        cerr << "Out of memory" << endl;
+    }
+
+    for ( uint32_t idx = 0; rc == 0 && idx < count; ++ idx ) {
+        int MAX = 0;
+        int NUM = 0;
+
+        const ReferenceObj * obj = NULL;
+        rc = ReferenceList_Get ( rl, & obj, idx );
+        if ( rc != 0 ) {
+            cerr << rc << " while calling ReferenceList_Get"
+                                 "(" << accession << ", " << idx << ")" << endl;
+            break;
+        }
+
+        const char * name = NULL;
+        rc = ReferenceObj_SeqId ( obj, & name );
+        if ( rc != 0 ) {
+            cerr << rc << " while calling ReferenceObj_SeqId"
+                                 "(" << accession << ", " << idx << ")" << endl;
+            break;
+        }
+
+        String refname;
+        StringInitCString ( & refname, name );
+
+        INSDC_coord_len len = 0;
+        rc = ReferenceObj_SeqLength ( obj, & len );
+        if ( rc != 0 ) {
+            cerr << rc << " while calling ReferenceObj_SeqLength"
+               "(" << accession << ", " << idx << " (" << name << ") )" << endl;
+            break;
+        }
+
+        RELEASE ( ReferenceObj, obj );
+
+        uint32_t coverage [ 5000 ];
+        INSDC_coord_len slice_start = 0;
+        for ( slice_start = 0; slice_start < len; ) {
+            uint32_t slice_len = sizeof coverage / sizeof coverage [ 0 ];
+            if ( slice_start + slice_len > len )
+                slice_len = len - slice_start;
+            rc = RunCoverage ( pe, & refname,
+                               slice_start, slice_len, coverage );
+            if ( rc != 0 ) {
+                cerr << rc << " while calling RunCoverage"
+                  "(" << accession << ", " << name << ", "
+                      << slice_start << ", " << slice_len << ")" << endl;
+                break;
+            }
+
+            for ( int sid = 0; sid < slice_len; ++ sid ) {
+                if ( coverage [ sid ] != 0 ) {
+                    uint32_t depth = coverage [ sid ];
+                    -- depth;
+                    if ( MAX < depth + 1 ) {
+                        MAX = depth + 1;
+                        if ( ALLOCATED < MAX ) {
+                            int NEW = MAX * 2;
+                            int * tmp = static_cast < int * > ( realloc
+                                ( RC, NEW * sizeof RC [ 0 ] ) );
+                            if ( tmp != NULL ) {
+                                RC = tmp;
+                                for ( int i = ALLOCATED; i < NEW; ++ i )
+                                    RC [ i ] = 0;
+                            }
+                            else {
+                                rc = RC ( rcExe, rcStorage,
+                                    rcAllocating, rcMemory, rcExhausted );
+                                cerr << "Out of memory" << endl;
+                                break;
+                            }
+                            ALLOCATED = NEW;
+                        }
                     }
-                    rc [ depth ] ++;
-                    ++ num;
+                    ++ RC [ depth ];
+                    ++ NUM;
                 }
             }
 
+            slice_start += slice_len;
+        }
+
+        rc = RunCoverage ( pe, & refname, slice_start, 1, coverage );
+        if ( rc != SILENT_RC
+            ( rcAlign, rcQuery, rcAccessing, rcItem, rcInvalid ) )
+        {
+            cerr << "Unexpected rc=" << rc << " while calling RunCoverage"
+                  "(" << accession << ", " << name << ", "
+                      << slice_start << ", 1)" << endl;
+            if ( rc == 0 )
+                rc = 1;
+        }
+        else
+            rc = 0;
+
+        if ( rc == 0 ) {
             int64_t q [ 5 ];
             for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i )
                 q [ i ] = -1;
-
-            for ( TVector::size_type i = 1, c = 0; i < rc . size (); ++ i ) {
-                c += rc [ i ];
-
-                if ( q [ 0 ] == -1 && .10 * num < c )
-                     q [ 0 ] = i;
-                if ( q [ 1 ] == -1 && .25 * num < c )
-                     q [ 1 ] = i;
-                if ( q [ 2 ] == -1 && .50 * num < c )
-                     q [ 2 ] = i;
-                if ( q [ 3 ] == -1 && .75 * num < c )
-                     q [ 3 ] = i;
-                if ( q [ 4 ] == -1 && .90 * num < c ) {
-                     q [ 4 ] = i;
+            for ( int i = 0, c = 0; i < MAX; ++ i ) {
+                int depth = i + 1;
+                c += RC [ i ];
+                if ( q [ 0 ] == -1 && .10 * NUM < c )
+                     q [ 0 ] = depth;
+                if ( q [ 1 ] == -1 && .25 * NUM < c )
+                     q [ 1 ] = depth;
+                if ( q [ 2 ] == -1 && .50 * NUM < c )
+                     q [ 2 ] = depth;
+                if ( q [ 3 ] == -1 && .75 * NUM < c )
+                     q [ 3 ] = depth;
+                if ( q [ 4 ] == -1 && .90 * NUM < c ) {
+                     q [ 4 ] = depth;
                      break;
                 }
             }
 
-            cout << ri . getCanonicalName ();
+            cout << name;
             for ( int i = 0; i < sizeof q / sizeof q [ 0 ]; ++ i ) {
                 if ( q [ i ] == -1 )
                     break;
                 cout <<  "\t" << q [ i ];
             }
+            if ( TESTING ) {
+                cout <<  "\t" << len << "|" << NUM << "|" << MAX;
+                for ( int i = 0; i < MAX; ++ i )
+                    cout <<  "|" << RC [ i ];
+            }
             cout << endl;
+
+            memset ( RC, 0, MAX * sizeof RC [ 0 ] );
         }
-
-        return EXIT_SUCCESS;
-    }
-    
-    catch ( ngs::ErrorMsg & e ) {
-        cerr << "Error: " << e . toString () << endl;
-    }
-    catch ( std::exception & e ) {
-        cerr << "Error: " << e . what () << endl;
-    }
-    catch ( ... ) {
-        cerr << "Error: unknown exception" << endl;
     }
 
-    return EXIT_FAILURE;
+    free ( RC );
+    RC = 0;
+
+    RELEASE ( PileupEstimator, pe );
+    RELEASE ( ReferenceList  , rl );
+    RELEASE ( VDBManager    , mgr );
+
+    return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
