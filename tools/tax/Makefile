@@ -68,6 +68,7 @@ PROGRAMS := \
 	contig_builder \
 	fasta_contamination \
 	find_closest_profile_linear \
+	contig_connectivity \
 	get_profile \
 	sort_dbs
 PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
