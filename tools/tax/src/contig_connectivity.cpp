@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iomanip>
 #include <ctime>
+#include <omp.h>
 #include <unordered_map>
 #include <vector>
 #include "seq_transform.h"
@@ -14,6 +15,10 @@ using namespace std;
 using namespace std::chrono;
 
 const string VERSION = "0.10";
+
+const int THREADS = 4;
+#define MULTITHREADED 1
+
 
 typedef uint64_t hash_t;
 const int KMER_LEN = 32;
@@ -48,7 +53,6 @@ void for_all_reads_do(const string &accession, Lambda &&lambda)
     auto reader = Reader::create(accession, reader_params);
 
 #if MULTITHREADED
-    const int THREADS = 4;
     #pragma omp parallel num_threads(THREADS)
 #endif
     {
@@ -122,6 +126,42 @@ struct Conn
 typedef vector<Conn> Connectivity;
 typedef vector<Connectivity> Connectivities;
 
+struct ConnectivitiesMT
+{
+    vector<Connectivities> conn_per_thread;
+
+    ConnectivitiesMT(const Contigs &contigs) : conn_per_thread(THREADS)
+    {
+        // todo: if (max threads is 0, resize to 1)
+        for (auto &conns : conn_per_thread)
+        {
+            conns.resize(contigs.size());
+            for (int i = 0; i < contigs.size(); i++)
+                conns[i].resize(contigs[i].seq.size());
+        }
+    }
+
+    Connectivities reduce()
+    {
+        for (int thread_i = 1; thread_i < conn_per_thread.size(); thread_i++)
+            for (int seq = 0; seq < conn_per_thread[thread_i].size(); seq++)
+                for (int pos = 0; pos < conn_per_thread[thread_i][seq].size(); pos++)
+                    conn_per_thread[0][seq][pos].len = std::max(conn_per_thread[0][seq][pos].len, conn_per_thread[thread_i][seq][pos].len);
+        
+        return conn_per_thread[0];
+    }
+
+    Connectivities &get()
+    {
+        int thread_id = omp_get_thread_num();
+        if (thread_id < 0 || thread_id >= conn_per_thread.size())
+            throw std::runtime_error("thread_id < 0 || thread_id >= conn_per_thread.size()");
+
+        return conn_per_thread[thread_id];
+    }
+
+};
+
 void connect(Connectivity &conn, const ContigPos &start_pos, const ContigPos &end_pos)
 {
     if (conn.size() <= start_pos.pos || conn.size() <= end_pos.pos)
@@ -133,7 +173,7 @@ void connect(Connectivity &conn, const ContigPos &start_pos, const ContigPos &en
         connect(conn, end_pos, start_pos);        
 }
 
-bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const string &rev_complement, Connectivities &conns, const ContigMap &contig_map)
+bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
 {
     int pos = 0;
     bool connected = false;
@@ -146,7 +186,7 @@ bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const s
             for (auto &end_pos : contig_poss->second)
                 if (end_pos.contig == start_pos.contig && about_the_same(pos_distance(end_pos, start_pos), read_distance(read_start_pos, pos, rev_complement.size())))
                 {
-                    connect(conns[start_pos.contig], start_pos, end_pos);
+                    connect(conns.get()[start_pos.contig], start_pos, end_pos);
                     connected = true;
                     return false;
                 }
@@ -158,7 +198,7 @@ bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const s
     return connected;
 }
 
-void update_connectivity(const string &bases, const string &rev_complement, Connectivities &conns, const ContigMap &contig_map)
+void update_connectivity(const string &bases, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
 {
     int pos = 0;
 
@@ -178,9 +218,7 @@ void update_connectivity(const string &bases, const string &rev_complement, Conn
 
 Connectivities get_contig_connectivity(const Contigs &contigs, const string &accession)
 {
-    Connectivities conns(contigs.size());
-    for (int i = 0; i < contigs.size(); i++)
-        conns[i].resize(contigs[i].seq.size());
+    ConnectivitiesMT conns(contigs);
 
     ContigMap contig_map;
     load_contig_map(contigs, contig_map);
@@ -197,9 +235,8 @@ Connectivities get_contig_connectivity(const Contigs &contigs, const string &acc
             cerr << ".";
     });
 
-    return conns;
+    return conns.reduce();
 }
-
 
 void print_connectivity(const Connectivities &conns)
 {
@@ -216,24 +253,6 @@ void print_connectivity(const Connectivities &conns)
         cout << endl;
     }
 }
-/*
-
-void print_connectivity(const Connectivities &conns)
-{
-    auto &conn = conns[0];
-    {
-        int len = 0;
-        for (auto &c : conn)
-        {
-            len = std::max(c.len, len);
-            cout << len << endl;
-            len--;
-        }
-
-        cout << endl;
-    }
-}
-*/
 
 int main(int argc, char const *argv[])
 {
