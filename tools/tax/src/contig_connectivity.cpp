@@ -16,7 +16,7 @@ using namespace std::chrono;
 
 const string VERSION = "0.10";
 
-const int THREADS = 4;
+const int THREADS = 16;
 #define MULTITHREADED 1
 
 
@@ -67,21 +67,56 @@ void for_all_reads_do(const string &accession, Lambda &&lambda)
                 done = !reader->read_many(chunk);   
             }
 
+#if 0
             for (auto& frag: chunk) 
                 lambda(frag.bases);
+#else
+            {
+                string spotid;
+                vector<string> spot;
+
+                for (auto& frag: chunk) 
+                    if (frag.spotid == spotid)
+                        spot.push_back(frag.bases);
+                    else
+                        {
+                            if (!spot.empty())
+                                lambda(spot);
+
+                            spot.clear();
+                            spot.push_back(frag.bases);
+                            spotid = frag.spotid;
+                        }
+
+                if (!spot.empty())
+                    lambda(spot);
+            }
+
+#endif
         }
     }
 }
 
 struct ContigPos
 {
-    int contig, pos;
+    int contig = 0, pos = 0;
+
+    ContigPos() = default;
     ContigPos(int contig, int pos) : contig(contig), pos(pos){}
 };
 
 typedef vector<ContigPos> ContigPoss;
 typedef std::unordered_map<hash_t, ContigPoss> ContigMap;
 
+
+struct Connect
+{
+    ContigPos contig_pos;
+    int len = 0;
+
+    Connect() = default;
+    Connect(const ContigPos &contig_pos, int len) : contig_pos(contig_pos), len(len){}
+};
 
 void load_contig_map(const Contigs &contigs, ContigMap &contig_map)
 {
@@ -162,21 +197,51 @@ struct ConnectivitiesMT
 
 };
 
-void connect(Connectivity &conn, const ContigPos &start_pos, const ContigPos &end_pos)
+Connect connect(Connectivity &conn, const ContigPos &start_pos, const ContigPos &end_pos)
 {
     if (conn.size() <= start_pos.pos || conn.size() <= end_pos.pos)
         throw std::runtime_error("conn.size() <= start_pos.pos || conn.size() <= end_pos.pos");
 
     if (end_pos.pos >= start_pos.pos)
+    {
         conn[start_pos.pos].len = std::max(conn[start_pos.pos].len, end_pos.pos - start_pos.pos + KMER_LEN);
+        return Connect(start_pos, conn[start_pos.pos].len);
+    }
     else
-        connect(conn, end_pos, start_pos);        
+        return connect(conn, end_pos, start_pos);        
 }
 
-bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
+bool looks_like_paired_read_distance(int a, int b) // todo: use statistics
+{
+    return std::abs(a - b) < 1000; // todo: think
+}
+
+void connect_spot(ConnectivitiesMT &conns, const Connect &read1_connect, const Connect &read2_connect)
+{
+    if (read1_connect.len <= 0 || read2_connect.len <= 0)
+        return;
+
+    if (read1_connect.contig_pos.contig != read2_connect.contig_pos.contig)
+        return;        
+
+    if (!looks_like_paired_read_distance(read2_connect.contig_pos.pos, read1_connect.contig_pos.pos))
+        return;
+
+    if (read1_connect.contig_pos.contig < 0 || read1_connect.contig_pos.contig >= conns.get().size())
+        throw std::runtime_error("read1_connect.contig_pos.contig < 0 || read1_connect.contig_pos.contig >= conns.get().size()");
+
+    auto &conn = conns.get()[read1_connect.contig_pos.contig];
+
+    if (read2_connect.contig_pos.pos >= read1_connect.contig_pos.pos)
+        conn[read1_connect.contig_pos.pos].len = std::max(conn[read1_connect.contig_pos.pos].len, read2_connect.contig_pos.pos - read1_connect.contig_pos.pos + read2_connect.len);
+    else
+        connect_spot(conns, read2_connect, read1_connect);
+}
+
+Connect update_connectivity(const ContigPos &start_pos, int read_start_pos, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
 {
     int pos = 0;
-    bool connected = false;
+    Connect connect_result;
 
     Hash<hash_t>::for_all_hashes_do(rev_complement, KMER_LEN, [&](hash_t hash)
     {
@@ -186,8 +251,7 @@ bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const s
             for (auto &end_pos : contig_poss->second)
                 if (end_pos.contig == start_pos.contig && about_the_same(pos_distance(end_pos, start_pos), read_distance(read_start_pos, pos, rev_complement.size())))
                 {
-                    connect(conns.get()[start_pos.contig], start_pos, end_pos);
-                    connected = true;
+                    connect_result = connect(conns.get()[start_pos.contig], start_pos, end_pos);
                     return false;
                 }
 
@@ -195,11 +259,12 @@ bool update_connectivity(const ContigPos &start_pos, int read_start_pos, const s
         return pos < rev_complement.size()/2 - KMER_LEN;
     });
 
-    return connected;
+    return connect_result;
 }
 
-void update_connectivity(const string &bases, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
+Connect update_connectivity(const string &bases, const string &rev_complement, ConnectivitiesMT &conns, const ContigMap &contig_map)
 {
+    Connect connect;
     int pos = 0;
 
     Hash<hash_t>::for_all_hashes_do(bases, KMER_LEN, [&](hash_t hash)
@@ -208,13 +273,28 @@ void update_connectivity(const string &bases, const string &rev_complement, Conn
         auto contig_poss = contig_map.find(hash);
         if (contig_poss != contig_map.end())
             for (auto &start_pos : contig_poss->second)
-                if (update_connectivity(start_pos, pos, rev_complement, conns, contig_map)) 
+            {
+                connect = update_connectivity(start_pos, pos, rev_complement, conns, contig_map);
+                if (connect.len > 0)
                     return false; // todo: think
+            }
 
         pos++;
         return pos < bases.size()/2;
     });
+
+    return connect;
 }
+
+Connect process_contig_connectivity_per_read(const string &bases, ConnectivitiesMT &conns, const ContigMap &contig_map)
+{
+    string rev_complement = bases;
+    seq_transform_actg::to_rev_complement(rev_complement);
+    auto connect_direct = update_connectivity(bases, rev_complement, conns, contig_map);
+    auto connect_rev_complement = update_connectivity(rev_complement, bases, conns, contig_map);
+
+    return connect_direct.len > connect_rev_complement.len ? connect_direct : connect_rev_complement;
+}    
 
 Connectivities get_contig_connectivity(const Contigs &contigs, const string &accession)
 {
@@ -224,12 +304,14 @@ Connectivities get_contig_connectivity(const Contigs &contigs, const string &acc
     load_contig_map(contigs, contig_map);
 
     size_t counter = 0;
-    for_all_reads_do(accession, [&](const string &bases)
+    for_all_reads_do(accession, [&](const vector<string> &spot)
     {
-        string rev_complement = bases;
-        seq_transform_actg::to_rev_complement(rev_complement);
-        update_connectivity(bases, rev_complement, conns, contig_map);
-        update_connectivity(rev_complement, bases, conns, contig_map);
+        if (spot.size() == 2)
+            connect_spot(conns, process_contig_connectivity_per_read(spot[0], conns, contig_map), process_contig_connectivity_per_read(spot[1], conns, contig_map));
+        else
+            for (auto &bases : spot)
+                process_contig_connectivity_per_read(bases, conns, contig_map);
+
         counter ++;
         if (counter % 1024 == 0)
             cerr << ".";
