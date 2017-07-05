@@ -27,7 +27,7 @@ default all std: cmake
 #-------------------------------------------------------------------------------
 # environment
 #
-TOP ?= $(abspath ..)
+TOP ?= $(abspath ../..)
 MODULE = libs/ngs-vdb
 
 include $(TOP)/build/Makefile.env

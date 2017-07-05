@@ -123,7 +123,7 @@ FragmentBlob :: GetFragmentInfo ( uint64_t offset, std::string& fragId, uint64_t
         {
             TRY ( NGS_String* id = NGS_FragmentBlobMakeFragmentId ( self, ctx, rowId, bioNumber ) )
             {
-                TRY ( fragId = std::string ( NGS_StringData ( id, ctx ), NGS_StringSize ( id, ctx ) ) );
+                TRY ( fragId = std::string ( NGS_StringData ( id, ctx ), NGS_StringSize ( id, ctx ) ) )
                 {
                     biological = true;
                 }
