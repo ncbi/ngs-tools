@@ -10,7 +10,7 @@ from lxml.builder import E
 
 import gettax
 
-__version__ = '0.6'
+__version__ = '0.7'
 logger = logging.getLogger('tax_analysis_parser')
 
 def get_lineage(tax_id, cache, conn):
@@ -150,7 +150,7 @@ def parse(f, conn, wgs_mode, include_tax_ids=[]):
                 else:
                     tax_id = int(hit)
                     count = 1
-            counter[tax_id] += count
+                counter[tax_id] += count
     else:
         for hits in iterate_merged_spots(f):
             tax_id = deduce_tax_id(hits, lineage_cache, conn)
