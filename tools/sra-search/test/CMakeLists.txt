@@ -33,12 +33,12 @@ target_link_libraries ( test-searchblock
 )
 
 # white box tests
-add_test ( SearchBlockWhiteBox ${CMAKE_CURRENT_BINARY_DIR}/test-searchblock )
-add_test ( SraSearchWhiteBox ${CMAKE_CURRENT_BINARY_DIR}/test-sra-search )
+add_test ( SearchBlockWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-searchblock )
+add_test ( SraSearchWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search )
 
 # command line tests
 if ( NOT WIN32)
-	set ( SRA_SEARCH  ${CMAKE_CURRENT_BINARY_DIR}/../sra-search )
+	set ( SRA_SEARCH  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sra-search )
 
     # NB. Slow tests have to have "Slow" in the name; run without: "ctest -E Slow", run only: "ctest -R Slow"
 
