@@ -226,13 +226,11 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetFragmentInfo_Biological, FragmentBlobFixture
     TRY ( NGS_FragmentBlob* ref = NGS_FragmentBlobIteratorNext ( m_iter, ctx ) )
     {
         FragmentBlob b ( ref );
-        std::string readId;
         std::string fragId;
         uint64_t startInBlob = 0;
         uint64_t lengthInBases = 0;
         bool biological = false;
-        b . GetFragmentInfo ( 300, readId, fragId, startInBlob, lengthInBases, biological );
-        REQUIRE_EQ ( SRA_Accession+".R.2", readId );
+        b . GetFragmentInfo ( 300, fragId, startInBlob, lengthInBases, biological );
         REQUIRE_EQ ( SRA_Accession+".FR0.2", fragId );
         REQUIRE_EQ ( (uint64_t)288, startInBlob );
         REQUIRE_EQ ( (uint64_t)115, lengthInBases );
