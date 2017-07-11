@@ -33,12 +33,12 @@ target_link_libraries ( test-searchblock
 )
 
 # white box tests
-add_test ( SearchBlockWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-searchblock )
-add_test ( SraSearchWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search )
+add_test ( SearchBlockWhiteBox ${CMAKE_CURRENT_BINARY_DIR}/test-searchblock )
+add_test ( SraSearchWhiteBox ${CMAKE_CURRENT_BINARY_DIR}/test-sra-search )
 
 # command line tests
 if ( NOT WIN32)
-	set ( SRA_SEARCH  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sra-search )
+	set ( SRA_SEARCH  ${CMAKE_CURRENT_BINARY_DIR}/../sra-search )
 
 	# help
 	add_test ( NAME SraSearch-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
