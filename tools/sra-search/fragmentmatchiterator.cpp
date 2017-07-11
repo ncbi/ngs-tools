@@ -45,19 +45,18 @@ public:
     {
     }
 
-    virtual bool NextMatch ( std::string& p_fragmentId )
+    virtual SearchBuffer :: Match * NextMatch ()
     {
         if ( ! m_done )
         {
             StringRef bases = m_fragment . getFragmentBases();
             if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
             {
-                p_fragmentId = m_fragment . getFragmentId () . toString ();
                 m_done = true;
-                return true;
+                return new Match ( m_accession, m_fragment . getFragmentId () . toString (), string ( bases . data (), bases . size () ) );
             }
         }
-        return false;
+        return 0;
     }
 
     virtual std::string BufferId () const
@@ -72,10 +71,14 @@ private:
 
 //////////////////// FragmentMatchIterator
 
-FragmentMatchIterator :: FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, ngs :: Read :: ReadCategory p_categories )
+FragmentMatchIterator :: FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, bool p_unalignedOnly )
 :   MatchIterator ( p_factory, p_accession ),
     m_coll ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
-    m_readIt ( m_coll . getReads ( p_categories ) )
+    m_readIt ( m_coll . getReads ( p_unalignedOnly ?
+                                    ( ngs :: Read :: ReadCategory ) ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned  ) :
+                                    ngs :: Read :: all )
+            ),
+    m_unalignedOnly ( p_unalignedOnly )
 {
     m_readIt . nextRead ();
 }
@@ -87,23 +90,18 @@ FragmentMatchIterator :: ~FragmentMatchIterator ()
 SearchBuffer*
 FragmentMatchIterator :: NextBuffer ()
 {
-    if ( ! m_readIt . nextFragment () )
-    {   // end of read, switch to the next
-        bool haveFragment = false;
-        while ( m_readIt . nextRead () )
+    do
+    {
+        while ( m_readIt . nextFragment () )
         {
-            if ( m_readIt . nextFragment () )
+            if ( ! m_unalignedOnly || ! m_readIt . isAligned () )
             {
-                haveFragment = true;
-                break;
+                // report one match per fragment
+                return new FragmentSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_readIt );
             }
         }
-        if ( ! haveFragment )
-        {
-            return 0;
-        }
     }
-    // report one match per fragment
-    return new FragmentSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_readIt );
+    while ( m_readIt . nextRead () );
+    return 0;
 }
 

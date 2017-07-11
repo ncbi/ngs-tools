@@ -35,7 +35,7 @@ class SearchBuffer;
 class FragmentMatchIterator : public MatchIterator
 {
 public:
-    FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession, ngs :: Read :: ReadCategory p_categories = ngs :: Read :: all );
+    FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession, bool p_unalignedOnly = false );
 
     virtual ~FragmentMatchIterator ();
 
@@ -44,6 +44,7 @@ public:
 private:
     ngs::ReadCollection m_coll;
     ngs::ReadIterator   m_readIt;
+    bool                m_unalignedOnly;
 };
 
 #endif

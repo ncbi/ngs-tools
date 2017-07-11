@@ -28,6 +28,7 @@
 #define _hpp_searchbuffer_
 
 #include <string>
+#include <ngs/Fragment.hpp>
 #include "searchblock.hpp"
 
 // A buffer that can be searched for one or more matches, bound to an accession and an engine-side algorithm represented by a SearchBlock
@@ -35,8 +36,23 @@
 class SearchBuffer
 {
 public:
-    SearchBuffer ( SearchBlock* p_sb, const std::string& p_accession )
-    :   m_searchBlock ( p_sb),
+    struct Match
+    {
+        Match( const std :: string & p_accession, const std :: string & p_fragmentId, const std :: string & p_bases )
+        :   m_accession ( p_accession ),
+            m_fragmentId ( p_fragmentId ),
+            m_bases ( p_bases )
+        {
+        }
+
+        std :: string   m_accession;
+        std :: string   m_fragmentId;
+        std :: string   m_bases;
+    };
+
+public:
+    SearchBuffer ( SearchBlock * p_sb, const std :: string & p_accession )
+    :   m_searchBlock ( p_sb ),
         m_accession ( p_accession )
     {
     }
@@ -46,14 +62,17 @@ public:
         delete m_searchBlock;
     }
 
-    virtual bool NextMatch ( std::string& fragmentId ) = 0;
-    virtual std::string BufferId () const  = 0;
+    // the result is owned by the caller (destroy with delete())
+    // NULL if no more matches
+    virtual Match * NextMatch () = 0;
 
-    const std::string& AccessionName () const { return m_accession; }
+    virtual std :: string BufferId () const  = 0;
+
+    const std :: string & AccessionName () const { return m_accession; }
 
 protected:
-    SearchBlock* m_searchBlock;  // owned here
-    std::string m_accession;
+    SearchBlock *   m_searchBlock;  // owned here
+    std::string     m_accession;
 };
 
 #endif

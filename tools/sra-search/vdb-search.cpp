@@ -37,7 +37,6 @@
 
 #include <ngs/ErrorMsg.hpp>
 
-#include "searchbuffer.hpp"
 #include "blobmatchiterator.hpp"
 #include "fragmentmatchiterator.hpp"
 #include "referencematchiterator.hpp"
@@ -65,8 +64,11 @@ public:
     }
     ~OutputQueue()
     {
-        queue < Item > empty;
-        swap( m_queue, empty );
+        while ( m_queue . size () > 0 )
+        {
+            delete m_queue . front ();
+            m_queue . pop ();
+        }
 
         KLockRelease ( m_outputQueueLock );
     }
@@ -77,15 +79,15 @@ public:
         atomic32_dec ( & m_producers );
     }
 
-    void Push (const string& p_accession, const string& p_fragmentId) // called by the producers
+    void Push ( SearchBuffer :: Match * p_match ) // called by the producers
     {
         KLockAcquire ( m_outputQueueLock );
-        m_queue . push ( Item ( p_accession , p_fragmentId ) );
+        m_queue . push ( p_match );
         KLockUnlock ( m_outputQueueLock );
     }
 
     // called by the consumer; will block until items become available or the last producer goes away
-    bool Pop (string& p_accession, string& p_fragmentId)
+    SearchBuffer :: Match * Pop ()
     {
         while ( m_queue . size () == 0 && atomic32_read ( & m_producers ) > 0 )
         {
@@ -97,20 +99,18 @@ public:
         if ( m_queue . size () > 0 )
         {
             KLockAcquire ( m_outputQueueLock );
-            p_accession = m_queue . front () . first;
-            p_fragmentId = m_queue . front () . second;
+            SearchBuffer :: Match * ret = m_queue . front ();
             m_queue.pop();
             KLockUnlock ( m_outputQueueLock );
-            return true;
+            return ret;
         }
 
         assert ( atomic32_read ( & m_producers ) == 0 );
-        return false;
+        return 0;
     }
 
 private:
-    typedef pair < string, string > Item;
-    queue < Item > m_queue;
+    queue < SearchBuffer :: Match * > m_queue;
 
     KLock* m_outputQueueLock;
 
@@ -169,9 +169,13 @@ VdbSearch :: Settings :: Settings ()
     m_isExpression ( false ),
     m_minScorePct ( 100 ),
     m_threads ( 2 ),
+    m_threadPerAcc ( false ),
     m_useBlobSearch ( true ),
     m_referenceDriven ( false ),
-    m_maxMatches ( 0 )
+    m_maxMatches ( 0 ),
+    m_unaligned ( false ),
+    m_fasta ( false ),
+    m_fastaLineLength ( 70 )
 {
 }
 
@@ -227,13 +231,18 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         m_settings . m_useBlobSearch = false; // SW takes too long on big buffers
     }
+    if ( m_settings . m_unaligned )
+    {   // unaligned goes by fragments, single threaded
+        m_settings . m_useBlobSearch = false;
+        m_settings . m_threads = 1;
+    }
 
     CheckArguments ( m_settings );
 
     for ( vector<string>::const_iterator i = m_settings . m_accessions . begin(); i != m_settings . m_accessions . end(); ++i )
     {
         if ( m_settings . m_referenceDriven )
-        {   // no reference blob search for now
+        {
             m_searches . push ( new ReferenceMatchIterator ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }
         else if ( m_settings . m_useBlobSearch )
@@ -242,7 +251,7 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
         }
         else
         {
-            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i ) );
+            m_searches . push ( new FragmentMatchIterator ( m_sbFactory, *i, m_settings . m_unaligned ) );
         }
     }
 }
@@ -303,13 +312,17 @@ rc_t CC VdbSearch :: SearchAccPerThread ( const KThread *self, void *data )
 
         KLockUnlock ( sb . m_searchQueueLock );
 
-        string fragmentId;
         SearchBuffer* buf = it -> NextBuffer();
         while ( buf != 0 && ! sb . m_quitting )
         {
-            while ( ! sb . m_quitting && buf -> NextMatch ( fragmentId ) )
+            while ( ! sb . m_quitting )
             {
-                sb . m_output . Push ( buf -> AccessionName (), fragmentId );
+                SearchBuffer :: Match * m = buf -> NextMatch ();
+                if ( m == 0 )
+                {
+                    break;
+                }
+                sb . m_output . Push ( m );
             }
             delete buf;
             if ( sb . m_quitting )
@@ -405,10 +418,14 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
                 KLockUnlock ( sb . m_searchQueueLock );
             }
 
-            string fragmentId;
-            while ( ! sb . m_quitting && buf -> NextMatch ( fragmentId ) )
+            while ( ! sb . m_quitting )
             {
-                sb . m_output . Push ( buf -> AccessionName (), fragmentId );
+                SearchBuffer :: Match * m = buf -> NextMatch ();
+                if ( m == 0 )
+                {
+                    break;
+                }
+                sb . m_output . Push ( m );
             }
 
             if ( VdbSearch :: logResults )
@@ -425,16 +442,38 @@ rc_t CC VdbSearch :: SearchBlobPerThread ( const KThread *self, void *data )
     return 0;
 }
 
+void
+VdbSearch :: FormatMatch ( const SearchBuffer :: Match & p_source, Match & p_result )
+{
+    p_result . m_fragmentId = p_source . m_fragmentId;
+    if ( m_settings . m_fasta )
+    {
+        p_result . m_formatted = string ( ">" ) + p_result . m_fragmentId + "\n";
+
+        size_t start = 0;
+        const size_t totalBases = p_source . m_bases . length ();
+        while ( start < totalBases )
+        {
+            p_result . m_formatted += p_source . m_bases . substr ( start, m_settings . m_fastaLineLength ) + "\n";
+            start += m_settings . m_fastaLineLength;
+        }
+    }
+    else
+    {   // by default, simply the Id of the fragment
+        p_result . m_formatted = p_source . m_fragmentId;
+    }
+}
+
 bool
-VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
+VdbSearch :: NextMatch ( Match & p_match )
 {
     if ( m_settings . m_maxMatches != 0 && m_matchCount >= m_settings . m_maxMatches )
     {
         return false;
     }
 
-    if ( m_settings . m_referenceDriven )
-    {   // reference-driven mode, always single threaded for now
+    if ( m_settings . m_referenceDriven || m_settings . m_threads == 1  )
+    {   // fragment or reference-driven mode, single threaded
         while ( ! m_searches . empty () )
         {
             if (m_buf == 0)
@@ -444,10 +483,12 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
 
             while (m_buf != 0)
             {
-                if (m_buf->NextMatch(p_fragmentId))
+                SearchBuffer :: Match * m = m_buf->NextMatch();
+                if ( m != 0 )
                 {
-                    p_accession = m_buf->AccessionName();
-                    ++m_matchCount;
+                    ++ m_matchCount;
+                    FormatMatch ( * m, p_match );
+                    delete m;
                     return true;
                 }
                 delete m_buf;
@@ -459,8 +500,8 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
         }
         return false;
     }
-    else if ( m_settings . m_threads > 0 ) // fragment-driven mode, multi-threaded
-    {
+    else
+    {   // multi-threaded mode. thread per accession or per blob, not per fragment, since accessing the same blob from diff threads leads to trouble in VDB
         if ( m_output == 0 ) // first call to NextMatch() - set up
         {
             size_t threadNum = m_settings . m_threads;
@@ -475,7 +516,7 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
             for ( unsigned  int i = 0 ; i != threadNum; ++i )
             {
                 KThread* t;
-                rc_t rc = KThreadMake ( &t, m_settings . m_useBlobSearch ? SearchBlobPerThread : SearchAccPerThread, m_searchBlock );
+                rc_t rc = KThreadMake ( &t, m_settings . m_threadPerAcc ? SearchAccPerThread : SearchBlobPerThread, m_searchBlock );
                 if ( rc != 0 )
                 {
                     throw ( ErrorMsg ( "KThreadMake failed" ) );
@@ -483,40 +524,15 @@ VdbSearch :: NextMatch ( string& p_accession, string& p_fragmentId )
                 m_threadPool . push_back ( t );
             }
         }
-
         // block until a result appears on the output queue or all searches are marked as completed
-        if ( m_output -> Pop ( p_accession, p_fragmentId ) )
+        SearchBuffer :: Match * m = m_output -> Pop ();
+        if ( m != 0 )
         {
             ++m_matchCount;
+            FormatMatch ( * m, p_match );
+            delete m;
             return true;
         }
-        return false;
-    }
-    else
-    {   // fragment-driven, no threads, return one result at a time
-        while ( ! m_searches . empty () )
-        {
-            if (m_buf == 0)
-            {
-                m_buf = m_searches.front()->NextBuffer();
-            }
-
-            while (m_buf != 0)
-            {
-                if (m_buf->NextMatch(p_fragmentId))
-                {
-                    p_accession = m_buf->AccessionName();
-                    ++m_matchCount;
-                    return true;
-                }
-                delete m_buf;
-                m_buf = m_searches.front()->NextBuffer();
-            }
-
-            delete m_searches . front ();
-            m_searches . pop ();
-        }
-
         return false;
     }
 }
