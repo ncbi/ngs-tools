@@ -27,6 +27,7 @@
 #include "referencematchiterator.hpp"
 
 #include <iostream>
+#include <stdexcept>
 
 #include <kproc/lock.h>
 
