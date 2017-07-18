@@ -43,13 +43,11 @@ using namespace ncbi::ngs::vdb;
 class BlobSearchBuffer : public SearchBuffer
 {
 public:
-    BlobSearchBuffer ( VdbReadCollection    p_coll,
-                       SearchBlock*         p_sb,
+    BlobSearchBuffer ( SearchBlock*         p_sb,
                        const std::string&   p_accession,
                        KLock*               p_lock,
-                       const FragmentBlob&  p_blob )
+                       const FragmentBlob   p_blob )
     :   SearchBuffer ( p_sb, p_accession ),
-        m_coll ( p_coll ),
         m_dbLock ( p_lock ),
         m_blob ( p_blob ),
         m_startInBlob ( 0 )
@@ -79,7 +77,7 @@ public:
             uint64_t lengthInBases;
             bool biological;
 
-            KLockAcquire ( m_dbLock );
+            KLockAcquire ( m_dbLock ); //TODO: consider removing
             try
             {
                 m_blob . GetFragmentInfo ( hitStart, fragId, startInBlob, lengthInBases, biological );
@@ -89,7 +87,7 @@ public:
                 KLockUnlock ( m_dbLock );
                 throw;
             }
-            KLockUnlock ( m_dbLock );
+            KLockUnlock ( m_dbLock ); //TODO: consider removing
 
             uint64_t fragEnd = startInBlob + lengthInBases; // relative to the start of the blob
 
@@ -122,16 +120,55 @@ public:
     }
 
 private:
-    VdbReadCollection   m_coll;
-    KLock*              m_dbLock;
-    FragmentBlob        m_blob;
-    uint64_t            m_startInBlob;
+    KLock*          m_dbLock;
+    FragmentBlob    m_blob;
+    uint64_t        m_startInBlob;
 };
 
 ////////////////////////////////// BlobMatchIterator
 
-BlobMatchIterator :: BlobMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession )
-:   MatchIterator ( p_factory, p_accession ),
+// bound to a single blob
+class BlobMatchIterator : public MatchIterator
+{   // returns one blob only
+public:
+    BlobMatchIterator ( const SearchBlock :: Factory &  p_factory,
+                        const std :: string &           p_accession,
+                        KLock *                         p_lock,
+                        FragmentBlob                    p_blob )
+    :   MatchIterator ( p_factory, p_accession ),
+        m_buffer ( new BlobSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, p_lock, p_blob ) )
+    {
+    }
+
+    ~ BlobMatchIterator ()
+    {
+        delete m_buffer;
+    }
+
+    virtual SearchBuffer :: Match * NextMatch ()
+    {
+        SearchBuffer :: Match * ret = 0;
+        if ( m_buffer != 0 )
+        {
+            ret = m_buffer -> NextMatch ();
+            if ( ret == 0 )
+            {
+                delete m_buffer;
+                m_buffer = 0;
+            }
+        }
+        return ret;
+    }
+
+private:
+    SearchBuffer * m_buffer;
+};
+
+////////////////////////////////// BlobSearch
+
+BlobSearch :: BlobSearch ( const SearchBlock :: Factory & p_factory, const std :: string & p_accession )
+:   m_factory ( p_factory ),
+    m_accession ( p_accession ),
     m_coll ( NGS_VDB :: openVdbReadCollection ( p_accession ) ),
     m_blobIt ( m_coll . getFragmentBlobs() )
 {
@@ -142,21 +179,22 @@ BlobMatchIterator :: BlobMatchIterator ( SearchBlock :: Factory& p_factory, cons
     }
 }
 
-BlobMatchIterator :: ~BlobMatchIterator ()
+BlobSearch :: ~ BlobSearch ()
 {
     KLockRelease ( m_accessionLock );
 }
 
-SearchBuffer*
-BlobMatchIterator :: NextBuffer ()
-{
+MatchIterator *
+BlobSearch :: NextIterator ()
+{   // return single blob iterators
+    MatchIterator * ret = 0;
     KLockAcquire ( m_accessionLock );
-    SearchBuffer* ret = 0;
     if ( m_blobIt . hasMore () )
     {
-        ret =  new BlobSearchBuffer ( m_coll, m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
+        ret = new BlobMatchIterator ( m_factory, m_accession, m_accessionLock, m_blobIt . nextBlob () );
     }
     KLockUnlock ( m_accessionLock );
     return ret;
 }
+
 

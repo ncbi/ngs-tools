@@ -24,45 +24,20 @@
 *
 */
 
-#ifndef _hpp_reference_match_iterator_
-#define _hpp_reference_match_iterator_
+#ifndef _hpp_threadablesearch_
+#define _hpp_threadablesearch_
 
-#include <set>
+class MatchIterator;
 
-#include "searchblock.hpp"
-#include "referencespec.hpp"
-#include "threadablesearch.hpp"
-#include "fragmentmatchiterator.hpp"
-
-struct KLock;
-
-// searches reference by reference
-// each iterator returned by NextIterator() is bound to a single reference
-class ReferenceSearch : public ThreadableSearch
+// MatchIterator producer, every iterator returned can be assigned to a single thread
+class ThreadableSearch
 {
 public:
-    typedef std :: set < std :: string > ReportedFragments;
+    virtual ~ThreadableSearch ()
+    {
+    }
 
-public:
-    ReferenceSearch ( SearchBlock :: Factory &   p_factory,
-                      const std :: string &      p_accession,
-                      const ReferenceSpecs &     p_references = ReferenceSpecs(),
-                      bool                       p_blobSearch = false );
-
-    virtual ~ ReferenceSearch ();
-
-    virtual MatchIterator * NextIterator ();
-
-private:
-    SearchBlock :: Factory &            m_factory;
-    ngs :: ReadCollection               m_run;
-    ReferenceSpecs                      m_references;
-    ReferenceSpecs :: const_iterator    m_refIt;
-
-    struct KLock*           m_accessionLock;
-    ReportedFragments       m_reported; // used to eliminate double reports
-    bool                    m_blobSearch;
-    bool                    m_unalignedDone;
+    virtual MatchIterator * NextIterator () = 0; // to be deleted by the caller
 };
 
 #endif

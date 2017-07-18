@@ -36,6 +36,7 @@
 #include <ngs/itf/ErrBlock.hpp>
 
 #include <../libs/ngs/NGS_Reference.h>
+#include <../libs/ngs/NGS_ReferenceBlobIterator.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 
 using namespace ncbi :: ngs :: vdb;
@@ -77,7 +78,12 @@ VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
 
     TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, 0, (uint64_t)-1 ) )
     {
-        return ReferenceBlobIterator ( iter );
+        ReferenceBlobIterator ret ( iter );
+        ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) )
+        {
+            throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobIteratorRelease() failed" );
+        }
+        return ret;
     }
     :: ngs :: ErrBlock err;
     NGS_ErrBlockThrow ( &err, ctx );
@@ -91,7 +97,12 @@ VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const throw ( :: 
 
     TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, p_start, p_count ) )
     {
-        return ReferenceBlobIterator ( iter );
+        ReferenceBlobIterator ret ( iter );
+        ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) )
+        {
+            throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobIteratorRelease() failed" );
+        }
+        return ret;
     }
     :: ngs :: ErrBlock err;
     NGS_ErrBlockThrow ( &err, ctx );

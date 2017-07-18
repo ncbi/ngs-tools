@@ -28,12 +28,15 @@
 
 #include <iostream>
 
+#include <kproc/lock.h>
+
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/Reference.hpp>
 
 #include <ngs-vdb/inc/VdbReference.hpp>
 
 #include "searchbuffer.hpp"
+#include "fragmentmatchiterator.hpp"
 
 using namespace std;
 using namespace ngs;
@@ -56,8 +59,7 @@ ReverseComplementDNA ( const string& p_source)
             case 'T' : ch = 'A'; break;
             case 'N' : ch = 'N'; break;
             default:
-                assert ( false );
-                //throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
+                throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
         }
         ret += ch;
     }
@@ -67,10 +69,11 @@ ReverseComplementDNA ( const string& p_source)
 class ReferenceSearchBase : public SearchBuffer
 {
 public:
-    ReferenceSearchBase( SearchBlock* p_sb,
-                         const ReadCollection& p_run,
-                         const Reference& p_reference,
-                         ReferenceMatchIterator :: ReportedFragments& p_reported)
+    ReferenceSearchBase( SearchBlock *                          p_sb,
+                         ReadCollection                         p_run,
+                         Reference                              p_reference,
+                         ReferenceSearch :: ReportedFragments & p_reported,
+                         KLock *                                p_lock )
     :   SearchBuffer ( p_sb, p_run . getName() ),
         m_run ( p_run ),
         m_reference ( p_reference ),
@@ -79,8 +82,11 @@ public:
         m_alIt ( 0 ),
         m_fragIt ( 0 ),
         m_reported ( p_reported ),
-        m_reverse ( false )
+        m_reverse ( false ),
+        m_dbLock ( p_lock )
     {
+        KLockAddRef ( m_dbLock );
+
         const unsigned int ReferenceMatchTolerancePct = 90; // search on reference has to be looser than in reads
         const unsigned int ThresholdPct = m_searchBlock -> GetScoreThreshold() * ReferenceMatchTolerancePct / 100;
         m_refSearch         = new AgrepSearch ( m_searchBlock -> GetQuery (),                           AgrepSearch :: AgrepWuManber, ThresholdPct );
@@ -89,6 +95,8 @@ public:
 
     virtual ~ReferenceSearchBase()
     {
+        KLockRelease ( m_dbLock );
+
         delete m_refSearch;
         delete m_refSearchReverse;
         delete m_alIt;
@@ -109,30 +117,41 @@ protected:
         {
             if ( m_fragIt == 0 )
             {   // start searching alignment on the matched slice
-                if ( ! m_alIt -> nextAlignment() )
+                KLockAcquire ( m_dbLock );
+                bool hasNextAl = m_alIt -> nextAlignment();
+                if ( ! hasNextAl )
                 {
                     delete m_alIt;
                     m_alIt = 0;
+                    KLockUnlock ( m_dbLock );
                     break;
                 }
+
                 m_fragIt = new FragmentIterator ( m_run . getRead ( m_alIt -> getReadId () . toString() ) );   //TODO: there may be a shortcut to get to the fragment's bases
+                KLockUnlock ( m_dbLock );
             }
 
             if ( m_fragIt != 0 )
             {
                 while ( m_fragIt -> nextFragment () ) // foreach fragment
                 {
+                    KLockAcquire ( m_dbLock );
                     StringRef fragBases = m_fragIt -> getFragmentBases ();
+                    KLockUnlock ( m_dbLock );
+
                     // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
                     if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
                     {
                         string fragId = m_fragIt -> getFragmentId () . toString ();
+                        KLockAcquire ( m_dbLock );
                         if ( m_reported . find ( fragId ) == m_reported.end () )
                         {
                             // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
                             m_reported . insert ( fragId );
+                            KLockUnlock ( m_dbLock );
                             return true;
                         }
+                        KLockUnlock ( m_dbLock );
                     }
                 }
                 // no (more) matches on this read
@@ -147,14 +166,16 @@ protected:
     ReadCollection  m_run;
     Reference       m_reference;
 
+    KLock*          m_dbLock;
+
     // loose search on the reference
-    SearchBlock*    m_refSearch;
-    SearchBlock*    m_refSearchReverse;
+    SearchBlock *   m_refSearch;
+    SearchBlock *   m_refSearchReverse;
 
-    AlignmentIterator* m_alIt;
-    FragmentIterator*  m_fragIt;
+    AlignmentIterator * m_alIt;
+    FragmentIterator *  m_fragIt;
 
-    ReferenceMatchIterator :: ReportedFragments& m_reported; // all fragments reported for the parent ReferenceMatchIterator, to eliminate double reports
+    ReferenceSearch :: ReportedFragments & m_reported; // all fragments reported for the parent ReferenceMatchIterator, to eliminate double reports
 
     bool m_reverse;
 };
@@ -164,11 +185,12 @@ protected:
 class ReferenceSearchBuffer : public ReferenceSearchBase
 {
 public:
-    ReferenceSearchBuffer ( SearchBlock* p_sb,
-                            const ReadCollection& p_run,
-                            const Reference& p_reference,
-                            ReferenceMatchIterator :: ReportedFragments& p_reported )
-    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported ),
+    ReferenceSearchBuffer ( SearchBlock *                           p_sb,
+                            ReadCollection                          p_run,
+                            Reference                               p_reference,
+                            ReferenceSearch :: ReportedFragments &  p_reported,
+                            KLock *                                 p_lock )
+    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported, p_lock ),
         m_start ( 0 ),
         m_bases ( m_reference.getReferenceBases ( 0 ) ),
         m_offset ( 0 )
@@ -177,20 +199,6 @@ public:
         {   // append the start of the reference to be used in search for wraparound matches
             m_bases += m_bases . substr ( 0, m_searchBlock -> GetQuery () . size() * 2 );
         }
-    }
-
-    ReferenceSearchBuffer ( SearchBlock* p_sb,
-                            const ReadCollection& p_run,
-                            const Reference& p_reference, // a slice
-                            uint64_t p_start,
-                            uint64_t p_end,
-                            ReferenceMatchIterator :: ReportedFragments& p_reported )
-    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported ),
-        m_start ( p_start ),
-        m_bases ( m_reference.getReferenceBases ( p_start, p_end - p_start ) ),
-        m_offset ( 0 )
-    {
-        //TODO: handle wraparound slices of circular references
     }
 
     virtual SearchBuffer :: Match * NextMatch ()
@@ -242,14 +250,15 @@ private:
 class ReferenceBlobSearchBuffer : public ReferenceSearchBase
 {
 public:
-    ReferenceBlobSearchBuffer ( SearchBlock* p_sb,
-                                const ReadCollection& p_run,
-                                const Reference& p_reference,
-                                ReferenceMatchIterator :: ReportedFragments& p_reported )
-    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported ),
+    ReferenceBlobSearchBuffer ( SearchBlock *                           p_sb,
+                                ReadCollection                          p_run,
+                                Reference                               p_reference,
+                                ReferenceSearch :: ReportedFragments &  p_reported,
+                                KLock *                                 p_lock )
+    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported, p_lock ),
         m_startInBlob ( 0 ),
         m_end ( (uint64_t)-1 ),
-        m_blobIter ( VdbReference ( m_reference ) . getBlobs() ),
+        m_blobIter ( VdbReference ( p_reference ) . getBlobs() ),
         m_curBlob ( 0 ),
         m_nextBlob ( 0 ),
         m_offsetInReference ( 0 ),
@@ -259,33 +268,8 @@ public:
         SetupFirstBlob();
     }
 
-    ReferenceBlobSearchBuffer ( SearchBlock* p_sb,
-                                const ReadCollection& p_run,
-                                const Reference& p_reference, // a slice
-                                uint64_t p_start,
-                                uint64_t p_end,
-                                ReferenceMatchIterator :: ReportedFragments& p_reported )
-    :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported ),
-        m_startInBlob ( 0 ),
-        m_end ( p_end ),
-        m_blobIter ( VdbReference ( m_reference ) . getBlobs ( p_start, p_end ) ),
-        m_curBlob ( 0 ),
-        m_nextBlob ( 0 ),
-        m_offsetInReference ( p_start ),
-        m_offsetInBlob ( 0 ),
-        m_lastBlob ( false )
+    ~ReferenceBlobSearchBuffer ()
     {
-        if ( SetupFirstBlob() && p_start != 0 )
-        { // recalculate starting point of the search
-            uint64_t inReference;
-            uint32_t repeatCount;
-            uint64_t increment;
-            m_curBlob . ResolveOffset ( 0, inReference, repeatCount, increment );
-            assert ( p_start > inReference );
-            m_startInBlob = p_start - inReference;
-            m_offsetInBlob = m_startInBlob;
-// cout << "inReference=" << inReference << " m_startInBlob=" << m_startInBlob << endl;
-        }
     }
 
     virtual SearchBuffer :: Match * NextMatch ()
@@ -297,7 +281,10 @@ public:
 
         while ( true ) // for each blob
         {
+            KLockAcquire ( m_dbLock );
             m_unpackedBlobSize = m_curBlob . UnpackedSize ();
+            KLockUnlock ( m_dbLock );
+
             m_reverse = false;
             m_offsetInBlob = 0;
 
@@ -312,7 +299,7 @@ public:
                         int64_t first;
                         uint64_t count;
                         m_curBlob . GetRowRange ( first, count );
-                        // cout << "searching at " << m_offsetInReference + m_offsetInBlob
+                        // cout << (void*)this << " searching at " << m_offsetInReference + m_offsetInBlob
                         //     << " blob size=" << m_bases.size() << " unpacked=" << m_unpackedBlobSize
                         //     << " rows=" <<  first << "-" << ( first + count - 1) << endl;
 
@@ -335,8 +322,9 @@ public:
                     uint64_t inReference;
                     uint32_t repeatCount;
                     uint64_t increment;
+                    // cout << (void*)this << " Resolving " << m_offsetInBlob + hitStart << endl;
                     m_curBlob . ResolveOffset ( m_offsetInBlob + hitStart, inReference, repeatCount, increment );
-                    // cout << "Resolved to  " << inReference << " repeat=" << repeatCount << " inc=" << increment << endl;
+                    // cout << (void*)this << " Resolved to  " << inReference << " repeat=" << repeatCount << " inc=" << increment << endl;
                     m_offsetInBlob += hitEnd; //TODO: this may be too far
                     if ( m_end != (uint64_t)-1 && inReference >= m_end )
                     {
@@ -423,16 +411,70 @@ private:
 };
 
 //////////////////// ReferenceMatchIterator
+class ReferenceMatchIterator : public MatchIterator
+{
+public:
+    ReferenceMatchIterator ( SearchBlock :: Factory &               p_factory,
+                             ReadCollection                         p_run,
+                             Reference                              p_reference,
+                             bool                                   p_blobSearch,
+                             ReferenceSearch :: ReportedFragments & p_reported,
+                             KLock *                                  p_lock )
+    :   MatchIterator ( p_factory, p_run . getName () ),
+        m_buffer ( 0 )
+    {
+        if ( p_blobSearch )
+        {
+            m_buffer = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                    p_run,
+                                                    p_reference,
+                                                    p_reported,
+                                                    p_lock );
+        }
+        else
+        {
+            m_buffer = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(),
+                                                p_run,
+                                                p_reference,
+                                                p_reported,
+                                                p_lock );
+        }
+    }
 
-ReferenceMatchIterator :: ReferenceMatchIterator ( SearchBlock :: Factory&  p_factory,
-                                                   const string&            p_accession,
-                                                   const ReferenceSpecs&    p_references,
-                                                   bool                     p_blobSearch )
-:   MatchIterator ( p_factory, p_accession ),
+    virtual ~ReferenceMatchIterator ()
+    {
+        delete m_buffer;
+    }
+
+    virtual SearchBuffer :: Match * NextMatch ()
+    {
+        SearchBuffer :: Match * ret = 0;
+        if ( m_buffer != 0 )
+        {
+            ret = m_buffer -> NextMatch ();
+            if ( ret == 0 )
+            {
+                delete m_buffer;
+                m_buffer = 0;
+            }
+        }
+        return ret;
+    }
+
+private:
+    SearchBuffer * m_buffer;
+};
+
+//////////////////// ReferenceSearch
+
+ReferenceSearch :: ReferenceSearch ( SearchBlock :: Factory &   p_factory,
+                                     const std :: string &      p_accession,
+                                     const ReferenceSpecs &     p_references,
+                                     bool                       p_blobSearch )
+:   m_factory ( p_factory ),
     m_run ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
-    m_blobSearch ( p_blobSearch ),
     m_references ( p_references ),
-    m_unalignedReadIt ( p_factory, p_accession, ( ngs :: Read :: ReadCategory )  ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned  ) ),
+    m_blobSearch ( p_blobSearch ),
     m_unalignedDone ( false )
 {
     if ( m_references . empty () )
@@ -444,59 +486,28 @@ ReferenceMatchIterator :: ReferenceMatchIterator ( SearchBlock :: Factory&  p_fa
         }
     }
     m_refIt = m_references . begin ();
+
+    rc_t rc = KLockMake ( & m_accessionLock );
+    if ( rc != 0 )
+    {
+        throw ( ErrorMsg ( "KLockMake failed" ) );
+    }
 }
 
-ReferenceMatchIterator :: ~ReferenceMatchIterator ()
+ReferenceSearch :: ~ ReferenceSearch ()
 {
+    KLockRelease ( m_accessionLock );
 }
 
-SearchBuffer*
-ReferenceMatchIterator :: NextBuffer ()
-{   // returns a buffer associated with the next reference in the iterator, or with the next unaligned read
+MatchIterator *
+ReferenceSearch :: NextIterator ()
+{   // split by reference + unaligned
     while ( m_refIt != m_references . end () )
     {
         // cout << "Searching on " << m_refIt -> m_name << endl;
         try
         {
-            SearchBuffer* ret;
-            if ( m_blobSearch )
-            {
-                if (  m_refIt -> m_full )
-                {
-                    ret = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(),
-                                                          m_run,
-                                                          m_run . getReference ( m_refIt -> m_name ),
-                                                          m_reported );
-                }
-                else
-                {
-                    ret = new ReferenceBlobSearchBuffer ( m_factory . MakeSearchBlock(),
-                                                          m_run,
-                                                          m_run . getReference ( m_refIt -> m_name ),
-                                                          m_refIt -> m_start,
-                                                          m_refIt -> m_end,
-                                                          m_reported );
-                }
-            }
-            else
-            {
-                if (  m_refIt -> m_full )
-                {
-                    ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(),
-                                                      m_run,
-                                                      m_run . getReference ( m_refIt -> m_name ),
-                                                      m_reported );
-                }
-                else
-                {
-                    ret = new ReferenceSearchBuffer ( m_factory . MakeSearchBlock(),
-                                                      m_run,
-                                                      m_run . getReference ( m_refIt -> m_name ),
-                                                      m_refIt -> m_start,
-                                                      m_refIt -> m_end,
-                                                      m_reported );
-                }
-            }
+            MatchIterator * ret = new ReferenceMatchIterator ( m_factory, m_run, m_run . getReference ( m_refIt -> m_name ), m_blobSearch, m_reported, m_accessionLock );
             ++ m_refIt;
             return ret;
         }
@@ -514,14 +525,10 @@ ReferenceMatchIterator :: NextBuffer ()
 
     if ( m_references . empty () && ! m_unalignedDone ) // unaligned fragments are not searched if reference spec is not empty
     {
-        SearchBuffer* ret = m_unalignedReadIt . NextBuffer ();
-        if ( ret != 0 )
-        {
-            return ret;
-        }
-        m_unalignedDone = true;
+        m_unalignedDone = true; // only return unaligned iteartor once
+        //TODO: make sure this iterator uses CMP_READ
+        return new UnalignedFragmentMatchIterator ( m_factory, m_run );
     }
 
     return 0;
 }
-
