@@ -27,6 +27,7 @@
 #include "vdb-search.hpp"
 
 #include <iostream>
+#include <queue>
 
 #include <atomic32.h>
 
@@ -121,14 +122,19 @@ private:
 
 struct VdbSearch :: SearchThreadBlock
 {
-    KLock* m_searchQueueLock;
-    VdbSearch :: SearchQueue& m_search;
     VdbSearch :: OutputQueue& m_output;
+
+    VdbSearch :: SearchQueue &                  m_search;
+    KLock *                                     m_searchQueueLock;
+    VdbSearch :: SearchQueue :: const_iterator  m_nextSearch;
+
     bool m_quitting;
 
     SearchThreadBlock ( SearchQueue& p_search, OutputQueue& p_output )
-    :   m_search ( p_search ),
-        m_output ( p_output ),
+    :   m_output ( p_output ),
+        m_search ( p_search ),
+        m_searchQueueLock ( 0 ),
+        m_nextSearch ( m_search . begin () ),
         m_quitting ( false )
     {
         rc_t rc = KLockMake ( & m_searchQueueLock );
@@ -243,15 +249,15 @@ VdbSearch :: VdbSearch ( const Settings& p_settings )
     {
         if ( m_settings . m_referenceDriven )
         {
-            m_searches . push ( new ReferenceSearch ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
+            m_searches . push_back ( new ReferenceSearch ( m_sbFactory, *i, m_settings . m_references, m_settings . m_useBlobSearch ) );
         }
         else if ( m_settings . m_useBlobSearch )
         {
-            m_searches . push ( new BlobSearch ( m_sbFactory, *i ) );
+            m_searches . push_back ( new BlobSearch ( m_sbFactory, *i ) );
         }
         else
         {
-            m_searches . push ( new FragmentSearch ( m_sbFactory, *i, m_settings . m_unaligned ) );
+            m_searches . push_back ( new FragmentSearch ( m_sbFactory, *i, m_settings . m_unaligned ) );
         }
     }
 }
@@ -271,11 +277,11 @@ VdbSearch :: ~VdbSearch ()
         delete m_searchBlock;
     }
 
-    while ( ! m_searches . empty () )
+    for ( SearchQueue::iterator i = m_searches . begin(); i != m_searches . end(); ++i )
     {
-        delete m_searches . front ();
-        m_searches . pop ();
+        delete * i;
     }
+    m_searches . clear ();
 
     delete m_buf;
     delete m_output;
@@ -302,13 +308,12 @@ rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *self, void *data )
     {
         KLockAcquire ( sb . m_searchQueueLock );
         MatchIterator* it = 0;
-        while ( ! sb . m_quitting && ! sb . m_search . empty () )
+        while ( ! sb . m_quitting && sb . m_nextSearch != sb . m_search . end () )
         {
-            it = sb . m_search . front () -> NextIterator ();
+            it = ( * sb . m_nextSearch ) -> NextIterator ();
             if ( it == 0 )
             {
-                delete sb . m_search . front ();
-                sb . m_search . pop ();
+                ++ sb . m_nextSearch;
             }
             else
             {

@@ -29,7 +29,6 @@
 
 #include <string>
 #include <vector>
-#include <queue>
 #include <stdexcept>
 
 #include <klib/rc.h>
@@ -104,7 +103,7 @@ public:
 
 private:
 
-    typedef std::queue < ThreadableSearch* > SearchQueue;
+    typedef std :: vector < ThreadableSearch* > SearchQueue;
     typedef std :: vector < KThread* > ThreadPool;
 
     struct SearchThreadBlock;
