@@ -109,7 +109,19 @@ public:
         return m_reference . getCanonicalName ();
     }
 
-    Fragment GetCurrentFragment () { assert ( m_fragIt != 0 ); return * m_fragIt; }
+    StringRef CurrentFragmentId ()
+    {
+        assert ( m_fragIt != 0 );
+        return m_fragIt -> getFragmentId ();
+    }
+    StringRef CurrentFragmentBases ()
+    {
+        assert ( m_fragIt != 0 );
+        KLockAcquire ( m_dbLock );
+        StringRef ret = m_fragIt -> getFragmentBases ();
+        KLockUnlock ( m_dbLock );
+        return ret;
+    }
 
 protected:
     bool NextFragment ()
@@ -136,19 +148,17 @@ protected:
             {
                 while ( m_fragIt -> nextFragment () ) // foreach fragment
                 {
-                    KLockAcquire ( m_dbLock );
-                    StringRef fragBases = m_fragIt -> getFragmentBases ();
-                    KLockUnlock ( m_dbLock );
+                    StringRef fragBases = CurrentFragmentBases ();
 
-                    // cout << "Searching " << m_fragIt -> getFragmentId () . toString () << "'" << fragBases << "'" << endl;
+                    // cout << "Searching " << CurrentFragmentId . toString ( << "'" << fragBases . toString () << "'" << endl;
                     if ( m_searchBlock -> FirstMatch ( fragBases . data (), fragBases . size () ) ) // this search is with the original score threshold
                     {
-                        string fragId = m_fragIt -> getFragmentId () . toString ();
                         KLockAcquire ( m_dbLock );
-                        if ( m_reported . find ( fragId ) == m_reported.end () )
+                        string id = CurrentFragmentId () . toString ();
+                        if ( m_reported . find ( id ) == m_reported.end () )
                         {
-                            // cout << "Found " << m_fragIt -> getFragmentId () . toString () << endl;
-                            m_reported . insert ( fragId );
+                            // cout << "Found " << id << endl;
+                            m_reported . insert ( id );
                             KLockUnlock ( m_dbLock );
                             return true;
                         }
@@ -234,8 +244,7 @@ public:
 
             if ( NextFragment () )
             {
-                Fragment frag = GetCurrentFragment ();
-                return new Match ( m_accession, frag . getFragmentId () . toString (), frag . getFragmentBases () . toString () );
+                return new Match ( m_accession, CurrentFragmentId () . toString (), CurrentFragmentBases () . toString () );
             }
         }
     }
@@ -336,8 +345,7 @@ public:
 
                 if ( NextFragment () )
                 {
-                    Fragment frag = GetCurrentFragment ();
-                    return new Match ( m_accession, frag . getFragmentId () . toString (), frag . getFragmentBases () . toString () );
+                    return new Match ( m_accession, CurrentFragmentId () . toString (), CurrentFragmentBases () . toString () );
                 }
             }
 
