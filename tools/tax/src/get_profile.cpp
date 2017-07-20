@@ -27,7 +27,7 @@ struct MinHash
         Best(uint64_t hash, hash_t kmer) : hash(hash), kmer(kmer){}
     };
 
-    vector<Best> best;
+    vector<Best> best, storage;
     vector<uint64_t> xors;
 
     MinHash(size_t count) : best(count), xors(count)
@@ -37,16 +37,51 @@ struct MinHash
         std::uniform_int_distribution<std::mt19937::result_type> dist(0, UINT32_MAX);
         for (int i = 0; i < count; i++)
             xors[i] = (uint64_t(dist(rng)) << 32) | dist(rng);
+
+        storage.reserve(10000000); // todo: think. filesize ?
     }
 
     void add(uint64_t hash, hash_t kmer)
     {
-        for (int i = 0; i < best.size(); i++)
+        storage.push_back(Best(hash, kmer));
+    }
+
+    void finish()
+    {
+        #pragma omp parallel for
+        for (int ib = 0; ib < best.size(); ib ++)
         {
-            hash_t h = hash ^ xors[i];
-            if (h < best[i].hash)
-                best[i] = Best(h, kmer);
+            auto _xor = xors[ib];
+#if 0 // little bit faster but will not work for >2G files
+            auto best_chosen = best[ib];
+            int kmer_index = 0;
+
+            for (int i_to_check = 0; i_to_check < storage.size(); i_to_check++)
+            {
+                hash_t h = storage[i_to_check].hash ^ _xor;
+                if (h < best_chosen.hash)
+                {
+                    best_chosen.hash = h;
+                    kmer_index = i_to_check;
+                }
+            }
+
+            best[ib] = Best(best_chosen.hash, storage[kmer_index].kmer);
+#else
+            auto best_chosen = best[ib];
+
+            for (auto &to_check : storage)
+            {
+                hash_t h = to_check.hash ^ _xor;
+                if (h < best_chosen.hash)
+                    best_chosen = Best(h, to_check.kmer);
+            }
+
+            best[ib] = best_chosen;                
+#endif
         }
+
+        storage.clear();
     }
 };
 
@@ -119,6 +154,8 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
     while (fasta.get_next_sequence(seq))
         update_min_hash(min_hash, seq, kmer_len);
 
+    min_hash.finish();
+
     cout << endl;
     save(save_file(filename), min_hash);
 }
@@ -127,8 +164,7 @@ void get_profile(const Config &config)
 {
 	FileListLoader file_list(config.file_list);
 
-    const int THREADS = 32;
-   	#pragma omp parallel for num_threads(THREADS)
+//   	#pragma omp parallel for
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
         auto &file = file_list.files[file_number];
