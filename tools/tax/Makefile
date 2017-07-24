@@ -41,7 +41,7 @@ $(shell mkdir -p $(BDIR) $(BDIR)/src $(BDIR)/src/tests >/dev/null)
 export CPATH := $(NGS_PATH)/include:src
 #export LIBRARY_PATH := $(NGS_PATH)/lib
 #export LD_LIBRARY_PATH := $(NGS_PATH)/lib
-CXXFLAGS += -g -O2 -std=c++11 -fopenmp -I$(INCDIRS)
+CXXFLAGS += -g -std=c++11 -fopenmp -I$(INCDIRS)
 LDFLAGS += -fopenmp -L$(NGS_LIBDIR) -L$(VDB_LIBDIR)
 LDLIBS += -lncbi-ngs-c++-static -lngs-c++-static -lncbi-vdb-static -ldl
 
