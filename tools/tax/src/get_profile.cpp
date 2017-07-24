@@ -52,33 +52,46 @@ struct MinHash
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
-#if 0 // little bit faster but will not work for >2G files
-            auto best_chosen = best[ib];
-            int kmer_index = 0;
 
-            for (int i_to_check = 0; i_to_check < storage.size(); i_to_check++)
+            const int BUCKETS = 4;
+            vector<Best> best_chosen;
+            for (int i = 0; i < BUCKETS; i++)
+                best_chosen.push_back(best[ib]);
+
+            auto storage_limit = (storage.size() / BUCKETS) * BUCKETS;
+            for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
-                hash_t h = storage[i_to_check].hash ^ _xor;
-                if (h < best_chosen.hash)
-                {
-                    best_chosen.hash = h;
-                    kmer_index = i_to_check;
-                }
+                const auto &to_check0 = storage[to_check_i + 0];
+                const auto &to_check1 = storage[to_check_i + 1];
+                const auto &to_check2 = storage[to_check_i + 2];
+                const auto &to_check3 = storage[to_check_i + 3];
+
+                hash_t h0 = to_check0.hash ^ _xor;
+                hash_t h1 = to_check1.hash ^ _xor;
+                hash_t h2 = to_check2.hash ^ _xor;
+                hash_t h3 = to_check3.hash ^ _xor;
+
+                if (h0 < best_chosen[0].hash)
+                    best_chosen[0] = Best(h0, to_check0.kmer);
+                if (h1 < best_chosen[1].hash)
+                    best_chosen[1] = Best(h1, to_check1.kmer);
+                if (h2 < best_chosen[2].hash)
+                    best_chosen[2] = Best(h2, to_check2.kmer);
+                if (h3 < best_chosen[3].hash)
+                    best_chosen[3] = Best(h3, to_check3.kmer);
             }
 
-            best[ib] = Best(best_chosen.hash, storage[kmer_index].kmer);
-#else
-            auto best_chosen = best[ib];
-
-            for (auto &to_check : storage)
+            for (size_t to_check_i = storage_limit; to_check_i < storage.size(); to_check_i ++)
             {
-                hash_t h = to_check.hash ^ _xor;
-                if (h < best_chosen.hash)
-                    best_chosen = Best(h, to_check.kmer);
+                const auto &to_check0 = storage[to_check_i + 0];
+                hash_t h0 = to_check0.hash ^ _xor;
+                if (h0 < best_chosen[0].hash)
+                    best_chosen[0] = Best(h0, to_check0.kmer);
             }
 
-            best[ib] = best_chosen;                
-#endif
+            for (int i = 0; i < BUCKETS; i++)
+                if (best_chosen[i].hash < best[ib].hash)
+                    best[ib] = best_chosen[i];
         }
 
         storage.clear();
