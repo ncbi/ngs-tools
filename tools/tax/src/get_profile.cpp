@@ -27,7 +27,10 @@ struct MinHash
         Best(uint64_t hash, hash_t kmer) : hash(hash), kmer(kmer){}
     };
 
-    vector<Best> best, storage;
+    vector<Best> best; //, storage;
+    vector<uint64_t> storage_hash; // memory fetch optimization
+    vector<hash_t> storage_kmer;
+
     vector<uint64_t> xors;
 
     MinHash(size_t count) : best(count), xors(count)
@@ -38,12 +41,14 @@ struct MinHash
         for (int i = 0; i < count; i++)
             xors[i] = (uint64_t(dist(rng)) << 32) | dist(rng);
 
-        storage.reserve(10000000); // todo: think. filesize ?
+        storage_hash.reserve(10000000); // todo: think. filesize ?
+        storage_kmer.reserve(10000000); // todo: think. filesize ?
     }
 
     void add(uint64_t hash, hash_t kmer)
     {
-        storage.push_back(Best(hash, kmer));
+        storage_hash.push_back(hash);
+        storage_kmer.push_back(kmer);
     }
 
     void finish()
@@ -58,35 +63,31 @@ struct MinHash
             for (int i = 0; i < BUCKETS; i++)
                 best_chosen.push_back(best[ib]);
 
-            auto storage_limit = (storage.size() / BUCKETS) * BUCKETS;
+            auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
             for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
-                const auto &to_check0 = storage[to_check_i + 0];
-                const auto &to_check1 = storage[to_check_i + 1];
-                const auto &to_check2 = storage[to_check_i + 2];
-                const auto &to_check3 = storage[to_check_i + 3];
-
-                hash_t h0 = to_check0.hash ^ _xor;
-                hash_t h1 = to_check1.hash ^ _xor;
-                hash_t h2 = to_check2.hash ^ _xor;
-                hash_t h3 = to_check3.hash ^ _xor;
+                hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
+                hash_t h1 = storage_hash[to_check_i + 1] ^ _xor;
+                hash_t h2 = storage_hash[to_check_i + 2] ^ _xor;
+                hash_t h3 = storage_hash[to_check_i + 3] ^ _xor;
 
                 if (h0 < best_chosen[0].hash)
-                    best_chosen[0] = Best(h0, to_check0.kmer);
+                    best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
                 if (h1 < best_chosen[1].hash)
-                    best_chosen[1] = Best(h1, to_check1.kmer);
+                    best_chosen[1] = Best(h1, storage_kmer[to_check_i + 1]);
                 if (h2 < best_chosen[2].hash)
-                    best_chosen[2] = Best(h2, to_check2.kmer);
+                    best_chosen[2] = Best(h2, storage_kmer[to_check_i + 2]);
                 if (h3 < best_chosen[3].hash)
-                    best_chosen[3] = Best(h3, to_check3.kmer);
+                    best_chosen[3] = Best(h3, storage_kmer[to_check_i + 3]);
             }
 
-            for (size_t to_check_i = storage_limit; to_check_i < storage.size(); to_check_i ++)
+            
+            for (size_t to_check_i = storage_limit; to_check_i < storage_hash.size(); to_check_i ++)
             {
-                const auto &to_check0 = storage[to_check_i + 0];
-                hash_t h0 = to_check0.hash ^ _xor;
+                hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
+
                 if (h0 < best_chosen[0].hash)
-                    best_chosen[0] = Best(h0, to_check0.kmer);
+                    best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
             }
 
             for (int i = 0; i < BUCKETS; i++)
@@ -94,7 +95,8 @@ struct MinHash
                     best[ib] = best_chosen[i];
         }
 
-        storage.clear();
+        storage_hash.clear();
+        storage_kmer.clear();
     }
 };
 
