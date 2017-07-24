@@ -53,7 +53,7 @@ struct MinHash
 
     void finish()
     {
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(8)
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
@@ -66,10 +66,22 @@ struct MinHash
             auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
             for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
-                hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
-                hash_t h1 = storage_hash[to_check_i + 1] ^ _xor;
-                hash_t h2 = storage_hash[to_check_i + 2] ^ _xor;
-                hash_t h3 = storage_hash[to_check_i + 3] ^ _xor;
+                union
+                {
+                    __uint128_t h128;
+                    struct 
+                    {
+                        hash_t h0, h1;
+                    } h64;
+                } h01, h23;
+
+                h01.h128 = *(__uint128_t*)&storage_hash[to_check_i + 0];
+                h23.h128 = *(__uint128_t*)&storage_hash[to_check_i + 2];
+//                h.h128 ^= _xor128; - slower
+                hash_t h0 = h01.h64.h0 ^ _xor;
+                hash_t h1 = h01.h64.h1 ^ _xor;
+                hash_t h2 = h23.h64.h0 ^ _xor;
+                hash_t h3 = h23.h64.h1 ^ _xor;
 
                 if (h0 < best_chosen[0].hash)
                     best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
