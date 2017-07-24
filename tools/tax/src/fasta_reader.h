@@ -63,7 +63,7 @@ private:
 public:
 
     static bool is_fasta(const std::string &filename) {
-        return ends_with(filename, ".fasta") || ends_with(filename, ".fa");
+        return ends_with(filename, ".fasta") || ends_with(filename, ".fa") || ends_with(filename, ".fna");
     }
     
 	FastaReader(const std::string &filename)

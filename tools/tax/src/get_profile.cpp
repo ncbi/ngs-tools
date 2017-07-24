@@ -27,7 +27,10 @@ struct MinHash
         Best(uint64_t hash, hash_t kmer) : hash(hash), kmer(kmer){}
     };
 
-    vector<Best> best;
+    vector<Best> best; //, storage;
+    vector<uint64_t> storage_hash; // memory fetch optimization
+    vector<hash_t> storage_kmer;
+
     vector<uint64_t> xors;
 
     MinHash(size_t count) : best(count), xors(count)
@@ -37,16 +40,63 @@ struct MinHash
         std::uniform_int_distribution<std::mt19937::result_type> dist(0, UINT32_MAX);
         for (int i = 0; i < count; i++)
             xors[i] = (uint64_t(dist(rng)) << 32) | dist(rng);
+
+        storage_hash.reserve(10000000); // todo: think. filesize ?
+        storage_kmer.reserve(10000000); // todo: think. filesize ?
     }
 
     void add(uint64_t hash, hash_t kmer)
     {
-        for (int i = 0; i < best.size(); i++)
+        storage_hash.push_back(hash);
+        storage_kmer.push_back(kmer);
+    }
+
+    void finish()
+    {
+        #pragma omp parallel for
+        for (int ib = 0; ib < best.size(); ib ++)
         {
-            hash_t h = hash ^ xors[i];
-            if (h < best[i].hash)
-                best[i] = Best(h, kmer);
+            auto _xor = xors[ib];
+
+            const int BUCKETS = 4;
+            vector<Best> best_chosen;
+            for (int i = 0; i < BUCKETS; i++)
+                best_chosen.push_back(best[ib]);
+
+            auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
+            for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
+            {
+                hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
+                hash_t h1 = storage_hash[to_check_i + 1] ^ _xor;
+                hash_t h2 = storage_hash[to_check_i + 2] ^ _xor;
+                hash_t h3 = storage_hash[to_check_i + 3] ^ _xor;
+
+                if (h0 < best_chosen[0].hash)
+                    best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
+                if (h1 < best_chosen[1].hash)
+                    best_chosen[1] = Best(h1, storage_kmer[to_check_i + 1]);
+                if (h2 < best_chosen[2].hash)
+                    best_chosen[2] = Best(h2, storage_kmer[to_check_i + 2]);
+                if (h3 < best_chosen[3].hash)
+                    best_chosen[3] = Best(h3, storage_kmer[to_check_i + 3]);
+            }
+
+            
+            for (size_t to_check_i = storage_limit; to_check_i < storage_hash.size(); to_check_i ++)
+            {
+                hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
+
+                if (h0 < best_chosen[0].hash)
+                    best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
+            }
+
+            for (int i = 0; i < BUCKETS; i++)
+                if (best_chosen[i].hash < best[ib].hash)
+                    best[ib] = best_chosen[i];
         }
+
+        storage_hash.clear();
+        storage_kmer.clear();
     }
 };
 
@@ -119,6 +169,8 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
     while (fasta.get_next_sequence(seq))
         update_min_hash(min_hash, seq, kmer_len);
 
+    min_hash.finish();
+
     cout << endl;
     save(save_file(filename), min_hash);
 }
@@ -127,8 +179,7 @@ void get_profile(const Config &config)
 {
 	FileListLoader file_list(config.file_list);
 
-    const int THREADS = 32;
-   	#pragma omp parallel for num_threads(THREADS)
+//   	#pragma omp parallel for
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
         auto &file = file_list.files[file_number];
