@@ -53,7 +53,7 @@ struct MinHash
 
     void finish()
     {
-        #pragma omp parallel for num_threads(8)
+        #pragma omp parallel for
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
