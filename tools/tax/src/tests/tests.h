@@ -55,7 +55,6 @@ using namespace std::chrono;
         } \
     }
 #define ASSERT(a) if (!(a)) { std::cerr << __FILE__ << ":" << __LINE__ << ": " << __ASSERT_FUNCTION << ": Assertion '" << #a << "' failed." << std::endl; abort(); }
-#define equal ASSERT_EQUALS // backwrad compatibility
 
 // test manager
 // do not use directly, use defines below

@@ -65,6 +65,11 @@ PROGRAMS := \
 	check_index \
 	db_fasta_to_bin\
 	filter_db \
+	contig_builder \
+	fasta_contamination \
+	find_closest_profile_linear \
+	contig_connectivity \
+	get_profile \
 	sort_dbs
 PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
 TESTS := $(wildcard src/tests/*.cpp)

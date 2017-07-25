@@ -32,6 +32,7 @@
 #include <algorithm>
 #include "hash.h"
 #include "seq_transform.h"
+#include "log.h"
 
 using namespace std;
 typedef uint64_t hash_t;
@@ -65,7 +66,7 @@ void process_without_taxonomy(const string &fasta_db, const string &out_file)
 		string seq;
 		while (loader.load_next_sequence(seq))
 		{
-			kmers.push_back(std::min( hash_of(seq), hash_of(reverse_complement(seq))) );
+			kmers.push_back(std::min( hash_of(seq), hash_of(reverse_complement(seq))));
 			if (!kmer_len)
 				kmer_len = seq.length();
 
@@ -98,7 +99,7 @@ void process_with_taxonomy(const string &fasta_db, const string &out_file)
 		int tax_id;
 		while (loader.load_next_sequence(seq, tax_id))
 		{
-			kmers.push_back(KmerTax(std::min( hash_of(seq), hash_of(reverse_complement(seq))), tax_id) );
+			kmers.push_back(KmerTax(std::min( hash_of(seq), hash_of(reverse_complement(seq))), tax_id));
 			if (!kmer_len)
 				kmer_len = seq.length();
 
@@ -127,7 +128,7 @@ bool has_taxonomy_info(const string &filename)
 int main(int argc, char const *argv[])
 {
 	Config config(argc, argv);
-	cerr << "db_fasta_to_bin version " << VERSION << endl;
+	LOG("db_fasta_to_bin version " << VERSION);
 
 	if (has_taxonomy_info(config.fasta_db))
 		process_with_taxonomy(config.fasta_db, config.out_file);

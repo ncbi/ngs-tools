@@ -29,6 +29,7 @@
 
 #include <time.h>
 #include <thread>
+#include "log.h"
 #include "reader.h"
 #include "fasta_reader.h"
 
@@ -104,8 +105,8 @@ struct Job
         Reader::SourceStats total_stats;
         if (unaligned_only) {
             auto unaligned_stats = reader->stats();
-            std::cerr << "unaligned spot count: " << unaligned_stats.spot_count << std::endl;
-            std::cerr << "unaligned read count: " << unaligned_stats.frag_count() << std::endl;
+            LOG("unaligned spot count: " << unaligned_stats.spot_count);
+            LOG("unaligned read count: " << unaligned_stats.frag_count());
         
             Reader::Params total_params;
             total_params.thread_count = 0;
@@ -118,8 +119,8 @@ struct Job
             total_stats = reader->stats();
         }
         
-        std::cerr << "total spot count: " << total_stats.spot_count << std::endl;
-        std::cerr << "total read count: " << total_stats.frag_count() << std::endl;
+        LOG("total spot count: " << total_stats.spot_count);
+        LOG("total read count: " << total_stats.frag_count());
 	}
 
 	virtual size_t db_kmers() const { return 0;}
@@ -138,7 +139,7 @@ private:
             if (percent != last_reported) {
                 auto timestamp = time(nullptr);
                 if (force || (timestamp > last_timestamp + 5)) {
-                    std::cerr << '\r' << percent << "% processed" << std::endl;
+                    LOG(percent << "% processed");
                     last_reported = percent;
                     last_timestamp = timestamp;
                 }

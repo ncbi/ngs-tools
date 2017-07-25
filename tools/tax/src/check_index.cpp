@@ -28,7 +28,7 @@
 #include <chrono>
 #include <thread>
 #include <array>
-#include <omp.h>
+#include "omp_adapter.h"
 #include "kmers.h"
 #include "kmer_io.h"
 #include "kmer_hash.h"
@@ -72,7 +72,7 @@ void check_clean_string(Kmers &kmers, p_string p_str, tax_id_t tax_id, int kmer_
 	array<ThreadFinding, THREADS> thread_findings;
 
 	#pragma omp parallel num_threads(THREADS)
-	for (int i = omp_get_thread_num(); i <= len - kmer_len; i+=THREADS)
+	for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
 	{
 		auto thread_id = omp_get_thread_num();
 
@@ -130,7 +130,7 @@ size_t check_kmers(Kmers &kmers, const string &filename, tax_id_t tax_id, int km
 
 void fail(const std::string &message)
 {
-	std::cerr << message << std::endl;
+	LOG(message);
 	throw std::runtime_error(message);
 }
 
@@ -173,7 +173,7 @@ int load_kmers(Kmers &kmers, const string &filename)
 int main(int argc, char const *argv[])
 {
 	ConfigCheckIndex config(argc, argv);
-	cerr << "check_index version 0.10 " << endl;
+	LOG("check_index version 0.10 ");
 
 	auto before = high_resolution_clock::now();
 
@@ -184,14 +184,14 @@ int main(int argc, char const *argv[])
 
 	Kmers kmers(tax_id_tree);
 	int kmer_len = load_kmers(kmers, config.kmers_file);
-	cerr << "kmer len: " << kmer_len << endl;
-	cerr << kmers.storage.size() << " kmers loaded" << endl;
+	LOG("kmer len: " << kmer_len);
+	LOG(kmers.storage.size() << " kmers loaded");
 
 	size_t total_size = 0;
 	for (auto &file_list_element : file_list.files)
 	{
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
-		cerr << file_list_element.filesize << "\t" << tax_id << "\t" << file_list_element.filename << endl;
+		LOG(file_list_element.filesize << "\t" << tax_id << "\t" << file_list_element.filename);
 		total_size += check_kmers(kmers, file_list_element.filename, tax_id, kmer_len);
 		{
 			auto seconds_past = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
@@ -199,11 +199,11 @@ int main(int argc, char const *argv[])
 				seconds_past = 1;
 
 			size_t megs = total_size/1000000;
-			cerr << "processed size " << megs << "M = " << (total_size/1000)/seconds_past << "K/sec" << endl;
+			LOG("processed size " << megs << "M = " << (total_size/1000)/seconds_past << "K/sec");
 		}
 	}
 
 	KmerIO::print_kmers(kmers, kmer_len);
 
-	cerr << "total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count() << endl;
+	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }

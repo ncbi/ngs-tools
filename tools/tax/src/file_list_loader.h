@@ -30,6 +30,7 @@
 #include <string>
 #include <fstream>
 #include <list>
+#include "fasta_reader.h"
 
 struct FileListLoader
 {
@@ -37,6 +38,8 @@ struct FileListLoader
 	{
 		size_t filesize;
 		std::string filename;
+        File() = default;
+        File(size_t filesize, const std::string &filename) : filesize(filesize), filename(filename){}
 	};
 
 	typedef std::vector<File> Files;
@@ -44,6 +47,12 @@ struct FileListLoader
 
 	FileListLoader(const std::string &file_list)
 	{
+        if (FastaReader::is_fasta(file_list))
+        {
+            files.push_back(File(0, file_list));
+            return;
+        }
+
 		std::ifstream f(file_list);
 		if (f.fail() || f.bad())
 			throw std::runtime_error(std::string("cannot open file list ") + file_list);
@@ -65,7 +74,6 @@ struct FileListLoader
 			files.push_back(f_rec);
 		}
 	}
-
 };
 
 #endif

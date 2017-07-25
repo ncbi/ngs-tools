@@ -28,7 +28,7 @@
 #include <chrono>
 #include <thread>
 #include <array>
-#include <omp.h>
+#include "omp_adapter.h"
 #include "kmers.h"
 #include "kmer_io.h"
 #include "kmer_hash.h"
@@ -80,7 +80,7 @@ void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int k
 	bool has_kmer_found = false;
 
 	#pragma omp parallel num_threads(THREADS)
-	for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i+=THREADS)
+	for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i += omp_get_num_threads())
 	{
 		hash_t kmer = KmerIO::kmer_from(s, i, kmer_len);
 
@@ -164,10 +164,10 @@ size_t add_kmers(Kmers &kmers, const string &filename, tax_id_t tax_id, int wind
 
 int main(int argc, char const *argv[])
 {
-	cerr << "build_index version " << VERSION << endl;
+	LOG("build_index version " << VERSION);
 	ConfigBuildIndex config(argc, argv);
-	cerr << "window divider: " << config.window_divider << endl;
-	cerr << "kmer len: " << config.kmer_len << endl;
+	LOG("window divider: " << config.window_divider);
+	LOG("kmer len: " << config.kmer_len);
 
 	auto before = high_resolution_clock::now();
 
@@ -182,7 +182,7 @@ int main(int argc, char const *argv[])
 	{
 		auto window_size = calculate_window_size(file_list_element.filesize, FilenameMeta::is_eukaryota(file_list_element.filename), FilenameMeta::is_virus(file_list_element.filename), config.window_divider, config.min_window_size);
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
-		cerr << file_list_element.filesize << "\t" << window_size << "\t" << tax_id << "\t" << file_list_element.filename << endl;
+		LOG(file_list_element.filesize << "\t" << window_size << "\t" << tax_id << "\t" << file_list_element.filename);
 		total_size += add_kmers(kmers, file_list_element.filename, tax_id, window_size, config.kmer_len);
 		{
 			auto seconds_past = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
@@ -190,11 +190,11 @@ int main(int argc, char const *argv[])
 				seconds_past = 1;
 
 			size_t megs = total_size/1000000;
-			cerr << "processed size " << megs << "M = " << (total_size/1000)/seconds_past << "K/sec, kmers: " << kmers.storage.size()/1000 << "K, compression rate " << total_size/std::max(size_t(1), weight(kmers.storage.size())) << endl;
+			LOG("processed size " << megs << "M = " << (total_size/1000)/seconds_past << "K/sec, kmers: " << kmers.storage.size()/1000 << "K, compression rate " << total_size/std::max(size_t(1), weight(kmers.storage.size())));
 		}
 	}
 
 	KmerIO::print_kmers(kmers, config.kmer_len);
 
-	cerr << "total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count() << endl;
+	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }

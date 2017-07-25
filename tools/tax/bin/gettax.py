@@ -11,6 +11,7 @@ import collections
 import errno
 import argparse
 import time
+from datetime import datetime
 
 logger = logging.getLogger('gettax')
 
@@ -35,7 +36,7 @@ class Connection(object):
 
 def _parse_line(line):
     """parses original dump line"""
-    
+
     assert line.endswith('\t|\n'), repr(line)
     line = line[:-3]
     parts = line.split('\t|\t')
@@ -104,26 +105,33 @@ def create_db(src, dst):
 
     logger.debug('creating sqlite db: %s -> %s', src, dst)
     assert os.path.exists(src), 'dump does not exist: %s' % src
-    
+
     md5 = src + '.md5'
     if os.path.exists(md5):
         logger.info('md5 check')
         src_dir = os.path.dirname(src)
         subprocess.check_output(['md5sum', '-c', md5], cwd=src_dir)
-    
+
+    before = datetime.now()
     conn = sqlite3.connect(dst, isolation_level='EXCLUSIVE')
     temp_dir = tempfile.mkdtemp()
     try:
-        conn.execute('''        
+        conn.execute('''
 create table if not exists taxons (
     tax_id int primary key,
     parent_tax_id int,
     rank text,
     scientific_name text
     )
-''')
+        ''')
+        conn.execute('''
+create table if not exists rebuilds (
+        timestamp datetime,
+        duration real
+    )
+        ''')
         conn.execute('delete from taxons')
-        
+
         logger.info('extracting')
         tar = tarfile.open(src)
         tar.extractall(temp_dir)
@@ -132,7 +140,7 @@ create table if not exists taxons (
         nodes = os.path.join(temp_dir, 'nodes.dmp')
         node_count = _parse_nodes(conn, nodes)
         logger.info('parsed %s nodes', node_count)
-        
+
         logger.info('parsing names')
         names = os.path.join(temp_dir, 'names.dmp')
         name_count = _parse_names(conn, names)
@@ -155,6 +163,10 @@ create table if not exists taxons (
         logger.info('fixing root')
         conn.execute('update taxons set parent_tax_id = 0 where tax_id = parent_tax_id')
 
+        logger.info('writing metainfo')
+        duration = datetime.now() - before
+        conn.execute('insert into rebuilds values (?, ?)', [before.isoformat(' '), duration.total_seconds()])
+
         logger.info('committing')
         conn.commit()
 
@@ -165,7 +177,7 @@ create table if not exists taxons (
 
 def _mtime(path):
     """returns path mtime or none if path does not exist"""
-    
+
     try:
         return os.path.getmtime(path)
     except OSError as e:
@@ -176,12 +188,12 @@ def _mtime(path):
 def _gettax(tax_id, conn):
     """returns corresponding Taxon instance by tax_id"""
     tax_id = int(tax_id)
-    
-    cur = conn.cursor() 
+
+    cur = conn.cursor()
     cur.execute('select * from taxons where tax_id = ?', [tax_id])
     rows = cur.fetchall()
     cur.close()
-    
+
     if rows:
         assert len(rows) == 1
         return Taxon(*rows[0])
@@ -203,7 +215,7 @@ def connect(taxdump, sqlite_cache=None, rebuild_timeout=None, connection_timeout
             rebuild = True
         elif cache_mtime < dump_mtime:
             time_since_last_rebuild = time.time() - cache_mtime
-            
+
             if rebuild_timeout is None or time_since_last_rebuild > rebuild_timeout:
                 logger.debug('rebuilding cache because it is out of date')
                 rebuild = True
@@ -228,7 +240,7 @@ def format_taxon(taxon):
 
     if not taxon:
         return 'tax id not found'
-    
+
     attrs = taxon._fields
     taxon = taxon._asdict()
     taxon['rank'] = taxon['rank'] or 'no rank'
@@ -252,7 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--quiet', action='store_true', help='disable info logging')
     parser.add_argument('-a', '--attribute', help='output only the given attribute')
     parser.add_argument('tax_id', metavar='TAX_ID', nargs='*', type=int, help='list of tax ids')
-    
+
     args = parser.parse_args()
     if args.attribute:
         args.attribute = args.attribute.strip().replace(' ', '_')

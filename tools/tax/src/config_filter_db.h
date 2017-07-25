@@ -28,6 +28,7 @@
 #define CONFIG_FILTER_DB_H_INCLUDED
 
 #include <string>
+#include "log.h"
 
 struct ConfigFilterDB
 {
@@ -49,7 +50,7 @@ struct ConfigFilterDB
 
 	static void print_usage()
 	{
-		std::cerr << "need <kmers file> [-only_tax <tax_id>]" << std::endl;
+		LOG("need <kmers file> [-only_tax <tax_id>]");
 	}
 };
 

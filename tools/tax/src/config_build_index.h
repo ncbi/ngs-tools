@@ -28,6 +28,7 @@
 #define CONFIG_BUILD_INDEX_H_INCLUDED
 
 #include <string>
+#include "log.h"
 
 struct ConfigBuildIndex
 {
@@ -51,7 +52,7 @@ struct ConfigBuildIndex
 
 	static void print_usage()
 	{
-		std::cerr << "need <files.list> <tax.parents> <window divider> <kmer len> <min window size>" << std::endl;
+        LOG("need <files.list> <tax.parents> <window divider> <kmer len> <min window size>");
 	}
 };
 

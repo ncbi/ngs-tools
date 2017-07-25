@@ -33,10 +33,10 @@
 TEST(hash_1) {
     string seq = "TCTCCGAGCCCACGAGAC";
     auto hash = Hash<uint64_t>::hash_of(&seq[0], seq.length());
-    equal(hash, 41191556913);
+    ASSERT_EQUALS(hash, 41191556913);
 
     string s = Hash<uint64_t>::str_from_hash(hash, 18);
-    equal(s, seq);
+    ASSERT_EQUALS(s, seq);
 }
 
 TEST(hash_left_right) {
@@ -49,8 +49,8 @@ TEST(hash_left_right) {
     auto hash_right = Hash<unsigned int>::hash_of(seq_right);
     auto hash_full = Hash<uint64_t>::hash_of(seq_full);
 
-    equal(Hash<uint64_t>::left<unsigned int>(hash_full), hash_left);
-    equal(Hash<uint64_t>::right<unsigned int>(hash_full), hash_right);
+    ASSERT_EQUALS(Hash<uint64_t>::left<unsigned int>(hash_full), hash_left);
+    ASSERT_EQUALS(Hash<uint64_t>::right<unsigned int>(hash_full), hash_right);
 }
 
 TEST(hash_left_right_long) {
@@ -64,8 +64,8 @@ TEST(hash_left_right_long) {
     auto hash_right = Hash<uint64_t>::hash_of(seq_right);
     auto hash_full = Hash<__uint128_t>::hash_of(seq_full);
 
-    equal(Hash<__uint128_t>::left<uint64_t>(hash_full), hash_left);
-    equal(Hash<__uint128_t>::right<uint64_t>(hash_full), hash_right);
+    ASSERT_EQUALS(Hash<__uint128_t>::left<uint64_t>(hash_full), hash_left);
+    ASSERT_EQUALS(Hash<__uint128_t>::right<uint64_t>(hash_full), hash_right);
 #endif
 }
 
@@ -79,19 +79,19 @@ TEST(hash_next) {
     auto hash4 = Hash<__uint128_t>::hash_of(&read[4], 64);
     auto hash5 = Hash<__uint128_t>::hash_of(&read[5], 64);
     auto hash = Hash<__uint128_t>::hash_next(&read[1], hash0, 64);
-    equal(hash == hash1, true);
+    ASSERT_EQUALS(hash == hash1, true);
 
     hash = Hash<__uint128_t>::hash_next(&read[2], hash, 64);
-    equal(hash == hash2, true);
+    ASSERT_EQUALS(hash == hash2, true);
 
     hash = Hash<__uint128_t>::hash_next(&read[3], hash, 64);
-    equal(hash == hash3, true);
+    ASSERT_EQUALS(hash == hash3, true);
 
     hash = Hash<__uint128_t>::hash_next(&read[4], hash, 64);
-    equal(hash == hash4, true);
+    ASSERT_EQUALS(hash == hash4, true);
 
     hash = Hash<__uint128_t>::hash_next(&read[5], hash, 64);
-    equal(hash == hash5, true);
+    ASSERT_EQUALS(hash == hash5, true);
 #endif
 }
 
@@ -99,11 +99,11 @@ TEST(hash_to_and_from) 	{
     int KMER_LEN = 32;
     typedef uint64_t hash_t;
     auto hash = Hash<hash_t>::hash_of("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC");
-    equal(hash, 115348763461549301ULL);
-    equal(Hash<hash_t>::str_from_hash(hash, KMER_LEN), string("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC"));
+    ASSERT_EQUALS(hash, 115348763461549301ULL);
+    ASSERT_EQUALS(Hash<hash_t>::str_from_hash(hash, KMER_LEN), string("AAACTCTCGAGCACCTGCCGCTCGGGGAGGCC"));
     auto hash_rev_compl = Hash<hash_t>::hash_of("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT");
-    equal(hash_rev_compl, 17696177292584799466ULL);
-    equal(Hash<hash_t>::str_from_hash(hash_rev_compl, KMER_LEN), string("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT"));
+    ASSERT_EQUALS(hash_rev_compl, 17696177292584799466ULL);
+    ASSERT_EQUALS(Hash<hash_t>::str_from_hash(hash_rev_compl, KMER_LEN), string("GGCCTCCCCGAGCGGCAGGTGCTCGAGAGTTT"));
 }
 
 TEST(hash_for_all) {
@@ -117,17 +117,17 @@ TEST(hash_for_all) {
             return true;
         });
 
-    equal(counter[Hash<unsigned int>::hash_of("TCTCCGAG")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("CTCCGAGC")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("TCCGAGCC")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("CCGAGCCC")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("CGAGCCCA")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("GAGCCCAC")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("GAGCCCAC")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("AGCCCACG")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("GCCCACGA")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("CCCACGAG")], 1);
-    equal(counter[Hash<unsigned int>::hash_of("CCACGAGA")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("TCTCCGAG")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("CTCCGAGC")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("TCCGAGCC")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("CCGAGCCC")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("CGAGCCCA")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("GAGCCCAC")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("GAGCCCAC")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("AGCCCACG")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("GCCCACGA")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("CCCACGAG")], 1);
+    ASSERT_EQUALS(counter[Hash<unsigned int>::hash_of("CCACGAGA")], 1);
 }
 
 TEST_MAIN();

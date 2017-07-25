@@ -31,7 +31,7 @@
 #include "hash.h"
 #include "seq_transform.h"
 #include <map>
-#include <omp.h>
+#include "omp_adapter.h"
 
 struct DBJob : public Job
 {

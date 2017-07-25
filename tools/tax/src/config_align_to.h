@@ -32,6 +32,7 @@
 #include <fstream>
 #include <list>
 #include <stdexcept>
+#include "log.h"
 
 struct Config
 {
@@ -39,10 +40,10 @@ struct Config
 	typedef std::list<std::string> Strings;
 	Strings contig_files;
     bool unaligned_only;
-    bool print_counts;
+    bool hide_counts;
 
 	Config(int argc, char const *argv[])
-        : print_counts(false)
+        : hide_counts(false)
         , unaligned_only(false)
 	{
         std::list<std::string> args;
@@ -60,8 +61,8 @@ struct Config
                 dbss = pop_arg(args);
             } else if (arg == "-tax_list") {
                 dbss_tax_list = pop_arg(args);
-            } else if (arg == "-print_counts") {
-                print_counts = true;
+            } else if (arg == "-hide_counts") {
+                hide_counts = true;
             } else if (arg == "-unaligned_only") {
                 unaligned_only = true;
             } else if (arg == "-list") {
@@ -96,16 +97,17 @@ struct Config
 	static void fail(const char* reason = "invalid arguments")
 	{
 		print_usage();
-		throw std::runtime_error(reason);
+        LOG(reason);
+        exit(1);
 	}
 
 	static void print_usage()
 	{
-        std::cerr << "need <database> [-spot_filter <spot or read file>] [-print_counts] [-unaligned_only] <contig fasta or accession>" << std::endl;
-		std::cerr << "where <database> is one of:" << std::endl;
-		std::cerr << "-db <database>" << std::endl;
-		std::cerr << "-dbs <database +tax>" << std::endl;
-		std::cerr << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl;
+        LOG("need <database> [-spot_filter <spot or read file>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl 
+            << "where <database> is one of:" << std::endl
+            << "-db <database>" << std::endl
+            << "-dbs <database +tax>" << std::endl
+            << "-dbss <sorted database +tax> -tax_list <tax_list file>")
 	}
 
 private:

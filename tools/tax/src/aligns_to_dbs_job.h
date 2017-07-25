@@ -87,7 +87,7 @@ public:
             hash_lookup_shift = kmer_len * 2 - lookup_key_bits;
 
             const size_t bucket_count = size_t(1) << lookup_key_bits;
-            std::cerr << "creating lookup table with " << bucket_count << " buckets, on average " << (float(hash_array.size()) / bucket_count) << " hashes per bucket" << std::endl;
+            LOG("creating lookup table with " << bucket_count << " buckets, on average " << (float(hash_array.size()) / bucket_count) << " hashes per bucket");
             hash_lookup_table.resize(bucket_count);
 
             // figuring out bucket ranges
@@ -111,7 +111,7 @@ public:
                     last_hash = hash;
                 }
                 bucket.second = hash_idx;
-                //std::cerr << "bucket " << bucket_idx << " " << (bucket.second - bucket.first) << " members, range " << bucket.first << " - " << bucket.second << std::endl;
+                //LOG("bucket " << bucket_idx << " " << (bucket.second - bucket.first) << " members, range " << bucket.first << " - " << bucket.second);
             }
         }
 
@@ -133,7 +133,7 @@ public:
 					if (auto tax_id = get_db_tax(hash))
 					{
 						hits[tax_id] ++;
-//						cerr << tax_id << " " << Hash<hash_t>::str_from_hash(hash, KMER_LEN) << endl;
+//						LOG(tax_id << " " << Hash<hash_t>::str_from_hash(hash, KMER_LEN));
 					}
 
 					return true;
@@ -224,7 +224,7 @@ public:
 	virtual void run(const std::string &filename, std::ostream &out_f)
 	{
 		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(out_f, config.print_counts);
+		TaxPrinter print(out_f, !config.hide_counts);
 		Job::run<Matcher, TaxPrinter, TaxMatchId>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
 	}
 };

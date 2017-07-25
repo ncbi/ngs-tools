@@ -10,7 +10,7 @@ from lxml.builder import E
 
 import gettax
 
-__version__ = '0.5'
+__version__ = '0.7'
 logger = logging.getLogger('tax_analysis_parser')
 
 def get_lineage(tax_id, cache, conn):
@@ -40,7 +40,7 @@ def get_or_add_node(nodes, counter, conn, tax_id):
         count = 0
     node = E.taxon(tax_id=str(tax_id),
                    self_count=str(count))
-    
+
     tax_info = conn.gettax(tax_id)
     if tax_info:
         if tax_info.rank:
@@ -74,7 +74,7 @@ def build_tree(counter, conn):
         get_or_add_node(nodes, counter, conn, tax_id)
     assert not counter, 'must be consumed'
     root = nodes[1]
-    
+
     logger.info('Calculating totals')
     calculate_total_counts(root)
     return root
@@ -85,7 +85,7 @@ def deduce_tax_id(hits, lineage_cache, conn):
     if len(hits) == 1:
         for hit in hits: # get first (and only) element of set
             return hit
-    
+
     # choose closest common ancestor
     # then move to the most specific
     # non-ambiguous tax
@@ -131,16 +131,30 @@ def iterate_merged_spots(f):
     if last_spot:
         yield last_hits
 
-def parse(f, conn):
+def parse(f, conn, wgs_mode, include_tax_ids=[]):
     '''parses tax_analysis output file'''
     counter = collections.Counter()
     counter[1] = 0 # explicitly add root
-    
+    for tax_id in include_tax_ids:
+        counter[tax_id] = 0
+
     lineage_cache = {}
-    
-    for hits in iterate_merged_spots(f):
-        tax_id = deduce_tax_id(hits, lineage_cache, conn)
-        counter[tax_id] += 1
+
+    if wgs_mode:
+        for line in f:
+            parts = line.split('\t')
+            hits = parts[1:]
+            for hit in hits:
+                if 'x' in hit:
+                    tax_id, count = map(int, hit.split('x'))
+                else:
+                    tax_id = int(hit)
+                    count = 1
+                counter[tax_id] += count
+    else:
+        for hits in iterate_merged_spots(f):
+            tax_id = deduce_tax_id(hits, lineage_cache, conn)
+            counter[tax_id] += 1
 
     xml = build_tree(counter, conn)
     return xml
@@ -151,10 +165,17 @@ def main():
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
     parser.add_argument('-r', '--rebuild-timeout', type=float, help='minimum delay between cache rebuilds in seconds')
+    parser.add_argument('-i', '--include-tax-id', type=int, action='append', help='include taxon into tax tree even if it has no hits')
     parser.add_argument('--connection-timeout', type=float, help='cache connection timeout, to wait until rebuild is completed')
+    parser.add_argument('--wgs-mode', action='store_true', help='''
+In regular mode parser assigns single consensus tax_id for each input sequence.
+It then builds hieararchy showing counts of sequences matching each particular tax_id.
+It doesn't work very well for wgs, because there are only few sequences and because they can have very uneven lengths.
+With this flag parser builds hierarchy based on count of kmer hits, not the count of sequences.
+'''.strip())
     parser.add_argument('path', nargs='?', help='path ot file with tax analysis output, if empty reads from stdin')
     args = parser.parse_args()
-    
+
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
     else:
@@ -162,7 +183,7 @@ def main():
 
     if not args.tax_dump and not args.sqlite_cache:
         parser.error('need tax_dump or sqlite_cache or both to work')
-        
+
     if args.path:
         logger.info('Reading %s', args.path)
         f = open(args.path)
@@ -171,7 +192,7 @@ def main():
         f = sys.stdin
 
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
-        xml = parse(f, conn)
+        xml = parse(f, conn, args.wgs_mode, args.include_tax_id or [])
     xml = E.taxon_tree(xml, parser_version=__version__)
     print etree.tostring(xml, pretty_print=True)
 
