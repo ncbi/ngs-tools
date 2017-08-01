@@ -29,7 +29,11 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <klib/log.h>
+
 #include <kproc/lock.h>
+
+#include <insdc/insdc.h>
 
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/Reference.hpp>
@@ -47,20 +51,50 @@ static
 string
 ReverseComplementDNA ( const string& p_source)
 {
+    // the conversion table has been copied from ncbi-vdb/libs/loader/common-writer.c
+    static const INSDC_dna_text complement [] = {
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 , '.',  0 ,
+        '0', '1', '2', '3',  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C',
+        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 ,
+         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W',
+         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C',
+        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 ,
+         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W',
+         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0
+    };
+
     string ret;
     ret.reserve ( p_source . size () );
     for ( string :: const_reverse_iterator i = p_source . rbegin (); i != p_source . rend (); ++i )
     {
-        char ch;
-        switch ( *i )
+        char ch = complement [ *i ];
+        if ( ch == 0 )
         {
-            case 'A' : ch = 'T'; break;
-            case 'C' : ch = 'G'; break;
-            case 'G' : ch = 'C'; break;
-            case 'T' : ch = 'A'; break;
-            case 'N' : ch = 'N'; break;
-            default:
-                throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
+            throw invalid_argument ( string ( "Unexpected character in query:'" ) + *i + "'" );
         }
         ret += ch;
     }
@@ -78,20 +112,21 @@ public:
     :   SearchBuffer ( p_sb, p_run . getName() ),
         m_run ( p_run ),
         m_reference ( p_reference ),
+        m_dbLock ( p_lock ),
         m_refSearch ( 0 ),
         m_refSearchReverse ( 0 ),
         m_alIt ( 0 ),
         m_fragIt ( 0 ),
         m_reported ( p_reported ),
-        m_reverse ( false ),
-        m_dbLock ( p_lock )
+        BlobBoundaryOverlap ( m_searchBlock -> GetQuery () . size() * 2 ),
+        m_reverse ( false )
     {
         KLockAddRef ( m_dbLock );
 
         const unsigned int ReferenceMatchTolerancePct = 90; // search on reference has to be looser than in reads
-        const unsigned int ThresholdPct = m_searchBlock -> GetScoreThreshold() * ReferenceMatchTolerancePct / 100;
-        m_refSearch         = new AgrepSearch ( m_searchBlock -> GetQuery (),                           AgrepSearch :: AgrepWuManber, ThresholdPct );
-        m_refSearchReverse  = new AgrepSearch ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ),  AgrepSearch :: AgrepWuManber, ThresholdPct );
+        const unsigned int ThresholdPct = ( m_searchBlock -> GetScoreThreshold() * ReferenceMatchTolerancePct ) / 100;
+        m_refSearch         = new AgrepSearch ( m_searchBlock -> GetQuery (),                           AgrepSearch :: AgrepMyersUnltd, ThresholdPct );
+        m_refSearchReverse  = new AgrepSearch ( ReverseComplementDNA ( m_searchBlock -> GetQuery () ),  AgrepSearch :: AgrepMyersUnltd, ThresholdPct );
     }
 
     virtual ~ReferenceSearchBase()
@@ -188,6 +223,8 @@ protected:
 
     ReferenceSearch :: ReportedFragments & m_reported; // all fragments reported for the parent ReferenceMatchIterator, to eliminate double reports
 
+    const size_t    BlobBoundaryOverlap;
+
     bool m_reverse;
 };
 
@@ -208,7 +245,7 @@ public:
     {
         if ( m_reference . getIsCircular () )
         {   // append the start of the reference to be used in search for wraparound matches
-            m_bases += m_bases . substr ( 0, m_searchBlock -> GetQuery () . size() * 2 );
+            m_bases += m_bases . substr ( 0, BlobBoundaryOverlap );
         }
     }
 
@@ -223,7 +260,7 @@ public:
                 uint64_t hitEnd;
                 if ( ! m_reverse )
                 {
-                    if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, hitStart, hitEnd ) )
+                    if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, & hitStart, & hitEnd ) )
                     {   // no more matches on this reference; switch to reverse search
                         m_reverse = true;
                         m_offset = 0;
@@ -232,7 +269,7 @@ public:
                 }
                 else
                 {
-                    if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, hitStart, hitEnd ) )
+                    if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offset, m_bases . size () - m_offset, & hitStart, & hitEnd ) )
                     {   // no more reverse matches on this reference; the end.
                         return 0;
                     }
@@ -267,7 +304,6 @@ public:
                                 KLock *                                 p_lock )
     :   ReferenceSearchBase ( p_sb, p_run, p_reference, p_reported, p_lock ),
         m_startInBlob ( 0 ),
-        m_end ( (uint64_t)-1 ),
         m_blobIter ( VdbReference ( p_reference ) . getBlobs() ),
         m_curBlob ( 0 ),
         m_nextBlob ( 0 ),
@@ -306,23 +342,37 @@ public:
                     uint64_t hitEnd;
                     if ( ! m_reverse )
                     {
-                        int64_t first;
-                        uint64_t count;
-                        m_curBlob . GetRowRange ( first, count );
+                        // int64_t first;
+                        // uint64_t count;
+                        // m_curBlob . GetRowRange ( & first, & count );
                         // cout << (void*)this << " searching at " << m_offsetInReference + m_offsetInBlob
                         //     << " blob size=" << m_bases.size() << " unpacked=" << m_unpackedBlobSize
                         //     << " rows=" <<  first << "-" << ( first + count - 1) << endl;
 
-                        if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, hitStart, hitEnd ) )
+                        if ( ! m_refSearch -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, & hitStart, & hitEnd ) )
                         {   // no more matches in this blob; switch to reverse search
                             m_reverse = true;
                             m_offsetInBlob = m_startInBlob;
                             continue;
                         }
                     }
-                    else if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, hitStart, hitEnd ) )
+                    else if ( ! m_refSearchReverse -> FirstMatch ( m_bases . data () + m_offsetInBlob, m_bases . size () - m_offsetInBlob, & hitStart, & hitEnd ) )
                     {   // no more reverse matches on this reference; the end for this blob
                         break;
+                    }
+
+                    if ( m_offsetInBlob + hitStart >= m_curBlob.Size() ) // the hit is entirely in the next blob, we'll get it on the next iteration
+                    {
+                        if ( m_reverse )
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            m_reverse = true;
+                            m_offsetInBlob = m_startInBlob;
+                            continue;
+                        }
                     }
 
                     // cout << "Match on " << BufferId () << " '" << string ( m_bases . data () + m_offsetInBlob + hitStart, hitEnd - hitStart ) << "'" <<
@@ -333,13 +383,15 @@ public:
                     uint32_t repeatCount;
                     uint64_t increment;
                     // cout << (void*)this << " Resolving " << m_offsetInBlob + hitStart << endl;
-                    m_curBlob . ResolveOffset ( m_offsetInBlob + hitStart, inReference, repeatCount, increment );
+                    m_curBlob . ResolveOffset ( m_offsetInBlob + hitStart, & inReference, & repeatCount, & increment );
                     // cout << (void*)this << " Resolved to  " << inReference << " repeat=" << repeatCount << " inc=" << increment << endl;
-                    m_offsetInBlob += hitEnd; //TODO: this may be too far
-                    if ( m_end != (uint64_t)-1 && inReference >= m_end )
+                    if ( repeatCount == 1 )
                     {
-                        continue;
+                        PLOGMSG (klogWarn, (klogWarn, "Match against a repeated reference row detected; some matching fragments may be missed. Reference=$(r) pos=$(p) repeat=$(t)",
+                                                      "r=%s,p=%d,t=%d",
+                                                      m_reference . getCanonicalName (), inReference, repeatCount));
                     }
+                    m_offsetInBlob += hitEnd; //TODO: this may be too far
                     m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) inReference, hitEnd - hitStart ) );
                 }
 
@@ -358,18 +410,7 @@ public:
 
             m_curBlob = m_nextBlob;
 
-            m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
-            m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
-            if ( m_blobIter . hasMore () )
-            {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
-                m_nextBlob = m_blobIter. nextBlob ();
-                m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
-            }
-            else
-            {
-                m_lastBlob = true;
-                m_bases += m_circularStart;
-            }
+            AdvanceBases ();
         }
     }
 
@@ -385,34 +426,44 @@ private:
 
         if ( m_reference . getIsCircular () )
         {   // save the start of the reference to be used in search for wraparound matches
-            m_circularStart = m_reference . getReferenceBases ( 0, m_searchBlock -> GetQuery () . size() * 2 );
+            m_circularStart = m_reference . getReferenceBases ( 0, BlobBoundaryOverlap );
         }
 
-        m_bases . reserve ( m_curBlob . Size() + m_searchBlock -> GetQuery () . size() * 2 );
-        m_bases = String ( m_curBlob . Data(), m_curBlob . Size() );
+        AdvanceBases ();
+        return true;
+    }
+
+    void AdvanceBases ()
+    {
+        m_bases . reserve ( m_curBlob . Size() + BlobBoundaryOverlap ); // try to minimize re-allocation
+        m_bases . assign ( m_curBlob . Data(), m_curBlob . Size() );
         if ( m_blobIter . hasMore () )
         {   // append querySize bases from the beginning of the next blob, to catch matches across the two blobs' boundary
             m_nextBlob = m_blobIter. nextBlob ();
-            m_bases += String ( m_nextBlob . Data(), m_searchBlock -> GetQuery () . size() * 2 );
+            m_bases . append ( m_nextBlob . Data(), BlobBoundaryOverlap );
         }
         else
         {
             m_lastBlob = true;
-            m_bases += m_circularStart;
+            if ( m_reference . getIsCircular () )
+            {
+                m_bases . append ( m_circularStart );
+            }
         }
-        return true;
     }
 
 private:
     uint64_t                m_startInBlob;
-    uint64_t                m_end;
 
     ReferenceBlobIterator   m_blobIter;
     ReferenceBlob           m_curBlob;
     ReferenceBlob           m_nextBlob;
 
+    // we search a blob plus BlobBoundaryOverlap bases from the next blob, all copied into this buffer
     String                  m_bases;
-    String                  m_circularStart;
+
+    String                  m_circularStart; // this represent next-to-last blob's starting bases for circular references
+
     uint64_t                m_offsetInReference;
     uint64_t                m_offsetInBlob;
     uint64_t                m_unpackedBlobSize;

@@ -66,7 +66,7 @@ public:
 
         uint64_t hitStart;
         uint64_t hitEnd;
-        while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, hitStart, hitEnd  ) )
+        while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, & hitStart, & hitEnd  ) )
         {
             // convert to offsets from the start of the blob
             hitStart += m_startInBlob;
@@ -80,7 +80,7 @@ public:
             KLockAcquire ( m_dbLock ); //TODO: consider removing
             try
             {
-                m_blob . GetFragmentInfo ( hitStart, fragId, startInBlob, lengthInBases, biological );
+                m_blob . GetFragmentInfo ( hitStart, & fragId, & startInBlob, & lengthInBases, & biological );
             }
             catch ( ... )
             {
@@ -113,7 +113,7 @@ public:
     {   // identify by row Id range
         int64_t first;
         uint64_t count;
-        m_blob . GetRowRange ( first, count );
+        m_blob . GetRowRange ( & first, & count );
         ostringstream ret;
         ret << first << "-" << ( first + count - 1 );
         return ret.str();

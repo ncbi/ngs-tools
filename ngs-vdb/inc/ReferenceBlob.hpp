@@ -50,10 +50,10 @@ namespace ncbi
                 uint64_t UnpackedSize() const
                     throw ( :: ngs :: ErrorMsg );
 
-                void GetRowRange ( int64_t& first, uint64_t& count ) const
+                void GetRowRange ( int64_t * first, uint64_t * count ) const
                     throw ( :: ngs :: ErrorMsg );
 
-                void ResolveOffset ( uint64_t inBlob, uint64_t& inReference, uint32_t& repeatCount, uint64_t& increment ) const
+                void ResolveOffset ( uint64_t inBlob, uint64_t * inReference, uint32_t * repeatCount, uint64_t * increment ) const
                     throw ( :: ngs :: ErrorMsg );
 
             public:

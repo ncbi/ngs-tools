@@ -33,11 +33,10 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
-
 #include <../libs/ngs/NGS_ReferenceBlob.h>
-#include <../libs/ngs/NGS_ErrBlock.h>
 #include <../libs/ngs/NGS_String.h>
+
+#include "Error.hpp"
 
 using namespace ncbi :: ngs :: vdb;
 
@@ -45,23 +44,15 @@ ReferenceBlob :: ReferenceBlob ( ReferenceBlobRef ref ) throw ()
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    self = NGS_ReferenceBlobDuplicate ( ref, ctx);
+    THROW_ON_FAIL ( self = NGS_ReferenceBlobDuplicate ( ref, ctx ) );
 }
 
 ReferenceBlob &
 ReferenceBlob :: operator = ( const ReferenceBlob & obj ) throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_ReferenceBlobRelease ( self, ctx) )
-    {
-        self = NGS_ReferenceBlobDuplicate ( obj . self, ctx);
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobRelease ( self, ctx ) );
+    self = NGS_ReferenceBlobDuplicate ( obj . self, ctx );
     return *this;
 }
 
@@ -69,39 +60,33 @@ ReferenceBlob :: ReferenceBlob ( const ReferenceBlob & obj ) throw ( :: ngs :: E
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    self = NGS_ReferenceBlobDuplicate ( obj . self, ctx);
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( self = NGS_ReferenceBlobDuplicate ( obj . self, ctx ) );
 }
 
 ReferenceBlob :: ~ ReferenceBlob () throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    NGS_ReferenceBlobRelease ( self, ctx);
+    ON_FAIL ( NGS_ReferenceBlobRelease ( self, ctx) )
+    {
+        CLEAR ();
+    }
 }
 
 const char*
 ReferenceBlob :: Data() const throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    return (const char*) NGS_ReferenceBlobData ( self, ctx );
+    const char * ret;
+    THROW_ON_FAIL ( ret = ( const char * ) NGS_ReferenceBlobData ( self, ctx ) );
+    return ret;
 }
 
 uint64_t
 ReferenceBlob :: Size() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    uint64_t ret = 0;
-    ON_FAIL ( ret = NGS_ReferenceBlobSize ( self, ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    uint64_t ret;
+    THROW_ON_FAIL ( ret = NGS_ReferenceBlobSize ( self, ctx ) );
     return ret;
 }
 
@@ -109,37 +94,22 @@ uint64_t
 ReferenceBlob :: UnpackedSize() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    uint64_t ret = 0;
-    ON_FAIL ( ret = NGS_ReferenceBlobUnpackedSize ( self, ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    uint64_t ret;
+    THROW_ON_FAIL ( ret = NGS_ReferenceBlobUnpackedSize ( self, ctx ) );
     return ret;
 }
 
 void
-ReferenceBlob :: GetRowRange ( int64_t& p_first, uint64_t& p_count ) const throw ( :: ngs :: ErrorMsg )
+ReferenceBlob :: GetRowRange ( int64_t * p_first, uint64_t * p_count ) const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    ON_FAIL ( NGS_ReferenceBlobRowRange ( self, ctx,  & p_first, & p_count ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobRowRange ( self, ctx,  p_first, p_count ) );
 }
 
 void
-ReferenceBlob :: ResolveOffset ( uint64_t p_inBlob, uint64_t& p_inReference, uint32_t& p_repeatCount, uint64_t& p_increment ) const
+ReferenceBlob :: ResolveOffset ( uint64_t p_inBlob, uint64_t * p_inReference, uint32_t * p_repeatCount, uint64_t * p_increment ) const
                     throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    ON_FAIL ( NGS_ReferenceBlobResolveOffset ( self, ctx, p_inBlob, & p_inReference, & p_repeatCount, & p_increment ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobResolveOffset ( self, ctx, p_inBlob, p_inReference, p_repeatCount, p_increment ) );
 }

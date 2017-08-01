@@ -76,7 +76,7 @@ private:
 
 ///////////////////// UnalignedFragmentMatchIterator
 
-UnalignedFragmentMatchIterator :: UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, ngs::ReadCollection m_run )
+UnalignedFragmentMatchIterator :: UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, const ngs::ReadCollection & m_run )
 :   MatchIterator ( p_factory, m_run . getName () ),
     m_readIt ( m_run . getReads ( ( ngs :: Read :: ReadCategory ) ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned ) ) ),
     m_sb ( p_factory . MakeSearchBlock () )
