@@ -120,12 +120,14 @@ protected:
         return true;
     }
 
-public:
-
-    static bool is_aligned(const std::string& acc) {
-        auto run = ncbi::NGS::openReadCollection(acc);
+    static bool is_aligned(const ngs::ReadCollection& run) {
         auto alit = run.getAlignments(ngs::Alignment::primaryAlignment);
         return alit.nextAlignment();
+    }
+
+public:
+    static bool is_aligned(const std::string& acc) {
+        return is_aligned(ncbi::NGS::openReadCollection(acc));
     }
 };
 
@@ -139,7 +141,7 @@ private:
 public:
 	VdbReader(const std::string& acc, bool read_qualities = false, bool unaligned_only = false)
         : BaseVdbReader(acc, read_qualities)
-        , category(unaligned_only ? ngs::Read::unaligned : ngs::Read::all)
+        , category((unaligned_only && is_aligned(run)) ? ngs::Read::unaligned : ngs::Read::all)
         , it(run.getReads(category))
     {
         spot_count = run.getReadCount(category);
