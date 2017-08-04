@@ -253,7 +253,7 @@ def format_taxon(taxon):
         lines.append(line)
     return '\n'.join(lines)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
@@ -299,3 +299,6 @@ if __name__ == '__main__':
                     print format_taxon(taxon)
     else:
         logger.debug('no tax_ids to process')
+
+if __name__ == '__main__':
+    main()
