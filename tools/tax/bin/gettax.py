@@ -11,6 +11,7 @@ import collections
 import errno
 import argparse
 import time
+import socket
 from datetime import datetime
 
 logger = logging.getLogger('gettax')
@@ -127,6 +128,19 @@ where tax_id = ?
             count += 1
     return count, changed
 
+def _parse_deleted(cur, path):
+    count = 0
+    changed = 0
+    with open(path) as f:
+        for line in f:
+            parts = _parse_line(line)
+            assert len(parts) == 1
+            tax_id = int(parts[0])
+            cur.execute('delete from taxons where tax_id = ?', [tax_id])
+            changed += cur.rowcount
+            count += 1
+    return count, changed
+
 def create_db(src, dst):
     """converts dump into sqlite database"""
 
@@ -150,13 +164,15 @@ create table if not exists taxons (
     )
         ''')
         conn.execute('''
-create table if not exists rebuilds (
+create table if not exists rebuilds2 (
         timestamp datetime,
+        host text,
+        pid int,
         duration real
     )
         ''')
         # need insert operation to implicitly begin transaction
-        conn.execute('insert into rebuilds values (?, null)', [before.isoformat(' ')])
+        conn.execute('insert into rebuilds2 values (?, ?, ?, null)', [before.isoformat(' '), socket.gethostname(), os.getpid()])
         cur = conn.cursor()
 
         md5 = src + '.md5'
@@ -191,9 +207,20 @@ create table if not exists rebuilds (
         merged_count, changed_count = _parse_merged(cur, merged)
         logger.info('parsed %s merged ids, changed %s rows', merged_count, changed_count)
 
+        logger.info('parsing deleted')
+        deleted = os.path.join(temp_dir, 'delnodes.dmp')
+        deleted_count, changed_count = _parse_deleted(cur, deleted)
+        logger.info('parsed %s deleted ids, removed %s rows', deleted_count, changed_count)
+
         logger.info('writing metainfo')
         duration = datetime.now() - before
-        cur.execute('update rebuilds set duration = ? where timestamp = ?', [duration.total_seconds(), before.isoformat(' ')])
+        cur.execute('''
+        update rebuilds2
+        set duration = ?
+        where timestamp = ?
+        and host = ?
+        and pid = ?
+        ''', [duration.total_seconds(), before.isoformat(' '), socket.gethostname(), os.getpid()])
         assert cur.rowcount == 1
 
         logger.info('committing')
