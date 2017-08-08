@@ -389,7 +389,7 @@ public:
                     {
                         PLOGMSG (klogWarn, (klogWarn, "Match against a repeated reference row detected; some matching fragments may be missed. Reference=$(r) pos=$(p) repeat=$(t)",
                                                       "r=%s,p=%d,t=%d",
-                                                      m_reference . getCanonicalName (), inReference, repeatCount));
+                                                      m_reference . getCanonicalName () . c_str(), inReference, repeatCount));
                     }
                     m_offsetInBlob += hitEnd; //TODO: this may be too far
                     m_alIt = new AlignmentIterator ( m_reference . getAlignmentSlice ( ( int64_t ) inReference, hitEnd - hitStart ) );
