@@ -215,7 +215,7 @@ struct KmerMap
 };
 
 //typedef KmerMap<__uint128_t, 64, 1024> KmerMap64;
-typedef KmerMap<__uint64_t, 32, 64> KmerMap32; // todo: tune buckets
+typedef KmerMap<uint64_t, 32, 64> KmerMap32; // todo: tune buckets
 //typedef KmerMap<unsigned int, 16, 1024> KmerMap16;
 
 #endif

@@ -14,7 +14,6 @@ add_executable ( contig_builder                 src/contig_builder ${SHARED_OBJE
 add_executable ( fasta_contamination            src/fasta_contamination ${SHARED_OBJECTS})
 add_executable ( find_closest_profile_linear    src/find_closest_profile_linear ${SHARED_OBJECTS})
 add_executable ( contig_connectivity            src/contig_connectivity ${SHARED_OBJECTS})
-add_executable ( get_profile                    src/get_profile ${SHARED_OBJECTS})
 add_executable ( sort_dbs                       src/sort_dbs ${SHARED_OBJECTS})
 
 include_directories ( ${CMAKE_SOURCE_DIR} )
@@ -28,12 +27,17 @@ target_link_libraries ( contig_builder ${SYS_LIBRARIES} )
 target_link_libraries ( fasta_contamination ${SYS_LIBRARIES} )
 target_link_libraries ( find_closest_profile_linear ${SYS_LIBRARIES} )
 target_link_libraries ( contig_connectivity ${SYS_LIBRARIES} )
-target_link_libraries ( get_profile ${SYS_LIBRARIES} )
 target_link_libraries ( sort_dbs ${SYS_LIBRARIES} )
 
 install ( TARGETS aligns_to build_index check_index db_fasta_to_bin filter_db
                   contig_builder fasta_contamination find_closest_profile_linear
-                  contig_connectivity get_profile sort_dbs
+                  contig_connectivity sort_dbs
           RUNTIME DESTINATION bin/tax )
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+    add_executable ( get_profile src/get_profile ${SHARED_OBJECTS})
+    target_link_libraries ( get_profile ${SYS_LIBRARIES} )
+    install ( TARGETS get_profile RUNTIME DESTINATION bin/tax )
+endif()
 
 add_subdirectory ( src/tests )
