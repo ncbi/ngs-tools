@@ -88,14 +88,20 @@ FgrepSearch :: ~FgrepSearch ()
 }
 
 bool
-FgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd )
+FgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t * p_hitStart, uint64_t * p_hitEnd )
 {
     FgrepMatch matchinfo;
     bool ret = FgrepFindFirst ( m_fgrep, p_bases, p_size, & matchinfo ) != 0;
     if ( ret )
     {
-        p_hitStart = matchinfo . position;
-        p_hitEnd = p_hitStart + matchinfo . length;
+        if ( p_hitStart != 0 )
+        {
+            * p_hitStart = matchinfo . position;
+        }
+        if ( p_hitEnd != 0 )
+        {
+            * p_hitEnd = matchinfo . position + matchinfo . length;
+        }
     }
     return ret;
 }
@@ -134,7 +140,7 @@ AgrepSearch ::  ~AgrepSearch ()
 }
 
 bool
-AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd )
+AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t *  p_hitStart, uint64_t * p_hitEnd )
 {
     AgrepMatch matchinfo;
     bool ret = AgrepFindFirst ( m_agrep,
@@ -144,8 +150,14 @@ AgrepSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitS
                                 & matchinfo ) != 0;
     if ( ret )
     {
-        p_hitStart = matchinfo . position;
-        p_hitEnd = p_hitStart + matchinfo . length;
+        if ( p_hitStart != 0 )
+        {
+            * p_hitStart = matchinfo . position;
+        }
+        if ( p_hitEnd != 0 )
+        {
+            * p_hitEnd = matchinfo . position + matchinfo . length;
+        }
     }
     return ret;
 }
@@ -167,23 +179,9 @@ NucStrstrSearch ::  ~NucStrstrSearch ()
 }
 
 bool
-NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size )
+NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t * p_hitStart, uint64_t * p_hitEnd )
 {
-    // convert p_bases to 2na packed since nucstrstr works with that format only
-    const size_t bufSize = p_size / 4 + 1 + 16; // NucStrstrSearch expects the buffer to be at least 16 bytes longer than the sequence
-    unsigned char* buf2na = new unsigned char [ bufSize ];
-    ConvertAsciiTo2NAPacked ( p_bases, p_size, buf2na, bufSize );
-
-    unsigned int selflen;
-    bool ret = ::NucStrstrSearch ( m_nss, reinterpret_cast < const void * > ( buf2na ), 0, p_size, & selflen ) != 0;
-    delete [] buf2na;
-    return ret;
-}
-
-bool
-NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd )
-{
-    if ( ! m_positional )
+    if ( ! m_positional && ( p_hitStart != 0 || p_hitEnd != 0 ) )
     {
         throw ( ErrorMsg ( "NucStrstrSearch: non-positional search in a blob is not supported" ) );
     }
@@ -198,8 +196,14 @@ NucStrstrSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_
     bool ret = pos > 0;
     if ( ret )
     {
-        p_hitStart = pos - 1;
-        p_hitEnd = p_hitStart + selflen;
+        if ( p_hitStart != 0 )
+        {
+            * p_hitStart = pos - 1;
+        }
+        if ( p_hitEnd != 0 )
+        {
+            * p_hitEnd = pos - 1 + selflen;
+        }
     }
     delete [] buf2na;
     return ret;
@@ -249,15 +253,21 @@ SmithWatermanSearch :: ~SmithWatermanSearch ()
 }
 
 bool
-SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd )
+SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t * p_hitStart, uint64_t * p_hitEnd )
 {
     SmithWatermanMatch matchinfo;
     unsigned int scoreThreshold = ( m_query . size () * 2 ) * m_minScorePct / 100; // m_querySize * 2 == exact match
     rc_t rc = SmithWatermanFindFirst ( m_sw, scoreThreshold, p_bases, p_size, & matchinfo );
     if ( rc == 0 )
     {
-        p_hitStart = matchinfo . position;
-        p_hitEnd = p_hitStart + matchinfo . length;
+        if ( p_hitStart != 0 )
+        {
+            * p_hitStart = matchinfo . position;
+        }
+        if ( p_hitEnd != 0 )
+        {
+            * p_hitEnd = matchinfo . position + matchinfo . length;
+        }
         return true;
     }
     else if ( GetRCObject ( rc ) == (RCObject)rcQuery  && GetRCState ( rc ) == rcNotFound )

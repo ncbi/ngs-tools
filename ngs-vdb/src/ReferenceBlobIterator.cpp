@@ -33,11 +33,13 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
+#include <klib/log.h>
 
 #include <../libs/ngs/NGS_ReferenceBlobIterator.h>
 #include <../libs/ngs/NGS_ReferenceBlob.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
+
+#include "Error.hpp"
 
 using namespace ncbi :: ngs :: vdb;
 
@@ -45,23 +47,15 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) 
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    self = NGS_ReferenceBlobIteratorDuplicate ( ref, ctx);
+    THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( ref, ctx) );
 }
 
 ReferenceBlobIterator &
 ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_ReferenceBlobIteratorRelease ( self, ctx) )
-    {
-        self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx);
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
+    THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
     return *this;
 }
 
@@ -69,22 +63,17 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & o
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_ReferenceBlobIteratorRelease ( self, ctx) )
-    {
-        self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx);
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
+    THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
 }
 
 ReferenceBlobIterator :: ~ ReferenceBlobIterator () throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    NGS_ReferenceBlobIteratorRelease ( self, ctx);
+    ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
+    {
+        CLEAR ();
+    }
 }
 
 bool
@@ -92,12 +81,7 @@ ReferenceBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret = false;
-    ON_FAIL ( ret = NGS_ReferenceBlobIteratorHasMore ( self, ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( ret = NGS_ReferenceBlobIteratorHasMore ( self, ctx ) );
     return ret;
 }
 
@@ -106,21 +90,13 @@ ReferenceBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     NGS_ReferenceBlob* blob;
-    ON_FAIL ( blob = NGS_ReferenceBlobIteratorNext ( self, ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( blob = NGS_ReferenceBlobIteratorNext ( self, ctx ) );
     if ( blob == 0 )
     {
         throw :: ngs :: ErrorMsg( "No more blobs" );
     }
     ReferenceBlob ret ( blob );
-    ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
-    {
-        throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobRelease() failed" );
-    }
+    THROW_ON_FAIL ( NGS_ReferenceBlobRelease ( blob, ctx ) )
     return ret;
 
 }

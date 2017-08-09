@@ -33,15 +33,14 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
-
 #include <../libs/ngs/NGS_Reference.h>
 #include <../libs/ngs/NGS_ReferenceBlobIterator.h>
-#include <../libs/ngs/NGS_ErrBlock.h>
+
+#include "Error.hpp"
 
 using namespace ncbi :: ngs :: vdb;
 
-VdbReference :: VdbReference ( :: ngs :: Reference dad ) throw ()
+VdbReference :: VdbReference ( const :: ngs :: Reference & dad ) throw ()
 : :: ngs :: Reference ( dad )
 {
 }
@@ -76,18 +75,10 @@ VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
-    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, 0, (uint64_t)-1 ) )
-    {
-        ReferenceBlobIterator ret ( iter );
-        ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) )
-        {
-            throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobIteratorRelease() failed" );
-        }
-        return ret;
-    }
-    :: ngs :: ErrBlock err;
-    NGS_ErrBlockThrow ( &err, ctx );
-    err.Throw();
+    THROW_ON_FAIL ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, 0, (uint64_t)-1 ) );
+    ReferenceBlobIterator ret ( iter );
+    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) );
+    return ret;
 }
 
 ReferenceBlobIterator
@@ -95,17 +86,9 @@ VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const throw ( :: 
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
-    TRY ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, p_start, p_count ) )
-    {
-        ReferenceBlobIterator ret ( iter );
-        ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) )
-        {
-            throw :: ngs :: ErrorMsg( "NGS_ReferenceBlobIteratorRelease() failed" );
-        }
-        return ret;
-    }
-    :: ngs :: ErrBlock err;
-    NGS_ErrBlockThrow ( &err, ctx );
-    err.Throw();
+    THROW_ON_FAIL ( struct NGS_ReferenceBlobIterator* iter = NGS_ReferenceGetBlobs ( reinterpret_cast<VdbReferenceItf*>(self) -> Self() , ctx, p_start, p_count ) );
+    ReferenceBlobIterator ret ( iter );
+    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( iter, ctx ) )
+    return ret;
 }
 

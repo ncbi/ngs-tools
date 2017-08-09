@@ -51,7 +51,7 @@ private:
 class UnalignedFragmentMatchIterator : public MatchIterator
 {
 public:
-    UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, ngs::ReadCollection p_run );
+    UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, const ngs::ReadCollection & p_run );
     virtual ~UnalignedFragmentMatchIterator ();
 
     virtual SearchBuffer :: Match * NextMatch ();
