@@ -22,86 +22,25 @@
 #
 # ===========================================================================
 
+default all std: cmake
+
+#-------------------------------------------------------------------------------
+# environment
+#
 TOP ?= $(abspath ../..)
-MODULE = sra-search
+MODULE = tools/tax
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
+test runtests check: ctest
 
-# disable default build rules
-.SUFFIXES:
+.PHONY: default std all test runtests
 
-# build dir creation
-BDIR := .build
-OUTDIR := bin
-$(shell mkdir -p $(BDIR) $(BDIR)/src $(BDIR)/src/tests >/dev/null)
+#-------------------------------------------------------------------------------
+# std
+#
+clean: stdclean
 
-# compilation settings
-export CPATH := $(NGS_PATH)/include:src
-#export LIBRARY_PATH := $(NGS_PATH)/lib
-#export LD_LIBRARY_PATH := $(NGS_PATH)/lib
-CXXFLAGS += -g -std=c++11 -fopenmp -I$(INCDIRS)
-LDFLAGS += -fopenmp -L$(NGS_LIBDIR) -L$(VDB_LIBDIR)
-LDLIBS += -lncbi-ngs-c++-static -lngs-c++-static -lncbi-vdb-static -ldl
+.PHONY: clean
 
-# compilation rule
-SOURCES := $(wildcard src/*.cpp src/tests/*.cpp)
-OBJECTS = $(patsubst %.cpp, $(BDIR)/%.o, $(SOURCES))
-DEPFLAGS = -MT $@ -MMD -MP -MF $(BDIR)/$*.d.tmp
-$(OBJECTS): $(BDIR)/%.o : %.cpp $(BDIR)/%.d
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
-	@mv -f $(BDIR)/$*.d.tmp $(BDIR)/$*.d
 
-# dependency handling
-$(BDIR)/%.d: ;
-.PRECIOUS: $(BDIR)/%.d
--include $(patsubst %.cpp, $(BDIR)/%.d, $(SOURCES))
-
-# link rules
-PROGRAMS := \
-	aligns_to \
-	build_index \
-	check_index \
-	db_fasta_to_bin\
-	filter_db \
-	contig_builder \
-	fasta_contamination \
-	find_closest_profile_linear \
-	contig_connectivity \
-	get_profile \
-	sort_dbs
-PROGRAMS := $(PROGRAMS:%=$(BDIR)/src/%)
-TESTS := $(wildcard src/tests/*.cpp)
-TESTS := $(TESTS:%.cpp=$(BDIR)/%)
-
-BINARIES := $(PROGRAMS) $(TESTS)
-MAIN_OBJECTS = $(BINARIES:%=%.o)
-SHARED_OBJECTS := $(filter-out $(MAIN_OBJECTS), $(OBJECTS))
-
-$(BINARIES): %: %.o $(SHARED_OBJECTS)
-	$(CXX) $(LDFLAGS) $^ $(LDLIBS) -o $@
-
-INSTALLED_BINARIES := $(notdir $(PROGRAMS))
-INSTALLED_BINARIES := $(INSTALLED_BINARIES:%=$(OUTDIR)/%)
-
-$(INSTALLED_BINARIES): $(OUTDIR)/%: $(BDIR)/src/%
-	cp $^ $@
-
-# phony targets
-.PHONY: all clean test
-
-all: $(INSTALLED_BINARIES)
-
-check: $(TESTS)
-	@cd src; \
-	for t in $(TESTS); do \
-		echo "Running $$t:"; \
-		../$$t || exit 1; \
-		echo ; \
-	done
-
-.DEFAULT_GOAL := all
-
-clean:
-	rm -rf $(INSTALLED_BINARIES) $(BDIR)

@@ -22,65 +22,25 @@
 #
 # ===========================================================================
 
-default: std
+default all std: cmake
 
+#-------------------------------------------------------------------------------
+# environment
+#
 TOP ?= $(abspath ../..)
-MODULE = sra-search
+MODULE = tools/sra-search
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
+test runtests: ctest
 
-std: $(OBJDIR) $(BINDIR)
-	$(MAKE) $(BINDIR)/sra-search
+.PHONY: default std all test runtests
 
-clean:
-	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/sra-search*
-	$(MAKE) -C test clean
-
-runtests: test
-
-slowtests: slow
+#-------------------------------------------------------------------------------
+# std
+#
+clean: stdclean
 
 .PHONY: clean
 
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
-# sra-search
-#
-SRA_SEARCH_SRC = \
-    searchblock \
-	vdb-search \
-	main \
-
-SRA_SEARCH_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(SRA_SEARCH_SRC)))
-
-SRA_SEARCH_LIBS = \
-    -L$(ILIBDIR)        \
-    -lngs-vdb           \
-    -L$(NGS_LIBDIR)     \
-    -L$(VDB_LIBDIR)     \
-    -lncbi-ngs-c++      \
-	-lncbi-vdb-static   \
-	-lngs-c++           \
-    -lpthread           \
-    -ldl
-
-$(BINDIR)/sra-search: $(OBJDIR) $(BINDIR) $(SRA_SEARCH_OBJ)
-	$(LP) -o $@$(VERSION_EXEX) $(SRA_SEARCH_OBJ) $(SRA_SEARCH_LIBS)
-	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
-	ln -sf $(@F)$(MAJVERS_EXEX) $@
-
-#-------------------------------------------------------------------------------
-# testing
-#
-test slow: std
-	$(MAKE) TOP=$(TOP) MODPATH=$(MODPATH)/test -C test $@
 

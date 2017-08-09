@@ -29,7 +29,7 @@
 
 #include <string>
 
-#include "searchblock.hpp"
+#include "searchbuffer.hpp"
 
 class SearchBuffer;
 
@@ -37,7 +37,7 @@ class SearchBuffer;
 class MatchIterator
 {
 public:
-    MatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession )
+    MatchIterator ( const SearchBlock :: Factory& p_factory, const std::string& p_accession )
     :   m_factory ( p_factory ),
         m_accession ( p_accession )
     {
@@ -47,7 +47,7 @@ public:
     {
     }
 
-    virtual SearchBuffer* NextBuffer () = 0; // to be deleted by the caller
+    virtual SearchBuffer :: Match * NextMatch () = 0; // to be deleted by the caller
 
 protected:
     const SearchBlock :: Factory&   m_factory;

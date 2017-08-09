@@ -9,6 +9,6 @@ target_link_libraries ( hash ${SYS_LIBRARIES} )
 target_link_libraries ( reader_test ${SYS_LIBRARIES} )
 target_link_libraries ( seq_transform ${SYS_LIBRARIES} )
 
-add_test ( hash hash )
+add_test ( NAME hash COMMAND hash )
 add_test ( NAME reader_test COMMAND reader_test WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/.. )
-add_test ( seq_transform seq_transform )
+add_test ( NAME seq_transform COMMAND seq_transform )

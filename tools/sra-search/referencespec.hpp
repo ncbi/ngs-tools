@@ -29,6 +29,8 @@
 
 #include <string>
 #include <vector>
+#include <stdint.h>
+#include <cassert>
 
 struct ReferenceSpec
 {
@@ -46,6 +48,7 @@ struct ReferenceSpec
         m_end ( p_end ),
         m_full ( false )
     {
+        assert ( false ); // not suported yet
     }
 
     std::string m_name;

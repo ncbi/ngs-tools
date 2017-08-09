@@ -63,7 +63,7 @@ namespace ncbi
 
                 // C++ support
 
-                VdbReadCollection ( :: ngs :: ReadCollection dad )
+                VdbReadCollection ( const :: ngs :: ReadCollection & dad )
                     throw ();
 
                 VdbReadCollection & operator = ( const VdbReadCollection & obj )

@@ -31,4 +31,6 @@ core
 /build/cmake/*/
 OUTDIR.*
 core
+xcuserdata/
 .gdb_history
+*.diff

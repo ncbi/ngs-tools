@@ -131,7 +131,7 @@ public:
     {
         int64_t first=0;
         uint64_t count=0;
-        p_blob . GetRowRange ( first, count );
+        p_blob . GetRowRange ( & first, & count );
         if ( p_first != first || p_count != count )
         {
             ostringstream str;
@@ -230,7 +230,7 @@ FIXTURE_TEST_CASE ( FragmentBlob_GetFragmentInfo_Biological, FragmentBlobFixture
         uint64_t startInBlob = 0;
         uint64_t lengthInBases = 0;
         bool biological = false;
-        b . GetFragmentInfo ( 300, fragId, startInBlob, lengthInBases, biological );
+        b . GetFragmentInfo ( 300, & fragId, & startInBlob, & lengthInBases, & biological );
         REQUIRE_EQ ( SRA_Accession+".FR0.2", fragId );
         REQUIRE_EQ ( (uint64_t)288, startInBlob );
         REQUIRE_EQ ( (uint64_t)115, lengthInBases );
@@ -500,7 +500,7 @@ public:
     {
         int64_t first=0;
         uint64_t count=0;
-        p_blob . GetRowRange ( first, count );
+        p_blob . GetRowRange ( & first, & count );
         if ( p_first != first || p_count != count )
         {
             ostringstream str;
@@ -591,7 +591,7 @@ FIXTURE_TEST_CASE ( ReferenceBlob_GetResolveOffset, ReferenceBlobFixture )
     uint64_t inReference = 0;
     uint32_t repeatCount = 0;
     uint64_t increment = 999;
-    b . ResolveOffset ( 1000, inReference, repeatCount, increment );
+    b . ResolveOffset ( 1000, & inReference, & repeatCount, & increment );
     REQUIRE_EQ ( (uint64_t)21000, inReference );
     REQUIRE_EQ ( (uint32_t)1, repeatCount );
     REQUIRE_EQ ( (uint64_t)0, increment ); // 0 if no repeat
@@ -606,13 +606,12 @@ FIXTURE_TEST_CASE ( ReferenceBlob_GetResolveOffset_WithRepeat, ReferenceBlobFixt
     const int64_t repeatedRowId = 96;
     ReferenceBlob b ( GetBlobByRowId ( ctx, CSRA1_Accession_WithRepeats, "NC_000001.10", repeatedRowId ) );   /* this blob consists of 9 repeated all-N rows */
     int64_t first=0;
-    uint64_t count=0;
-    b . GetRowRange ( first, count );
+    b . GetRowRange ( & first, 0 );
 
     uint64_t inReference = 0;
     uint32_t repeatCount = 0;
     uint64_t increment = 0;
-    b . ResolveOffset ( ( repeatedRowId - first ) * 5000 + 1000, inReference, repeatCount, increment );
+    b . ResolveOffset ( ( repeatedRowId - first ) * 5000 + 1000, & inReference, & repeatCount, & increment );
     REQUIRE_EQ ( (uint64_t)( repeatedRowId - 1 ) * 5000 + 1000, inReference );
     REQUIRE_EQ ( (uint32_t)9, repeatCount );
     REQUIRE_EQ ( (uint64_t)5000, increment );

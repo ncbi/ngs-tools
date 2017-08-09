@@ -22,55 +22,25 @@
 #
 # ===========================================================================
 
-default: std
+default all std: cmake
 
+#-------------------------------------------------------------------------------
+# environment
+#
 TOP ?= $(abspath ../..)
-MODULE = ngs-vdb
+MODULE = ngs-vdb/src
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
+test runtests: ctest
 
-std: $(OBJDIR) $(ILIBDIR)
-	$(MAKE) $(ILIBDIR)/ngs-vdb
+.PHONY: default std all test runtests
 
-clean:
-	rm -f $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX)
-	#$(MAKE) -C test clean
-
-runtests: test
-
-slowtests: slow
+#-------------------------------------------------------------------------------
+# std
+#
+clean: stdclean
 
 .PHONY: clean
 
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,sra-search)
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
-# sra-search
-#
-NGS_VDB_SRC = \
-    FragmentBlob \
-    FragmentBlobIterator \
-    NGS-VDB \
-	VdbReadCollection \
-
-NGS_VDB_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(NGS_VDB_SRC)))
-
-$(ILIBDIR)/ngs-vdb: $(NGS_VDB_OBJ)
-	$(AR) $(ILIBDIR)/$(LPFX)ngs-vdb.$(LIBX) $(NGS_VDB_OBJ)
-
-.PHONY: $(ILIBDIR)/ngs-vdb
-
-#-------------------------------------------------------------------------------
-# testing
-#
-test slow: std
-	$(MAKE) TOP=$(TOP) MODPATH=$(MODPATH)/test -C test $@
 
