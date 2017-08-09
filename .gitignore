@@ -33,5 +33,4 @@ OUTDIR.*
 core
 xcuserdata/
 .gdb_history
-.gdb_history
 *.diff
