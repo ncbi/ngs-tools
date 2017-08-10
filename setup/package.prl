@@ -39,5 +39,16 @@ sub REQ { (
               lib     => 'libncbi-vdb.a',
               ilib    => 'libkapp.a',
             },
+            { name    => 'sra-tools',
+              aname   => 'SRATOOLS',
+              boption => 'with-sra-tools-build',
+              origin  => 'I',
+              type    => 'EO',
+              pkgpath => '/usr/local/ncbi/sra-tools',
+              usrpath =>      '$HOME/ncbi/sra-tools',
+              bldpath => '$HOME/ncbi-outdir/sra-tools',
+              locbldpath=>'$Bin/../../OUTDIR/sra-tools',
+              bin     => 'vdb-config',
+            },
         ) }
 1
