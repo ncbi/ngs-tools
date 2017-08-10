@@ -11,6 +11,7 @@ import collections
 import errno
 import argparse
 import time
+import socket
 from datetime import datetime
 
 logger = logging.getLogger('gettax')
@@ -42,10 +43,11 @@ def _parse_line(line):
     parts = line.split('\t|\t')
     return parts
 
-def _parse_nodes(conn, path):
+def _parse_nodes(cur, path):
     """parses nodes dump"""
 
     count = 0
+    changed = 0
     with open(path) as f:
         for line in f:
             parts = _parse_line(line)
@@ -55,17 +57,30 @@ def _parse_nodes(conn, path):
             parent_tax_id = int(parent_tax_id)
             if rank == 'no rank' or not rank:
                 rank = None
-            conn.execute('insert into taxons values (?, ?, ?, null)', [tax_id, parent_tax_id, rank])
+            if tax_id == parent_tax_id:
+                # special handling for root object
+                parent_tax_id = 0
+            cur.execute('insert or ignore into taxons values (?, ?, ?, null)', [tax_id, parent_tax_id, rank])
+            if cur.rowcount == 0:
+                cur.execute('''
+                update taxons
+                set parent_tax_id = ?,
+                    rank = ?,
+                    scientific_name = null
+                where tax_id = ?
+                  and (parent_tax_id != ? or ifnull(rank, '') != ifnull(?, ''))
+                ''', [parent_tax_id, rank, tax_id, parent_tax_id, rank])
+            changed += cur.rowcount
             count += 1
             if count % PROGRESS_GRANULARITY == 0:
-                logger.debug('parsed %s nodes', count)
-    return count
+                logger.debug('parsed %s nodes, changed %s rows', count, changed)
+    return count, changed
 
-def _parse_names(conn, path):
+def _parse_names(cur, path):
     """parses names dump"""
 
     count = 0
-    cur = conn.cursor()
+    changed = 0
     with open(path) as f:
         for line in f:
             parts = _parse_line(line)
@@ -75,30 +90,56 @@ def _parse_names(conn, path):
             assert name, repr(line)
             assert name_class, repr(line)
             if name_class == 'scientific name':
-                cur.execute('update taxons set scientific_name = ? where tax_id = ?', [name, tax_id])
-                assert cur.rowcount == 1
+                cur.execute('''
+                update taxons
+                set scientific_name = ?
+                where tax_id = ?
+                  and (scientific_name is null or scientific_name != ?)
+                ''', [name, tax_id, name])
                 count += 1
+                changed += cur.rowcount
                 if count % PROGRESS_GRANULARITY == 0:
-                    logger.debug('parsed %s names', count)
-    cur.close()
-    return count
+                    logger.debug('parsed %s names, changed %s rows', count, changed)
+    return count, changed
 
-def _parse_merged(conn, path):
+def _parse_merged(cur, path):
     count = 0
-    #cur = conn.cursor()
+    changed = 0
     with open(path) as f:
         for line in f:
             parts = _parse_line(line)
             assert len(parts) == 2, repr(line)
             old_id, new_id = parts
-            conn.execute('''
-insert into taxons
+            cur.execute('''
+insert or replace into taxons
 select ?, parent_tax_id, rank, scientific_name
-from taxons
+from taxons as t
 where tax_id = ?
-            ''', [old_id, new_id])
+  and not exists (
+            select *
+            from taxons as ex
+            where ex.tax_id = ?
+              and ex.parent_tax_id = t.parent_tax_id
+              and ifnull(ex.rank, '') = ifnull(t.rank, '')
+              and ex.scientific_name = t.scientific_name
+            )
+            ''', [old_id, new_id, old_id])
+            changed += cur.rowcount
             count += 1
-    return count
+    return count, changed
+
+def _parse_deleted(cur, path):
+    count = 0
+    changed = 0
+    with open(path) as f:
+        for line in f:
+            parts = _parse_line(line)
+            assert len(parts) == 1
+            tax_id = int(parts[0])
+            cur.execute('delete from taxons where tax_id = ?', [tax_id])
+            changed += cur.rowcount
+            count += 1
+    return count, changed
 
 def create_db(src, dst):
     """converts dump into sqlite database"""
@@ -106,14 +147,12 @@ def create_db(src, dst):
     logger.debug('creating sqlite db: %s -> %s', src, dst)
     assert os.path.exists(src), 'dump does not exist: %s' % src
 
-    md5 = src + '.md5'
-    if os.path.exists(md5):
-        logger.info('md5 check')
-        src_dir = os.path.dirname(src)
-        subprocess.check_output(['md5sum', '-c', md5], cwd=src_dir)
-
     before = datetime.now()
-    conn = sqlite3.connect(dst, isolation_level='EXCLUSIVE')
+    conn = sqlite3.connect(dst, isolation_level='IMMEDIATE')
+    # 1Gb, more than enough to keep whole transaction in ram
+    conn.execute('PRAGMA cache_size = -1048576')
+    conn.execute('PRAGMA cache_spill = false')
+
     temp_dir = tempfile.mkdtemp()
     try:
         conn.execute('''
@@ -125,12 +164,22 @@ create table if not exists taxons (
     )
         ''')
         conn.execute('''
-create table if not exists rebuilds (
+create table if not exists rebuilds2 (
         timestamp datetime,
+        host text,
+        pid int,
         duration real
     )
         ''')
-        conn.execute('delete from taxons')
+        # need insert operation to implicitly begin transaction
+        conn.execute('insert into rebuilds2 values (?, ?, ?, null)', [before.isoformat(' '), socket.gethostname(), os.getpid()])
+        cur = conn.cursor()
+
+        md5 = src + '.md5'
+        if os.path.exists(md5):
+            logger.info('md5 check')
+            src_dir = os.path.dirname(src)
+            subprocess.check_output(['md5sum', '-c', md5], cwd=src_dir)
 
         logger.info('extracting')
         tar = tarfile.open(src)
@@ -138,36 +187,44 @@ create table if not exists rebuilds (
 
         logger.info('parsing nodes')
         nodes = os.path.join(temp_dir, 'nodes.dmp')
-        node_count = _parse_nodes(conn, nodes)
-        logger.info('parsed %s nodes', node_count)
+        node_count, changed_count = _parse_nodes(cur, nodes)
+        logger.info('parsed %s nodes, changed %s rows', node_count, changed_count)
 
         logger.info('parsing names')
         names = os.path.join(temp_dir, 'names.dmp')
-        name_count = _parse_names(conn, names)
-        logger.info('parsed %s names', name_count)
+        name_count, changed_count = _parse_names(cur, names)
+        logger.info('parsed %s names, changed %s rows', name_count, changed_count)
 
         logger.info('sanity check')
-        cur = conn.cursor()
         cur.execute('select count(*) from taxons where scientific_name is null')
         rows = cur.fetchall()
         assert len(rows) == 1 and len(rows[0]) == 1
         assert rows[0][0] == 0, '%s taxons without name' % rows[0][0]
         assert node_count == name_count, 'node/name count mismatch: %s != %s' % (node_count, name_count)
-        cur.close()
 
         logger.info('parsing merged')
         merged = os.path.join(temp_dir, 'merged.dmp')
-        merged_count = _parse_merged(conn, merged)
-        logger.info('parsed %s merged ids', merged_count)
+        merged_count, changed_count = _parse_merged(cur, merged)
+        logger.info('parsed %s merged ids, changed %s rows', merged_count, changed_count)
 
-        logger.info('fixing root')
-        conn.execute('update taxons set parent_tax_id = 0 where tax_id = parent_tax_id')
+        logger.info('parsing deleted')
+        deleted = os.path.join(temp_dir, 'delnodes.dmp')
+        deleted_count, changed_count = _parse_deleted(cur, deleted)
+        logger.info('parsed %s deleted ids, removed %s rows', deleted_count, changed_count)
 
         logger.info('writing metainfo')
         duration = datetime.now() - before
-        conn.execute('insert into rebuilds values (?, ?)', [before.isoformat(' '), duration.total_seconds()])
+        cur.execute('''
+        update rebuilds2
+        set duration = ?
+        where timestamp = ?
+        and host = ?
+        and pid = ?
+        ''', [duration.total_seconds(), before.isoformat(' '), socket.gethostname(), os.getpid()])
+        assert cur.rowcount == 1
 
         logger.info('committing')
+        cur.close()
         conn.commit()
 
         logger.info('done')
@@ -253,7 +310,7 @@ def format_taxon(taxon):
         lines.append(line)
     return '\n'.join(lines)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--tax-dump')
     parser.add_argument('-c', '--sqlite-cache')
@@ -299,3 +356,6 @@ if __name__ == '__main__':
                     print format_taxon(taxon)
     else:
         logger.debug('no tax_ids to process')
+
+if __name__ == '__main__':
+    main()

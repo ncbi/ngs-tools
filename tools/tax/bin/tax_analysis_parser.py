@@ -10,7 +10,7 @@ from lxml.builder import E
 
 import gettax
 
-__version__ = '0.7'
+__version__ = '0.8'
 logger = logging.getLogger('tax_analysis_parser')
 
 def get_lineage(tax_id, cache, conn):
@@ -62,6 +62,7 @@ def calculate_total_counts(node):
     for child in node:
         calculate_total_counts(child)
         total_count += int(child.attrib['total_count'])
+    node[:] = sorted(node, key=lambda child: int(child.attrib['total_count']), reverse=True)
     node.attrib['total_count'] = str(total_count)
 
 def build_tree(counter, conn):
@@ -119,7 +120,7 @@ def iterate_merged_spots(f):
         parts = line.split('\t')
         spot = parts[0]
         hits = set(int(p.split('x')[0]) for p in parts[1:])
-        assert hits, 'no hits for spot'
+        assert hits, 'no hits for spot: %s' % spot
         if spot == last_spot:
             last_hits |= hits
         else:
@@ -144,6 +145,7 @@ def parse(f, conn, wgs_mode, include_tax_ids=[]):
         for line in f:
             parts = line.split('\t')
             hits = parts[1:]
+            assert hits, 'no hits for spot: %s' % parts[0]
             for hit in hits:
                 if 'x' in hit:
                     tax_id, count = map(int, hit.split('x'))
