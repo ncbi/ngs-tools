@@ -18,7 +18,7 @@ typedef uint64_t hash_t;
 using namespace std;
 using namespace std::chrono;
 
-#define DO_PARALLEL_PER_FILE 1
+#define DO_PARALLEL_PER_FILE 0
 
 struct MinHash
 {
