@@ -28,22 +28,39 @@
 #define _hpp_fragment_match_iterator_
 
 #include <ngs/ReadCollection.hpp>
+#include "threadablesearch.hpp"
 #include "matchiterator.hpp"
 
 class SearchBuffer;
 
-class FragmentMatchIterator : public MatchIterator
+// Searches fragment by fragment
+// returns 1 iterator for the entire SEQUENCE table
+class FragmentSearch : public ThreadableSearch
 {
 public:
-    FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession, ngs :: Read :: ReadCategory p_categories = ngs :: Read :: all );
+    FragmentSearch ( SearchBlock :: Factory & p_factory, const std::string & p_accession, bool p_unalignedOnly = false );
 
-    virtual ~FragmentMatchIterator ();
+    virtual ~ FragmentSearch ();
 
-    virtual SearchBuffer* NextBuffer ();
+    virtual MatchIterator * NextIterator ();
 
 private:
-    ngs::ReadCollection m_coll;
-    ngs::ReadIterator   m_readIt;
+    MatchIterator * m_iter;
 };
+
+class UnalignedFragmentMatchIterator : public MatchIterator
+{
+public:
+    UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, const ngs::ReadCollection & p_run );
+    virtual ~UnalignedFragmentMatchIterator ();
+
+    virtual SearchBuffer :: Match * NextMatch ();
+
+private:
+    ngs::ReadIterator   m_readIt;
+    SearchBlock *       m_sb;
+};
+
+
 
 #endif

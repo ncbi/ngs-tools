@@ -2,6 +2,7 @@
 #include <chrono>
 #include <set>
 #include <map>
+#include <random>
 #include "config_get_profile.h"
 #include "file_list_loader.h"
 #include "seq_transform.h"
@@ -16,6 +17,8 @@ typedef uint64_t hash_t;
 
 using namespace std;
 using namespace std::chrono;
+
+#define DO_PARALLEL_PER_FILE 0
 
 struct MinHash
 {
@@ -53,7 +56,10 @@ struct MinHash
 
     void finish()
     {
+#if !DO_PARALLEL_PER_FILE
         #pragma omp parallel for
+        ...
+#endif
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
@@ -66,10 +72,11 @@ struct MinHash
             auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
             for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
+#if 0
                 union
                 {
                     __uint128_t h128;
-                    struct 
+                    struct
                     {
                         hash_t h0, h1;
                     } h64;
@@ -82,6 +89,17 @@ struct MinHash
                 hash_t h1 = h01.h64.h1 ^ _xor;
                 hash_t h2 = h23.h64.h0 ^ _xor;
                 hash_t h3 = h23.h64.h1 ^ _xor;
+#else
+                const auto to_check0 = storage_hash[to_check_i + 0];
+                const auto to_check1 = storage_hash[to_check_i + 1];
+                const auto to_check2 = storage_hash[to_check_i + 2];
+                const auto to_check3 = storage_hash[to_check_i + 3];
+
+                hash_t h0 = to_check0 ^ _xor;
+                hash_t h1 = to_check1 ^ _xor;
+                hash_t h2 = to_check2 ^ _xor;
+                hash_t h3 = to_check3 ^ _xor;
+#endif
 
                 if (h0 < best_chosen[0].hash)
                     best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
@@ -93,7 +111,7 @@ struct MinHash
                     best_chosen[3] = Best(h3, storage_kmer[to_check_i + 3]);
             }
 
-            
+
             for (size_t to_check_i = storage_limit; to_check_i < storage_hash.size(); to_check_i ++)
             {
                 hash_t h0 = storage_hash[to_check_i + 0] ^ _xor;
@@ -116,7 +134,7 @@ uint64_t fnv1_hash (void *key, int n_bytes)
 {
     unsigned char *p = (unsigned char *)key;
     uint64_t h = 14695981039346656037UL;
-    
+
     for (int i = 0; i < n_bytes; i++)
         h = (h * 1099511628211) ^ p[i];
 
@@ -191,7 +209,9 @@ void get_profile(const Config &config)
 {
 	FileListLoader file_list(config.file_list);
 
-//   	#pragma omp parallel for
+#if DO_PARALLEL_PER_FILE
+   	#pragma omp parallel for
+#endif
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
         auto &file = file_list.files[file_number];

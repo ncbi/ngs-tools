@@ -33,16 +33,14 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
-
 #include <../libs/ngs/NGS_ReadCollection.h>
-#include <../libs/ngs/NGS_ErrBlock.h>
-
 #include <../libs/ngs/NGS_FragmentBlobIterator.h>
+
+#include "Error.hpp"
 
 using namespace ncbi :: ngs :: vdb;
 
-VdbReadCollection :: VdbReadCollection ( :: ngs :: ReadCollection dad ) throw ()
+VdbReadCollection :: VdbReadCollection ( const :: ngs :: ReadCollection & dad ) throw ()
 : :: ngs :: ReadCollection ( dad )
 {
 }
@@ -77,17 +75,9 @@ VdbReadCollection :: getFragmentBlobs() const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
-    TRY ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) )
-    {
-        FragmentBlobIterator ret ( iter );
-        ON_FAIL ( NGS_FragmentBlobIteratorRelease ( iter, ctx ) )
-        {
-            throw :: ngs :: ErrorMsg( "NGS_FragmentBlobIteratorRelease() failed" );
-        }
-        return ret;
-    }
-    :: ngs :: ErrBlock err;
-    NGS_ErrBlockThrow ( &err, ctx );
-    err.Throw();
+    THROW_ON_FAIL ( struct NGS_FragmentBlobIterator* iter = NGS_ReadCollectionGetFragmentBlobs ( reinterpret_cast<VdbReadCollectionItf*>(self) -> Self() , ctx ) );
+    FragmentBlobIterator ret ( iter );
+    THROW_ON_FAIL ( NGS_FragmentBlobIteratorRelease ( iter, ctx ) );
+    return ret;
 }
 

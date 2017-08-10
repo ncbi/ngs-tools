@@ -33,15 +33,15 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
 #include <ngs/itf/AlignmentItf.hpp>
 
 #include <../libs/ngs/NGS_Alignment.h>
-#include <../libs/ngs/NGS_ErrBlock.h>
+
+#include "Error.hpp"
 
 using namespace ncbi :: ngs :: vdb;
 
-VdbAlignment :: VdbAlignment ( :: ngs :: Alignment dad ) throw ()
+VdbAlignment :: VdbAlignment ( const :: ngs :: Alignment & dad ) throw ()
 : Alignment ( dad )
 {
 }
@@ -64,12 +64,7 @@ VdbAlignment :: IsFirst () const throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret = false;
-    ON_FAIL ( ret = NGS_AlignmentIsFirst ( reinterpret_cast < VdbAlignmentItf * > ( self ) -> Self (), ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( ret = NGS_AlignmentIsFirst ( reinterpret_cast < VdbAlignmentItf * > ( self ) -> Self (), ctx ) );
     return ret;
 }
 

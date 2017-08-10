@@ -48,13 +48,7 @@ public:
     virtual const std :: string& GetQuery() { return m_query; }
     virtual unsigned int GetScoreThreshold () { return 100; }
 
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size )
-    {
-        uint64_t hitStart;
-        uint64_t hitEnd;
-        return FirstMatch ( p_bases, p_size, hitStart, hitEnd );
-    }
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& hitStart, uint64_t& hitEnd ) = 0;
+    virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 ) = 0;
 
 public:
     class Factory
@@ -85,7 +79,7 @@ public:
     FgrepSearch ( const std::string& p_query, Algorithm p_algorithm );
     virtual ~FgrepSearch ();
 
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
+    virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 );
 
 private:
     struct Fgrep*   m_fgrep;
@@ -109,7 +103,7 @@ public:
 
     virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
 
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
+    virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 );
 
 private:
     struct Agrep*   m_agrep;
@@ -122,8 +116,7 @@ public:
     NucStrstrSearch ( const std::string& p_query, bool p_positional, bool p_useBlobSearch = false );
     virtual ~NucStrstrSearch ();
 
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size );
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd ); // will throw if not positional
+    virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 );
 
 private:
     static void ConvertAsciiTo2NAPacked ( const char* pszRead, size_t nReadLen, unsigned char* pBuf2NA, size_t nBuf2NASize );
@@ -140,7 +133,7 @@ public:
 
     virtual unsigned int GetScoreThreshold () { return m_minScorePct; }
 
-    virtual bool FirstMatch ( const char* p_bases, size_t p_size, uint64_t& p_hitStart, uint64_t& p_hitEnd );
+    virtual bool FirstMatch ( const char * p_bases, size_t p_size, uint64_t * hitStart = 0, uint64_t * hitEnd = 0 );
 
 private:
     size_t                  m_querySize;

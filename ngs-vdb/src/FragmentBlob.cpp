@@ -33,35 +33,30 @@
 
 #include <kfc/except.h>
 
-#include <ngs/itf/ErrBlock.hpp>
-
 #include <../libs/ngs/NGS_FragmentBlob.h>
+#include <../libs/ngs/NGS_Id.h>
 #include <../libs/ngs/NGS_ErrBlock.h>
 #include <../libs/ngs/NGS_String.h>
+#include <../libs/ngs/NGS_Id.h>
 
+#include "Error.hpp"
+
+using namespace std;
 using namespace ncbi :: ngs :: vdb;
 
 FragmentBlob :: FragmentBlob ( FragmentBlobRef ref ) throw ()
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    self = NGS_FragmentBlobDuplicate ( ref, ctx);
+    THROW_ON_FAIL ( self = NGS_FragmentBlobDuplicate ( ref, ctx) );
 }
 
 FragmentBlob &
 FragmentBlob :: operator = ( const FragmentBlob & obj ) throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_FragmentBlobRelease ( self, ctx) )
-    {
-        self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
+    self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
     return *this;
 }
 
@@ -69,94 +64,86 @@ FragmentBlob :: FragmentBlob ( const FragmentBlob & obj ) throw ( :: ngs :: Erro
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    TRY ( NGS_FragmentBlobRelease ( self, ctx) )
-    {
-        self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
+    self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
 }
 
 FragmentBlob :: ~ FragmentBlob () throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    NGS_FragmentBlobRelease ( self, ctx);
+    ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
+    {
+        CLEAR ();
+    }
 }
 
 const char*
 FragmentBlob :: Data() const throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    return (const char*) NGS_FragmentBlobData ( self, ctx );
+    const char* ret;
+    THROW_ON_FAIL ( ret = ( const char * ) NGS_FragmentBlobData ( self, ctx ) );
+    return ret;
 }
 
 uint64_t
 FragmentBlob :: Size() const throw ()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    uint64_t ret = 0;
-    ON_FAIL ( ret = NGS_FragmentBlobSize ( self, ctx ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    uint64_t ret;
+    THROW_ON_FAIL ( ret = NGS_FragmentBlobSize ( self, ctx ) )
     return ret;
 }
 
 void
-FragmentBlob :: GetFragmentInfo ( uint64_t offset, std::string& fragId, uint64_t& startInBlob, uint64_t& lengthInBases, bool& biological ) const
+FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string * p_fragId, uint64_t * p_startInBlob, uint64_t * p_lengthInBases, bool * p_biological ) const
     throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+    // outputs
+    string      fragId;
+    uint64_t    startInBlob;
+    uint64_t    lengthInBases;
+    bool        biological;
+
     int64_t rowId;
-    uint64_t fragStart;
-    uint64_t baseCount;
-    int32_t bioNumber;
-    TRY ( NGS_FragmentBlobInfoByOffset ( self, ctx, offset, & rowId, & fragStart, & baseCount, & bioNumber ) )
+    int32_t fragNum;
+    THROW_ON_FAIL ( NGS_FragmentBlobInfoByOffset ( self, ctx, p_offset, & rowId, & startInBlob, & lengthInBases, & fragNum ) );
+    if ( fragNum >= 0 )
     {
-        if ( bioNumber >= 0 )
-        {
-            TRY ( NGS_String* id = NGS_FragmentBlobMakeFragmentId ( self, ctx, rowId, bioNumber ) )
-            {
-                TRY ( fragId = std::string ( NGS_StringData ( id, ctx ), NGS_StringSize ( id, ctx ) ) );
-                {
-                    biological = true;
-                }
-                NGS_StringRelease ( id, ctx );
-            }
-        }
-        else
-        {
-            biological = false;
-            fragId.empty();
-        }
-    }
-    if ( FAILED () )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
+        THROW_ON_FAIL ( const NGS_String * run = NGS_FragmentBlobRun ( self, ctx ) );
+        THROW_ON_FAIL ( const NGS_String* readId = NGS_IdMakeFragment ( ctx, run, false, rowId, fragNum ) );
+        THROW_ON_FAIL ( fragId = string ( NGS_StringData ( readId, ctx ), NGS_StringSize ( readId, ctx ) ) );
+        THROW_ON_FAIL ( NGS_StringRelease ( readId, ctx ) );
+        biological = true;
     }
     else
     {
-        startInBlob = fragStart;
-        lengthInBases = baseCount;
+        biological = false;
+        fragId . empty ();
+    }
+
+    if ( p_fragId != 0 )
+    {
+        * p_fragId = fragId;
+    }
+    if ( p_startInBlob != 0 )
+    {
+        * p_startInBlob = startInBlob;
+    }
+    if ( p_lengthInBases != 0 )
+    {
+        * p_lengthInBases = lengthInBases;
+    }
+    if ( p_biological != 0 )
+    {
+        * p_biological = biological;
     }
 }
 
 void
-FragmentBlob :: GetRowRange ( int64_t& first, uint64_t& count ) const throw ( :: ngs :: ErrorMsg )
+FragmentBlob :: GetRowRange ( int64_t * first, uint64_t * count ) const throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    ON_FAIL ( NGS_FragmentBlobRowRange ( self, ctx,  &first, &count ) )
-    {
-        :: ngs :: ErrBlock err;
-        NGS_ErrBlockThrow ( &err, ctx );
-        err.Throw();
-    }
+    THROW_ON_FAIL ( NGS_FragmentBlobRowRange ( self, ctx, first, count ) );
 }

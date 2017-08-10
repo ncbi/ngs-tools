@@ -38,7 +38,7 @@ TEST_CASE ( FgrepDumb )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
@@ -49,7 +49,7 @@ TEST_CASE ( SearchFgrepBoyerMoore )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
@@ -60,7 +60,7 @@ TEST_CASE ( SearchFgrepAho )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
@@ -71,7 +71,7 @@ TEST_CASE ( SearchAgrepDP )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
@@ -89,7 +89,7 @@ TEST_CASE ( SearchNucStrstr_NoExpr_Coords_NotSupported )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE_THROW ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) ); // not supported
+    REQUIRE_THROW ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) ); // not supported
 }
 
 TEST_CASE ( SearchNucStrstr_Expr_Coords )
@@ -98,7 +98,7 @@ TEST_CASE ( SearchNucStrstr_Expr_Coords )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
@@ -109,7 +109,7 @@ TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
     uint64_t hitStart = 0;
     uint64_t hitEnd = 0;
     const string Bases = "ACTGACTAGTCA";
-    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), hitStart, hitEnd ) );
+    REQUIRE ( sb.FirstMatch ( Bases.c_str(), Bases.size(), & hitStart, & hitEnd ) );
     REQUIRE_EQ ( (uint64_t)5, hitStart );
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }

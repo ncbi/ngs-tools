@@ -51,7 +51,7 @@ namespace ncbi
 
                 // C++ support
 
-                VdbReferenceIterator ( :: ngs :: ReferenceIterator dad )
+                VdbReferenceIterator ( const :: ngs :: ReferenceIterator & dad )
                     throw ();
 
                 VdbReferenceIterator & operator = ( const VdbReferenceIterator & obj )

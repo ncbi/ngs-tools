@@ -38,7 +38,7 @@ test runtests: ctest
 # std
 #
 clean: stdclean
-	@ -rm -rf $(ILIBDIR) $(BINDIR)
+	@ -rm -rf $(ILIBDIR) $(BINDIR) $(TOP)/build/cmake/$(CMAKE_BUILD)
 
 .PHONY: clean
 

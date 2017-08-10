@@ -29,23 +29,27 @@
 
 #include <ngs-vdb/inc/VdbReadCollection.hpp>
 
+#include "threadablesearch.hpp"
+#include "searchblock.hpp"
 #include "matchiterator.hpp"
 
 struct KLock;
 
 // Searches blob by blob
-class BlobMatchIterator : public MatchIterator
+// each iterator returned by NextIterator() is bound to a single blob, to support thread-per-blob multithreading
+class BlobSearch : public ThreadableSearch
 {
 public:
-    BlobMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession );
+    BlobSearch ( const SearchBlock :: Factory & p_factory, const std :: string & p_accession );
+    virtual ~ BlobSearch ();
 
-    virtual ~BlobMatchIterator ();
-
-    virtual SearchBuffer* NextBuffer ();
+    virtual MatchIterator * NextIterator ();
 
 private:
+    const SearchBlock :: Factory &          m_factory;
+    std::string                             m_accession;
     ncbi::ngs::vdb::VdbReadCollection       m_coll;
-    KLock*                                  m_accessionLock;
+    struct KLock*                           m_accessionLock;
     ncbi::ngs::vdb::FragmentBlobIterator    m_blobIt;
 };
 
