@@ -46,7 +46,7 @@ if ( NOT WIN32)
     set ( VDB_INCDIR -I${VDB_ROOT}/interfaces )
 
     # tests depending on vdb-dump
-    find_program(VDB_DUMP vdb-dump)
+    find_program(VDB_DUMP vdb-dump HINTS ${SRATOOLS_BINDIR})
     if (NOT VDB_DUMP)
         message(WARNING "vdb-dump is not found, skipping tests depending on it")
     else ()
@@ -125,7 +125,7 @@ if ( NOT WIN32)
     endif()
 
     # tests depending on kdbmeta
-    find_program(KDBMETA kdbmeta)
+    find_program(KDBMETA kdbmeta HINTS ${SRATOOLS_BINDIR})
     if (NOT KDBMETA)
         message(WARNING "kdbmeta is not found, skipping tests depending on it")
     else ()

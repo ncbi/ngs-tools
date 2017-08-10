@@ -8,7 +8,7 @@ project ( ngs-tools )
 # this has to follow the project() command!
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
-    "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
 include ( env )
 
