@@ -58,7 +58,6 @@ struct MinHash
     {
 #if !DO_PARALLEL_PER_FILE
         #pragma omp parallel for
-        ...
 #endif
         for (int ib = 0; ib < best.size(); ib ++)
         {
@@ -148,7 +147,7 @@ hash_t hash_of(hash_t hash)
 
 void update_min_hash(MinHash &min_hash, const string &seq, int kmer_len)
 {
-    cerr << '.';
+//    cerr << '.';
 
     Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
     {
@@ -160,7 +159,7 @@ void update_min_hash(MinHash &min_hash, const string &seq, int kmer_len)
 
 void save(const string &filename, const MinHash &min_hash)
 {
-    cout << "saving to " << filename << endl;
+//    cout << "saving to " << filename << endl;
     std::ofstream f(filename, std::ios::out | std::ios::binary);
     IO::write(f, min_hash.best.size());
     for (auto &b : min_hash.best)
@@ -191,7 +190,8 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
 {
     MinHash min_hash(min_hash_count);
 
-    cout << "loading " << filename << endl;
+//    cout << "loading " << filename << endl;
+    cout << '.';
 
     Fasta fasta(filename);
     string seq;
@@ -201,7 +201,7 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
 
     min_hash.finish();
 
-    cout << endl;
+//    cout << endl;
     save(save_file(filename), min_hash);
 }
 
@@ -210,7 +210,7 @@ void get_profile(const Config &config)
 	FileListLoader file_list(config.file_list);
 
 #if DO_PARALLEL_PER_FILE
-   	#pragma omp parallel for
+   	#pragma omp parallel for num_threads(96)
 #endif
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
