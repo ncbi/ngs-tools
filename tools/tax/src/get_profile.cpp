@@ -67,6 +67,7 @@ struct MinHash
             auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
             for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
+#if 0
                 union
                 {
                     __uint128_t h128;
@@ -83,6 +84,17 @@ struct MinHash
                 hash_t h1 = h01.h64.h1 ^ _xor;
                 hash_t h2 = h23.h64.h0 ^ _xor;
                 hash_t h3 = h23.h64.h1 ^ _xor;
+#else
+                const auto to_check0 = storage_hash[to_check_i + 0];
+                const auto to_check1 = storage_hash[to_check_i + 1];
+                const auto to_check2 = storage_hash[to_check_i + 2];
+                const auto to_check3 = storage_hash[to_check_i + 3];
+
+                hash_t h0 = to_check0 ^ _xor;
+                hash_t h1 = to_check1 ^ _xor;
+                hash_t h2 = to_check2 ^ _xor;
+                hash_t h3 = to_check3 ^ _xor;
+#endif
 
                 if (h0 < best_chosen[0].hash)
                     best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
