@@ -5,16 +5,16 @@ set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAG
 
 set ( SHARED_OBJECTS src/reader.cpp )
 
-add_executable ( aligns_to                      src/aligns_to ${SHARED_OBJECTS})
-add_executable ( build_index                    src/build_index ${SHARED_OBJECTS})
-add_executable ( check_index                    src/check_index ${SHARED_OBJECTS})
-add_executable ( db_fasta_to_bin                src/db_fasta_to_bin ${SHARED_OBJECTS})
-add_executable ( filter_db                      src/filter_db ${SHARED_OBJECTS})
-add_executable ( contig_builder                 src/contig_builder ${SHARED_OBJECTS})
-add_executable ( fasta_contamination            src/fasta_contamination ${SHARED_OBJECTS})
-add_executable ( find_closest_profile_linear    src/find_closest_profile_linear ${SHARED_OBJECTS})
-add_executable ( contig_connectivity            src/contig_connectivity ${SHARED_OBJECTS})
-add_executable ( sort_dbs                       src/sort_dbs ${SHARED_OBJECTS})
+add_executable ( aligns_to                      src/aligns_to.cpp ${SHARED_OBJECTS})
+add_executable ( build_index                    src/build_index.cpp ${SHARED_OBJECTS})
+add_executable ( check_index                    src/check_index.cpp ${SHARED_OBJECTS})
+add_executable ( db_fasta_to_bin                src/db_fasta_to_bin.cpp ${SHARED_OBJECTS})
+add_executable ( filter_db                      src/filter_db.cpp ${SHARED_OBJECTS})
+add_executable ( contig_builder                 src/contig_builder.cpp ${SHARED_OBJECTS})
+add_executable ( fasta_contamination            src/fasta_contamination.cpp ${SHARED_OBJECTS})
+add_executable ( find_closest_profile_linear    src/find_closest_profile_linear.cpp ${SHARED_OBJECTS})
+add_executable ( contig_connectivity            src/contig_connectivity.cpp ${SHARED_OBJECTS})
+add_executable ( sort_dbs                       src/sort_dbs.cpp ${SHARED_OBJECTS})
 
 include_directories ( ${CMAKE_SOURCE_DIR} )
 
