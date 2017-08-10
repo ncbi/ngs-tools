@@ -18,6 +18,8 @@ typedef uint64_t hash_t;
 using namespace std;
 using namespace std::chrono;
 
+#define DO_PARALLEL_PER_FILE 1
+
 struct MinHash
 {
     struct Best
@@ -54,7 +56,10 @@ struct MinHash
 
     void finish()
     {
+#if !DO_PARALLEL_PER_FILE
         #pragma omp parallel for
+        ...
+#endif
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
@@ -204,7 +209,9 @@ void get_profile(const Config &config)
 {
 	FileListLoader file_list(config.file_list);
 
-//   	#pragma omp parallel for
+#if DO_PARALLEL_PER_FILE
+   	#pragma omp parallel for
+#endif
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
         auto &file = file_list.files[file_number];
