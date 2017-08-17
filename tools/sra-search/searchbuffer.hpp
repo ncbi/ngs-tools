@@ -41,13 +41,17 @@ public:
         Match( const std :: string & p_accession, const std :: string & p_fragmentId, const std :: string & p_bases )
         :   m_accession ( p_accession ),
             m_fragmentId ( p_fragmentId ),
-            m_bases ( p_bases )
+            m_bases ( p_bases ),
+            m_aligned ( false ),
+            m_paired ( false )
         {
         }
 
         std :: string   m_accession;
         std :: string   m_fragmentId;
         std :: string   m_bases;
+        bool            m_aligned;
+        bool            m_paired;
     };
 
 public:

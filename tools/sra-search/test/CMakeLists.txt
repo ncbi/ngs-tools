@@ -18,6 +18,24 @@ target_link_libraries ( test-sra-search
     ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
 )
 
+# test-sra-search
+
+add_executable ( test-sra-search-slow
+    test-sra-search-slow.cpp
+    ../vdb-search.cpp
+    ../searchblock.cpp
+    ../blobmatchiterator.cpp
+    ../fragmentmatchiterator.cpp
+    ../referencematchiterator.cpp
+)
+add_dependencies ( test-sra-search-slow sra-search ngs-vdb )
+
+target_link_libraries ( test-sra-search-slow
+    ngs-vdb
+	${SYS_LIBRARIES}
+    ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
+)
+
 # test-searchblock
 
 add_executable ( test-searchblock
@@ -33,8 +51,9 @@ target_link_libraries ( test-searchblock
 )
 
 # white box tests
-add_test ( SearchBlockWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-searchblock )
-add_test ( SraSearchWhiteBoxSlow ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search )
+add_test ( SearchBlockWhiteBox      ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-searchblock )
+add_test ( SraSearchWhiteBoxFast    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search )
+add_test ( SraSearchWhiteBoxSlow    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search-slow )
 
 # command line tests
 if ( NOT WIN32)

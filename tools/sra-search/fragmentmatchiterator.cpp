@@ -61,7 +61,10 @@ public:
                 StringRef bases = m_readIt . getFragmentBases ();
                 if ( m_sb -> FirstMatch ( bases . data (), bases . size () ) )
                 {
-                    return new SearchBuffer :: Match ( m_accession, m_readIt . getFragmentId () . toString (), bases . toString () );
+                    SearchBuffer :: Match * ret = new SearchBuffer :: Match ( m_accession, m_readIt . getFragmentId () . toString (), bases . toString () );
+                    ret -> m_aligned = m_readIt . isAligned ();
+                    ret -> m_paired  = m_readIt . isPaired ();
+                    return ret;
                 }
             }
         }

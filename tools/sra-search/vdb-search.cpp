@@ -181,7 +181,8 @@ VdbSearch :: Settings :: Settings ()
     m_maxMatches ( 0 ),
     m_unaligned ( false ),
     m_fasta ( false ),
-    m_fastaLineLength ( 70 )
+    m_fastaLineLength ( 70 ),
+    m_verbose ( false )
 {
 }
 
@@ -365,6 +366,16 @@ VdbSearch :: FormatMatch ( const SearchBuffer :: Match & p_source, Match & p_res
     else
     {   // by default, simply the Id of the fragment
         p_result . m_formatted = p_source . m_fragmentId;
+        // in verbose mode, add fragment details
+        if ( m_settings . m_verbose )
+        {
+            p_result . m_formatted += "\t";
+            p_result . m_formatted += p_source . m_aligned ? "aligned" : "";
+            p_result . m_formatted += "\t";
+            //TODO: instead of "aligned", ref name and pos
+            p_result . m_formatted += "\t";
+            p_result . m_formatted += p_source . m_paired ? "paired" : "";
+        }
     }
 }
 

@@ -84,6 +84,7 @@ public:
         bool                        m_unaligned;        // default false
         bool                        m_fasta;            // default false
         unsigned int                m_fastaLineLength;  // default 70
+        bool                        m_verbose;          // output fragment details; default false
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );
