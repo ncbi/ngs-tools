@@ -1,0 +1,8 @@
+.build
+# ignore binaries
+bin/*
+# keep scripts
+!bin/*.*
+# temporary files
+**.pyc
+**~

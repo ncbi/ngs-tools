@@ -8,3 +8,8 @@ if ( NOT WIN32)
     add_subdirectory(general-loader)
     add_subdirectory(pileup-stats)
 endif()
+
+if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+   add_subdirectory(tax)
+endif()
+

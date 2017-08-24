@@ -18,10 +18,6 @@ set ( VDB_BUILD_PREFIX ${OLD_OUTDIR}/ncbi-vdb         CACHE PATH "ncbi-vdb build
 set ( NGS_TOOLS_OUTDIR_ENABLED OFF                    CACHE BOOL "enable copying build results into NGS_TOOLS_OUTDIR_PREFIX" )
 set ( NGS_TOOLS_OUTDIR_PREFIX ${OLD_OUTDIR}/ngs-tools CACHE PATH "ngs-tools output directory" )
 
-set ( GIT_BRANCH "master" )
-set ( GIT_BRANCH_NGS ${GIT_BRANCH} CACHE STRING "git branch to use for ngs repository" )
-set ( GIT_BRANCH_VDB ${GIT_BRANCH} CACHE STRING "git branch to use for ncbi-vdb repository" )
-
 set ( PLATFORM x86_64 )
 set ( WIN_PLATFORM x64 )
 
@@ -140,42 +136,10 @@ set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 include ( functions )
 
-#//////////////////////// External projects
-# if project directory exists, do nothing, assume the user builds the project manually.
-# otherwise, download and build the project
-
-include(ExternalProject)
-
-set ( EXTERNAL_PROJECTS "" )
-set ( MSBUILD_OPTIONS  /m /tv:${TOOLS_VERSION} /p:Platform=${WIN_PLATFORM} )
-
 if (NOT EXISTS ${NGS_ROOT})
-    message( STATUS "NGS sources are not found. Will download and build them" )
-    if (WIN32)
-        ExternalProject_Add ( ngs
-            SOURCE_DIR ${NGS_ROOT}
-            GIT_REPOSITORY https://github.com/ncbi/ngs.git
-            GIT_TAG ${GIT_BRANCH_NGS}
-            UPDATE_COMMAND ""
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release
-                  COMMAND ${ANT_EXECUTABLE} -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OLD_OUTDIR}/ngs-java jar
-          	INSTALL_COMMAND ""
-        )
-    else ()
-        ExternalProject_Add ( ngs
-            SOURCE_DIR ${NGS_ROOT}
-            GIT_REPOSITORY https://github.com/ncbi/ngs.git
-            GIT_TAG ${GIT_BRANCH_NGS}
-            UPDATE_COMMAND ""
-            CONFIGURE_COMMAND ${NGS_ROOT}/configure --prefix=${CMAKE_INSTALL_PREFIX} --build-prefix=${OLD_OUTDIR} ${CONFIGURE_FLAGS}
-            BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java
-            INSTALL_COMMAND ""
-        )
-    endif()
+    message( FATAL_ERROR "NGS sources are not found in ${NGS_ROOT}." )
 else()
-    message( STATUS "Found NGS sources. Looking for NGS libraries..." )
+    message( STATUS "Found NGS sources in ${NGS_ROOT}. Looking for NGS libraries..." )
     if (UNIX)
         find_library ( NGS_LIBRARY ngs-c++ PATHS ${NGS_LIBDIR} NO_DEFAULT_PATH )
     elseif (CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
@@ -185,71 +149,17 @@ else()
     endif()
     if ( NGS_LIBRARY )
         get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-        message ( STATUS "Found NGS libraries at ${NGS_LIBRARY_DIR}" )
+        message ( STATUS "Found NGS libraries in ${NGS_LIBDIR}" )
     else ()
-        message ( STATUS "Warning: NGS libraries are not found at ${NGS_LIBDIR}. Will try to build them" )
+        message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR}." )
     endif()
     unset ( NGS_LIBRARY CACHE )
-
-    if (WIN32)
-        ExternalProject_Add ( ngs
-            SOURCE_DIR ${NGS_ROOT}
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${NGS_ROOT}/ngs-sdk/win/${NGS_VSPROJ_SUBDIR}/ngs-sdk.sln /p:NGS_OUTDIR=${NGS_SDK_BUILD_PREFIX}/ /p:Configuration=Release
-                  COMMAND ${ANT_EXECUTABLE} -f ${NGS_ROOT}/ngs-java -Dbuild.dir=${OLD_OUTDIR}/ngs-java jar
-          	INSTALL_COMMAND ""
-        )
-    else ()
-        ExternalProject_Add ( ngs
-            SOURCE_DIR ${NGS_ROOT}
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND make -C ${NGS_ROOT}/ngs-sdk TOP=${NGS_ROOT}/ngs-sdk COMMAND make -C ${NGS_ROOT}/ngs-java TOP=${NGS_ROOT}/ngs-java
-            INSTALL_COMMAND ""
-        )
-    endif()
 endif()
 
 if (NOT EXISTS ${VDB_ROOT})
-    message( STATUS "NCBI-VDB sources are not found. Will download and build them." )
-    if (WIN32)
-        ExternalProject_Add ( ncbi-vdb
-            DEPENDS ngs
-            SOURCE_DIR ${VDB_ROOT}
-            GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
-            GIT_TAG ${GIT_BRANCH_VDB}
-            UPDATE_COMMAND ""
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/kapp.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/load.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-          	INSTALL_COMMAND ""
-        )
-    else()
-        ExternalProject_Add ( ncbi-vdb
-            DEPENDS ngs
-            SOURCE_DIR ${VDB_ROOT}
-            GIT_REPOSITORY https://github.com/ncbi/ncbi-vdb.git
-            GIT_TAG ${GIT_BRANCH_VDB}
-            UPDATE_COMMAND ""
-            CONFIGURE_COMMAND ${VDB_ROOT}/configure --prefix=${CMAKE_INSTALL_PREFIX} --build-prefix=${OLD_OUTDIR} ${CONFIGURE_FLAGS}
-            BUILD_COMMAND make -C ${VDB_ROOT}
-            INSTALL_COMMAND ""
-        )
-    endif()
+    message( FATAL_ERROR "NCBI-VDB sources are not found in ${VDB_ROOT}" )
 else ()
-    message( STATUS "Found NCBI-VDB sources. Looking for NCBI-VDB libraries..." )
+    message( STATUS "Found NCBI-VDB sources in ${VDB_ROOT}. Looking for NCBI-VDB libraries..." )
     if (UNIX)
         find_library ( VDB_LIBRARY ncbi-vdb PATHS ${VDB_LIBDIR} NO_DEFAULT_PATH )
     elseif (CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
@@ -260,38 +170,12 @@ else ()
 
     if ( VDB_LIBRARY )
         get_filename_component(VDB_LIBRARY_DIR ${VDB_LIBRARY} PATH)
-        message ( STATUS "Found NGS libraries at ${VDB_LIBRARY_DIR}" )
+        message ( STATUS "Found NGS libraries in ${VDB_LIBDIR}" )
     else ()
-        message ( STATUS "Warning: VDB libraries are not found at ${VDB_LIBDIR}. Will try to build them" )
+        message( FATAL_ERROR "VDB libraries are not found in ${VDB_LIBDIR}." )
     endif()
     unset ( VDB_LIBRARY CACHE )
 
-    if (WIN32)
-        ExternalProject_Add ( ncbi-vdb
-            DEPENDS ngs
-            SOURCE_DIR ${VDB_ROOT}
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ncbi-vdb.vcxproj   /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/bz2.vcxproj        /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/zlib.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ngs-c++.vcxproj    /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Debug
-                  COMMAND msbuild ${MSBUILD_OPTIONS} ${VDB_ROOT}/build/MSVC/${VDB_VSPROJ_SUBDIR}/ktst.vcxproj       /p:VDB_OUTDIR=${OLD_OUTDIR}/ /p:Configuration=Release
-          	INSTALL_COMMAND ""
-        )
-    else()
-        ExternalProject_Add ( ncbi-vdb
-            DEPENDS ngs
-            SOURCE_DIR ${VDB_ROOT}
-            CONFIGURE_COMMAND ""
-            BUILD_COMMAND make -C ${VDB_ROOT} TOP=${VDB_ROOT}
-            INSTALL_COMMAND ""
-        )
-    endif()
 endif()
 
 #//////////////////////////////////////////////////

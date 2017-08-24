@@ -29,13 +29,13 @@
 
 #include <string>
 #include <vector>
-#include <queue>
 #include <stdexcept>
 
 #include <klib/rc.h>
 
-#include "searchblock.hpp"
+#include "searchbuffer.hpp"
 #include "referencespec.hpp"
+#include "threadablesearch.hpp"
 
 struct KThread;
 class MatchIterator;
@@ -76,24 +76,34 @@ public:
         bool                        m_isExpression;     // default false
         unsigned int                m_minScorePct;      // default 100
         unsigned int                m_threads;          // default 2
+        unsigned int                m_threadPerAcc;     // default false
         bool                        m_useBlobSearch;    // default true
         bool                        m_referenceDriven;  // default false
         ReferenceSpecs              m_references;       // default empty (all references)
         unsigned int                m_maxMatches;       // default 0 (unlimited)
+        bool                        m_unaligned;        // default false
+        bool                        m_fasta;            // default false
+        unsigned int                m_fastaLineLength;  // default 70
 
         Settings ();
         bool SetAlgorithm ( const std :: string& algorithm );
+    };
+
+    struct Match
+    {
+        std :: string   m_fragmentId;
+        std :: string   m_formatted; // the contents are controlled by settings: a copy of m_fragmentId, or text in fasta, etc
     };
 
 public:
     VdbSearch ( const Settings& settings ) throw ( std :: invalid_argument );
     ~VdbSearch ();
 
-    bool NextMatch ( std::string& accession, std::string& fragmentId );
+    bool NextMatch ( Match & ); // false when no more matches
 
 private:
 
-    typedef std::queue < MatchIterator* > SearchQueue;
+    typedef std :: vector < ThreadableSearch* > SearchQueue;
     typedef std :: vector < KThread* > ThreadPool;
 
     struct SearchThreadBlock;
@@ -111,8 +121,10 @@ private:
         const Settings& m_settings; // not a copy, since the settings may be changed post-creation
     };
 
-    static rc_t CC SearchAccPerThread ( const struct KThread *self, void *data );
+    static rc_t CC ThreadPerIterator ( const struct KThread *self, void *data );
     static rc_t CC SearchBlobPerThread ( const struct KThread *self, void *data );
+
+    void FormatMatch ( const SearchBuffer  :: Match & p_source, Match & p_result );
 
 private:
     Settings m_settings;

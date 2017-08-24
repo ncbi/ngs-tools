@@ -54,7 +54,7 @@ namespace ncbi
 
                 // C++ support
 
-                VdbReference ( :: ngs :: Reference dad )
+                VdbReference ( const :: ngs :: Reference & dad )
                     throw ();
 
                 VdbReference & operator = ( const VdbReference & obj )
