@@ -27,7 +27,7 @@ target_link_libraries ( var-expand
 
 ### common
 
-include_directories ( ${CMAKE_SOURCE_DIR} )
+include_directories ( ${CMAKE_SOURCE_DIR}/libs )
 
 # linker flags
 if (WIN32)
