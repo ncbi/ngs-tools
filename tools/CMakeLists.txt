@@ -1,4 +1,3 @@
-add_subdirectory(compute-coverage)
 add_subdirectory(ref-variation)
 add_subdirectory(fastrq-dump)
 add_subdirectory(sra-search)
