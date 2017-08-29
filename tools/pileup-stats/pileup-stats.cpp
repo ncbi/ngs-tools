@@ -725,9 +725,15 @@ extern "C"
             }
 
             if ( num_runs == 0 )
+            {
+                handle_help ( argv [ 0 ] );
                 throw "no runs specified";
+            }
             else if ( num_runs > 1 )
+            {
+                handle_help ( argv [ 0 ] );
                 throw "only one run may be processed at a time";
+            }
 
             for ( int i = 1; i <= num_runs; ++ i )
             {
