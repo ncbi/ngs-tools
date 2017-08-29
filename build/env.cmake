@@ -1,56 +1,73 @@
 #/////////////////////// Cache variables, may be overridden at config time:
 
 if (UNIX)
-	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../ncbi-outdir CACHE PATH "common output directory for all projects" )
+
+    set ( PLATFORM x86_64 )
+
+    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
+        set ( OS mac )
+        set ( COMPILER clang )
+    else ()
+        set ( OS linux )
+        set ( COMPILER gcc )
+    endif()
+
+    # gmake is a single-configuration generator; we are either Debug or Release
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        set ( BUILD dbg )
+    else ()
+        set ( BUILD rel )
+    endif ()
+
+    # by default, look for sister repositories sources side by side with ngs-tools, binaries under $HOME/ncbi-outdir
+    set ( HOME "$ENV{HOME}" )
+
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                              CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${HOME}/ncbi-outdir/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
+    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                     CACHE PATH "ncbi-vdb include directory" )
+    set ( VDB_LIBDIR  ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
+    set ( VDB_ILIBDIR ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+    set ( SRATOOLS_BINDIR ${HOME}/ncbi-outdir/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
+
+    set ( NGSTOOLS_OUTDIR ${HOME}/ncbi-outdir/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD} )
+
 elseif (WIN32)
-	set ( OLD_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR CACHE PATH "common output directory for all projects" )
-else ()
-    message ( FATAL_ERROR "Unsupported OS" )
+
+    set ( PLATFORM x64 )
+    set ( OS win )
+    set ( COMPILER vc++ )
+
+    # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                       CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
+    set ( VDB_INCDIR  ${VDB_INCDIR}/../ncbi-vdb/interfaces/                                                     CACHE PATH "ncbi-vdb include directory" )
+    set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
+    set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+    set ( SRATOOLS_BINDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
+
+    set ( NGSTOOLS_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD} )
+
 endif()
 
-set ( CMAKE_OUTDIR ${CMAKE_BINARY_DIR} )
-
-# by default, look for sister repositories sources side by side with ngs-tools
-set ( NGS_ROOT  ${CMAKE_SOURCE_DIR}/../ngs            CACHE PATH "ngs source directory" )
-set ( VDB_ROOT  ${CMAKE_SOURCE_DIR}/../ncbi-vdb       CACHE PATH "ncbi-vdb source directory" )
-set ( NGS_SDK_BUILD_PREFIX ${OLD_OUTDIR}/ngs-sdk      CACHE PATH "ngs build directory" )
-set ( VDB_BUILD_PREFIX ${OLD_OUTDIR}/ncbi-vdb         CACHE PATH "ncbi-vdb build directory" )
-set ( NGS_TOOLS_OUTDIR_ENABLED OFF                    CACHE BOOL "enable copying build results into NGS_TOOLS_OUTDIR_PREFIX" )
-set ( NGS_TOOLS_OUTDIR_PREFIX ${OLD_OUTDIR}/ngs-tools CACHE PATH "ngs-tools output directory" )
-
-set ( PLATFORM x86_64 )
-set ( WIN_PLATFORM x64 )
+if ( NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY )
+    set ( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/bin )
+endif()
+if ( NOT DEFINED  CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+    set ( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/ilib )
+endif()
 
 #/////////////////////////////////////////////////////////////////////////////////////////////
 
 if (UNIX)
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
-        set ( OS mac )
-        set ( COMPILER clang )
         set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6 -stdlib=libstdc++" )
         # on Mac, we may need some gcc headers in addition to clang's
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc/${PLATFORM}")
-        include_directories ("${VDB_ROOT}/interfaces/cc/gcc")
-    else ()
-        set ( OS linux )
-        set ( COMPILER gcc )
+        include_directories ("${VDB_INCDIR}/cc/gcc/${PLATFORM}")
+        include_directories ("${VDB_INCDIR}/cc/gcc")
     endif()
 
-    include_directories ("${VDB_ROOT}/interfaces/os/unix")
-
-    # gmake is a single-configuration generator; we are either Debug or Release
-    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-        set ( BUILD dbg )
-        set ( CONFIGURE_FLAGS "--with-debug" )
-    else ()
-        set ( BUILD rel )
-        set ( CONFIGURE_FLAGS "" )
-    endif ()
-
-    set ( NGS_LIBDIR ${NGS_SDK_BUILD_PREFIX}/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-    set ( VDB_LIBDIR ${VDB_BUILD_PREFIX}/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-    set ( VDB_ILIBDIR ${VDB_LIBDIR}/../ilib/ )
+    include_directories ("${VDB_INCDIR}/os/unix")
 
     set ( SYS_LIBRARIES
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -60,16 +77,13 @@ if (UNIX)
             dl
     )
 
-    if (!CMAKE_INSTALL_PREFIX)
+    if ( NOT DEFINED CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX /usr/local/ )
     endif ()
 
     set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 
 elseif (WIN32)
-
-    set ( OS win )
-    set ( COMPILER vc++ )
 
     if ( CMAKE_GENERATOR MATCHES "2010" )
         set ( NGS_VSPROJ_SUBDIR "vs2010" )
@@ -85,7 +99,7 @@ elseif (WIN32)
         message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )
     endif()
 
-    include_directories ("${NGS_ROOT}/ngs-sdk/win")
+    include_directories ("${NGS_INCDIR}/win")
 
     # use miltiple processors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -96,10 +110,6 @@ elseif (WIN32)
     # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
-
-    set ( NGS_LIBDIR ${NGS_SDK_BUILD_PREFIX}/${OS}/${PLATFORM_TOOLSET}/${WIN_PLATFORM}/$(Configuration)/lib )
-    set ( VDB_LIBDIR ${VDB_BUILD_PREFIX}/${OS}/${PLATFORM_TOOLSET}/${WIN_PLATFORM}/$(Configuration)/lib )
-    set ( VDB_ILIBDIR ${VDB_LIBDIR} )
 
     string(REPLACE "$(Configuration)" "Debug"   NGS_LIBDIR_DEBUG ${NGS_LIBDIR})
     string(REPLACE "$(Configuration)" "Release" NGS_LIBDIR_RELEASE ${NGS_LIBDIR})
@@ -134,12 +144,12 @@ endif ()
 set ( NGSJAR "${OLD_OUTDIR}/ngs-java/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
-include ( functions )
+# look for dependencies
 
-if (NOT EXISTS ${NGS_ROOT})
-    message( FATAL_ERROR "NGS sources are not found in ${NGS_ROOT}." )
+if (NOT EXISTS ${NGS_INCDIR})
+    message( FATAL_ERROR "NGS includes are not found in ${NGS_INCDIR}." )
 else()
-    message( STATUS "Found NGS sources in ${NGS_ROOT}. Looking for NGS libraries..." )
+    message( STATUS "Found NGS includes in ${NGS_INCDIR}. Looking for NGS libraries..." )
     if (UNIX)
         find_library ( NGS_LIBRARY ngs-c++ PATHS ${NGS_LIBDIR} NO_DEFAULT_PATH )
     elseif (CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
@@ -156,10 +166,10 @@ else()
     unset ( NGS_LIBRARY CACHE )
 endif()
 
-if (NOT EXISTS ${VDB_ROOT})
-    message( FATAL_ERROR "NCBI-VDB sources are not found in ${VDB_ROOT}" )
+if (NOT EXISTS ${VDB_INCDIR})
+    message( FATAL_ERROR "NCBI-VDB includes are not found in ${VDB_INCDIR}" )
 else ()
-    message( STATUS "Found NCBI-VDB sources in ${VDB_ROOT}. Looking for NCBI-VDB libraries..." )
+    message( STATUS "Found NCBI-VDB includes in ${VDB_INCDIR}. Looking for NCBI-VDB libraries..." )
     if (UNIX)
         find_library ( VDB_LIBRARY ncbi-vdb PATHS ${VDB_LIBDIR} NO_DEFAULT_PATH )
     elseif (CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
@@ -180,11 +190,11 @@ endif()
 
 #//////////////////////////////////////////////////
 
-include_directories ("${VDB_ROOT}/interfaces")
-include_directories ("${VDB_ROOT}/interfaces/cc/${COMPILER}/${PLATFORM}")
-include_directories ("${VDB_ROOT}/interfaces/cc/${COMPILER}")
-include_directories ("${VDB_ROOT}/interfaces/os/${OS}")
-include_directories ("${NGS_ROOT}/ngs-sdk")
+include_directories ("${VDB_INCDIR}")
+include_directories ("${VDB_INCDIR}/cc/${COMPILER}/${PLATFORM}")
+include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
+include_directories ("${VDB_INCDIR}/os/${OS}")
+include_directories ("${NGS_INCDIR}")
 
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
