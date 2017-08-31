@@ -11,6 +11,8 @@ target_link_libraries ( ref-variation
 	${SYS_LIBRARIES}
 )
 
+links_and_install ( ref-variation )
+
 ### var-expand
 
 add_executable ( var-expand common.cpp helper.cpp var-expand.cpp )
@@ -21,6 +23,8 @@ target_link_libraries ( var-expand
 	${SYS_LIBRARIES}
 )
 
+links_and_install ( var-expand )
+
 ### common
 
 include_directories ( ${CMAKE_SOURCE_DIR}/libs )
@@ -29,8 +33,6 @@ include_directories ( ${CMAKE_SOURCE_DIR}/libs )
 if (WIN32)
     set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /ENTRY:wmainCRTStartup")
 endif()
-
-install ( TARGETS ref-variation var-expand RUNTIME DESTINATION bin )
 
 add_subdirectory ( test )
 

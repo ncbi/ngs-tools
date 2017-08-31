@@ -207,6 +207,31 @@ include_directories ("${NGS_INCDIR}")
 
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
+#/////////////////////////////////////////////////
+# versioned names, symbolic links and installation for the tools
+
+function ( links_and_install_subdir TARGET INST_SUBDIR)
+
+    set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}.${VERSION}")
+
+    set (TGTPATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET})
+
+    ADD_CUSTOM_TARGET(link_${TARGET} ALL
+                    COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${VERSION} ${TGTPATH}.${MAJVERS}
+                    COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${MAJVERS} ${TGTPATH}
+                    DEPENDS ${TARGET}
+                    )
+
+    install ( TARGETS ${TARGET} RUNTIME     DESTINATION bin/${INST_SUBDIR} )
+    install ( FILES ${TGTPATH}.${MAJVERS}   DESTINATION bin/${INST_SUBDIR} )
+    install ( FILES ${TGTPATH}              DESTINATION bin/${INST_SUBDIR} )
+
+endfunction(links_and_install_subdir)
+
+function ( links_and_install TARGET )
+    links_and_install_subdir( ${TARGET} "" )
+endfunction(links_and_install)
+
 # testing
 enable_testing()
 
