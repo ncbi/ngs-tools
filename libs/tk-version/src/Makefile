@@ -22,11 +22,7 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ..)
-
 MODULE = shared
 
 INT_LIBS = \
@@ -38,7 +34,7 @@ ALL_LIBS = \
 ALL_TOOLS =      \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
-	
+
 include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
@@ -50,7 +46,6 @@ all std: makedirs
 $(INT_LIBS): makedirs
 	@ $(MAKE_CMD) $(ILIBDIR)/$@
 
-
 .PHONY: all std $(ALL_LIBS)
 
 #-------------------------------------------------------------------------------
@@ -60,13 +55,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(ILIBDIR)/,$(INT_LIBS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
 
 #-------------------------------------------------------------------------------
 # toolkit-version

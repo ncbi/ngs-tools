@@ -8,7 +8,6 @@ find_program(VDB_DUMP vdb-dump)
         message(STATUS "vdb-dump found in ${VDB_DUMP}")
 
         include_directories ( ${CMAKE_SOURCE_DIR}/libs )
-        set ( VDB_INCDIR -I${VDB_ROOT}/interfaces )
         set ( CMD ${CMAKE_CURRENT_SOURCE_DIR}/runtestcase.sh
                     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader ${VDB_DUMP} ${CMAKE_CURRENT_SOURCE_DIR} )
 
@@ -32,28 +31,28 @@ find_program(VDB_DUMP vdb-dump)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test ( NAME BioEnd-Excl-1
-                COMMAND ${CMD} bio-end excl-1 0 n ${VDB_INCDIR} -L=debug
+                COMMAND ${CMD} bio-end excl-1 0 n -I${VDB_INCDIR} -L=debug
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME BioEnd-Excl-2
-                COMMAND ${CMD} bio-end excl-2 0 n ${VDB_INCDIR}
+                COMMAND ${CMD} bio-end excl-2 0 n -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME BioEnd-Excl-3
-                COMMAND ${CMD} bio-end excl-3 0 n ${VDB_INCDIR}
+                COMMAND ${CMD} bio-end excl-3 0 n -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME BioEnd-Excl-4
-                COMMAND ${CMD} bio-end excl-4 0 n ${VDB_INCDIR}
+                COMMAND ${CMD} bio-end excl-4 0 n -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME BioEnd-Incl-1
-                COMMAND ${CMD} bio-end incl-1 0 n ${VDB_INCDIR}
+                COMMAND ${CMD} bio-end incl-1 0 n -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
         add_test ( NAME IdxText-CI-1
-                COMMAND ${CMD} bio-end excl-1 0 n ${VDB_INCDIR} # -L=debug
+                COMMAND ${CMD} bio-end excl-1 0 n -I${VDB_INCDIR} # -L=debug
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
@@ -88,36 +87,36 @@ find_program(VDB_DUMP vdb-dump)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test ( NAME IdxText-ci-1
-                COMMAND ${CMD} idx-text ci-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text ci-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-ci-2
-                COMMAND ${CMD} idx-text ci-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text ci-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-ci-3
-                COMMAND ${CMD} idx-text ci-3 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text ci-3 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-ci-4
-                COMMAND ${CMD} idx-text ci-4 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text ci-4 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-ci-5
-                COMMAND ${CMD} idx-text ci-5 0 n ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text ci-5 0 n -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
         add_test ( NAME IdxText-cs-1
-                COMMAND ${CMD} idx-text cs-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text cs-1 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-cs-2
-                COMMAND ${CMD} idx-text cs-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text cs-2 0 y ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/idx-text-checklookup -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME IdxText-cs-3
-                COMMAND ${CMD} idx-text cs-3 0 n  ${VDB_INCDIR}
+                COMMAND ${CMD} idx-text cs-3 0 n  -I${VDB_INCDIR}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
 
