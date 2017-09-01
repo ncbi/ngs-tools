@@ -33,8 +33,8 @@ target_link_libraries ( test-searchblock
 )
 
 # white box tests
-add_test ( SearchBlockWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-searchblock )
-add_test ( SlowTest_SraSearchWhiteBox ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test-sra-search )
+add_test ( NAME SearchBlockWhiteBox COMMAND test-searchblock )
+add_test ( NAME SlowTest_SraSearchWhiteBox COMMAND test-sra-search )
 
 # command line tests
 if ( NOT WIN32)
