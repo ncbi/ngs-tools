@@ -47,14 +47,14 @@ elseif (WIN32)
 
 
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                               CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                                       CACHE PATH "ncbi-vdb include directory" )
-    set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
-    set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
-    set ( SRATOOLS_BINDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/sra-tools/${OS}/${COMPILER}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                                       CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
+    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                                               CACHE PATH "ncbi-vdb include directory" )
+    set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
+    set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+    set ( SRATOOLS_BINDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
 
-    set ( NGSTOOLS_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/$(Configuration) )
+    set ( NGSTOOLS_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/ )
 
 endif()
 
@@ -93,11 +93,11 @@ if (UNIX)
     set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 
 elseif (WIN32)
-    # Debug|Release is already in the NGSTOOLS_OUTDIR path; we do not want CMake to append /Debug|/Release to it
-    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/bin)
-    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/bin)
-    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/ilib)
-    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/ilib)
+    # Work configuration name into the NGSTOOLS_OUTDIR path; we do not want CMake to add /Debug|/Release at the end
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/Debug/bin)
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/Release/bin)
+    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/Debug/ilib)
+    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/Release/ilib)
 
     include_directories ("${NGS_INCDIR}/win")
 
@@ -212,19 +212,28 @@ link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
 function ( links_and_install_subdir TARGET INST_SUBDIR)
 
-    set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}.${VERSION}")
+    if (WIN32)
 
-    set (TGTPATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET})
+        install ( TARGETS ${TARGET} RUNTIME DESTINATION bin )
 
-    ADD_CUSTOM_TARGET(link_${TARGET} ALL
-                    COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${VERSION} ${TGTPATH}.${MAJVERS}
-                    COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${MAJVERS} ${TGTPATH}
-                    DEPENDS ${TARGET}
-                    )
+    else()
 
-    install ( TARGETS ${TARGET} RUNTIME     DESTINATION bin/${INST_SUBDIR} )
-    install ( FILES ${TGTPATH}.${MAJVERS}   DESTINATION bin/${INST_SUBDIR} )
-    install ( FILES ${TGTPATH}              DESTINATION bin/${INST_SUBDIR} )
+        # on Unix, version the binary and add 2 symbolic links
+        set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}.${VERSION}")
+
+        set (TGTPATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET})
+
+        ADD_CUSTOM_TARGET(link_${TARGET} ALL
+                        COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${VERSION} ${TGTPATH}.${MAJVERS}
+                        COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${MAJVERS} ${TGTPATH}
+                        DEPENDS ${TARGET}
+                        )
+
+        install ( TARGETS ${TARGET} RUNTIME     DESTINATION bin/${INST_SUBDIR} )
+        install ( FILES ${TGTPATH}.${MAJVERS}   DESTINATION bin/${INST_SUBDIR} )
+        install ( FILES ${TGTPATH}              DESTINATION bin/${INST_SUBDIR} )
+
+    endif()
 
 endfunction(links_and_install_subdir)
 
