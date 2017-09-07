@@ -42,11 +42,13 @@ if ( NOT WIN32)
 
     # NB. Slow tests have to have "Slow" in the name; run without: "ctest -E Slow", run only: "ctest -R Slow"
 
-	# help
+	# help and version
 	add_test ( NAME SraSearch-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 				${SRA_SEARCH} 1.0-h --args "-h" )
 	add_test ( NAME SraSearch-1.1-help WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
 			   	${SRA_SEARCH} 1.1-help --args "--help" )
+    add_test ( NAME SraSearch-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} -V" ${VERSION} )
+    add_test ( NAME SraSearch-1.3-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${SRA_SEARCH} --version" ${VERSION} )
 
 	# bad arguments
 	add_test ( NAME SraSearch-2.0-no-args WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh
