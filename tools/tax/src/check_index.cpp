@@ -63,7 +63,7 @@ void check_clean_string(Kmers &kmers, p_string p_str, tax_id_t tax_id, int kmer_
 	if (len < kmer_len)
 		return;
 
-	const int THREADS = 16;
+	const int THREADS = 32;
 	struct ThreadFinding
 	{
 		list<hash_t> hashes;
@@ -207,3 +207,4 @@ int main(int argc, char const *argv[])
 
 	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }
+

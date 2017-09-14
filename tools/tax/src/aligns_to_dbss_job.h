@@ -55,7 +55,7 @@ struct DBSSJob : public DBSJob
 		load_dbss(config.dbss, tax_list, annotation);
 	}
 
-	typedef unsigned int tax_id_t;
+	typedef int tax_id_t;
 
 	struct DBSAnnot
 	{
@@ -86,7 +86,7 @@ struct DBSSJob : public DBSJob
 		{
 			DBSAnnot a(0, 0, 0);
 			f >> a.tax_id >> a.count;
-			if (!a.tax_id)
+			if (f.fail())
 				break;
 
 			if (!a.count)
@@ -116,7 +116,7 @@ struct DBSSJob : public DBSJob
 		{
 			tax_id_t t = 0;
 			f >> t;
-			if (!t)
+			if (f.fail())
 				break;
 
 			taxes.push_back(t);
