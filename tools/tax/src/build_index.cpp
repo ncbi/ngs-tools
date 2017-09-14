@@ -52,10 +52,10 @@ int calculate_window_size_(size_t filesize, bool eukaryota, bool virus)
 	if (virus)
 		return 200;
 
-	if (!eukaryota)
-		return 2000;
+	if (eukaryota)
+		return 8000;
 
-	return 8000;
+	return 2000;
 }
 
 int calculate_window_size(size_t filesize, bool eukaryota, bool virus, int window_divider, int min_window_size)
@@ -68,7 +68,7 @@ void process_window(Kmers &kmers, const char *s, int len, tax_id_t tax_id, int k
 	if (len < kmer_len)
 		return;
 
-	const int THREADS = 16;
+	const int THREADS = 32;
 	struct ThreadFinding
 	{
 		KmerHash::hash_of_hash_t min_hash;
