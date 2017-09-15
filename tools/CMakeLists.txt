@@ -11,7 +11,10 @@ if ( NOT WIN32)
     add_subdirectory(pileup-stats)
 endif()
 
-if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+if ( ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
+        OR
+     ( WIN32 ) AND NOT ( ${CMAKE_GENERATOR} MATCHES "Visual Studio 10 2010*" )
+   )
    add_subdirectory(tax)
 endif()
 

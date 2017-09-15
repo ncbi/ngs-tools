@@ -33,7 +33,7 @@ if (UNIX)
 
 elseif (WIN32)
 
-    set ( PLATFORM x64 )
+    set ( PLATFORM "x64" CACHE STRING "Windows Platform (x64 or Win32)" )
     set ( OS win )
     set ( COMPILER "vc++" )
     if ( CMAKE_GENERATOR MATCHES "2010" )
