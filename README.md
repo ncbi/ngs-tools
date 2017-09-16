@@ -14,3 +14,14 @@ If you develop software that relies on `sra-tools`, `ncbi-vdb` or `ngs` in any w
 
 We have released new tools with version 2.8.0 that are HTTPS compatible and `M-15-13` compliant as of October 7, 2016. Please be certain to [update all of your binaries](https://github.com/ncbi/sra-tools/wiki/Downloads) and configuration files.
 
+#### Example installation of E-Utilities and NCBI software toolkits:
+
+`
+mkdir ~/SRC ; cd ~/SRC
+git clone https://github.com/ncbi/ngs.git
+git clone https://github.com/ncbi/ncbi-vdb.git
+git clone https://github.com/ncbi/ngs-tools.git
+cd ngs/ngs-sdk ; ./configure -p=~/NCBI && make
+cd ../../ncbi-vdb ; ./configure -p=~/NCBI && make
+cd ../ngs-tools ; ./configure -p=~/NCBI
+`
