@@ -43,61 +43,77 @@ using namespace ncbi::ngs::vdb;
 class BlobSearchBuffer : public SearchBuffer
 {
 public:
-    BlobSearchBuffer ( SearchBlock*    p_sb,
-                       const std::string&           p_accession,
-                       KLock*                       p_lock,
-                       const FragmentBlob&          p_blob )
+    BlobSearchBuffer ( SearchBlock*         p_sb,
+                       const std::string&   p_accession,
+                       KLock*               p_lock,
+                       const FragmentBlob   p_blob )
     :   SearchBuffer ( p_sb, p_accession ),
         m_dbLock ( p_lock ),
         m_blob ( p_blob ),
         m_startInBlob ( 0 )
     {
+        KLockAddRef ( m_dbLock );
     }
 
-    virtual bool NextMatch ( std::string& p_fragmentId )
+    ~BlobSearchBuffer ()
+    {
+        KLockRelease ( m_dbLock );
+    }
+
+    virtual SearchBuffer :: Match * NextMatch ()
     {
         string id = BufferId();
 
         uint64_t hitStart;
         uint64_t hitEnd;
-        while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, hitStart, hitEnd  ) )
+        while ( m_searchBlock -> FirstMatch ( m_blob . Data () + m_startInBlob, m_blob . Size () - m_startInBlob, & hitStart, & hitEnd  ) )
         {
             // convert to offsets from the start of the blob
             hitStart += m_startInBlob;
             hitEnd += m_startInBlob;
 
+            string fragId;
             uint64_t startInBlob;
             uint64_t lengthInBases;
-            uint64_t fragEnd;
             bool biological;
 
-            KLockAcquire ( m_dbLock );
-            m_blob . GetFragmentInfo ( hitStart, p_fragmentId, startInBlob, lengthInBases, biological );
-            KLockUnlock ( m_dbLock );
+            KLockAcquire ( m_dbLock ); //TODO: consider removing
+            try
+            {
+                m_blob . GetFragmentInfo ( hitStart, & fragId, & startInBlob, & lengthInBases, & biological );
+            }
+            catch ( ... )
+            {
+                KLockUnlock ( m_dbLock );
+                throw;
+            }
+            KLockUnlock ( m_dbLock ); //TODO: consider removing
 
-            fragEnd = startInBlob + lengthInBases;
+            uint64_t fragEnd = startInBlob + lengthInBases; // relative to the start of the blob
+
             if ( biological )
             {
-                if ( hitEnd < fragEnd ||                                                                    // inside a fragment: report and move to the next fragment; or
-                    m_searchBlock -> FirstMatch ( m_blob . Data () + hitStart, fragEnd - hitStart  ) )    // result crosses fragment boundary: retry within the fragment
+                if ( hitEnd < fragEnd ||                                                                  // inside a fragment: report and move to the next fragment; or
+                    m_searchBlock -> FirstMatch ( m_blob . Data () + startInBlob, lengthInBases  ) )    // result crosses fragment boundary: retry within the fragment
                 {
+                    Match * ret = 0;
+                    ret = new Match ( m_accession, fragId, string ( m_blob . Data () + startInBlob, lengthInBases ) );
                     m_startInBlob = fragEnd; // search will resume with the next fragment
-                    return true;
+                    return ret;
                 }
                 // false hit
             }
-            // move on to the next fragment
-            m_startInBlob = fragEnd;
+            m_startInBlob = fragEnd; // search will resume with the next fragment
         }
         m_startInBlob = 0;
-        return false;
+        return 0;
     }
 
     virtual std::string BufferId () const
     {   // identify by row Id range
         int64_t first;
         uint64_t count;
-        m_blob . GetRowRange ( first, count );
+        m_blob . GetRowRange ( & first, & count );
         ostringstream ret;
         ret << first << "-" << ( first + count - 1 );
         return ret.str();
@@ -111,8 +127,48 @@ private:
 
 ////////////////////////////////// BlobMatchIterator
 
-BlobMatchIterator :: BlobMatchIterator ( SearchBlock :: Factory& p_factory, const std::string& p_accession )
-:   MatchIterator ( p_factory, p_accession ),
+// bound to a single blob
+class BlobMatchIterator : public MatchIterator
+{   // returns one blob only
+public:
+    BlobMatchIterator ( const SearchBlock :: Factory &  p_factory,
+                        const std :: string &           p_accession,
+                        KLock *                         p_lock,
+                        FragmentBlob                    p_blob )
+    :   MatchIterator ( p_factory, p_accession ),
+        m_buffer ( new BlobSearchBuffer ( m_factory . MakeSearchBlock(), m_accession, p_lock, p_blob ) )
+    {
+    }
+
+    ~ BlobMatchIterator ()
+    {
+        delete m_buffer;
+    }
+
+    virtual SearchBuffer :: Match * NextMatch ()
+    {
+        SearchBuffer :: Match * ret = 0;
+        if ( m_buffer != 0 )
+        {
+            ret = m_buffer -> NextMatch ();
+            if ( ret == 0 )
+            {
+                delete m_buffer;
+                m_buffer = 0;
+            }
+        }
+        return ret;
+    }
+
+private:
+    SearchBuffer * m_buffer;
+};
+
+////////////////////////////////// BlobSearch
+
+BlobSearch :: BlobSearch ( const SearchBlock :: Factory & p_factory, const std :: string & p_accession )
+:   m_factory ( p_factory ),
+    m_accession ( p_accession ),
     m_coll ( NGS_VDB :: openVdbReadCollection ( p_accession ) ),
     m_blobIt ( m_coll . getFragmentBlobs() )
 {
@@ -123,21 +179,22 @@ BlobMatchIterator :: BlobMatchIterator ( SearchBlock :: Factory& p_factory, cons
     }
 }
 
-BlobMatchIterator :: ~BlobMatchIterator ()
+BlobSearch :: ~ BlobSearch ()
 {
     KLockRelease ( m_accessionLock );
 }
 
-SearchBuffer*
-BlobMatchIterator :: NextBuffer ()
-{
+MatchIterator *
+BlobSearch :: NextIterator ()
+{   // return single blob iterators
+    MatchIterator * ret = 0;
     KLockAcquire ( m_accessionLock );
-    SearchBuffer* ret = 0;
     if ( m_blobIt . hasMore () )
     {
-        ret =  new BlobSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_accessionLock, m_blobIt . nextBlob () );
+        ret = new BlobMatchIterator ( m_factory, m_accession, m_accessionLock, m_blobIt . nextBlob () );
     }
     KLockUnlock ( m_accessionLock );
     return ret;
 }
+
 

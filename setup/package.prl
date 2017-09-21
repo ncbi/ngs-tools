@@ -7,8 +7,8 @@ sub CONFIG_OUT   { 'build' }
 sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             LOCOUT=> '../../OUTDIR',
-            PATH  => '/usr/local/ncbi/sra-tools',
-            UPATH =>      '$HOME/ncbi/sra-tools', ) }
+            PATH  => '/usr/local/ncbi/ngs-tools',
+            UPATH =>      '$HOME/ncbi/ngs-tools', ) }
 sub DEPENDS {()}
 sub REQ { (
             { name    => 'ngs-sdk',

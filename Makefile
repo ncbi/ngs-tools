@@ -22,50 +22,5 @@
 #
 # ===========================================================================
 
-default all std: cmake
-
-#-------------------------------------------------------------------------------
-# environment
-#
 TOP ?= $(CURDIR)
 include $(TOP)/build/Makefile.env
-
-test runtests: ctest
-
-.PHONY: default std all test runtests
-
-#-------------------------------------------------------------------------------
-# std
-#
-clean: stdclean
-	@ -rm -rf $(ILIBDIR) $(BINDIR) $(TOP)/build/cmake/$(CMAKE_BUILD)
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# install
-#
-install: cinstall
-
-uninstall:
-
-.PHONY: install uninstall
-
-#-------------------------------------------------------------------------------
-# configuration help
-#
-help configure:
-	@ echo "Before initial build, run './configure --build-prefix=<out>' from"
-	@ echo "the project root to set the output directory of your builds."
-	@ echo "Run ./configure -h for full description."
-	@ echo
-	@ echo "Targets:"
-	@ echo "all, std        : full build"
-	@ echo "clean           : remove build results"
-	@ echo "test, runtests  : build and run tests"
-	@ echo "                  to control which tests are executed, use 'make test CTEST=<any part of a test's name>"
-	@ echo "                  e.g. 'make test CTEST=Slow' will run all tests with 'Slow' in their name"
-	@ echo "install         : build, install to $(INST_BINDIR)"
-	@ echo
-
-.PHONY: help configure

@@ -48,7 +48,7 @@ namespace ncbi
 
                 // C++ support
 
-                VdbAlignment ( :: ngs :: Alignment dad )
+                VdbAlignment ( const :: ngs :: Alignment & dad )
                     throw ();
 
                 ~ VdbAlignment ()

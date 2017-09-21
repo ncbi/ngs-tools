@@ -27,42 +27,42 @@
 #ifndef _hpp_reference_match_iterator_
 #define _hpp_reference_match_iterator_
 
-#include <vector>
 #include <set>
 
-#include <ngs/ReadCollection.hpp>
+#include "searchblock.hpp"
+#include "referencespec.hpp"
+#include "threadablesearch.hpp"
 #include "fragmentmatchiterator.hpp"
 
-#include "referencespec.hpp"
+struct KLock;
 
-class ReferenceMatchIterator : public MatchIterator
+// searches reference by reference
+// each iterator returned by NextIterator() is bound to a single reference
+class ReferenceSearch : public ThreadableSearch
 {
 public:
-    typedef std :: vector < std :: string > ReferenceNames;
     typedef std :: set < std :: string > ReportedFragments;
 
 public:
-    ReferenceMatchIterator ( SearchBlock :: Factory&    p_factory,
-                             const std :: string&       p_accession,
-                             const ReferenceSpecs&      p_references = ReferenceSpecs(),
-                             bool                       p_blobSearch = false );
+    ReferenceSearch ( SearchBlock :: Factory &   p_factory,
+                      const std :: string &      p_accession,
+                      const ReferenceSpecs &     p_references = ReferenceSpecs(),
+                      bool                       p_blobSearch = false );
 
-    virtual ~ReferenceMatchIterator ();
+    virtual ~ ReferenceSearch ();
 
-    virtual SearchBuffer* NextBuffer ();
+    virtual MatchIterator * NextIterator ();
 
 private:
-    ngs :: ReadCollection   m_run;
-
-    ReferenceSpecs  m_references;
-    bool            m_blobSearch;
-
+    SearchBlock :: Factory &            m_factory;
+    ngs :: ReadCollection               m_run;
+    ReferenceSpecs                      m_references;
     ReferenceSpecs :: const_iterator    m_refIt;
 
-    FragmentMatchIterator   m_unalignedReadIt;
+    struct KLock*           m_accessionLock;
+    ReportedFragments       m_reported; // used to eliminate double reports
+    bool                    m_blobSearch;
     bool                    m_unalignedDone;
-
-    ReportedFragments m_reported; // used to eliminate double reports
 };
 
 #endif
