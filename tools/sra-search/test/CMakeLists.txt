@@ -40,7 +40,7 @@ add_test ( NAME SlowTest_SraSearchWhiteBox COMMAND test-sra-search )
 if ( NOT WIN32)
 	set ( SRA_SEARCH  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/sra-search )
 
-    # NB. Slow tests have to have "Slow" in the name; run without: "ctest -E Slow", run only: "ctest -R Slow"
+    # NB. Slow (run time > 1m) tests should names that start with "SlowTest_"; run without: "ctest -E SlowTest_", run only: "ctest -R SlowTest_"
 
 	# help
 	add_test ( NAME SraSearch-1.0-h WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh

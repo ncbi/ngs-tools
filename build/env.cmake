@@ -28,8 +28,7 @@ if (UNIX)
     set ( VDB_LIBDIR  ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
     set ( SRATOOLS_BINDIR ${HOME}/ncbi-outdir/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
-
-    set ( NGSTOOLS_OUTDIR ${HOME}/ncbi-outdir/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD} )
+    set ( NGSTOOLS_OUTDIR ${HOME}/ncbi-outdir/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}        CACHE PATH "ngs-tools output directory" )
 
 elseif (WIN32)
 
@@ -53,21 +52,21 @@ elseif (WIN32)
     set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
     set ( SRATOOLS_BINDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
+    set ( NGSTOOLS_OUTDIR ${CMAKE_BINARY_DIR}                                                                                   CACHE PATH "ngs-tools output directory")
 
-    set ( NGSTOOLS_OUTDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/ )
-
-endif()
-
-if ( NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY )
-    set ( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/bin )
-endif()
-if ( NOT DEFINED  CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-    set ( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/ilib )
 endif()
 
 #/////////////////////////////////////////////////////////////////////////////////////////////
 
 if (UNIX)
+
+    # default executables and libaries output directories
+    if ( NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY )
+        set ( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/bin )
+    endif()
+    if ( NOT DEFINED  CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+        set ( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/ilib )
+    endif()
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.6 -stdlib=libstdc++" )
@@ -93,11 +92,17 @@ if (UNIX)
     set ( CPACK_GENERATOR "RPM;DEB;TGZ;" )
 
 elseif (WIN32)
+    if ( NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY )
+        set ( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM} )
+    endif()
+    if ( NOT DEFINED  CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+        set ( CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM} )
+    endif()
     # Work configuration name into the NGSTOOLS_OUTDIR path; we do not want CMake to add /Debug|/Release at the end
-    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/Debug/bin)
-    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/Release/bin)
-    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/Debug/ilib)
-    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/Release/ilib)
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Debug/bin)
+    SET( CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Release/bin)
+    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Debug/ilib)
+    SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Release/ilib)
 
     include_directories ("${NGS_INCDIR}/win")
 
