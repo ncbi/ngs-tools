@@ -22,25 +22,7 @@
 #
 # ===========================================================================
 
-default all std: cmake
-
-#-------------------------------------------------------------------------------
-# environment
-#
 TOP ?= $(abspath ../../..)
 MODULE = libs/general-writer/src
 
 include $(TOP)/build/Makefile.env
-
-test runtests: ctest
-
-.PHONY: default std all test runtests
-
-#-------------------------------------------------------------------------------
-# std
-#
-clean: stdclean
-
-.PHONY: clean
-
-

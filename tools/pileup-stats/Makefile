@@ -22,25 +22,6 @@
 #
 # ===========================================================================
 
-default all std: cmake
-
-#-------------------------------------------------------------------------------
-# environment
-#
 TOP ?= $(abspath ../..)
 MODULE = tools/pileup-stats
-
 include $(TOP)/build/Makefile.env
-
-test runtests: ctest
-
-.PHONY: default std all test runtests
-
-#-------------------------------------------------------------------------------
-# std
-#
-clean: stdclean
-
-.PHONY: clean
-
-
