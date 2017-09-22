@@ -4,4 +4,4 @@ target_link_libraries ( fastrq-dump
 	${SYS_LIBRARIES}
 )
 
-install ( TARGETS fastrq-dump RUNTIME DESTINATION bin )
+links_and_install ( fastrq-dump )

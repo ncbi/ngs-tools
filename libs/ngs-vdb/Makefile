@@ -22,25 +22,9 @@
 #
 # ===========================================================================
 
-default all std: cmake
-
-#-------------------------------------------------------------------------------
-# environment
-#
 TOP ?= $(abspath ../..)
 MODULE = libs/ngs-vdb
 
 include $(TOP)/build/Makefile.env
-
-test runtests: ctest
-
-.PHONY: default std all test runtests
-
-#-------------------------------------------------------------------------------
-# std
-#
-clean: stdclean
-
-.PHONY: clean
 
 

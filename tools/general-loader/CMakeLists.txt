@@ -18,6 +18,6 @@ target_link_libraries ( general-loader
 	${SYS_LIBRARIES}
 )
 
-install ( TARGETS general-loader RUNTIME DESTINATION bin )
+links_and_install ( general-loader )
 
 add_subdirectory ( test )

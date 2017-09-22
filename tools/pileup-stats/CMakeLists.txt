@@ -14,6 +14,6 @@ target_link_libraries ( pileup-stats
 	${SYS_LIBRARIES}
 )
 
-install ( TARGETS pileup-stats RUNTIME DESTINATION bin )
+links_and_install ( pileup-stats )
 
 add_subdirectory ( test )
