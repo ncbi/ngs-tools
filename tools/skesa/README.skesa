@@ -11,10 +11,25 @@ I.  INSTALLATION
 
     For checking out and compiling SKESA, do
 
+     $ apt-get update # or yum, etc.
+     $ apt-get install -y git gcc g++ make libboost-all-dev
+  
+     $ git clone https://github.com/ncbi/ncbi-vdb.git
+     $ git clone https://github.com/ncbi/ngs.git
+  
+     $ ( cd ngs ; ./configure ; make ; make install )
+     $ ( cd ncbi-vdb ; ./configure ; make ; make install )
+
      $ git clone https://github.com/ncbi/ngs-tools.git
-     $ cd ngs-tools/tools/skesa/build
-     $ cmake ..
-     $ make
+     $ cd ngs-tools
+     $ ./configure
+
+     $ git checkout skesa
+     $ cd tools/skesa
+     $ export BOOST_LIBPATH=/usr/lib/x86_64-linux-gnu
+     $ export NGS_LIBPATH=/usr/local/ngs/ngs-sdk/lib64
+     $ export NCBI_LIBPATH=/usr/local/ncbi/ncbi-vdb/lib64
+     $ make skesa
 
 ======================================================================
 II. SYNOPSIS
