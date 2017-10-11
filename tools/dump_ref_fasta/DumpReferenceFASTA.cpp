@@ -223,7 +223,7 @@ static void print_help ( void )
 
 static void print_version ( void )
 {
-    cout << "dump-ref-fata : 2.8.0" << endl;
+    cout << "dump-ref-fata : 2.9.0" << endl;
 }
 
 

@@ -22,25 +22,9 @@
 #
 # ===========================================================================
 
-default all std: cmake
-
-#-------------------------------------------------------------------------------
-# environment
-#
 TOP ?= $(abspath ../..)
 MODULE = tools/tax
-
 include $(TOP)/build/Makefile.env
 
-test runtests check: ctest
-
-.PHONY: default std all test runtests
-
-#-------------------------------------------------------------------------------
-# std
-#
-clean: stdclean
-
-.PHONY: clean
 
 
