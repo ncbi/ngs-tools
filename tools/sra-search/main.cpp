@@ -214,7 +214,7 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-V"  || arg == "--version" )
             {
-                cout << endl << argv [0] << "." << NGSTOOLS_VERSION << endl;
+                cout << endl << argv [0] << " : " << NGSTOOLS_VERSION << endl;
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
