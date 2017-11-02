@@ -215,7 +215,7 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-V"  || arg == "--version" )
             {
-                cout << endl << argv [0] << "."
+                cout << endl << argv [0] << " : "
                              << VersionGetMajor ( TOOLKIT_VERS ) << "."
                              << VersionGetMinor ( TOOLKIT_VERS ) << "."
                              << VersionGetRelease ( TOOLKIT_VERS )
