@@ -32,6 +32,7 @@
 
 #include <strtol.h>
 
+#include <tk-version/inc/toolkit.vers.h>
 #include "vdb-search.hpp"
 
 using namespace std;
@@ -214,7 +215,8 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-V"  || arg == "--version" )
             {
-                cout << endl << argv [0] << "." << NGSTOOLS_VERSION << endl;
+                ver_t vers = TOOLKIT_VERS;
+                cout << endl << argv [0] << "." << vers << endl;
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
