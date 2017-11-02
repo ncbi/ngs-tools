@@ -215,8 +215,11 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-V"  || arg == "--version" )
             {
-                ver_t vers = TOOLKIT_VERS;
-                cout << endl << argv [0] << "." << vers << endl;
+                cout << endl << argv [0] << "."
+                             << VersionGetMajor ( TOOLKIT_VERS ) << "."
+                             << VersionGetMinor ( TOOLKIT_VERS ) << "."
+                             << VersionGetRelease ( TOOLKIT_VERS )
+                             << endl;
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )

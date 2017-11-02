@@ -58,8 +58,6 @@ endif()
 
 #/////////////////////////////////////////////////////////////////////////////////////////////
 
-set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNGSTOOLS_VERSION=\\\"${VERSION}\\\"" )
-
 if (UNIX)
 
     # default executables and libaries output directories
