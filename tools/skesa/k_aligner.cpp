@@ -35,9 +35,9 @@
 #include <thread>
 #include <string>
 #include <deque>
+#include <forward_list>
 
 #include "glb_align.hpp"
-#include "DBGraph.hpp"
 #include "concurrenthash.hpp"
 #include "ngs_includes.hpp"
 
@@ -61,13 +61,19 @@ using namespace ngs;
 typedef vector<char> TSeqV;
 typedef pair<string, TSeqV> TSeq;
 typedef list<TSeq> TSeqHolder;
-typedef pair<int, const TSeq*> TKmerPos;
+
+typedef pair<string, SAtomic<unsigned>> TCnt;
+typedef CForwardList<TCnt> TCounter;
+typedef vector<TCounter> TCounterV;
+typedef tuple<string, TSeqV, TCounterV> TGenomeSeq;
+typedef list<TGenomeSeq> TGenomeHolder;
+typedef pair<int, TGenomeSeq*> TKmerPos;
 typedef CForwardList<TKmerPos> TKmerLocations;
 
 class CKmerLocationsHash : public CKmerHashMap<TKmerLocations, 8> {
 public:
     CKmerLocationsHash(int kmer_len, size_t size) : CKmerHashMap(kmer_len, size) {}
-    void Insert(const TKmer& kmer, int pos, const TSeq* contigp) {
+    void Insert(const TKmer& kmer, int pos, TGenomeSeq* contigp) {
         size_t index = kmer.oahash()%m_table_size;
         FindOrInsertInBucket(kmer, index)->PushFront(TKmerPos(pos,contigp));
     }
@@ -83,7 +89,8 @@ struct SAlignParams{
         m_min_compart = (int)(m_word_size*argm["min_compart"].as<double>()+0.5);
         m_entropy_level = argm["entropy"].as<double>();
         m_coverage = argm["coverage"].as<double>();
-        m_sra_run = argm["sra_run"].as<string>();
+        if(argm.count("sra_run"))
+            m_sra_run = argm["sra_run"].as<string>();
     }
 
     int m_word_size;
@@ -397,17 +404,37 @@ Iterator FirstACGT(Iterator b, Iterator e) { return  find_if(b, e, [](char c){re
 template <typename Iterator>
 Iterator FirstNotACGT(Iterator b, Iterator e) { return  find_if(b, e, [](char c){return c!='A' && c!= 'C' && c!='G' && c!='T';}); }
 
-/*
-template <typename Seq>
-typename Seq::iterator FirstACGT(Seq& seq, typename Seq::iterator l, int len = numeric_limits<int>::max()) { 
-    return  find_if(l, min(seq.end(), l+len), [](char c){return c=='A' || c== 'C' || c=='G' || c=='T';}); 
+void IncrementCount(TCounterV& counts, const TCharAlign& align, int cstart) {
+    for(int i = 0; i < (int)align.first.size(); ++cstart) {
+        string s(1,align.first[i++]);
+        for( ; i < (int)align.first.size() && align.second[i] == '-'; ++i)
+            s.push_back(align.first[i]);                                        
+        
+        TCounter& lst = counts[cstart];                                
+        auto existing_head = lst.Head();
+        bool found = false;
+        for(auto p = existing_head; p != nullptr; p = p->m_next) {
+            if(p->m_data.first == s) {
+                ++p->m_data.second.m_atomic;
+                found = true;
+            }
+        }
+        if(!found) {
+            TCounter::SNode* nodep = new TCounter::SNode;
+            nodep->m_data = make_pair(s, 1);
+            nodep->m_next = existing_head;
+            while(!found && !lst.TryPushFront(nodep)) {
+                for(auto p = nodep->m_next; !found && p != existing_head; p = p->m_next) {
+                    if(p->m_data.first == s) {
+                        delete nodep;
+                        ++p->m_data.second.m_atomic;
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
 }
-
-template <typename Seq>
-typename Seq::iterator FirstNotACGT(Seq& seq, typename Seq::iterator l, int len = numeric_limits<int>::max()) { 
-    return  find_if(l, min(seq.end(), l+len), [](char c){return c!='A' && c!= 'C' && c!='G' && c!='T';}); 
-}
-*/
 
 void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, const SAlignParams& align_params, SAlignRslt& align_rslts) {
     int word_size = align_params.m_word_size;
@@ -427,11 +454,11 @@ void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, cons
     out.push(snk);
 
     for(auto& read : reads) {
-        string read_acc = sra_run+"."+read.first;
+        string read_acc = (sra_run.empty() ? "" : sra_run+".")+read.first;
         auto read_seq = read.second; // copy
         int read_length = read_seq.size();
         for(int strand = 1; strand >= -1; strand -= 2) {
-            unordered_map<const TSeq*, CHitsHolder> contig_hits;
+            unordered_map<TGenomeSeq*, CHitsHolder> contig_hits;
             for(auto left = FirstACGT(read_seq.begin(), read_seq.end()); left != read_seq.end(); ) {
                 auto right = FirstNotACGT(left+1, read_seq.end());
                 unsigned len = right-left;
@@ -456,8 +483,9 @@ void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, cons
                         
             for(auto& ch : contig_hits) {
                 auto& contig = ch.first;
-                auto& contig_acc = contig->first;
-                auto& contig_seq = contig->second;
+                auto& contig_acc = get<0>(*contig);
+                auto& contig_seq = get<1>(*contig);
+                auto& counts = get<2>(*contig);
                 int contig_length = contig_seq.size();
 
                 list<CCompartment> compartments;
@@ -526,6 +554,9 @@ void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, cons
                                     out << c;                                        
                                 out << "\t*\tNM:i:" << dist << endl; 
                                 ++align_rslts.m_alignments;
+
+                                if(!counts.empty())
+                                    IncrementCount(counts, cigar.ToAlign(read_seq.data(), contig_seq.data()), cstart);
                             }
 
                             continue;
@@ -571,10 +602,13 @@ void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, cons
                         out << read_acc << '\t' << (strand > 0 ? 0 : 16) << '\t' << contig_acc << '\t' << cstart+1 << '\t' << 255 << '\t' << cigar.CigarString(0, read_length) << "\t*\t0\t0\t";
                         for(char c : read_seq)
                             out << c;                                        
-                        out << "\t*\tNM:i:" << dist << endl;                                                             
-                    }                                    
-                }                
-            }                        
+                        out << "\t*\tNM:i:" << dist << endl;  
+                                                           
+                        if(!counts.empty())
+                            IncrementCount(counts, cigar.ToAlign(read_seq.data(), contig_seq.data()), cstart);
+                    }
+                }                                    
+            }                                                
 
             ReverseComplementSeq(read_seq.begin(), read_seq.end());
         }
@@ -584,24 +618,24 @@ void GetAlignsJob(const TSeqHolder& reads, CKmerLocationsHash& contig_hash, cons
     out.pop();
 }
 
-typedef tuple<TSeq*,size_t,size_t> TContigChunk;
+typedef tuple<TGenomeSeq*,size_t,size_t> TContigChunk;
 typedef list<TContigChunk> THashJob;
 
-void ContigHashInputs(int word, size_t job_length,  TSeqHolder& contigs, list<THashJob>& job_inputs) {
+void ContigHashInputs(int word, size_t job_length,  TGenomeHolder& contigs, list<THashJob>& job_inputs) {
     size_t assigned_length_from_contig = 0;
     for(auto it = contigs.begin(); it != contigs.end(); ) {
         job_inputs.emplace_back();
         size_t current_job_length = 0;
         while(current_job_length < job_length && it != contigs.end()) {
-            size_t max_chunk = it->second.size() - assigned_length_from_contig;
+            size_t max_chunk = get<1>(*it).size() - assigned_length_from_contig;
             if(current_job_length + max_chunk <= job_length) {  // the rest of the file could be assigned           
-                job_inputs.back().emplace_back(&(*it), assigned_length_from_contig, it->second.size()-1);
+                job_inputs.back().emplace_back(&(*it), assigned_length_from_contig, get<1>(*it).size()-1);
                 current_job_length += max_chunk;
                 ++it;
                 assigned_length_from_contig = 0;
             } else {   // something left for another job            
                 size_t chunk = job_length - current_job_length;
-                size_t right_with_extra = min(it->second.size()-1, assigned_length_from_contig+chunk-1+word-1);
+                size_t right_with_extra = min(get<1>(*it).size()-1, assigned_length_from_contig+chunk-1+word-1);
                 job_inputs.back().emplace_back( &(*it), assigned_length_from_contig, right_with_extra);
                 assigned_length_from_contig += chunk;
                 current_job_length = job_length;
@@ -610,10 +644,10 @@ void ContigHashInputs(int word, size_t job_length,  TSeqHolder& contigs, list<TH
     }
 }
 
-void ContigHashJob(CKmerLocationsHash& kmer_locations, TSeqHolder& contigs, THashJob& job, int word_size, double entropy_level) {
+void ContigHashJob(CKmerLocationsHash& kmer_locations, TGenomeHolder& contigs, THashJob& job, int word_size, double entropy_level) {
     for(auto& chunk : job) {
         auto& contig = *get<0>(chunk);
-        auto& seq = contig.second;
+        auto& seq = get<1>(contig);
         auto end = seq.begin()+get<2>(chunk)+1;
         for(auto left = FirstACGT(seq.begin()+get<1>(chunk), end); left < end; ) {
             auto right = FirstNotACGT(left+1, end);
@@ -650,8 +684,10 @@ int main(int argc, const char* argv[]) {
     options_description input("Input/output");
     input.add_options()
         ("sra_run", value<string>(), "Input sra run accession [string]")
-        ("fasta", value<string>(), "Input fasta for (contigs) [string]")
-        ("out", value<string>(), "Output file (will be gzipped, suffix gz added) [string]");
+        ("fasta", value<string>(), "Input fasta for reads [string]")
+        ("contigs", value<string>(), "Input fasta for contigs [string]")
+        ("out", value<string>(), "Output file (will be gzipped, suffix gz added) [string]")
+        ("consensus", value<string>(), "Output file consensus data [string]");
 
     options_description word_params("Parameters for finding words");
     word_params.add_options()
@@ -691,20 +727,20 @@ int main(int argc, const char* argv[]) {
             return 0;
         }
 
-        if(!argm.count("sra_run")) {
-            cerr << "Provide read run" << endl;
+        if(!argm.count("sra_run") && !argm.count("fasta")) {
+            cerr << "Provide reads" << endl;
             cerr << all << "\n";
             return 1;
         }
 
-        if(!argm.count("fasta")) {
+        if(!argm.count("contigs")) {
             cerr << "Provide some input contigs" << endl;
             cerr << all << "\n";
             return 1;
         }
 
         if(!argm.count("out")) {
-            cerr << "Provide outpur file" << endl;
+            cerr << "Provide output file" << endl;
             cerr << all << "\n";
             return 1;
         }
@@ -725,7 +761,48 @@ int main(int argc, const char* argv[]) {
         SAlignParams align_params(argm);
 
         list<TSeqHolder> read_chunks;
-        {
+
+        //read fasta reads
+        if(argm.count("fasta")) {
+            cerr << "Getting reads from fasta..." << endl;
+            CStopWatch sw;
+            sw.Restart();
+            TSeqHolder reads;
+            ifstream fasta(argm["fasta"].as<string>());
+            if(!fasta.is_open()) {
+                cerr << "Can't open file " << argm["fasta"].as<string>() << endl;
+                return 1;             
+            }
+            char c;
+            if(!(fasta >> c) || c != '>')
+                throw runtime_error("Invalid fasta file format for reads");
+            string record;
+            while(getline(fasta, record, '>')) {
+                size_t first_ret = min(record.size(),record.find('\n'));
+                if(first_ret == string::npos)
+                    throw runtime_error("Invalid fasta file format for reads");
+                string acc = record.substr(0, first_ret);
+                acc = acc.substr(0, acc.find_first_of(" \t"));
+                string read = record.substr(first_ret+1);
+                read.erase(remove(read.begin(),read.end(),'\n'),read.end());
+                for(char& c : read) c = toupper(c);
+                reads.push_back(TSeq(acc, TSeqV(read.begin(), read.end())));
+            }
+            size_t total = reads.size();
+            size_t job_length = total/ncores+1;
+            size_t remaining = total;
+            while(!reads.empty()) {
+                read_chunks.emplace_back();
+                size_t chunk = min(job_length, remaining);
+                read_chunks.back().splice(read_chunks.back().end(), reads, reads.begin(), next(reads.begin(), chunk));
+                remaining -= chunk;;
+            }
+
+            cerr << "Reads from fasta acquired in " << sw.Elapsed() << endl;
+        }
+
+        
+        if(argm.count("sra_run")) {
             cerr << "Getting reads from SRA..." << endl;
             CStopWatch sw;
             sw.Restart();
@@ -742,26 +819,25 @@ int main(int argc, const char* argv[]) {
                 from = to+1;
             }
             RunThreads(ncores, jobs);
-                        
-            size_t total = 0;
-            for(auto& lst : read_chunks)
-                total += lst.size();            
 
-            cerr << "Reads: " << total << endl;
-            cerr << "Acquired in " << sw.Elapsed() << endl;
+            cerr << "Reads from SRA acquired in " << sw.Elapsed() << endl;
         }
+                                
+        size_t total = 0;
+        for(auto& lst : read_chunks)
+            total += lst.size();            
+        cerr << "Reads: " << total << endl;
 
-        
-        TSeqHolder contigs;
+        TGenomeHolder contigs;
         size_t total_len = 0;
 
         //read fasta
         {
             CStopWatch sw;
             sw.Restart();
-            ifstream fasta(argm["fasta"].as<string>());
+            ifstream fasta(argm["contigs"].as<string>());
             if(!fasta.is_open()) {
-                cerr << "Can't open file " << argm["fasta"].as<string>() << endl;
+                cerr << "Can't open file " << argm["contigs"].as<string>() << endl;
                 return 1;             
             }
             char c;
@@ -777,7 +853,12 @@ int main(int argc, const char* argv[]) {
                 string contig = record.substr(first_ret+1);
                 contig.erase(remove(contig.begin(),contig.end(),'\n'),contig.end());
                 for(char& c : contig) c = toupper(c);
-                contigs.push_back(make_pair(acc, TSeqV(contig.begin(), contig.end())));
+                //                contigs.push_back(make_tuple(acc, TSeqV(contig.begin(), contig.end())), TCounterV());
+                contigs.emplace_back();
+                get<0>(contigs.back()) = acc;
+                get<1>(contigs.back()).insert(get<1>(contigs.back()).end(), contig.begin(), contig.end());
+                if(argm.count("consensus"))
+                    get<2>(contigs.back()).resize(contig.size());
                 total_len += contig.size();
             }
             cerr << "Contigs: " << contigs.size() << endl;
@@ -796,11 +877,6 @@ int main(int argc, const char* argv[]) {
 
             list<function<void()>> jobs;
             for(auto& job_input : job_inputs) {
-                /*
-                cerr << "Job" << endl;
-                for(auto chunk : job_input)
-                    cerr << get<0>(chunk) << " " << get<1>(chunk) << " " << get<2>(chunk) << endl;
-                */
                 jobs.push_back(bind(ContigHashJob, ref(kmer_locations), ref(contigs), ref(job_input), align_params.m_word_size, align_params.m_entropy_level)); 
             }
                 
@@ -851,6 +927,28 @@ int main(int argc, const char* argv[]) {
                         copy(is, out);                
                     }
                 }
+
+                if(argm.count("consensus")) {
+                    ofstream cons_out(argm["consensus"].as<string>());
+                    if(!cons_out.is_open()) {
+                        cerr << "Can't open file " << argm["consensus"].as<string>() << endl;
+                        return 1;             
+                    }
+                    for(auto& contig : contigs) {
+                        string& acc = get<0>(contig);
+                        auto& seq = get<1>(contig);
+                        auto& counts = get<2>(contig);
+                        for(unsigned pos = 0; pos < seq.size(); ++pos) {
+                            cons_out << acc << '\t' << pos+1 << '\t' << seq[pos];
+                            vector<TCnt> sorted(counts[pos].begin(), counts[pos].end());
+                            sort(sorted.begin(), sorted.end(), [](const TCnt& a, const TCnt b) { if(a.second == b.second) return a.first < b.first; else return a.second > b.second; });
+                            for(auto& cnt : sorted)
+                                cons_out << '\t' << cnt.first << ':' << cnt.second.Load();
+                            cons_out << endl;
+                        }
+                    }
+                }
+
                 cerr << "Output in " << sw.Elapsed() << endl;
             } else {
                 cerr << "No alignments found" << endl;

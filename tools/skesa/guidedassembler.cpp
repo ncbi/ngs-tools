@@ -36,49 +36,74 @@ using namespace boost::program_options;
 using namespace DeBruijn;
 using namespace std;
 
+typedef list<tuple<int, TRange, string>> TargetInfo;  // score, contig range, acc
+enum {eRedundant = 1, eLeftDeadEnd = 2, eRightDeadEnd = 4, eCircular = 8}; 
+struct SContigData {
+    int m_status = 0;
+    TargetInfo m_tinfo;
 
+    TRange TargetRange() const {
+        TRange target_range = get<1>(m_tinfo.front());
+        for(auto& inf : m_tinfo) {
+            target_range.first = min(target_range.first, get<1>(inf).first);
+            target_range.second = max(target_range.second, get<1>(inf).second);
+        }
+        return target_range;
+    }
+    string FastaDefLine() const {
+        string def;
+        for(auto& info : m_tinfo) {
+            int score = get<0>(info);
+            TRange range = get<1>(info);
+            string acc = get<2>(info);
+            if(info != m_tinfo.front())
+                def += " ";
+            def += acc+":"+to_string(range.first)+":"+to_string(range.second)+":"+to_string(score);
+        }
+        if(m_status&eCircular)
+            def += " Cir";
+        if(m_status&eLeftDeadEnd)
+            def += " LD";
+        if(m_status&eRightDeadEnd)
+            def += " RD";
+        return def;
+    }
+    bool operator<(const SContigData& a) const { return m_tinfo < a.m_tinfo; }
+};
+typedef map<string, SContigData> TContigs;
+
+template<class DBGraph>
 class CGuidedAssembler {
 public:
-    enum {eRedundant = 1, eLeftDeadEnd = 2, eRightDeadEnd = 4, eCircular = 8}; 
-    typedef list<tuple<int, TRange, string>> TargetInfo;  // score, contig range, acc
-    struct SContigData {
-        int m_status = 0;
-        TargetInfo m_tinfo;
+    typedef typename DBGraph::Node Node;
+    typedef typename DBGraph::Successor Successor;
+    using GraphDigger = CDBGraphDigger<DBGraph>;        
 
-        TRange TargetRange() const {
-            TRange target_range = get<1>(m_tinfo.front());
-            for(auto& inf : m_tinfo) {
-                target_range.first = min(target_range.first, get<1>(inf).first);
-                target_range.second = max(target_range.second, get<1>(inf).second);
-            }
-            return target_range;
-        }
-        string FastaDefLine() const {
-            string def;
-            for(auto& info : m_tinfo) {
-                int score = get<0>(info);
-                TRange range = get<1>(info);
-                string acc = get<2>(info);
-                if(info != m_tinfo.front())
-                    def += " ";
-                def += acc+":"+to_string(range.first)+":"+to_string(range.second)+":"+to_string(score);
-            }
-            if(m_status&eCircular)
-                def += " Cir";
-            if(m_status&eLeftDeadEnd)
-                def += " LD";
-            if(m_status&eRightDeadEnd)
-                def += " RD";
-            return def;
-        }
-        bool operator<(const SContigData& a) const { return m_tinfo < a.m_tinfo; }
-    };
-    typedef map<string, SContigData> TContigs;
+    template<typename... GraphArgs>
+    CGuidedAssembler(int kmer_len, int min_count, double fraction, int match, int mismatch, int gap_open, int gap_extend, int drop_off, int ncores, list<array<CReadHolder,2>>& raw_reads, ifstream& targets_in, GraphArgs... gargs) : 
+        m_kmer_len(kmer_len), m_min_count(min_count), m_match(match), m_mismatch(mismatch), m_gap_open(gap_open), m_gap_extend(gap_extend), m_drop_off(drop_off), m_delta(match, mismatch), m_ncores(ncores), m_raw_reads(raw_reads) {
 
-    CGuidedAssembler(int kmer_len, int min_count, double fraction, int memory, int match, int mismatch, int gap_open, int gap_extend, int drop_off, int ncores, list<array<CReadHolder,2>>& raw_reads, ifstream& targets_in) : 
-        m_kmer_len(kmer_len), m_match(match), m_mismatch(mismatch), m_gap_open(gap_open), m_gap_extend(gap_extend), m_drop_off(drop_off), m_delta(match, mismatch), 
-        m_ncores(ncores), m_raw_reads(raw_reads) {
+        m_graphp.reset(CreateGraph(gargs...));
+        Assemble(fraction, ncores, targets_in);
+    }
 
+    TContigs& Contigs() { return m_rslts; }
+    DBGraph& Graph() { return *m_graphp; }
+
+private:
+    template<typename... GraphArgs>
+    DBGraph* CreateGraph(GraphArgs... gargs) {
+        static_assert(sizeof(DBGraph) != sizeof(DBGraph), "Unknown specialization of CGuidedAssembler");
+    }
+
+    void Assemble(double fraction, int ncores, ifstream& targets_in) {
+
+        m_average_count = m_graphp->AverageCount();
+        cerr << "Average count: " << m_average_count << endl;
+
+        int jump = 50;
+        int low_count = m_min_count;
+        m_graphdiggerp.reset(new GraphDigger(*m_graphp, fraction, jump, low_count));
         
         //read fasta
         {
@@ -99,40 +124,20 @@ public:
             }
         }
 
-        int64_t GB = 1000000000;
-        int jump = 50;
-        int low_count = min_count;
-        {
-            CKmerCounter kmer_counter(m_raw_reads, m_kmer_len, min_count, true, GB*memory, m_ncores);
-            if(kmer_counter.Kmers().Size() == 0)
-                throw runtime_error("Insufficient coverage");
-            m_average_count = kmer_counter.AverageCount();
-            cerr << "Average count: " << m_average_count << endl;
-            kmer_counter.GetBranches();
-            TKmerCount& sorted_kmers = kmer_counter.Kmers();        
-            map<int,size_t> hist;
-            for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
-                ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically        
-            }
-            TBins bins(hist.begin(), hist.end());
-            m_graphp.reset(new CDBGraph(move(sorted_kmers), move(bins), true));
-            m_graphdiggerp.reset(new CDBGraphDigger(*m_graphp, fraction, jump, low_count));
-        }
 
         CStopWatch timer;
         timer.Restart();
         { // hash for kmers
             m_kmer_hash.resize(size_t(numeric_limits<uint16_t>::max())+1);
 
-            for(size_t index = 0; index < m_graphp->GraphSize(); ++index) {
-                CDBGraph::Node node = 2*(index+1);
-                const uint16_t* wordp = (uint16_t*)m_graphp->getPointer(node);  // points to the last 8 sybols of kmer stored in graph
-                m_kmer_hash[*wordp].emplace_front(node);  // LAST 8 symbols for forward kmer
+            for(auto it = m_graphp->Begin(); it != m_graphp->End(); ++it) {
+                const uint16_t* wordp = (uint16_t*)m_graphp->getPointer(it);  // points to the last 8 sybols of kmer stored in graph
+                m_kmer_hash[*wordp].emplace_front(it);  // LAST 8 symbols for forward kmer
                 uint16_t rev_word;
                 uint16_t* rev_wordp = &rev_word;
                 *(uint8_t*)rev_wordp = revcomp_4NT [*((uint8_t*)wordp+1)];
                 *((uint8_t*)rev_wordp+1) = revcomp_4NT [*(uint8_t*)wordp];
-                m_kmer_hash[*rev_wordp].emplace_front(m_graphp->ReverseComplement(node));  // FIRST 8 symbols for reversed kmer
+                m_kmer_hash[*rev_wordp].emplace_front(m_graphp->ReverseComplement(it));  // FIRST 8 symbols for reversed kmer
             }    
         }
         cerr << "Graph hash in " << timer.Elapsed();
@@ -177,7 +182,7 @@ public:
         {
             list<TContigs> clean_rslts_from_threads;
             list<function<void()>> jobs;
-            for(TContigs::iterator contigp = m_rslts.begin(); contigp != m_rslts.end(); ++contigp) {
+            for(typename TContigs::iterator contigp = m_rslts.begin(); contigp != m_rslts.end(); ++contigp) {
                 clean_rslts_from_threads.push_back(TContigs());
                 jobs.push_back(bind(&CGuidedAssembler::CleanContigJob, this, contigp, ref(clean_rslts_from_threads.back())));
             }
@@ -293,12 +298,7 @@ public:
         cerr << "Remove duplicates in " << timer.Elapsed();
     }
 
-    TContigs Contigs() const { return m_rslts; }
-    CDBGraph& Graph() { return *m_graphp; }
-
-private:
-
-    typedef forward_list<pair<TContigs::iterator, int>> TContigShifts;
+    typedef forward_list<pair<typename TContigs::iterator, int>> TContigShifts;
     typedef tuple<SAtomic<uint8_t>, deque<int>[2], TContigShifts> TUtilInfo; // centinel, kmers hash values(+/-), inheritance
     typedef map<string, TUtilInfo> TUtilMap;
 
@@ -575,13 +575,13 @@ private:
                         positions.remove_if([=](const THitPosition& hp) { return  get<2>(hp) == eRightComplete && get<1>(hp) == hit_right; });
                     } else {
                         TKmer rkmer(read.begin()+r-m_kmer_len, read.begin()+r);
-                        CDBGraph::Node rnode = m_graphp->GetNode(rkmer);
+                        Node rnode = m_graphp->GetNode(rkmer);
                         
                         remaining_len = 0;
                         while(remaining_len < rlen-r) {
-                            vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(rnode);
+                            vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(rnode);
                             char next_symbol = read[r+remaining_len];
-                            auto rslt = find_if(successors.begin(), successors.end(), [=](const CDBGraph::Successor& suc){return suc.m_nt == next_symbol;});
+                            auto rslt = find_if(successors.begin(), successors.end(), [=](const Successor& suc){return suc.m_nt == next_symbol;});
                             if(rslt != successors.end()) {
                                 ++remaining_len;
                                 rnode = rslt->m_node;
@@ -596,13 +596,13 @@ private:
                         string ambig = FromAmbiguousIUPAC[contig[p]];
                         if(ambig.find(read[r]) == string::npos) {
                             TKmer lkmer(read.begin()+r+1, read.begin()+r+m_kmer_len+1);
-                            CDBGraph::Node lnode = m_graphp->ReverseComplement(m_graphp->GetNode(lkmer));
+                            Node lnode = m_graphp->ReverseComplement(m_graphp->GetNode(lkmer));
 
                             remaining_len = 0;
                             while(remaining_len < r+1) {
-                                vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(lnode);
+                                vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(lnode);
                                 char next_symbol = Complement(read[r-remaining_len]);
-                                auto rslt = find_if(successors.begin(), successors.end(), [=](const CDBGraph::Successor& suc){return suc.m_nt == next_symbol;});
+                                auto rslt = find_if(successors.begin(), successors.end(), [=](const Successor& suc){return suc.m_nt == next_symbol;});
                                 if(rslt != successors.end()) {
                                     ++remaining_len;
                                     lnode = rslt->m_node;
@@ -859,7 +859,7 @@ private:
     }
 
        
-    void CleanContigJob(TContigs::iterator contigp, TContigs& rslt) {
+    void CleanContigJob(typename TContigs::iterator contigp, TContigs& rslt) {
         const string& contig = contigp->first;
         if((int)contig.size() < m_kmer_len) {
             rslt[contig] = contigp->second;
@@ -894,7 +894,7 @@ private:
         while(true) { // loop through all ambiguous symbols combinations
             CReadHolder rh(false);
             rh.PushBack(variant);
-            deque<CDBGraph::Node> nodes;
+            deque<Node> nodes;
             for(CReadHolder::kmer_iterator itk = rh.kbegin(m_kmer_len); itk != rh.kend(); ++itk)  // gives kmers in reverse order! 
                 nodes.push_front(m_graphp->GetNode(*itk));
 
@@ -967,8 +967,8 @@ private:
 
                     auto Successors = [&]() {
                         TKmer kmer(variant.begin()+to-m_kmer_len+1, variant.begin()+to+1);
-                        CDBGraph::Node node = m_graphp->GetNode(kmer); 
-                        vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
+                        Node node = m_graphp->GetNode(kmer); 
+                        vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
                         return successors;
                     };
 
@@ -993,7 +993,7 @@ private:
                         } else if(successors.size() > 1) {
                             double fraction = 0;
                             char next_symbol = variant[to+1];
-                            auto rslt = find_if(successors.begin(), successors.end(), [=](const CDBGraph::Successor& suc){return suc.m_nt == next_symbol;});
+                            auto rslt = find_if(successors.begin(), successors.end(), [=](const Successor& suc){return suc.m_nt == next_symbol;});
                             if(rslt != successors.end()) {
                                 fraction = m_graphp->Abundance(rslt->m_node);
                                 double total = 0;
@@ -1067,8 +1067,8 @@ private:
 
                     auto Successors = [&]() {
                         TKmer kmer(variant.begin()+to, variant.begin()+to+m_kmer_len);
-                        CDBGraph::Node node = m_graphp->ReverseComplement(m_graphp->GetNode(kmer)); 
-                        vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
+                        Node node = m_graphp->ReverseComplement(m_graphp->GetNode(kmer)); 
+                        vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
                         return successors;
                     };
 
@@ -1093,7 +1093,7 @@ private:
                         } else if(successors.size() > 1) {
                             double fraction = 0;
                             char next_symbol = Complement(variant[to-1]);
-                            auto rslt = find_if(successors.begin(), successors.end(), [=](const CDBGraph::Successor& suc){return suc.m_nt == next_symbol;});
+                            auto rslt = find_if(successors.begin(), successors.end(), [=](const Successor& suc){return suc.m_nt == next_symbol;});
                             if(rslt != successors.end()) {
                                 fraction = m_graphp->Abundance(rslt->m_node);
                                 double total = 0;
@@ -1292,7 +1292,7 @@ private:
 
             string contig = util_info.first;
             int contig_len = contig.size();
-            TContigs::iterator contig_it = m_rslts.find(contig);
+            typename TContigs::iterator contig_it = m_rslts.find(contig);
             SContigData& cdata = contig_it->second;
             int& status = cdata.m_status;
             TContigShifts& inherit = get<2>(util_info.second);
@@ -1404,23 +1404,23 @@ private:
         }
     }
 
-    pair<string, bool> ExtendToFirstFork(CDBGraph::Node node, unordered_set<size_t>& used_node_indexes) const {
+    pair<string, bool> ExtendToFirstFork(Node node, unordered_set<Node, typename Node::Hash>& used_node_indexes) const {
         string s;
         while(true) {
-            //            vector<CDBGraph::Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
-            vector<CDBGraph::Successor> successors = m_graphp->GetNodeSuccessors(node);
+            //            vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
+            vector<Successor> successors = m_graphp->GetNodeSuccessors(node);
             m_graphdiggerp->FilterNeighbors(successors, true);
             if(successors.empty())
                 return make_pair(s, true);                            
             if(successors.size() != 1)
                 return make_pair(s, false);
-            CDBGraph::Node rev_node = CDBGraph::ReverseComplement(successors[0].m_node);
-            vector<CDBGraph::Successor> predecessors = m_graphp->GetNodeSuccessors(rev_node);
+            Node rev_node = DBGraph::ReverseComplement(successors[0].m_node);
+            vector<Successor> predecessors = m_graphp->GetNodeSuccessors(rev_node);
             m_graphdiggerp->FilterNeighbors(predecessors, true);
 
             if(predecessors.size() == 1 && 
-               predecessors[0].m_node == CDBGraph::ReverseComplement(node) &&
-               used_node_indexes.insert(successors[0].m_node/2).second) { // good extension
+               predecessors[0].m_node == DBGraph::ReverseComplement(node) &&
+               used_node_indexes.insert(successors[0].m_node.DropStrand()).second) { // good extension
 
                 s.push_back(successors[0].m_nt);
                 node = successors[0].m_node;
@@ -1428,19 +1428,6 @@ private:
                 s.erase(s.end()-min((int)s.size(), m_graphp->KmerLen()-1), s.end()); // clip kmer-1 (which go into repeat) if possible
                 return make_pair(s, predecessors.empty());
             }
-            /*
-            if(predecessors.empty())
-                return make_pair(s, true);                            
-            if(predecessors.size() != 1 || predecessors[0].m_node != CDBGraph::ReverseComplement(node))
-                return make_pair(s, false);
-
-            node = successors[0].m_node;
-
-            if(used_node_indexes.insert(node/2).second) // insert index not node
-                s.push_back(successors[0].m_nt);
-            else
-                return make_pair(s, false); 
-            */           
         }
     }
     void AssemblerJob(TContigs& rslts) {
@@ -1451,7 +1438,7 @@ private:
 
             string& target = get<0>(item);
             string& acc = get<1>(item);
-            unordered_map<CDBGraph::Node, int> initial_target_kmers; // [node] position on target
+            unordered_map<Node, int, typename Node::Hash> initial_target_kmers; // [node] position on target
 
             for(int p = 0; p <= (int)target.size()-8; ++p) {
                 string seed = target.substr(p, 8); // last 8 symbols
@@ -1487,8 +1474,8 @@ private:
                     return _mm_popcnt_u64(w);  // count number set of bits == matches 
                 };
 
-                for(CDBGraph::Node node : m_kmer_hash[word]) {
-                    int dir = node%2;
+                for(const Node& node : m_kmer_hash[word]) {
+                    int dir = node.isMinus();
                     if(tkmerp[dir]) {                        
                         const uint64_t* targetp = tkmerp[dir]->getPointer();
                         const uint64_t* graphp = m_graphp->getPointer(node);
@@ -1507,16 +1494,16 @@ private:
             int all_max_score = 0;
 
             for(int dir = 0; dir < 2; ++dir) {
-                unordered_map<CDBGraph::Node, int> target_kmers(initial_target_kmers);
+                unordered_map<Node, int, typename Node::Hash> target_kmers(initial_target_kmers);
                 while(!target_kmers.empty()) {
-                    unordered_map<CDBGraph::Node, int>::iterator first_kmerp;
-                    typedef unordered_map<CDBGraph::Node, int>::value_type elem_t;
+                    typename unordered_map<Node, int, typename Node::Hash>::iterator first_kmerp;
+                    typedef typename unordered_map<Node, int, typename Node::Hash>::value_type elem_t;
                     if(dir == 0)
                         first_kmerp = min_element(target_kmers.begin(), target_kmers.end(), [](const elem_t& a, const elem_t& b) { return a.second < b.second; });
                     else
                         first_kmerp = min_element(target_kmers.begin(), target_kmers.end(), [](const elem_t& a, const elem_t& b) { return a.second > b.second; }); 
                     
-                    CDBGraph::Node initial_node = first_kmerp->first;
+                    Node initial_node = first_kmerp->first;
                     string kmer_seq = m_graphp->GetNodeSeq(initial_node);
                     int first_matching_kmer = first_kmerp->second;
                     int kmer_score = m_match*m_kmer_len;
@@ -1532,14 +1519,14 @@ private:
                     if(first_matching_kmer > 0) {
                         string left_target = target.substr(0, first_matching_kmer);
                         ReverseComplementSeq(left_target.begin(), left_target.end());
-                        CGudedPath extender(m_graphp->ReverseComplement(initial_node), left_target, *m_graphdiggerp, m_delta, m_gap_open, m_gap_extend, m_drop_off);
+                        CGudedPath<DBGraph> extender(m_graphp->ReverseComplement(initial_node), left_target, *m_graphdiggerp, m_delta, m_gap_open, m_gap_extend, m_drop_off);
                         while(extender.ProcessNextEdge()) {                    
                             if(dir == 1) {
-                                for(CDBGraph::Node n : extender.LastStepNodes())
+                                for(const Node& n : extender.LastStepNodes())
                                     target_kmers.erase(m_graphp->ReverseComplement(n));
                             }
                             if(extender.PathEnd()) {
-                                CGudedPath::SPathChunk rslt = extender.GetBestPart();
+                                typename CGudedPath<DBGraph>::SPathChunk rslt = extender.GetBestPart();
                                 ReverseComplementSeq(rslt.m_seq.begin(), rslt.m_seq.end());
                                 left_extensions.emplace_back(rslt.m_score, rslt.m_tlen, rslt.m_seq);
                                 if(left_extensions.size() > m_max_variants) {
@@ -1556,14 +1543,14 @@ private:
                     list<tuple<int,int,string>> right_extensions;
                     if(first_matching_kmer < (int)target.size()-m_kmer_len) {
                         string right_target =  target.substr(first_matching_kmer+m_kmer_len);  
-                        CGudedPath extender(initial_node, target.substr(first_matching_kmer+m_kmer_len), *m_graphdiggerp, m_delta, m_gap_open, m_gap_extend, m_drop_off);
+                        CGudedPath<DBGraph> extender(initial_node, target.substr(first_matching_kmer+m_kmer_len), *m_graphdiggerp, m_delta, m_gap_open, m_gap_extend, m_drop_off);
                         while(extender.ProcessNextEdge()) {
                             if(dir == 0) {
-                                for(CDBGraph::Node n : extender.LastStepNodes())
+                                for(const Node& n : extender.LastStepNodes())
                                     target_kmers.erase(n);
                             }
                             if(extender.PathEnd()) {
-                                CGudedPath::SPathChunk rslt = extender.GetBestPart();
+                                typename CGudedPath<DBGraph>::SPathChunk rslt = extender.GetBestPart();
                                 right_extensions.emplace_back(rslt.m_score, rslt.m_tlen, rslt.m_seq);
                                 if(right_extensions.size() > m_max_variants) {
                                     skip_kmer = true;
@@ -1597,7 +1584,7 @@ private:
                             all_max_score = max(all_max_score, score);
                             extension = extension.substr(cigar.QueryRange().first, cigar.QueryRange().second-cigar.QueryRange().first+1);
                             
-                            unordered_set<size_t> used_node_indexes;
+                            unordered_set<Node, typename Node::Hash> used_node_indexes;
                             {
                                 string ext_first(extension);
                                 for(char& c : ext_first)
@@ -1605,7 +1592,7 @@ private:
                                 CReadHolder rh(false);
                                 rh.PushBack(ext_first);
                                 for(CReadHolder::kmer_iterator itk = rh.kbegin(m_kmer_len); itk != rh.kend(); ++itk)
-                                    used_node_indexes.insert(m_graphp->GetNode(*itk)/2);   // insert index not node
+                                    used_node_indexes.insert(m_graphp->GetNode(*itk).DropStrand());   // insert index not node
                             }                                
 
                             int left_pos = 0;
@@ -1614,7 +1601,7 @@ private:
                             string right_kmer = extension.substr(extension.size()-m_kmer_len);
                             for(char& c : right_kmer)
                                 c = FromAmbiguousIUPAC[c].front();
-                            CDBGraph::Node right_node = m_graphp->GetNode(right_kmer);
+                            Node right_node = m_graphp->GetNode(right_kmer);
                             auto rslt = ExtendToFirstFork(right_node, used_node_indexes);
                             extension += rslt.first;
                             bool right_dead_end = rslt.second;
@@ -1622,7 +1609,7 @@ private:
                             string left_kmer = extension.substr(0, m_kmer_len);
                             for(char& c : left_kmer)
                                 c = FromAmbiguousIUPAC[c].front();
-                            CDBGraph::Node left_node = m_graphp->GetNode(left_kmer);
+                            Node left_node = m_graphp->GetNode(left_kmer);
                             rslt = ExtendToFirstFork(m_graphp->ReverseComplement(left_node), used_node_indexes);
                             bool left_dead_end = rslt.second;
                             string left_extra = rslt.first;
@@ -1660,7 +1647,7 @@ private:
         }               
     }
 
-    vector<forward_list<CDBGraph::Node>> m_kmer_hash;
+    vector<forward_list<Node>> m_kmer_hash;
 
     TSimpleHash m_reads_hash_table;
 
@@ -1669,9 +1656,10 @@ private:
 
     list<tuple<string,string,SAtomic<uint8_t>>> m_targets; // seq, accsession, centinel
     TContigs m_rslts;
-    unique_ptr<CDBGraphDigger> m_graphdiggerp;
-    unique_ptr<CDBGraph> m_graphp;
+    unique_ptr<GraphDigger> m_graphdiggerp;
+    unique_ptr<DBGraph> m_graphp;
     int m_kmer_len;
+    int m_min_count;
     int m_kmer_len_for_seeds;
     int m_match;
     int m_mismatch;
@@ -1686,6 +1674,119 @@ private:
 
 };
 
+template<> template<> // one for graph, the other for args
+CDBGraph* CGuidedAssembler<CDBGraph>::CreateGraph(int memory) {
+    int64_t GB = 1000000000;
+    CKmerCounter kmer_counter(m_raw_reads, m_kmer_len, m_min_count, true, GB*memory, m_ncores);
+    if(kmer_counter.Kmers().Size() == 0)
+        throw runtime_error("Insufficient coverage");
+    kmer_counter.GetBranches();
+    TKmerCount& sorted_kmers = kmer_counter.Kmers();        
+    map<int,size_t> hist;
+    for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
+        ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically        
+    }
+    TBins bins(hist.begin(), hist.end());
+    return new CDBGraph(move(sorted_kmers), move(bins), true);
+}
+
+template<> template<> // one for graph, the other for args
+CDBHashGraph* CGuidedAssembler<CDBHashGraph>::CreateGraph(int estimated_kmer_num, bool skip_bloom_filter) {
+    int64_t M = 1000000;
+    CKmerHashCounter  kmer_counter(m_raw_reads, m_kmer_len, m_min_count, M*estimated_kmer_num, true, m_ncores, skip_bloom_filter);
+    if(kmer_counter.KmerNum() == 0)
+        throw runtime_error("Insufficient coverage");
+    kmer_counter.GetBranches();
+    return new CDBHashGraph(move(kmer_counter.Kmers()), true);
+}
+
+template <class GAssembler>
+void PrintRslt(GAssembler& gassembler, ofstream& contigs_out, ofstream& profile_out) {
+    CStopWatch timer;
+    timer.Restart();
+
+    TContigs& rslts = gassembler.Contigs();
+    auto& graph = gassembler.Graph();
+    int kmer_len = graph.KmerLen();
+    int count = 0;
+    ostream& out = contigs_out.is_open() ? contigs_out : cout;
+    for(auto& rslt : rslts) {
+        const string& contig = rslt.first;
+        string acc = "Contig"+to_string(++count)+"_kmer"+to_string(kmer_len);
+        out << ">" << acc << " " << rslt.second.FastaDefLine() << "\n" << contig << endl;
+            
+        if(profile_out.is_open()) {
+            auto AbundanceForAllChoices = [&](const string& kmer) {
+                map<int,string> ambig_positions;
+                for(int i = 0; i < (int)kmer.size(); ++i) {
+                    string ambig = FromAmbiguousIUPAC[kmer[i]];
+                    if(ambig.size() > 1)
+                        ambig_positions[i] = ambig;
+                }
+
+                string variant = kmer;
+                stack<pair<int,char>> remaining_choices;
+                for(auto& pos_sympols : ambig_positions) {
+                    int ap = pos_sympols.first;
+                    string& ambig = pos_sympols.second;
+                    variant[ap] = ambig[0];
+                    for(unsigned i = 1; i < ambig.size(); ++i)
+                        remaining_choices.emplace(ap, ambig[i]);
+                }
+
+                int abundance = graph.Abundance(graph.GetNode(variant));
+                while(!remaining_choices.empty()) {
+                    int current_ap = remaining_choices.top().first;
+                    variant[current_ap] = remaining_choices.top().second;
+                    remaining_choices.pop();
+                    for(auto& pos_sympols : ambig_positions) {
+                        int ap = pos_sympols.first;
+                        if(ap <= current_ap)
+                            continue;
+                        string& ambig = pos_sympols.second;
+                        variant[ap] = ambig[0];
+                        for(unsigned i = 1; i < ambig.size(); ++i)
+                            remaining_choices.emplace(ap, ambig[i]);
+                    }
+                    abundance += graph.Abundance(graph.GetNode(variant));
+                }
+                    
+                return abundance;
+            };
+               
+            int contig_len = contig.size();
+            for(int p = 0; p < contig_len; ++p) {
+                profile_out << acc << '\t' << p+1 << '\t';
+                string symb = FromAmbiguousIUPAC[contig[p]];
+                for(unsigned i = 0; i < symb.size(); ++i) {
+                    if(i > 0)
+                        profile_out << '/';
+                    profile_out << symb[i];
+                }
+                profile_out << '\t';
+                for(unsigned i = 0; i < symb.size(); ++i) {
+                    int labundance = 0;
+                    int rabundance = 0;
+                    if(p >= kmer_len-1) {
+                        string kmer_seq = contig.substr(p-kmer_len+1, kmer_len);
+                        kmer_seq.back() = symb[i];
+                        labundance = AbundanceForAllChoices(kmer_seq);
+                    }
+                    if(p <= contig_len-kmer_len) {
+                        string kmer_seq = contig.substr(p, kmer_len);
+                        kmer_seq.front() = symb[i];
+                        rabundance = AbundanceForAllChoices(kmer_seq);
+                    }                        
+                    if(i > 0)
+                        profile_out << '/';
+                    profile_out << max(labundance,rabundance);
+                }
+                profile_out << endl;
+            }
+        }            
+    }
+    cerr << "Output in " << timer.Elapsed();
+}
 
 
 int main(int argc, const char* argv[]) {
@@ -1707,7 +1808,6 @@ int main(int argc, const char* argv[]) {
     vector<string> fasta_list;
     vector<string> fastq_list;
     bool gzipped;
-    int memory;
 
     ifstream targets_in;
     ofstream contigs_out;
@@ -1717,9 +1817,12 @@ int main(int argc, const char* argv[]) {
     general.add_options()
         ("help,h", "Produce help message")
         ("version,v", "Print version")
-        ("memory", value<int>()->default_value(32), "Memory available (GB) [integer]")
         ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]")
-        ("profile_out", value<string>(), "Output file for coverage profile (optional) [string]");
+        ("profile_out", value<string>(), "Output file for coverage profile (optional) [string]")
+        ("memory", value<int>()->default_value(32), "Memory available (GB, only for sorted counter) [integer]")
+        ("hash_count", "Use hash counter [flag]")
+        ("estimated_kmers", value<int>()->default_value(100), "Estimated number of unique kmers for bloom filter (M, only for hash counter) [integer]")
+        ("skip_bloom_filter", "Don't do bloom filter; use --estimated_kmers as the hash table size (only for hash counter) [flag]");
 
     options_description input("Input/output options : at least one input providing reads for assembly must be specified");
     input.add_options()
@@ -1759,7 +1862,7 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "guidedassembler v.1.0" << endl;
+            cerr << "guidedassembler v.2.0" << endl;
 #ifdef SVN_REV
             cerr << "SVN revision:" << SVN_REV << endl << endl;
 #endif
@@ -1853,12 +1956,6 @@ int main(int argc, const char* argv[]) {
             return 1;
         }
 
-        memory = argm["memory"].as<int>();
-        if(memory <= 0) {
-            cerr << "Value of --memory must be > 0" << endl;
-            exit(1);
-        }
-
         if(argm.count("contigs_out")) {
             contigs_out.open(argm["contigs_out"].as<string>());
             if(!contigs_out.is_open()) {
@@ -1883,30 +1980,29 @@ int main(int argc, const char* argv[]) {
 
         CReadsGetter readsgetter(sra_list, fasta_list, fastq_list, ncores, true, gzipped);
 
-        readsgetter.ClipAdaptersFromReads(vector_percent, memory);
-        if(readsgetter.Adapters().Size() > 0) {
-            struct PrintAdapters {
-                PrintAdapters(int kmer_len) : vec_kmer_len(kmer_len) {}
-                int vec_kmer_len;
-                set<pair<int, string>> adapters;
-                void operator()(const TKmer& kmer, int count) {
-                    TKmer rkmer = revcomp(kmer, vec_kmer_len);
-                    if(kmer < rkmer)
-                        adapters.emplace(count, kmer.toString(vec_kmer_len));
-                    else 
-                        adapters.emplace(count, rkmer.toString(vec_kmer_len)); 
-                }
-            };
-            PrintAdapters prob(readsgetter.Adapters().KmerLen());
-            readsgetter.Adapters().GetInfo(prob);
-            for(auto it = prob.adapters.rbegin(); it != prob.adapters.rend(); ++it)
-                cerr << "Adapter: " << it->second << " " << it->first << endl;
+        if(argm.count("hash_count")) {
+            int estimated_kmer_num =  argm["estimated_kmers"].as<int>();
+            if(estimated_kmer_num <= 0) {
+                cerr << "Value of --estimated_kmers must be > 0" << endl;
+                exit(1);
+            }
+            bool skip_bloom_filter = argm.count("skip_bloom_filter");
+            readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
+            readsgetter.PrintAdapters();
+            CGuidedAssembler<CDBHashGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, estimated_kmer_num, skip_bloom_filter);
+            PrintRslt(gassembler, contigs_out, profile_out);
+        } else {
+            int memory = argm["memory"].as<int>();
+            if(memory <= 0) {
+                cerr << "Value of --memory must be > 0" << endl;
+                exit(1);
+            }
+            readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
+            readsgetter.PrintAdapters();
+            CGuidedAssembler<CDBGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, memory);
+            PrintRslt(gassembler, contigs_out, profile_out);
         }
-
-        CGuidedAssembler gassembler(kmer, min_count, fraction, memory, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in);
-
-        CGuidedAssembler::TContigs rslts = gassembler.Contigs();
-
+        /*
         CStopWatch timer;
         timer.Restart();
         int count = 0;
@@ -1916,6 +2012,7 @@ int main(int argc, const char* argv[]) {
             string acc = "Contig"+to_string(++count)+"_kmer"+to_string(kmer)+"_improved";
             out << ">" << acc << " " << rslt.second.FastaDefLine() << "\n" << contig << endl;
 
+            
             if(profile_out.is_open()) {
                 auto AbundanceForAllChoices = [&](const string& kmer) {
                     auto& graph = gassembler.Graph(); 
@@ -1986,9 +2083,10 @@ int main(int argc, const char* argv[]) {
                     profile_out << endl;
                 }
             }
+           
         }
         cerr << "Output in " << timer.Elapsed();
-    
+        */    
     } catch (exception &e) {
         cerr << endl << e.what() << endl;
         exit(1);

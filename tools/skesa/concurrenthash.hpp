@@ -29,6 +29,7 @@
 
 
 #include "Integer.hpp"
+#include "common_util.hpp"
 
 // This file contains classes which facilitate basic operation of storing reads, counting kmers,
 // and creating and traversing a de Bruijn graph
@@ -36,56 +37,54 @@
 using namespace std;
 namespace DeBruijn {
 
-    template<int BlockSize>
+    template<int BlockSize> // in bytes
     class CConcurrentBlockedBloomFilter {
     public:
         enum EInsertResult {eNewKmer = 0, eAboveThresholdKmer = 1, eExistingKmer = 2};
-
-        // table_size - number of elements in bloom filter
-        // counter_bit_size - number of bith per counter (2, 4, 8...)
-        // block_size - in bits (multiple of 64)
+        // table_size - number of counting elements in bloom filter
+        // counter_bit_size - number of bith per counter (2, 4, 8)
         // hash_num - number of has functions (generated from two) 
-        CConcurrentBlockedBloomFilter(size_t table_size, int counter_bit_size, int hash_num, size_t min_count) {
+        CConcurrentBlockedBloomFilter(size_t table_size, int counter_bit_size, int hash_num, int min_count) {
             Reset(table_size, counter_bit_size, hash_num, min_count);
         } 
-        void Reset(size_t table_size, int counter_bit_size, int hash_num, size_t min_count) {
-            CStopWatch timer;
-            timer.Restart();
-            
-            m_count_table.clear();
+        void Reset(size_t table_size, int counter_bit_size, int hash_num, int min_count) {
+            assert(counter_bit_size <= 8);
             m_counter_bit_size = counter_bit_size;
-            m_block_size = BlockSize;
             m_hash_num = hash_num;           
-            m_max_element = (size_t(1) << m_counter_bit_size) - 1;
+            m_max_element = (1 << m_counter_bit_size) - 1;
             m_min_count = min(min_count, m_max_element);
-            m_elements_in_block = BlockSize/m_counter_bit_size;
+            m_elements_in_block = 8*BlockSize/m_counter_bit_size;
             m_blocks = ceil((double)table_size/m_elements_in_block);
             m_table_size = m_blocks*m_elements_in_block;
-            size_t table_length = m_table_size*m_counter_bit_size/(8*sizeof(TCell));
-            m_count_table.resize(table_length, 0);
-
-            cerr << "Resize time: " << timer.Elapsed();
+            m_count_table.clear();
+            m_status.clear();
+            m_count_table.resize(m_blocks);
+            m_status.resize(m_blocks);
         }
-        EInsertResult Insert(size_t hashp, size_t hashm, unsigned min_count) {
-            unsigned mc = Test(hashp, hashm);
-            if(mc >= min_count)
+        EInsertResult Insert(size_t hashp, size_t hashm) {
+            size_t ind = hashp%m_blocks;
+            auto& block = m_count_table[ind];
+            if(Test(hashp, hashm) >= m_min_count)
                 return eExistingKmer;
 
-            size_t blk_pos = hashp%m_blocks*m_block_size;
-            size_t count = numeric_limits<size_t>::max();
+            while(!m_status[ind].Set(1));
+            int count = Test(hashp, hashm);            
+            if(count >= m_min_count) {
+                m_status[ind] = 0;
+                return eExistingKmer;
+            }
+            
             for(int h = 1; h < m_hash_num; ++h) {
                 hashp += hashm;
-                size_t pos = blk_pos+(hashp&(m_elements_in_block-1))*m_counter_bit_size;
-                auto& cell = m_count_table[pos >> m_bits_in_cell_log].m_atomic;
-                int shift = pos&(m_bits_in_cell-1);                
-                size_t mask = m_max_element << shift;
-                size_t one = size_t(1) << shift;                 
-                auto existing_value = cell.load();
-                if(((existing_value&mask) >> shift) > mc)
-                    continue;
-                count = min(count, (existing_value&mask) >> shift);
-                while((existing_value&mask) < mask && !cell.compare_exchange_strong(existing_value, existing_value+one)); // check for overflow and try to increment                    
-            } 
+                size_t pos = (hashp&(m_elements_in_block-1))*m_counter_bit_size;  // bit position of the counting element in block
+                auto& cell = block.m_data[pos >> m_bits_in_cell_log];
+                int shift = pos&(m_bits_in_cell-1);
+                int cnt = (cell >> shift)&m_max_element;
+                if(cnt <= count)
+                    cell += ((TCell)1 << shift);
+            }
+            m_status[ind] = 0;
+
             if(count == 0)
                 return eNewKmer;
             else if(count == m_min_count-1)
@@ -94,45 +93,46 @@ namespace DeBruijn {
                 return eExistingKmer;
         }
         int Test(size_t hashp, size_t hashm) const {
-            int count = numeric_limits<int>::max();
-            size_t blk_pos = hashp%m_blocks*m_block_size;
+            auto& block = m_count_table[hashp%m_blocks];
+            int count = m_max_element;
             for(int h = 1; h < m_hash_num; ++h) {
                 hashp += hashm;
-                size_t pos = blk_pos+(hashp&(m_elements_in_block-1))*m_counter_bit_size;
-                auto& cell = m_count_table[pos >> m_bits_in_cell_log].m_atomic;
+                size_t pos = (hashp&(m_elements_in_block-1))*m_counter_bit_size;  // bit position of the counting element in block
+                auto& cell = block.m_data[pos >> m_bits_in_cell_log];
                 int shift = pos&(m_bits_in_cell-1);
-                size_t mask = m_max_element << shift;
-                int cn = (cell.load()&mask) >> shift;
-                /*!!!!!!!!!!!!!!!REMOVE
-                if(cn <= 1)
-                    return cn;
-                */
-                count = min(count, cn);
+                int cnt = (cell >> shift)&m_max_element;
+                if(cnt < count)
+                    count = cnt;
             }
 
             return count;
         }
-        size_t MaxElement() const { return m_max_element; }
+        int MaxElement() const { return m_max_element; }
         int HashNum() const { return m_hash_num; }
         size_t TableSize() const { return m_table_size; } // number of counters
-        size_t TableFootPrint() const { return sizeof(TCell)*m_count_table.size(); } // bytes
+        size_t TableFootPrint() const { return (sizeof(SBloomBlock)+1)*m_count_table.size(); } // bytes
 
     private:
+        typedef uint64_t TCell;
+        struct alignas(64) SBloomBlock {
+            SBloomBlock() { memset(m_data.data(), 0, BlockSize); }
+            array<TCell, BlockSize/sizeof(TCell)> m_data;
+        };
+        vector<SBloomBlock> m_count_table;
+        vector<SAtomic<uint8_t>> m_status;
+
+        size_t m_elements_in_block;
+        size_t m_blocks;
         size_t m_table_size;
         int m_counter_bit_size;
-        int m_block_size;
         int m_hash_num;
-        size_t m_blocks;
-        size_t m_elements_in_block;
-        size_t m_max_element;
-        size_t m_min_count;
-
-        size_t m_bits_in_cell = 8*sizeof(TCell);
+        int m_min_count;
+        int m_max_element;
+        int m_bits_in_cell = 8*sizeof(TCell);
         int m_bits_in_cell_log = log(m_bits_in_cell)/log(2);
-        typedef SAtomic<uint64_t> TCell;
-        vector<TCell> m_count_table;
     };
-    typedef CConcurrentBlockedBloomFilter<1024> TConcurrentBlockedBloomFilter;
+    typedef CConcurrentBlockedBloomFilter<128> TConcurrentBlockedBloomFilter;
+
 
     // minimalistic multithread safe forward list
     // allows reading and inserts in the beginning
@@ -153,6 +153,7 @@ namespace DeBruijn {
             template <class IsTrue, class IsFalse> struct choose<false, IsTrue, IsFalse> {  typedef IsFalse type; };
             typedef typename choose<is_const, const E&, E&>::type reference;
             typedef typename choose<is_const, const E*, E*>::type pointer;
+            typedef typename choose<is_const, const SNode*, SNode*>::type node_pointer;
             iterator(SNode* node = nullptr) : m_node(node) {};
             iterator& operator++() {
                 m_node = m_node->m_next;
@@ -160,6 +161,7 @@ namespace DeBruijn {
             }
             reference& operator*() { return m_node->m_data; }
             pointer operator->() { return &m_node->m_data; }
+            node_pointer NodePointer() { return m_node; }
             bool operator!=(const iterator& i) const { return i.m_node != m_node; }
 
         private:
@@ -172,10 +174,10 @@ namespace DeBruijn {
         iterator<true> end() const { return iterator<true>(); }
 
         CForwardList() { m_head.store(nullptr); }
-        CForwardList(const CForwardList& other) { Delete(); m_head.store(other.m_head.load()); }
-        ~CForwardList() { Delete(); }
+        CForwardList(const CForwardList& other) { Clear(); m_head.store(other.m_head.load()); }
+        ~CForwardList() { Clear(); }
         E& front() { return m_head.load()->m_data; }
-        SNode* Head() { return m_head; }
+        SNode* Head() const { return m_head; }
         SNode* NewNode(const E& e) {
             SNode* p = new SNode;
             p->m_data = e;
@@ -214,9 +216,28 @@ namespace DeBruijn {
                 }
             }
         }
-
-    private:
-        void Delete() {
+        void Save(ostream& os) const {
+            size_t vsize = sizeof(E);
+            os.write(reinterpret_cast<const char*>(&vsize), sizeof vsize);
+            size_t elements = distance(begin(), end());
+            os.write(reinterpret_cast<const char*>(&elements), sizeof elements);
+            for(auto& elem : *this) 
+                os.write(reinterpret_cast<const char*>(&elem), sizeof elem);
+        }
+        void Load(istream& is) { 
+            Clear();
+            size_t vsize; 
+            is.read(reinterpret_cast<char*>(&vsize), sizeof vsize);
+            if(vsize != sizeof(E))
+                throw runtime_error("Wrong format for CForwardList load");
+            size_t elements;
+            is.read(reinterpret_cast<char*>(&elements), sizeof elements);
+            for( ; elements > 0; --elements) {
+                E* p = Emplace();
+                is.read(reinterpret_cast<char*>(p), sizeof *p);
+            }
+        }
+        void Clear() {
             for(SNode* p = m_head; p != nullptr; ) {
                 auto tmp = p->m_next;
                 delete p;
@@ -224,6 +245,8 @@ namespace DeBruijn {
             }
             m_head.store(nullptr);
         }
+        void Init() { m_head.store(nullptr); }
+    private:
         atomic<SNode*> m_head;
     };
 
@@ -238,7 +261,7 @@ namespace DeBruijn {
         }
         E& operator[](size_t index) { return m_data[index/m_chunk_size][index%m_chunk_size]; }        
         const E& operator[](size_t index) const { return m_data[index/m_chunk_size][index%m_chunk_size]; }        
-        size_t size() const { return m_size; }
+        size_t Size() const { return m_size; }
         void Reset(size_t size, size_t chunks) {
             m_chunks = chunks;
             m_data.resize(m_chunks);
@@ -256,6 +279,41 @@ namespace DeBruijn {
                 RunThreads(m_chunks, jobs);                            
             }
         }
+        void Swap(CDeque& other) {
+            swap(m_chunks, other.m_chunks);
+            swap(m_size, other.m_size);
+            swap(m_chunk_size, other.m_chunk_size);
+            swap(m_data, other.m_data);
+        } 
+        void Save(ostream& os) const {
+            size_t vsize = sizeof(E);
+            os.write(reinterpret_cast<const char*>(&vsize), sizeof vsize);
+            os.write(reinterpret_cast<const char*>(&m_chunks), sizeof m_chunks);
+            os.write(reinterpret_cast<const char*>(&m_size), sizeof m_size);
+            os.write(reinterpret_cast<const char*>(&m_chunk_size), sizeof m_chunk_size);
+            for(auto& chunk : m_data) {
+                size_t num = chunk.size();
+                os.write(reinterpret_cast<const char*>(&num), sizeof num);
+                os.write(reinterpret_cast<const char*>(chunk.data()), num*vsize);
+            }
+        }
+        void Load(istream& is) {
+            size_t vsize; 
+            is.read(reinterpret_cast<char*>(&vsize), sizeof vsize);
+            if(vsize != sizeof(E))
+                throw runtime_error("Wrong format for CDeque load");
+            is.read(reinterpret_cast<char*>(&m_chunks), sizeof m_chunks);
+            is.read(reinterpret_cast<char*>(&m_size), sizeof m_size);
+            is.read(reinterpret_cast<char*>(&m_chunk_size), sizeof m_chunk_size);
+            m_data.clear();
+            m_data.resize(m_chunks);
+            for(auto& chunk : m_data) {
+                size_t num;
+                is.read(reinterpret_cast<char*>(&num), sizeof num);
+                chunk.resize(num);
+                is.read(reinterpret_cast<char*>(chunk.data()), num*vsize); 
+            }
+        }
     private:
         void ResetChunk(size_t chunk, size_t chunk_size) {
             m_data[chunk].clear();
@@ -267,66 +325,18 @@ namespace DeBruijn {
         vector<vector<E>> m_data;
     };
 
+
+    // BucketBlock <= 32
     // Moderate value of BucketBlock will improve memory cache use
     // Larger values will reduce the number of entries in the spillover lists but eventually will increase the search time
     // 0 (all entries in the lists) is permitted and could be used for reduction of the table size for large sizeof(V)
-    #define StatusNum 8
-    template<int N, class V, int BucketBlock>
-    struct SHashBlock {
-        static_assert(StatusNum >= BucketBlock, "");
-        typedef LargeInt<N> large_t;
-        typedef V mapped_t;
-        typedef pair<large_t,V> element_t;
-        typedef CForwardList<element_t> list_t;
-        typedef uint8_t status_t;
-        enum {eAssigned = 1, eKeyExists = 2};
-        SHashBlock() {
-            for(auto& status : m_status)
-                status = 0;
-        }
-        SHashBlock(const SHashBlock& other) : m_data(other.m_data) { // used for table initialisation only
-            for(unsigned i = 0; i < m_status.size(); ++i)
-                m_status[i] = other.m_status[i].load();
-        }
-        
-        array<element_t, BucketBlock> m_data;
-        list_t m_extra;
-
-        bool Lock(int shift, const large_t& kmer) {
-            status_t expected = 0;
-            if(!m_status[shift].compare_exchange_strong(expected, eAssigned))
-                return false;
-
-            m_data[shift].first = kmer;
-            m_status[shift] |= eKeyExists;
-            return true;
-        }
-        void Wait(int shift) { while(!(m_status[shift].load()&eKeyExists)); }
-        bool isEmpty(int shift) const { return m_status[shift].load() == 0; }
-
-        void Move(element_t& cell, int to) {
-            m_data[to] = cell;
-            m_status[to] = (eAssigned|eKeyExists);
-            cell.second = V();
-        }
-        void Move(int from, int to) {
-            Move(m_data[from], to);
-            m_status[from] = 0;
-        }
-        void Clear(int shift) {
-            m_data[shift].second = V();
-            m_status[shift] = 0;
-        }
-
-    private:
-        array<atomic<status_t>,StatusNum>  m_status;
-    };
-
     template <typename MappedV, int BucketBlock> 
     class CKmerHashMap {
+        static_assert(BucketBlock <= 32, "");
     public:
-        CKmerHashMap(int kmer_len, size_t size = 0) : m_kmer_len(kmer_len) {
-            m_hash_table = CreateVariant<TKmerHashTable<MappedV>, THashBlockVec, MappedV>((m_kmer_len+31)/32);
+        CKmerHashMap(int kmer_len = 0, size_t size = 0) : m_kmer_len(kmer_len) {
+            if(m_kmer_len > 0)
+                m_hash_table = CreateVariant<TKmerHashTable<MappedV>, THashBlockVec, MappedV>((m_kmer_len+31)/32);
             Reset(size, 1);
         }
         void Reset(size_t size, size_t chunks) {
@@ -336,134 +346,433 @@ namespace DeBruijn {
             m_table_size = max(1,BucketBlock)*blocks;
             apply_visitor(resize(blocks, chunks), m_hash_table);
         }
+
+        class Index {
+        public:
+            Index(size_t ind = 0, void* ptr = nullptr) : m_index(ind), m_lstp(ptr) {}
+            void Advance(CKmerHashMap& hash) { apply_visitor(CKmerHashMap::index_advance(*this), hash.m_hash_table); }
+            pair<TKmer, MappedV*> GetElement(CKmerHashMap& hash) const { return apply_visitor(CKmerHashMap::index_get(*this), hash.m_hash_table); };
+            pair<TKmer, const MappedV*> GetElement(const CKmerHashMap& hash) const { return apply_visitor(CKmerHashMap::index_get(*this), const_cast<CKmerHashMap&>(hash).m_hash_table); };
+            MappedV* GetMapped(CKmerHashMap& hash) const { return apply_visitor(CKmerHashMap::index_get_mapped(*this), hash.m_hash_table); };
+            const MappedV* GetMapped(const CKmerHashMap& hash) const { return apply_visitor(CKmerHashMap::index_get_mapped(*this), const_cast<CKmerHashMap&>(hash).m_hash_table); };
+            const uint64_t* GetKeyPointer(const CKmerHashMap& hash) const { return apply_visitor(CKmerHashMap::index_get_keyp(*this), const_cast<CKmerHashMap&>(hash).m_hash_table); };
+            bool operator==(const Index& other) const { return m_index == other.m_index && m_lstp == other.m_lstp; }
+            bool operator!=(const Index& other) const { return !operator==(other); }
+            bool operator<(const Index& other) const {
+                if(m_index == other.m_index)
+                    return m_lstp < other.m_lstp;
+                else
+                    return m_index < other.m_index;
+            }
+            bool operator>(const Index& other) const {
+                if(m_index == other.m_index)
+                    return m_lstp > other.m_lstp;
+                else
+                    return m_index > other.m_index;
+            }
+            struct Hash { size_t operator()(const Index& index) const { return std::hash<size_t>()(index.m_index)^std::hash<void*>()(index.m_lstp); } };
+        protected:
+            friend class CKmerHashMap;
+
+            size_t m_index; // index; list considered a single entry
+            void* m_lstp;   // pointer to list element
+        };
+        Index EndIndex() const { return Index((BucketBlock+1)*BucketsNum(), nullptr); }
+
+        class Iterator : public Index {
+        public:
+            Iterator(const Index& index, CKmerHashMap* hp) : Index(index), hashp(hp) {}
+            Iterator(size_t ind, void* ptr, CKmerHashMap* hp) : Index(ind, ptr), hashp(hp) {}
+            Iterator& operator++() { 
+                this->Advance(*hashp);
+                return *this;
+            }
+            pair<TKmer, MappedV*> GetElement() { return Index::GetElement(*hashp); }
+            MappedV* GetMapped() { return Index::GetMapped(*hashp); }
+            const uint64_t* GetKeyPointer() { return Index::GetKeyPointer(*hashp); }
+        private:
+            CKmerHashMap* hashp;
+        };
+        Iterator Begin() { return Iterator(apply_visitor(hash_begin(0), m_hash_table), this); }
+        Iterator End() { return Iterator((BucketBlock+1)*BucketsNum(), nullptr, this); }
+        Iterator FirstForBucket(size_t bucket) { return Iterator(apply_visitor(hash_begin(bucket), m_hash_table), this); }
+
         //returns pointer to mapped value if exists, otherwise nullptr
-        const MappedV* Find(const TKmer& kmer) const { return apply_visitor(find(kmer), m_hash_table); }        
+        MappedV* Find(const TKmer& kmer) { 
+            if(m_table_size == 0)
+                return nullptr;
+            else
+                return apply_visitor(find(kmer), m_hash_table); 
+        } 
+        //returns index in hash table
+        Index FindIndex(const TKmer& kmer) { 
+            if(m_table_size == 0)
+                return EndIndex();
+            else
+                return apply_visitor(find_index(kmer), m_hash_table); 
+        }
         // if kmer already included returns pointer to mapped value
         // if not inserts a new entry and returns pointer to default value
         // caller MUST update the mapped value
         // assumes that any updates will be atomic
+        MappedV* FindOrInsert(const TKmer& kmer) {
+            size_t index = kmer.oahash()%m_table_size;
+            return FindOrInsertInBucket(kmer, index);
+        }
         MappedV* FindOrInsertInBucket(const TKmer& kmer, size_t index) {return apply_visitor(find_or_insert(kmer,index), m_hash_table); }
+
+        void Swap(CKmerHashMap& other) {            
+            apply_visitor(swap_with_other(), m_hash_table, other.m_hash_table);  
+            swap(m_table_size, other.m_table_size);
+            swap(m_kmer_len, other.m_kmer_len);
+        }
+
         int KmerLen() const { return m_kmer_len; }
         size_t TableSize() const { return m_table_size; }
-        size_t TableFootPrint() const { return apply_visitor(foot_print(), m_hash_table); }
+        size_t TableFootPrint() const { return apply_visitor(hash_footprint(), m_hash_table); }
         size_t BucketsNum() const { return m_table_size/max(1,BucketBlock); }
         void Info() const { apply_visitor(info(), m_hash_table); }
+        void Save(ostream& os) const {
+            os.write(reinterpret_cast<const char*>(&m_table_size), sizeof m_table_size);
+            os.write(reinterpret_cast<const char*>(&m_kmer_len), sizeof m_kmer_len);
+            apply_visitor(save(os), m_hash_table);
+        }
+        void Load(istream& is) { 
+            is.read(reinterpret_cast<char*>(&m_table_size), sizeof m_table_size);
+            is.read(reinterpret_cast<char*>(&m_kmer_len), sizeof m_kmer_len);
+            m_hash_table = CreateVariant<TKmerHashTable<MappedV>, THashBlockVec, MappedV>((m_kmer_len+31)/32);
+            apply_visitor(load(is), m_hash_table);
+        }
 
     protected:
-        template<int N, class V> using THashBlockVec = CDeque<SHashBlock<N,V,BucketBlock>>;
-        template<class V> using TKmerHashTable = BoostVariant<THashBlockVec,V>;
-
-        struct foot_print : public boost::static_visitor<size_t> {
-            template <typename T> const size_t operator()(T& v) const { return sizeof(typename  T::value_type)*v.size(); }
-        };
+        friend class Index;
         
-        //returns pointer to mapped value if exists, otherwise nullptr
-        struct find : public boost::static_visitor<const MappedV*> {
-            find(const TKmer& k) : kmer(k) {}
-            template <typename T> const MappedV* operator()(T& v) const {
-                typedef typename  T::value_type::large_t large_t;
-                const large_t& k = kmer.get<large_t>();
-                size_t index = k.oahash()%(v.size()*max(1,BucketBlock));
-                auto& bucket = v[index/max(1,BucketBlock)];
-
-                //try exact position first
+        template<int N, class V>
+        struct SHashBlock {
+            typedef LargeInt<N> large_t;
+            typedef V mapped_t;
+            typedef pair<large_t,V> element_t;
+            typedef CForwardList<element_t> list_t;
+            typedef typename list_t::SNode snode_t;
+            enum States : uint64_t {eAssigned = 1, eKeyExists = 2};
+            enum { eBucketBlock = BucketBlock };
+            SHashBlock() : m_status(0) {}
+            SHashBlock(const SHashBlock& other) : m_data(other.m_data), m_status(other.m_status.load()) {} // used for table initialisation only  
+                   
+            pair<int, typename list_t::SNode*> Find(const large_t& k, int hint) {
                 if(BucketBlock > 0) {
-                    unsigned exact_pos = index%BucketBlock;
-                    auto& cell = bucket.m_data[exact_pos];                
-                    if(bucket.isEmpty(exact_pos)) 
-                        return nullptr;
-                    else if(cell.first == k)
-                        return &cell.second;
+                    //try exact position first
+                    if(isEmpty(hint)) 
+                        return make_pair(BucketBlock+1, nullptr);
+                    else if(m_data[hint].first == k)
+                        return make_pair(hint, nullptr);
 
                     //scan array    
-                    for(unsigned shift = 0; shift < bucket.m_data.size(); ++shift) {
-                        if(shift != exact_pos) {
-                            auto& cell = bucket.m_data[shift]; 
-                            if(bucket.isEmpty(shift)) 
-                                return nullptr;
-                            else if(cell.first == k)
-                                return &cell.second;
+                    for(int shift = 0; shift < BucketBlock; ++shift) {
+                        if(shift != hint) {
+                            if(isEmpty(shift)) 
+                                return make_pair(BucketBlock+1, nullptr);
+                            else if(m_data[shift].first == k)
+                                return make_pair(shift, nullptr);
                         }
                     }       
                 }
 
                 //scan spillover list
-                for(auto& cell : bucket.m_extra) {
+                for(auto it = m_extra.begin(); it != m_extra.end(); ++it) {
+                    auto& cell = *it;
                     if(cell.first == k)
-                        return &cell.second;
+                        return make_pair(BucketBlock, it.NodePointer());
                 }
 
-                return nullptr;            
+                return make_pair(BucketBlock+1, nullptr);            
+            }
+
+            // 1. Try to put to exact position prescribed by hash
+            // 2. Put in the lowest available array element
+            // 3. Put in the spillover list
+            mapped_t* FindOrInsert(const large_t& k, int hint) {
+                auto TryCell = [&](int shift) {
+                    auto& cell = m_data[shift];
+                    //try to grab
+                    if(Lock(shift, k))
+                        return &cell.second;
+                
+                    //already assigned to some kmer
+                    //wait if kmer is not stored yet
+                    Wait(shift);
+               
+                    if(cell.first == k) // kmer matches
+                        return &cell.second; 
+                    else
+                        return (mapped_t*)nullptr; // other kmer    
+                };
+
+                if(BucketBlock > 0) {
+                    //try exact position first 
+                    auto rslt = TryCell(hint);
+                    if(rslt != nullptr)
+                        return rslt;            
+
+                    //scan remaining array  
+                    for(int shift = 0; shift < BucketBlock; ++shift) {
+                        if(shift != hint) {
+                            auto rslt = TryCell(shift);
+                            if(rslt != nullptr)
+                                return rslt;
+                        }
+                    }
+                }
+
+                //scan spillover list   
+                auto existing_head = m_extra.Head();
+                for(auto p = existing_head; p != nullptr; p = p->m_next) {
+                    if(p->m_data.first == k)
+                        return &(p->m_data.second); 
+                }
+
+                typename list_t::SNode* nodep = new typename list_t::SNode;
+                nodep->m_data.first = k;
+                nodep->m_next = existing_head;
+                while(!m_extra.TryPushFront(nodep)) {
+                    //check if a new elemet matches 
+                    for(auto p = nodep->m_next; p != existing_head; p = p->m_next) {
+                        if(p->m_data.first == k) {
+                            delete nodep;
+                            return &(p->m_data.second); 
+                        }
+                    }
+                    existing_head = nodep->m_next;
+                }                
+
+                return &(nodep->m_data.second);
+            }
+
+            element_t* IndexGet(int shift, void* lstp) {
+                if(shift < BucketBlock) {    // array element
+                    return &m_data[shift];
+                } else {                     //list element
+                    snode_t* ptr = reinterpret_cast<snode_t*>(lstp);
+                    return &(ptr->m_data);  
+                }              
+            }
+
+            bool Lock(int shift, const large_t& kmer) {
+                uint64_t assigned = eAssigned << 2*shift;
+                uint64_t expected = m_status;
+
+                do { if(expected&assigned) return false; } 
+                while(!m_status.compare_exchange_strong(expected, expected|assigned));
+
+                m_data[shift].first = kmer;
+                m_status |= eKeyExists << 2*shift;
+                return true;
+            }
+            void Wait(int shift) { 
+                uint64_t keyexists = eKeyExists << 2*shift;
+                while(!(m_status&keyexists)); 
+            }
+            bool isEmpty(int shift) const { 
+                uint64_t assigned = eAssigned << 2*shift;
+                return (!(m_status&assigned)); 
+            }
+
+            void Move(element_t& cell, int to) {
+                m_data[to] = cell;
+                m_status |= (eAssigned|eKeyExists) << 2*to;
+                cell.second = V();
+            }
+            void Move(int from, int to) {
+                Move(m_data[from], to);
+                m_status &= ~((eAssigned|eKeyExists) << 2*from); // clear bits
+            }
+            void Clear(int shift) {
+                m_data[shift].second = V();
+                m_status &= ~((uint64_t)(eAssigned|eKeyExists) << 2*shift); // clear bits
+            }
+
+            array<element_t, BucketBlock> m_data;
+            list_t m_extra;
+            atomic<uint64_t> m_status;
+        };
+
+        template<int N, class V> using THashBlockVec = CDeque<SHashBlock<N,V>>;
+        template<class V> using TKmerHashTable = BoostVariant<THashBlockVec,V>;
+
+        struct save : public boost::static_visitor<void> {
+            save(ostream& out) : os(out) {}
+            template <typename T> 
+            void operator()(const T& v) const {
+                v.Save(os);
+                size_t list_num = 0;
+                for(size_t i = 0; i < v.Size(); ++i) {
+                    if(v[i].m_extra.Head() != nullptr)
+                        ++list_num;
+                }
+                os.write(reinterpret_cast<const char*>(&list_num), sizeof list_num);
+                for(size_t i = 0; i < v.Size(); ++i) {
+                    if(v[i].m_extra.Head() != nullptr) {
+                        os.write(reinterpret_cast<const char*>(&i), sizeof i);
+                        v[i].m_extra.Save(os);
+                    }
+                }                    
+            }
+            ostream& os;
+        };
+        struct load : public boost::static_visitor<void> {
+            load(istream& in) : is(in) {}
+            template <typename T> 
+            void operator()(T& v) const {
+                v.Load(is);
+                size_t list_num;
+                is.read(reinterpret_cast<char*>(&list_num), sizeof list_num);
+                for( ; list_num > 0; --list_num) {
+                    size_t i;
+                    is.read(reinterpret_cast<char*>(&i), sizeof i);
+                    v[i].m_extra.Init();
+                    v[i].m_extra.Load(is);
+                }
+            }
+            istream& is;
+        };
+
+        struct swap_with_other : public boost::static_visitor<> {
+            template <typename T> void operator() (T& a, T& b) const { a.Swap(b); }
+            template <typename T, typename U> void operator() (T& a, U& b)  const { throw runtime_error("Can't swap different type containers"); }
+        };
+
+        struct index_get : public boost::static_visitor<pair<TKmer, MappedV*>> {
+            index_get(const Index& ind) : index(ind) {}
+            template <typename T> 
+            pair<TKmer, MappedV*> operator()(T& v) const {
+                auto elemp = v[index.m_index/(BucketBlock+1)].IndexGet(index.m_index%(BucketBlock+1), index.m_lstp); 
+                return make_pair(TKmer(elemp->first), &(elemp->second));
+            }
+            const Index& index;
+        };
+
+        struct index_get_mapped : public boost::static_visitor<MappedV*> {
+            index_get_mapped(const Index& ind) : index(ind) {}
+            template <typename T> 
+            MappedV* operator()(T& v) const {
+                auto elemp = v[index.m_index/(BucketBlock+1)].IndexGet(index.m_index%(BucketBlock+1), index.m_lstp); 
+                return &(elemp->second);
+            }
+            const Index& index;
+        };
+
+        struct index_get_keyp : public boost::static_visitor<const uint64_t*> {
+            index_get_keyp(const Index& ind) : index(ind) {}
+            template <typename T> 
+            const uint64_t* operator()(T& v) const {
+                auto elemp = v[index.m_index/(BucketBlock+1)].IndexGet(index.m_index%(BucketBlock+1), index.m_lstp); 
+                return elemp->first.getPointer();
+            }
+            const Index& index;
+        };
+
+        template <typename T> 
+        static Index next_available(T& v, size_t from) {
+            for(size_t i = from; i < v.Size(); ++i) {
+                auto& bucket = v[i];
+                for(int shift = 0; shift < BucketBlock; ++shift) {
+                    if(!bucket.isEmpty(shift)) 
+                        return Index(i*(BucketBlock+1)+shift, nullptr);
+                }
+                if(bucket.m_extra.Head() != nullptr)
+                    return Index(i*(BucketBlock+1)+BucketBlock, bucket.m_extra.Head());
+            }
+                
+            return Index((BucketBlock+1)*v.Size(), nullptr);
+        }
+        
+        struct index_advance : public boost::static_visitor<> {
+            index_advance(Index& ind) : index(ind) {}
+            template <typename T> 
+            void operator()(T& v) const {
+                typedef typename  T::value_type::list_t::SNode snode_t;
+
+                size_t ind = index.m_index;
+                size_t i = ind/(BucketBlock+1);
+                auto& bucket = v[i];
+                int shift = ind%(BucketBlock+1);
+                if(shift < BucketBlock-1) {                    // not last array element - check all next elements
+                    while(++shift < BucketBlock) {
+                        if(!bucket.isEmpty(shift)) {
+                            index.m_index = i*(BucketBlock+1)+shift;
+                            return;
+                        }
+                    }
+                } else if(shift == BucketBlock-1) {            // last array element - check spillover list
+                    if(bucket.m_extra.Head() != nullptr) {
+                        ++index.m_index;
+                        index.m_lstp = bucket.m_extra.Head();
+                        return;
+                    }
+                } else {                                       // spillover list - check next list element
+                    snode_t* ptr = reinterpret_cast<snode_t*>(index.m_lstp);
+                    if(ptr->m_next != nullptr) {
+                        index.m_lstp = ptr->m_next;
+                        return;
+                    }
+                }
+                
+                index = next_available(v, i+1); // look for next bucket
+            }
+            Index& index;
+        };
+
+        struct hash_begin : public boost::static_visitor<Index> {
+            hash_begin(size_t fr) : from(fr) {}
+            template <typename T> 
+            Index operator()(T& v) const { return next_available(v, from); }
+            size_t from;
+        };
+
+        struct hash_footprint : public boost::static_visitor<size_t> {
+            template <typename T> size_t operator()(T& v) const { return sizeof(typename  T::value_type)*v.Size(); }
+        };        
+                
+        //returns pointer to mapped value if exists, otherwise nullptr
+        struct find : public boost::static_visitor<MappedV*> {
+            find(const TKmer& k) : kmer(k) {}
+            template <typename T> MappedV* operator()(T& v) const {
+                auto& k = kmer.get<typename  T::value_type::large_t>();
+                size_t pos = k.oahash()%(v.Size()*max(1,BucketBlock));
+                auto& bucket = v[pos/max(1,BucketBlock)];
+                int hint = pos%max(1,BucketBlock);               
+
+                auto rslt = bucket.Find(k, hint);
+                if(rslt.first < BucketBlock)                 // found in array
+                    return &bucket.m_data[rslt.first].second;
+                else if(rslt.first == BucketBlock)           // found in list
+                    return &rslt.second->m_data.second;
+                else                                         // not found
+                    return nullptr; 
+            } 
+            const TKmer& kmer;
+        };         
+       
+        //returns Index
+        struct find_index : public boost::static_visitor<Index> {
+            find_index(const TKmer& k) : kmer(k) {}
+            template <typename T> Index operator()(T& v) const {
+                typedef typename  T::value_type::large_t large_t;
+                const large_t& k = kmer.get<large_t>();
+
+                size_t pos = k.oahash()%(v.Size()*max(1,BucketBlock));
+                size_t bucket_num = pos/max(1,BucketBlock);
+                int hint = pos%max(1,BucketBlock);               
+
+                auto rslt = v[bucket_num].Find(k, hint);
+                if(rslt.first <= BucketBlock)                                         // found in array
+                    return Index(bucket_num*(BucketBlock+1)+rslt.first, rslt.second);
+                else                                                                  // not found
+                    return Index((BucketBlock+1)*v.Size(), nullptr); 
             } 
             const TKmer& kmer;
         };        
 
-        template <typename T> 
-        static MappedV* find_or_insert_in_bucket(T& v, size_t index, const typename T::value_type::large_t& k) {
-            typedef typename T::value_type hash_block_t;
-            typedef typename hash_block_t::mapped_t mapped_t;
-            typedef typename hash_block_t::list_t list_t;
-            typedef typename hash_block_t::large_t large_t;
-
-            auto& bucket = v[index/max(1,BucketBlock)];
-
-            auto TryCell = [&](int shift) {
-                auto& cell = bucket.m_data[shift];
-
-                //try to grab
-                if(bucket.Lock(shift, k))
-                    return &cell.second;
-                
-                //already assigned to some kmer
-                //wait if kmer is not stored yet
-                bucket.Wait(shift);
-               
-                if(cell.first == k) // kmer matches
-                    return &cell.second; 
-                else
-                    return (mapped_t*)nullptr; // other kmer   
-            };
-
-            if(BucketBlock > 0) {
-                //try exact position first 
-                unsigned exact_pos = index%BucketBlock;
-                auto rslt = TryCell(exact_pos);
-                if(rslt != nullptr)
-                    return rslt;            
-
-                //scan remaining array  
-                for(unsigned shift = 0; shift < bucket.m_data.size(); ++shift) {
-                    if(shift != exact_pos) {
-                        auto rslt = TryCell(shift);
-                        if(rslt != nullptr)
-                            return rslt;
-                    }
-                }
-            }
-
-            //scan spillover list   
-            auto existing_head = bucket.m_extra.Head();
-            for(auto p = existing_head; p != nullptr; p = p->m_next) {
-                if(p->m_data.first == k)
-                    return &(p->m_data.second); 
-            }
-
-            typename list_t::SNode* nodep = new typename list_t::SNode;
-            nodep->m_data.first = k;
-            nodep->m_next = existing_head;
-            while(!bucket.m_extra.TryPushFront(nodep)) {
-                //check if a new elemet matches 
-                for(auto p = nodep->m_next; p != existing_head; p = p->m_next) {
-                    if(p->m_data.first == k) {
-                        delete nodep;
-                        return &(p->m_data.second); 
-                    }
-                }
-                existing_head = nodep->m_next;
-            }                
-
-            return &(nodep->m_data.second);
-        }
 
         // if kmer already included returns pointer to mapped value
         // if not inserts a new entry and returns pointer to default value
@@ -474,7 +783,9 @@ namespace DeBruijn {
             template <typename T> MappedV* operator()(T& v) const {
                 typedef typename T::value_type::large_t large_t;
                 const large_t& k = kmer.get<large_t>();
-                return find_or_insert_in_bucket(v, index, k);
+                size_t bucket_num = index/max(1,BucketBlock);
+                int hint = index%max(1,BucketBlock);               
+                return v[bucket_num].FindOrInsert(k, hint);
             }
             const TKmer& kmer;
             size_t index;
@@ -484,11 +795,11 @@ namespace DeBruijn {
             template <typename T> void operator()(T& v) const {
                 
                 map<int,int> numbers;
-                for(size_t i = 0; i < v.size(); ++i) {
+                for(size_t i = 0; i < v.Size(); ++i) {
                     auto& bucket= v[i];
                     int num = distance(bucket.m_extra.begin(), bucket.m_extra.end());  
-                    for(auto& cell : bucket.m_data) {
-                        if(!(cell.second == MappedV()))
+                    for(int shift = 0; shift < BucketBlock; ++shift) {
+                        if(!bucket.isEmpty(shift))
                             ++num;
                     }                                        
                     ++numbers[num];
@@ -511,23 +822,23 @@ namespace DeBruijn {
     };
 
     struct SKmerCounter {
-        SKmerCounter() : m_count(0) {}
-        bool operator==(const SKmerCounter& kc) const { return kc.m_count == m_count; }
-        uint32_t Increment(bool is_plus) { return (m_count.m_atomic += (is_plus ? 0x100000001 : 1)); }
-        uint32_t Count() const { return m_count; } // clips plus part
-        SAtomic<uint64_t> m_count;
+        SKmerCounter() : m_data(0) {}
+        bool operator==(const SKmerCounter& kc) const { return kc.m_data == m_data; }
+        uint32_t Increment(bool is_plus) { return (m_data.m_atomic += (is_plus ? 0x100000001 : 1)); }
+        uint32_t Count() const { return m_data; } // clips plus part
+        SAtomic<uint64_t> m_data;
     };
     
     class CKmerHashCount : public CKmerHashMap<SKmerCounter, 8> {
     public:
-        CKmerHashCount(int kmer_len, size_t size = 0) : CKmerHashMap(kmer_len, size) {}
+        CKmerHashCount(int kmer_len = 0, size_t size = 0) : CKmerHashMap(kmer_len, size) {}
         // returns true if kmer was new
         bool UpdateCount(const TKmer& kmer, bool is_plus) {
             size_t index = kmer.oahash()%m_table_size;
             return (FindOrInsertInBucket(kmer, index)->Increment(is_plus) == 1);
         } 
         size_t UpdateCounts(const CReadHolder::string_iterator& is, const TConcurrentBlockedBloomFilter& bloom, int min_count) {
-            return apply_visitor(update_counts(is, bloom, TableSize(), min_count, m_kmer_len), m_hash_table);
+            return apply_visitor(update_counts(is, bloom, min_count, m_kmer_len), m_hash_table);
         }
         // rehash bucket from other container
         void RehashOtherBuckets(CKmerHashCount& other, size_t bucket_from, size_t bucket_to) {
@@ -537,10 +848,20 @@ namespace DeBruijn {
         size_t CleanBuckets(int min_count, size_t bucket_from, size_t bucket_to) {
             return apply_visitor(clean_buckets(min_count, bucket_from, bucket_to, TableSize()), m_hash_table);
         }
+        TBins GetBins() {
+            map<int,size_t> hist;
+            for(auto index = Begin(); index != End(); ++index) {
+                ++hist[index.GetMapped()->Count()];            
+            }
+            return TBins(hist.begin(), hist.end());
+        }
     private:
         struct update_counts : public boost::static_visitor<size_t> {
-            update_counts(const CReadHolder::string_iterator& i, const TConcurrentBlockedBloomFilter& bl, size_t ts, int mc, unsigned kl) : is(i), bloom(bl), table_size(ts), min_count(mc), kmer_len(kl) {}
+            update_counts(const CReadHolder::string_iterator& i, const TConcurrentBlockedBloomFilter& bl, int mc, unsigned kl) : is(i), bloom(bl), min_count(mc), kmer_len(kl) {}
             template <typename T> size_t operator() (T& v) const {
+                if(v.Size() == 0)
+                    return 0;
+
                 typedef typename T::value_type::large_t large_t;
 
                 size_t read_len = is.ReadLen();
@@ -575,11 +896,25 @@ namespace DeBruijn {
                             swap(hashp, hashm);
                         }
 
-                        if(min_count > 1 && bloom.Test(hashp, hashm) < min(min_count, (int)bloom.MaxElement()))
+                        int bucket_block = T::value_type::eBucketBlock;
+                        size_t pos = hashp%(v.Size()*max(1,bucket_block));
+                        size_t bucket_num = pos/max(1,bucket_block);
+                        int hint = pos%max(1,bucket_block);
+                        auto& bucket = v[bucket_num];
+                        
+                        auto rslt = bucket.Find(*min_kmerp, hint);
+                        if(rslt.first < bucket_block) {                          // found in array
+                            bucket.m_data[rslt.first].second.Increment(is_plus);
+                            continue;
+                        } else if(rslt.first == bucket_block) {                  // found in list
+                            rslt.second->m_data.second.Increment(is_plus);
+                            continue;
+                        }                        
+                        
+                        if(min_count > 1 && bloom.Test(hashp, hashm) < min(min_count, bloom.MaxElement()))
                             continue;  
 
-                        size_t index = hashp%table_size;
-                        if(find_or_insert_in_bucket(v, index, *min_kmerp)->Increment(is_plus) == 1)
+                        if(bucket.FindOrInsert(*min_kmerp, hint)->Increment(is_plus) == 1)
                             ++new_kmers;
                     }
                 }
@@ -589,7 +924,6 @@ namespace DeBruijn {
             }
             const CReadHolder::string_iterator& is;
             const TConcurrentBlockedBloomFilter& bloom;
-            size_t table_size;
             int min_count;
             unsigned kmer_len;
         };
@@ -727,7 +1061,7 @@ namespace DeBruijn {
                     int hash_num = ceil(-log(false_positive_rate)/log(2.));
                     bloom.Reset(bloom_table_size, counter_bit_size, hash_num, m_min_count);
 
-                    cerr << "Bloom table size: " << bloom.TableSize() << "(" << 0.1*(bloom.TableFootPrint()/100000) << "MB)" << " Counter bit size: " << counter_bit_size << " Hash num: " << hash_num << endl;  
+                    cerr << "\nBloom table size: " << bloom.TableSize() << "(" << 0.1*(bloom.TableFootPrint()/100000) << "MB)" << " Counter bit size: " << counter_bit_size << " Hash num: " << hash_num << endl;  
 
                     m_estimated_table_size.store(0);
                     m_estimated_uniq_kmers.store(0);
@@ -758,7 +1092,7 @@ namespace DeBruijn {
 
             timer.Restart();
             m_hash_table.Reset(1.5*m_estimated_table_size.load(), m_ncores);            
-            while(true) {
+            while(m_hash_table.TableSize() > 0) {
                 {
                     CStopWatch timer;
                     timer.Restart();
@@ -803,9 +1137,17 @@ namespace DeBruijn {
 
             cerr << "Create hash in " << timer.Elapsed();
             timer.Restart();            
-                        
             //Remove false positives
-            {
+            RemoveLowCountKmers(m_min_count);
+            cerr << "Clean hash in " << timer.Elapsed();
+            timer.Restart();            
+
+            cerr << "Initial kmers: " << m_kmer_num_raw.load() << " Kmers above threshold: " << m_kmer_num.load() << " Total kmers: " << m_kmer_count.load() << " Hash table size: " <<  m_hash_table.TableSize() << "(" << 0.1*(m_hash_table.TableFootPrint()/100000) << "MB)" << endl;
+
+        }
+        void RemoveLowCountKmers(int min_count) {
+            m_min_count = min_count;
+            if(m_hash_table.TableSize() > 0) {
                 list<function<void()>> jobs;
                 size_t step = ceil((double)m_hash_table.BucketsNum()/m_ncores);
                 for(int thr = 0; thr < m_ncores; ++thr) {
@@ -815,21 +1157,65 @@ namespace DeBruijn {
                         jobs.push_back(bind(&CKmerHashCounter::CleanJob, this, from, to));
                 }
                 RunThreads(m_ncores, jobs);
-            }                       
+            }
+        }                                           
+        // prepares kmer counts to be used in  de Bruijn graph
+        void GetBranches() {
+            CStopWatch timer;
+            timer.Restart();
 
-            cerr << "Clean hash in " << timer.Elapsed();
-            timer.Restart();            
+            list<function<void()>> jobs;
+            size_t step = ceil((double)m_hash_table.BucketsNum()/m_ncores);
+            for(int thr = 0; thr < m_ncores; ++thr) {
+                size_t from = step*thr;
+                size_t to = min(m_hash_table.BucketsNum()-1,from+step-1);
+                if(to >= from)
+                    jobs.push_back(bind(&CKmerHashCounter::GetBranchesJob, this, from, to));
+            }
+            RunThreads(m_ncores, jobs);
 
-            cerr << "Initial kmers: " << m_kmer_num_raw.load() << " Kmers above threshold: " << m_kmer_num.load() << " Total kmers: " << m_kmer_count.load() << " Hash table size: " <<  m_hash_table.TableSize() << "(" << 0.1*(m_hash_table.TableFootPrint()/100000) << "MB)" << endl;
-
+            cerr << "Kmers branching in " << timer.Elapsed();
         }
         void Info() const {
             m_hash_table.Info();
         }
-        CKmerHashCount& HasCount() { return m_hash_table; }
+        CKmerHashCount& Kmers() { return m_hash_table; }
+        size_t KmerNum() const { return m_kmer_num; }
         
 
     private:
+
+        void GetBranchesJob(size_t bucket_from, size_t bucket_to) {
+            TKmer max_kmer(string(m_kmer_len, bin2NT[3]));
+            for(size_t bucket = bucket_from; bucket <= bucket_to; ++bucket) {
+                for(auto index = m_hash_table.FirstForBucket(bucket); index != m_hash_table.FirstForBucket(bucket+1); ++index) {
+                    uint64_t branches = 0;
+                    pair<TKmer, SKmerCounter*> kmer_count = index.GetElement();
+                    //direct        
+                    TKmer shifted_kmer = (kmer_count.first << 2) & max_kmer;
+                    //inverse       
+                    TKmer shifted_rkmer = (revcomp(kmer_count.first, m_kmer_len) << 2) & max_kmer;
+                    for(int nt = 0; nt < 4; ++nt) {
+                        TKmer k = shifted_kmer + TKmer(m_kmer_len, nt);
+                        SKmerCounter* nbrp = m_hash_table.Find(min(k, revcomp(k, m_kmer_len)));
+                        // New kmer is a neighbor if it exists in reads and is not same as current kmer
+                        if(nbrp != nullptr && nbrp != kmer_count.second)
+                            branches |= (1 << nt);
+
+                        k = shifted_rkmer + TKmer(m_kmer_len, nt);
+                        nbrp = m_hash_table.Find(min(k, revcomp(k, m_kmer_len)));
+                        if(nbrp != nullptr && nbrp != kmer_count.second)
+                            branches |= (1 << (nt+4));
+                    }
+
+                    uint64_t count = kmer_count.second->m_data;
+                    uint32_t total_count = count;
+                    uint32_t plus_count = (count >> 32);
+                    uint64_t plusf = uint16_t(double(plus_count)/total_count*numeric_limits<uint16_t>::max()+0.5);
+                    kmer_count.second->m_data = (plusf << 48)+(branches << 32)+total_count;
+                }
+            }
+        }
         
         void CleanJob(size_t bucket_from, size_t bucket_to) {
              m_kmer_num += m_hash_table.CleanBuckets(m_min_count, bucket_from, bucket_to);
@@ -838,15 +1224,15 @@ namespace DeBruijn {
         class CBloomInserter : public TKmer {
         public:
             CBloomInserter(int kmer_len) : TKmer(kmer_len, 0), m_kmer_len(kmer_len) {}
-            pair<size_t,size_t> InsertInBloom(const CReadHolder::string_iterator& is, TConcurrentBlockedBloomFilter& bloom, unsigned min_count) {
-                return apply_visitor(insert_in_bloom(is, bloom, m_kmer_len, min_count), v);
+            pair<size_t,size_t> InsertInBloom(const CReadHolder::string_iterator& is, TConcurrentBlockedBloomFilter& bloom) {
+                return apply_visitor(insert_in_bloom(is, bloom, m_kmer_len), v);
             }
 
         private:
             unsigned m_kmer_len;
 
             struct insert_in_bloom : public boost::static_visitor<pair<size_t,size_t>> {
-                insert_in_bloom(const CReadHolder::string_iterator& i, TConcurrentBlockedBloomFilter& bl, unsigned kl, unsigned mc) : is(i), bloom(bl), kmer_len(kl), min_count(mc) {}
+                insert_in_bloom(const CReadHolder::string_iterator& i, TConcurrentBlockedBloomFilter& bl, unsigned kl) : is(i), bloom(bl), kmer_len(kl) {}
                 template <typename large_t> pair<size_t,size_t> operator() (large_t& kmer) const {
                     size_t above_threshold_kmers = 0;
                     size_t uniq_kmers = 0;
@@ -877,7 +1263,7 @@ namespace DeBruijn {
                             if(kmer < rkmer)
                                 swap(hashp, hashm);  
 
-                            switch(bloom.Insert(hashp, hashm, min_count)) {
+                            switch(bloom.Insert(hashp, hashm)) {
                             case TConcurrentBlockedBloomFilter::eNewKmer : ++uniq_kmers; continue;
                             case TConcurrentBlockedBloomFilter::eAboveThresholdKmer : ++above_threshold_kmers; continue;
                             default : continue;
@@ -890,7 +1276,6 @@ namespace DeBruijn {
                 const CReadHolder::string_iterator& is;
                 TConcurrentBlockedBloomFilter& bloom;
                 unsigned kmer_len;
-                unsigned min_count;
             };
         };
 
@@ -901,7 +1286,7 @@ namespace DeBruijn {
             CBloomInserter bloom_inserter(m_kmer_len);
             for(int p = 0; p < 2; ++p) {
                for(CReadHolder::string_iterator is = rholder[p].sbegin(); is != rholder[p].send(); ++is) {
-                   auto rslt = bloom_inserter.InsertInBloom(is, bloom, m_min_count);
+                   auto rslt = bloom_inserter.InsertInBloom(is, bloom);
                    above_threshold_kmers += rslt.first;
                    uniq_kmers += rslt.second;
                }
@@ -970,37 +1355,6 @@ namespace DeBruijn {
         list<pair<int,CReadHolder::string_iterator>> m_start_position;
     };
 
-
-    /* TODO new graph based on hash
-    struct SGraphData {
-        SGraphData() : m_count(0), m_plus_fraction(0), m_branches(0), m_status(0) {}
-        bool operator==(const SGraphData& kc) const { 
-            return kc.m_count == m_count && 
-                kc.m_plus_fraction == m_plus_fraction &&
-                kc.m_branches == m_branches;
-        }
-        
-        uint32_t m_count;
-        uint16_t m_plus_fraction;
-        uint8_t m_branches;
-        SAtomic<uint8_t> m_status;
-    };
-    class CDBHashGraph : public CKmerHashMap<SGraphData> {
-    public:
-        CDBHashGraph(const CKmerHashCount& counter) : CKmerHashMap(counter.KmerLen(), counter.TableSize()) {
-
-            //            const TKmerHashTable<SKmerCounter>& other_table = counter.m_hash_table;
-
-            string max_kmer(KmerLen(), bin2NT[3]);
-            m_max_kmer = TKmer(max_kmer);
-        }
-
-    private:
-        TKmer m_max_kmer;             // contains 1 in all kmer_len bit positions  
-        TBins m_bins;
-        bool m_is_stranded;
-    };
-    */
 
 }; // namespace
 #endif /*_Concurrent_Hash_*/

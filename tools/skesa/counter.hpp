@@ -27,9 +27,243 @@
 #ifndef _KmerCounter_
 #define _KmerCounter_
 
-#include "DBGraph.hpp"
+#include "Integer.hpp"
+#include "common_util.hpp"
 
 namespace DeBruijn {
+
+    class CKmerCount {
+    // Class for kmer counting and searching implemented using a boost::variant of vector<pair<LargeInt<N>,size_t>>
+    // Currently, maximum N defined in config.hpp is 16 that allows kmers of length at most 512 to be stored.
+    // Only smaller (in the bit encoding) of a kmer and its reverse complement is stored
+    //
+    // When vector is sorted, binary search on the first element of the pair that represents a kmer can be used for retrieving
+    // the information stored for the kmer in the second element of the pair.
+    // First 32 bits of the second element stores total count for kmer (self and reverse complement)
+    // Remaining 32 bits store count for kmer for self only during the counting operations but are modified to additionally store
+    // branching information when used inside CDBGraph
+
+    public:
+        typedef TKmerCountN Type;
+
+        CKmerCount(int kmer_len = 0) : m_kmer_len(kmer_len) {
+            if(m_kmer_len > 0)
+                m_container = CreateVariant<TKmerCountN, TLargeIntVec>((m_kmer_len+31)/32);
+        }
+        size_t Size() const { return apply_visitor(container_size(), m_container); }         // number of elements in the container
+        void Reserve(size_t rsrv) { apply_visitor(reserve(rsrv), m_container); }             // reserves memory for rsrv elements
+        void Clear() { apply_visitor(clear(), m_container); }                                // clears container (doesn't release memory)
+        size_t Capacity() const { return apply_visitor(container_capacity(), m_container); } // tells how many elements could be stored in reserved memory
+        size_t ElementSize() const { return apply_visitor(element_size(), m_container); }    // size of one vector element in bytes
+        size_t MemoryFootprint() const { return Capacity()*ElementSize(); }                  // reserved memory in bytes
+        void PushBack(const TKmer& kmer, size_t count) {                                     // push back one element
+            if(m_kmer_len == 0)
+                throw runtime_error("Can't insert in uninitialized container");
+            apply_visitor(push_back(kmer, count), m_container); 
+        }
+        void PushBackElementsFrom(const CKmerCount& other) {         // push back elements from other container
+            if(m_kmer_len == 0)
+                throw runtime_error("Can't insert in uninitialized container");
+            apply_visitor(push_back_elements(), m_container, other.m_container); 
+        }
+        size_t Find(const TKmer& kmer) const { return apply_visitor(find_kmer(kmer), m_container); } // finds index for a kmer (returns Size() if not found)
+        void UpdateCount(size_t count, size_t index) { apply_visitor(update_count(count, index), m_container); }          // updates count at the index position
+        size_t GetCount(size_t index) const { return apply_visitor(get_count(index), m_container); }                      // gets count at the index position
+        pair<TKmer,size_t> GetKmerCount(size_t index) const { return apply_visitor(get_kmer_count(index), m_container); } // gets kmer and count at the index position
+        const uint64_t* getPointer(size_t index) { return apply_visitor(get_pointer(index), m_container); }               // gets access to binary kmer sequence
+        int KmerLen() const { return m_kmer_len; }
+        void Sort() { apply_visitor(container_sort(), m_container); }
+        void SortAndExtractUniq(int min_count, CKmerCount& uniq) {  // sorts container, aggregates counts, copies elements with count >= min_count into uniq
+            uniq = CKmerCount(m_kmer_len); // init
+            Sort();
+            apply_visitor(extract_uniq(min_count), m_container, uniq.m_container);
+        }
+        void SortAndUniq(int min_count) { // sorts container, aggregate counts, keeps elements with count >= min_count
+            Sort();
+            apply_visitor(uniq(min_count), m_container);
+        }
+        void RemoveLowCountKmers(int min_count) { apply_visitor(remove_low_count(min_count), m_container); }
+        void MergeTwoSorted(const CKmerCount& other) { // merges with other assuming both sorted
+            if(m_kmer_len != other.KmerLen())
+                throw runtime_error("Can't merge kmers of different lengths");
+            apply_visitor(merge_sorted(), m_container, other.m_container);
+        }
+        void Swap(CKmerCount& other) { // swaps with other
+            swap(m_kmer_len, other.m_kmer_len);
+            apply_visitor(swap_with_other(), m_container, other.m_container);    
+        }
+        void Save(ostream& out) const { 
+            out.write(reinterpret_cast<const char*>(&m_kmer_len), sizeof(m_kmer_len));
+            apply_visitor(save(out), m_container);
+        }
+        void Load(istream& in) {
+            in.read(reinterpret_cast<char*>(&m_kmer_len), sizeof(m_kmer_len));
+            m_container = CreateVariant<TKmerCountN, TLargeIntVec>((m_kmer_len+31)/32);
+            apply_visitor(load(in), m_container);
+        }
+
+    private:
+
+        struct find_kmer : public boost::static_visitor<size_t> { 
+            find_kmer(const TKmer& k) : kmer(k) {}
+            template <typename T> size_t operator()(const T& v) const { 
+                typedef typename T::value_type pair_t;
+                typedef typename pair_t::first_type large_t;
+                auto it = lower_bound(v.begin(), v.end(), kmer.get<large_t>(), [](const pair_t& element, const large_t& target){ return element.first < target; });
+                if(it == v.end() || it->first != kmer.get<large_t>())
+                    return v.size();
+                else
+                    return it-v.begin();
+            } 
+            const TKmer& kmer;
+        };
+        struct reserve : public boost::static_visitor<> { 
+            reserve(size_t r) : rsrv(r) {}
+            template <typename T> void operator() (T& v) const { v.reserve(rsrv); }
+            size_t rsrv;
+        };
+        struct container_size : public boost::static_visitor<size_t> { template <typename T> size_t operator()(const T& v) const { return v.size();} };
+        struct container_capacity : public boost::static_visitor<size_t> { template <typename T> size_t operator()(const T& v) const { return v.capacity();} };
+        struct element_size : public boost::static_visitor<size_t> { template <typename T> size_t operator()(const T& v) const { return sizeof(typename  T::value_type);} };
+        struct clear : public boost::static_visitor<> { template <typename T> void operator()(T& v) const { v.clear();} };
+        struct push_back : public boost::static_visitor<> { 
+            push_back(const TKmer& k, size_t c) : kmer(k), count(c) {}
+            template <typename T> void operator() (T& v) const {
+                typedef typename  T::value_type::first_type large_t;
+                v.push_back(make_pair(kmer.get<large_t>(), count)); 
+            }
+            const TKmer& kmer;
+            size_t count;
+        };
+        struct push_back_elements : public boost::static_visitor<> {
+            template <typename T> void operator() (T& a, const T& b) const { a.insert(a.end(), b.begin(), b.end()); }
+            template <typename T, typename U> void operator() (T& a, const U& b) const { throw runtime_error("Can't copy from different type container"); }
+        };
+        struct merge_sorted : public boost::static_visitor<> {
+            template <typename T> void operator() (T& a, const T& b) const { 
+                T merged;
+                merged.reserve(a.size()+b.size());
+                merge(a.begin(), a.end(), b.begin(), b.end(), back_inserter(merged));
+                merged.swap(a); 
+            }
+            template <typename T, typename U> void operator() (T& a, const U& b) const { throw runtime_error("Can't merge different type containers"); }
+        };
+        struct update_count : public boost::static_visitor<> {
+            update_count(size_t c, size_t i) : count(c), index(i) {}
+            template <typename T> void operator() (T& v) const { v[index].second = count; }  
+            size_t count;
+            size_t index;
+        };
+        struct get_count : public boost::static_visitor<size_t> {
+            get_count(size_t i) : index(i) {}
+            template <typename T> size_t operator() (T& v) const { return v[index].second; }        
+            size_t index;
+        };
+        struct get_kmer_count : public boost::static_visitor<pair<TKmer,size_t>> {
+            get_kmer_count(size_t i) : index(i) {}
+            template <typename T> pair<TKmer,size_t> operator() (T& v) const { return make_pair(TKmer(v[index].first), v[index].second); }        
+            size_t index;
+        };
+        struct get_pointer : public boost::static_visitor<const uint64_t*> {
+            get_pointer(size_t i) : index(i) {}
+            template <typename T> const uint64_t* operator() (T& v) const { return v[index].first.getPointer(); }        
+            size_t index;
+        };
+        struct container_sort : public boost::static_visitor<> { template <typename T> void operator() (T& v) const { sort(v.begin(), v.end()); }};
+        struct swap_with_other : public boost::static_visitor<> { 
+            template <typename T> void operator() (T& a, T& b) const { a.swap(b); }
+            template <typename T, typename U> void operator() (T& a, U& b)  const { throw runtime_error("Can't swap different type containers"); }
+        };
+        
+        struct remove_low_count : public boost::static_visitor<> {
+            remove_low_count(int mc) : min_count(mc) {}
+            template <typename T> void operator() (T& v) const {
+                v.erase(remove_if(v.begin(), v.end(), [this](const typename T::value_type& pair) { return (uint32_t)pair.second < this->min_count; }), v.end());
+            }
+
+            unsigned min_count;
+        };
+
+        struct uniq : public boost::static_visitor<> {
+            uniq(int mc) : min_count(mc) {}
+            template <typename T> void operator() (T& v) const {
+                typedef typename T::iterator iter_t;
+                iter_t nextp = v.begin();
+                for(iter_t ip = v.begin(); ip != v.end(); ) {
+                    iter_t workp = ip;
+                    while(++ip != v.end() && workp->first == ip->first)
+                        workp->second += ip->second;   // accumulate all 8 bytes; we assume that count will not spill into higher half
+                    if((uint32_t)workp->second >= min_count)
+                        *nextp++ = *workp;
+                }
+                v.erase(nextp, v.end());
+            }
+
+            unsigned min_count;
+        };
+        struct extract_uniq : public boost::static_visitor<> {
+            extract_uniq(int mc) : min_count(mc) {}
+            template <typename T> void operator() (T& a, T& b) const {
+                if(a.empty()) return;
+                size_t num = 1;
+                uint32_t count = a[0].second;  // count only 4 bytes!!!!!!
+                for(size_t i = 1; i < a.size(); ++i) {
+                    if(a[i-1].first < a[i].first) {
+                        if(count >= min_count)
+                            ++num;
+                        count = a[i].second;
+                    } else {
+                        count += a[i].second;
+                    }
+                }
+                if(count < min_count)
+                    --num;
+                b.reserve(num+1);
+                b.push_back(a[0]);
+                for(size_t i = 1; i < a.size(); ++i) {
+                    if(b.back().first < a[i].first) {
+                        if((uint32_t)b.back().second < min_count)
+                            b.pop_back();
+                        b.push_back(a[i]);
+                    } else {
+                        b.back().second += a[i].second;  // accumulate all 8 bytes; we assume that count will not spill into higher half
+                    }
+                }
+                if((uint32_t)b.back().second < min_count)
+                    b.pop_back();
+            }
+            template <typename T, typename U> void operator() (T& a, U& b) const { throw runtime_error("Can't extract into different type container"); }
+
+            unsigned min_count;
+        };
+        struct save : public boost::static_visitor<> {
+            save(ostream& out) : os(out) {}
+            template <typename T> void operator() (T& v) const {
+                size_t num = v.size();
+                os.write(reinterpret_cast<const char*>(&num), sizeof num); 
+                if(num > 0)
+                    os.write(reinterpret_cast<const char*>(&v[0]), num*sizeof(v[0]));
+            }
+            ostream& os;
+        };
+        struct load : public boost::static_visitor<> {
+            load(istream& in) : is(in) {}
+            template <typename T> void operator() (T& v) const {
+                size_t num;
+                is.read(reinterpret_cast<char*>(&num), sizeof num);
+                if(num > 0) {
+                    v.resize(num);
+                    is.read(reinterpret_cast<char*>(&v[0]), num*sizeof(v[0]));
+                }
+            }
+            istream& is;
+        };
+
+        Type m_container;
+        int m_kmer_len;
+    };
+    typedef CKmerCount TKmerCount; // for compatibility with previous code
+
 
     // CKmerCounter counts kmers in reads using multiple threads and stores them in TKmerCount
     // It also finds neighbors (in GetBranches) if a user wants to use this class to build a CDBGraph (de Bruijn graph)
@@ -119,21 +353,7 @@ namespace DeBruijn {
                 ++bins[Kmers().GetCount(index)];                  // count clipped to integer automatically
             }
             TBins hist(bins.begin(), bins.end());
-            pair<int,int> grange =  HistogramRange(hist);
-            if(grange.first < 0)
-                grange.first = 0;
-
-            int genome = 0;
-            size_t kmers = 0;
-            for(int i = grange.first; i <= grange.second; ++i) {
-                genome += hist[i].second;
-                kmers += hist[i].first*hist[i].second;
-            }
-
-            if(genome > 0)
-                return double(kmers)/genome;
-            else
-                return 0.;
+            return GetAverageCount(hist);
         }
 
         // prepares kmer counts to be used in  CDBGraph (de Bruijn graph)

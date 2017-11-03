@@ -54,6 +54,7 @@ namespace DeBruijn {
        to the insert size.
     *******************************/
 
+    template<class DBGraph>
     class CDBGAssembler {
     public:
         // fraction - Maximal noise to signal ratio of counts acceptable for extension
@@ -68,11 +69,14 @@ namespace DeBruijn {
         // memory - the upper bound for memory use (GB)
         // ncores - number of threads
         // raw_reads - reads (for effective multithreading, number of elements in the list should be >= ncores)
+        typedef typename DBGraph::Node Node;
+        using GraphDigger = CDBGraphDigger<DBGraph>;        
         
+        template<typename... GraphArgs>
         CDBGAssembler(double fraction, int jump, int low_count, int steps, int min_count, int min_kmer, bool usepairedends, 
-                      int max_kmer_paired, int maxkmercount, int memory, int ncores, list<array<CReadHolder,2>>& raw_reads, TStrList seeds, bool allow_snps, bool estimate_min_count) : 
+                      int max_kmer_paired, int maxkmercount, int ncores, list<array<CReadHolder,2>>& raw_reads, TStrList seeds, bool allow_snps, bool estimate_min_count, GraphArgs... gargs) : 
             m_fraction(fraction), m_jump(jump), m_low_count(low_count), m_steps(steps), m_min_count(min_count), m_min_kmer(min_kmer), m_usepairedends(usepairedends),
-            m_max_kmer_paired(max_kmer_paired), m_maxkmercount(maxkmercount), m_memory(memory), m_ncores(ncores), m_raw_reads(raw_reads) {
+            m_max_kmer_paired(max_kmer_paired), m_maxkmercount(maxkmercount), m_ncores(ncores), m_average_count(0), m_raw_reads(raw_reads) {
 
             m_max_kmer = m_min_kmer;
             m_insert_size = 0;
@@ -90,9 +94,10 @@ namespace DeBruijn {
             }
  
             //graph for minimal kmer
-            double average_count = GetGraph(m_min_kmer, m_raw_reads, true, estimate_min_count ? total_seq : 0);
+            double average_count = GetGraph(m_min_kmer, m_raw_reads, true, estimate_min_count ? total_seq : 0, gargs...);
             if(average_count == 0)
                 throw runtime_error("Reads are too short for selected minimal kmer length");
+            m_average_count = average_count;
 
             // estimate genome
             int read_len = total_seq/total_reads+0.5;
@@ -173,33 +178,18 @@ namespace DeBruijn {
                     }
                 }
                     
-                ImproveContigs(m_min_kmer);
+                ImproveContigs(m_min_kmer, false);
                 if(m_contigs.back().empty())
                     throw runtime_error("Was not able to assemble anything");
             }
 
             //estimate max_kmer
-            if(m_steps > 1 && average_count > maxkmercount) {
-                m_max_kmer = read_len+1-double(maxkmercount)/average_count*(read_len-min_kmer+1);
-                //                m_max_kmer = 0.75*read_len;
-
+            if(m_steps > 1 && average_count > m_maxkmercount) {
+                m_max_kmer = read_len+1-double(m_maxkmercount)/average_count*(read_len-min_kmer+1);
                 m_max_kmer = min(TKmer::MaxKmer(), m_max_kmer);
-                while(m_max_kmer > min_kmer) {
-                    m_max_kmer -= 1-m_max_kmer%2;           // odd kmers desired
-                    CKmerCounter kmer_counter(m_raw_reads, m_max_kmer, m_min_count, true, AvailableMemory(), m_ncores);
-                    if(kmer_counter.Kmers().Size() < 100) { // find a kmer length with at least 100 distinct kmers at that length
-                        m_max_kmer -= read_len/25;          // reduce maximal kmer length by a small amount based on read length
-                        continue;
-                    }
-                    double average_count_for_max_kmer = kmer_counter.AverageCount();
-                    if(average_count_for_max_kmer >= maxkmercount)
-                        break;
-                    else 
-                        m_max_kmer -= read_len/25;                                    
-                }
-                m_max_kmer = max(m_max_kmer, min_kmer);
-                cerr << endl << "Average count: " << average_count << " Max kmer: " << m_max_kmer << endl;
+                EstimateMaxKmer(read_len, gargs...);
             }
+            cerr << endl << "Average count: " << average_count << " Max kmer: " << m_max_kmer << endl;
             
             //estimate insert size
             if(steps > 1 || m_usepairedends) {
@@ -243,7 +233,7 @@ namespace DeBruijn {
                         }
                 
                         int long_insert_size = 2000; // we don't expect inserts to be longer than 2000 bp for this program
-                        CDBGraphDigger graph_digger(*m_graphs[min_kmer], m_fraction, m_jump, m_low_count);
+                        GraphDigger graph_digger(*m_graphs[min_kmer], m_fraction, m_jump, m_low_count);
                         list<array<CReadHolder,2>> connected_mate_pairs = graph_digger.ConnectPairs(mate_pairs, long_insert_size, m_ncores);
                         CReadHolder connected_mates(false);
                         for(auto& mp : connected_mate_pairs) {
@@ -270,11 +260,11 @@ namespace DeBruijn {
                     for(int step = 1; step < m_steps; ++step) {
                         int kmer_len = min_kmer+step*alpha+0.5;             // round to integer
                         kmer_len -= 1-kmer_len%2;                           // get odd kmer
-                        if(GetGraph(kmer_len, m_raw_reads, true) == 0) {
+                        if(GetGraph(kmer_len, m_raw_reads, true, 0, gargs...) == 0) {
                             cerr << "Empty graph for kmer length: " << kmer_len << " skipping this and longer kmers" << endl;
                             break;
                         }
-                        ImproveContigs(kmer_len);
+                        ImproveContigs(kmer_len, false);
                         CleanReads();
                     }
                 } else {
@@ -293,81 +283,23 @@ namespace DeBruijn {
                     
                 for(int kmer_len : long_kmers) {
                     kmer_len -= 1-kmer_len%2;
-                    if(GetGraph(kmer_len, m_connected_reads, false) == 0) {
+                    if(GetGraph(kmer_len, m_connected_reads, false, 0, gargs...) == 0) {
                         cerr << "Empty graph for kmer length: " << kmer_len << " skipping this and longer kmers" << endl;
                         break;
                     }
-                    ImproveContigs(kmer_len);
+                    ImproveContigs(kmer_len, false);
                 }
             } 
 
-            //  TODO make it a method or include in ImproveContigs
             if(allow_snps) { // snp discovery
                 for(auto it = m_graphs.rbegin(); it != m_graphs.rend(); ++it) {
-                    auto& graph = *it->second;
-
-                    graph.ClearAllVisited();
-                    int kmer_len = graph.KmerLen();
-                    CDBGraphDigger graph_digger(graph, m_fraction, m_jump+kmer_len, m_low_count, true);
-                    cerr << "Kmer: " << kmer_len << " Graph size: " << graph.GraphSize() << " Contigs in: " << (m_contigs.empty() ? 0 : m_contigs.back().size()) << endl;
-                    cerr << "Valley: " << graph_digger.HistMin() << endl; 
-
-                    TContigList scontigs = ConverToSContigAndMarkVisited(graph_digger); 
-
-                    graph_digger.CheckRepeats(scontigs);
-
-                    size_t multipl = 0;
-                    for(size_t index = 0; index < graph.GraphSize(); ++index) {
-                        if(graph.IsMultContig(2*(index+1)))
-                            ++multipl;
-                    }
-                    cerr << "Kmers in multiple contigs: " << multipl << endl;            
-                
-                    CDBGraphDigger graph_digger_no_jump(graph, m_fraction, 0, m_low_count);
-                    unsigned min_len_for_new_seeds = 3*graph.KmerLen();      // short ones are likely to be noise   
-
-                    CDBGraphDigger test_graphdigger(*m_graphs[m_min_kmer], m_fraction, 0, m_low_count);
-                    CDBGraphDigger* test_graphdiggerp = nullptr;
-                    if(kmer_len != m_min_kmer)
-                        test_graphdiggerp = &test_graphdigger;
-
-                    TContigList new_seeds = graph_digger_no_jump.GenerateNewSeeds(min_len_for_new_seeds, m_ncores, test_graphdiggerp);
-                    cerr << "New seeds: " << new_seeds.size() << endl;
-
-                    scontigs.splice(scontigs.end(), new_seeds);                
-                    for(auto& contig : scontigs)
-                        contig.SelectMinDirection();
-                    scontigs.sort();
-
-                    graph_digger.ConnectAndExtendContigs(scontigs, m_ncores);
- 
-                    m_contigs.push_back(TContigSequenceList());
-                    for(auto& contig : scontigs) {
-                        m_contigs.back().push_back(contig.m_seq);
-                    }
-                    m_contigs.back().sort();
-
-                    vector<size_t> contigs_len;
-                    size_t genome_len = 0;
-                    for(auto& contig : m_contigs.back()) {
-                        contigs_len.push_back(contig.LenMax());
-                        genome_len += contigs_len.back();                            
-                    }
-                    sort(contigs_len.begin(), contigs_len.end());
-                    size_t n50 = 0;
-                    int l50 = 0;
-                    size_t len = 0;
-                    for(int j = (int)contigs_len.size()-1; j >= 0 && len < 0.5*genome_len; --j) {
-                        ++l50;
-                        n50 = contigs_len[j];
-                        len += contigs_len[j];
-                    }
-                    cerr << "Contigs out: " << contigs_len.size() << " Genome: " << genome_len << " N50: " << n50 << " L50: " << l50 << endl; 
+                    int kmer_len = it->first;
+                    ImproveContigs (kmer_len, true);
                 }
             }
         }        
 
-        map<int,CDBGraph*>& Graphs() { return m_graphs; }
+        map<int,DBGraph*>& Graphs() { return m_graphs; }
         TContigSequenceList& Contigs() { return m_contigs.back(); }
         vector<TContigSequenceList>& AllIterations() { return m_contigs; }
         TContigSequenceList& ShortContigs() { return m_short_contigs; };
@@ -391,7 +323,7 @@ namespace DeBruijn {
             for(auto& gr : m_graphs) {
                 int kmer_len = gr.first;
                 cerr << endl << "Connecting mate pairs using kmer length: " << kmer_len << endl;
-                CDBGraphDigger graph_digger(*gr.second, m_fraction, m_jump, m_low_count);
+                GraphDigger graph_digger(*gr.second, m_fraction, m_jump, m_low_count);
                 list<array<CReadHolder,2>> connected_reads_temp = graph_digger.ConnectPairs(m_raw_pairs, m_insert_size, m_ncores);
                 list<array<CReadHolder,2>>::iterator pairedi = m_connected_reads.begin();
                 list<array<CReadHolder,2>>::iterator rawi = m_raw_pairs.begin();
@@ -416,7 +348,8 @@ namespace DeBruijn {
         //     int -     position on contig
         //     bool -    the same as the key or reverse complemented
         //     CContigSequence* - pointer to the contig
-        typedef CKmerMap<tuple<int, bool, const CContigSequence*>> TKmerToContig;        
+        typedef CKmerHashMap<tuple<int, bool, const CContigSequence*>, 8> TKmerToContig;
+        //        typedef CKmerMap<tuple<int, bool, const CContigSequence*>> TKmerToContig;           
         TKmerToContig GetAssembledKmers() {
             int kmer_len = m_graphs.rbegin()->first;
 
@@ -474,50 +407,68 @@ namespace DeBruijn {
             cerr << "Seed kmers: " << seed_kmers.Size() << endl;
 
             int min_len = max(m_max_kmer_paired, m_max_kmer);
-            auto& graphp = m_graphs.rbegin()->second;
-            TKmerToContig assembled_kmers(kmer_len);
             size_t knum = 0;
+            list<pair<CContigSequence*, SAtomic<int8_t>>> contigs;
             for(auto& contig : m_contigs.back()) {
                 if((int)contig.LenMin() >= min_len && contig.size() == 1) {
-                    for(auto& lst : contig)
-                        knum += lst.front().size()+2*(kmer_len-1);  // overestimation for reserve
+                    contigs.emplace_back(&contig, 0);
+                    knum += contig.LenMin()+2*(kmer_len-1);  // overestimation for reserve
                 }
             }
-            assembled_kmers.Reserve(knum);
-            for(auto& contig : m_contigs.back()) {
-                if((int)contig.LenMin() >= min_len && contig.size() == 1) { // skip short and variable (AMR) contigs
-
-                    CReadHolder rh(false);
-                    rh.PushBack(contig[0].front());
-                    int pos = contig.ChunkLenMax(0)-kmer_len;
-                    bool found_repeat = false;
-                    list<pair<TKmer, tuple<int, bool, const CContigSequence*>>> contig_kmers;
-                    for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) { // iteration from last kmer to first
-                         TKmer kmer = *ik;
-                         auto node = graphp->GetNode(kmer);
-                         if(node && graphp->IsMultContig(node)) {
-                             found_repeat = true;
-                             break;
-                         }
-                         TKmer rkmer = revcomp(kmer, kmer_len);
-                         TKmer* kmerp = &kmer;
-                         bool direct = true;
-                         if(rkmer < kmer) {
-                             kmerp = &rkmer;
-                             direct = false;
-                         }
-                         contig_kmers.emplace_back(*kmerp, make_tuple(pos, direct, &contig));
-                    }
-                    if(!found_repeat) {
-                        for(auto& kmer :  contig_kmers) {
-                            if(seed_kmers.Find(kmer.first) == nullptr)
-                                assembled_kmers[kmer.first] = kmer.second; 
-                        }
-                    }
-                }
-            }           
+            TKmerToContig assembled_kmers(kmer_len, knum);
+            
+            list<function<void()>> jobs;
+            for(int thr = 0; thr < m_ncores; ++thr)
+                jobs.push_back(bind(&CDBGAssembler::AssembledKmersJob, this, ref(contigs), ref(assembled_kmers), ref(seed_kmers)));
+            RunThreads(m_ncores, jobs);
 
             return assembled_kmers;
+        }
+
+        void AssembledKmersJob(list<pair<CContigSequence*, SAtomic<int8_t>>>& contigs, TKmerToContig& assembled_kmers, CKmerMap<int>& seed_kmers) const {
+            for(auto& pr : contigs) {
+                if(!pr.second.Set(1))
+                    continue;
+                auto& contig = *pr.first;
+                int kmer_len = m_graphs.rbegin()->first;
+                auto& graphp = m_graphs.rbegin()->second;
+                int pos = contig.ChunkLenMax(0)-kmer_len;
+                CReadHolder rh(false);
+                if(contig.m_circular) {
+                    auto cc = contig[0].front();
+                    cc.insert(cc.end(), contig[0].front().begin(), contig[0].front().begin()+kmer_len-1); // add kmer-1 bases to get all kmers
+                    rh.PushBack(cc);
+                    pos = contig.ChunkLenMax(0)-1;
+                } else {
+                    rh.PushBack(contig[0].front());
+                }
+                bool found_repeat = false;
+                list<pair<TKmer, tuple<int, bool, const CContigSequence*>>> contig_kmers;
+                for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) { // iteration from last kmer to first
+                    TKmer kmer = *ik;
+                    auto node = graphp->GetNode(kmer);
+                    if(graphp->Abundance(node)*m_fraction > m_average_count)
+                        continue;
+                    if(node.isValid() && graphp->IsMultContig(node)) {
+                        found_repeat = true;
+                        break;
+                    }
+                    TKmer rkmer = revcomp(kmer, kmer_len);
+                    TKmer* kmerp = &kmer;
+                    bool direct = true;
+                    if(rkmer < kmer) {
+                        kmerp = &rkmer;
+                        direct = false;
+                    }
+                    contig_kmers.emplace_back(*kmerp, make_tuple(pos, direct, &contig));
+                }
+                if(!found_repeat) {
+                    for(auto& kmer :  contig_kmers) {
+                        if(seed_kmers.Find(kmer.first) == nullptr)
+                            *assembled_kmers.FindOrInsert(kmer.first) = kmer.second;
+                    }
+                }
+            }
         }
 
         // finds if a read belongs to any of the contigs
@@ -552,10 +503,15 @@ namespace DeBruijn {
                 sp = get<2>(*rsltp); // pointer to the contig
                 if(!get<1>(*rsltp))
                     plus = -plus;
-                if(plus > 0)
+                if(plus > 0) {
                     pos = get<0>(*rsltp)-knum;
-                else
+                    if(pos < 0 && sp->m_circular)
+                        pos += sp->LenMax();
+                } else {
                     pos = get<0>(*rsltp)+kmer_len-1+knum;
+                    if(pos >= (int)sp->LenMax() && sp->m_circular)
+                        pos -= sp->LenMax();
+                }
             }
             
             return make_tuple(pos, plus, sp);
@@ -600,7 +556,7 @@ namespace DeBruijn {
                         left_flank1 = sp1->m_left_repeat;
                         right_flank1 = sp1->m_right_repeat;
                         clen1 = sp1->LenMax();
-                        if((plus1 > 0 && pos1 >= margin+left_flank1 && pos1+insert_size-1 < clen1-margin-right_flank1) || 
+                        if(sp1->m_circular || (plus1 > 0 && pos1 >= margin+left_flank1 && pos1+insert_size-1 < clen1-margin-right_flank1) || 
                            (plus1 < 0 && pos1-insert_size+1 >= margin+left_flank1 && pos1 < clen1-margin-right_flank1))
                             continue;
                     }
@@ -613,7 +569,7 @@ namespace DeBruijn {
                         int left_flank2 = sp2->m_left_repeat;
                         int right_flank2 = sp2->m_right_repeat;
                         int clen2 = sp2->LenMax();
-                        if((plus2 > 0 && pos2 >= margin+left_flank2 && pos2+insert_size-1 < clen2-margin-right_flank2) || 
+                        if(sp2->m_circular || (plus2 > 0 && pos2 >= margin+left_flank2 && pos2+insert_size-1 < clen2-margin-right_flank2) || 
                            (plus2 < 0 && pos2-insert_size+1 >= margin+left_flank2 && pos2 < clen2-margin-right_flank2))
                             continue;
                     }
@@ -658,7 +614,7 @@ namespace DeBruijn {
                         int left_flank = sp->m_left_repeat;
                         int right_flank = sp->m_right_repeat;
                         int clen = sp->LenMax();
-                        if((plus > 0 && pos >= margin+left_flank && pos+rlen-1 < clen-margin-right_flank) || 
+                        if(sp->m_circular || (plus > 0 && pos >= margin+left_flank && pos+rlen-1 < clen-margin-right_flank) || 
                            (plus < 0 && pos-rlen+1 >= margin+left_flank && pos < clen-margin-right_flank))
                             continue;
                     }
@@ -706,11 +662,13 @@ namespace DeBruijn {
             CStopWatch timer;
             timer.Restart();
             TKmerToContig assembled_kmers = GetAssembledKmers();
-            cerr << "Contigs: " << m_contigs.back().size() << " Assembled kmers: " << assembled_kmers.Size() << endl;
 
-            RemoveUsedReads(assembled_kmers, m_max_kmer+m_jump, m_insert_size, m_ncores, m_raw_reads);
-            RemoveUsedReads(assembled_kmers, m_jump, m_insert_size, m_ncores, m_connected_reads);
-            RemoveUsedPairs(assembled_kmers, m_jump, m_insert_size, m_ncores, m_raw_pairs, m_connected_reads);
+            if(assembled_kmers.TableSize() > 0) {
+                int jump = 50; //TODO reconsile with what used in filterneighbors   
+                RemoveUsedReads(assembled_kmers, m_max_kmer+jump, m_insert_size, m_ncores, m_raw_reads);
+                RemoveUsedReads(assembled_kmers, jump, m_insert_size, m_ncores, m_connected_reads);
+                RemoveUsedPairs(assembled_kmers, jump, m_insert_size, m_ncores, m_raw_pairs, m_connected_reads);
+            }
 
             size_t reads = 0;
             for(auto& rh : m_raw_reads)
@@ -728,9 +686,12 @@ namespace DeBruijn {
         }
 
         // improves previously assembled contigs using a longer kmer
-        void ImproveContigs (int kmer_len) {
-            CDBGraph& graph = *m_graphs[kmer_len];
-            CDBGraphDigger graph_digger(graph, m_fraction, m_jump, m_low_count);
+        void ImproveContigs (int kmer_len, bool allow_snps) {
+            DBGraph& graph = *m_graphs[kmer_len];
+            int jump = m_jump;
+            if(allow_snps)
+                jump += kmer_len;
+            GraphDigger graph_digger(graph, m_fraction, jump, m_low_count, allow_snps);
             cerr << "Kmer: " << kmer_len << " Graph size: " << graph.GraphSize() << " Contigs in: " << (m_contigs.empty() ? 0 : m_contigs.back().size()) << endl;
             cerr << "Valley: " << graph_digger.HistMin() << endl; 
             CStopWatch total;
@@ -739,65 +700,50 @@ namespace DeBruijn {
             CStopWatch timer;
             timer.Restart();
             //convert strings to SContig and mark visited kmers 
-            TContigList scontigs = ConverToSContigAndMarkVisited(graph_digger); 
+            if(allow_snps)
+                graph.ClearAllVisited();                
+            TContigList<DBGraph> scontigs = ConverToSContigAndMarkVisited(graph_digger); 
             cerr << endl << "Mark used kmers in " << timer.Elapsed();
 
-            /*
-            int num = 0;
-            for(auto& scontig : scontigs) {
-                cerr << ">ContigIn" << kmer_len << "_" << ++num << endl;
-                for(char c : scontig.m_seq[0].front())
-                    cerr << c;
-                cerr << endl;
-            }
-            */
+            if(allow_snps)
+                graph_digger.CheckRepeats(scontigs);
 
             size_t singl = 0;
             size_t multipl = 0;
-            for(size_t index = 0; index < graph.GraphSize(); ++index) {
-                if(graph.IsMultContig(2*(index+1)))
+            for(auto it = graph.Begin(); it != graph.End(); ++it) {
+                if(graph.IsMultContig(it))
                     ++multipl;
-                else if(graph.IsVisited(2*(index+1)))
+                else if(graph.IsVisited(it))
                     ++singl;
             }
             cerr << "Kmers in multiple/single contigs: " << multipl << " " << singl << endl;            
 
-            graph_digger.CheckRepeats(scontigs);
 
-            timer.Restart();
-            // connect overlapping contigs
-            graph_digger.ConnectOverlappingContigs(scontigs);
-            cerr << "Connect overlapping contigs in " << timer.Elapsed();
+            // connect overlapping contigs if we had seeds 
+            if(!m_seeds.empty() && !allow_snps) {
+                timer.Restart();
+                graph_digger.CheckRepeats(scontigs);
+                cerr << "Check repeats in " << timer.Elapsed();
+                timer.Restart();
+                graph_digger.ConnectOverlappingContigs(scontigs);
+                cerr << "Connect overlapping contigs in " << timer.Elapsed();
+            }
 
             timer.Restart();
             //create new contigs using not yet included kmers
-            CDBGraphDigger graph_digger_no_jump(graph, m_fraction, 0, m_low_count);
+            GraphDigger graph_digger_no_jump(graph, m_fraction, 0, m_low_count);
             unsigned min_len_for_new_seeds = 3*kmer_len;      // short ones are likely to be noise
 
-            CDBGraphDigger test_graphdigger(*m_graphs[m_min_kmer], m_fraction, 0, m_low_count);
-            CDBGraphDigger* test_graphdiggerp = nullptr;
+            GraphDigger test_graphdigger(*m_graphs[m_min_kmer], m_fraction, 0, m_low_count);
+            GraphDigger* test_graphdiggerp = nullptr;
             if(kmer_len != m_min_kmer)
                 test_graphdiggerp = &test_graphdigger;
 
-            TContigList new_seeds = graph_digger_no_jump.GenerateNewSeeds(min_len_for_new_seeds, m_ncores, test_graphdiggerp);
-            cerr << "New seeds in " << timer.Elapsed();
+            TContigList<DBGraph> new_seeds = graph_digger_no_jump.GenerateNewSeeds(min_len_for_new_seeds, m_ncores, test_graphdiggerp);
             cerr << "New seeds: " << new_seeds.size() << endl;
-
-            /*
-            num = 0;
-            for(auto& scontig : new_seeds) {
-                cerr << ">NewSeed" << kmer_len << "_" << ++num << endl;
-                for(char c : scontig.m_seq[0].front())
-                    cerr << c;
-                cerr << endl;
-            }
-            */
-
             //add new seeds
-            scontigs.splice(scontigs.end(), new_seeds);
-            for(auto& contig : scontigs)
-                contig.SelectMinDirection();
-            scontigs.sort();
+            scontigs.splice(scontigs.end(), new_seeds);            
+            cerr << "New seeds in " << timer.Elapsed();
 
             timer.Restart();
             graph_digger.ConnectAndExtendContigs(scontigs, m_ncores); 
@@ -808,7 +754,6 @@ namespace DeBruijn {
                 m_contigs.back().push_back(contig.m_seq);
             }
             m_contigs.back().sort();
-            cerr << "Connections and extensions in " << timer.Elapsed();
 
             vector<size_t> contigs_len;
             size_t genome_len = 0;
@@ -825,28 +770,45 @@ namespace DeBruijn {
                 n50 = contigs_len[j];
                 len += contigs_len[j];
             }
+            cerr << "Connections and extensions in " << timer.Elapsed();
+
             cerr << "Contigs out: " << contigs_len.size() << " Genome: " << genome_len << " N50: " << n50 << " L50: " << l50 << endl; 
             cerr << "Assembled in " << total.Elapsed() << endl; 
         }
 
 
         // converts contigs from the previous iteration into SContig and marks visited the nodes in the graph
-        TContigList ConverToSContigAndMarkVisited(CDBGraphDigger& graph_digger) {
+        TContigList<DBGraph> ConverToSContigAndMarkVisited(GraphDigger& graph_digger) {
             if(m_contigs.empty())
-                return TContigList();
+                return TContigList<DBGraph>();
 
             int kmer_len = graph_digger.Graph().KmerLen();
 
-            for(const auto& contig : m_contigs.back()) {
+            for(auto& contig : m_contigs.back()) {
+
+                //remove short snps
+                if(!contig.m_circular) {
+                    if(contig.size() > 1 && (int)contig.ChunkLenMax(0) < kmer_len) {
+                        contig.m_left_repeat = 0;
+                        contig.pop_front();
+                        contig.pop_front();
+                    }
+                    if(contig.size() > 1 && (int)contig.ChunkLenMax(contig.size()-1) < kmer_len) {
+                        contig.m_right_repeat = 0;
+                        contig.pop_back();
+                        contig.pop_back();
+                    }
+                }
+
                 if((int)contig.LenMin() < kmer_len)
                     m_short_contigs.push_back(contig);
             }
 
-            TContigList scontigs;
+            TContigList<DBGraph> scontigs;
             vector<pair<const CContigSequence*, SAtomic<uint8_t>>> contig_is_taken;
             for(const auto& contig : m_contigs.back())
                 contig_is_taken.push_back(make_pair(&contig,SAtomic<uint8_t>(0)));
-            vector<TContigList> scontigs_for_threads(m_ncores);
+            vector<TContigList<DBGraph>> scontigs_for_threads(m_ncores);
             list<function<void()>> jobs;
             for(auto& sc : scontigs_for_threads) 
                 jobs.push_back(bind(&CDBGAssembler::ConverToSContigAndMarkVisitedJob, this, ref(contig_is_taken), ref(sc), ref(graph_digger)));
@@ -859,8 +821,8 @@ namespace DeBruijn {
         }
 
         // one-thread worker for ConverToSContigAndMarkVisited()
-        void ConverToSContigAndMarkVisitedJob(vector<pair<const CContigSequence*, SAtomic<uint8_t>>>& contig_is_taken, TContigList& scontigs, CDBGraphDigger& graph_digger) {
-            CDBGraph& graph = graph_digger.Graph();
+        void ConverToSContigAndMarkVisitedJob(vector<pair<const CContigSequence*, SAtomic<uint8_t>>>& contig_is_taken, TContigList<DBGraph>& scontigs, GraphDigger& graph_digger) {
+            DBGraph& graph = graph_digger.Graph();
             int kmer_len = graph.KmerLen();
             for(auto& cnt : contig_is_taken) {
                 if(!cnt.second.Set(1))
@@ -868,14 +830,14 @@ namespace DeBruijn {
                 const CContigSequence& contig = *cnt.first;
                 int contig_len = contig.LenMin();
                 if(contig_len >= kmer_len)
-                    scontigs.push_back(SContig(contig, graph)); // constructor sets visited in graph                    
+                    scontigs.push_back(SContig<DBGraph>(contig, graph)); // constructor sets visited in graph                    
             }
         }
 
         // estimates available memory
-        int64_t AvailableMemory() const {
+        int64_t AvailableMemory(int memory) const {
             int64_t GB = 1000000000;
-            int64_t mem_available = GB*m_memory;
+            int64_t mem_available = GB*memory;
             int64_t mem_used = 0;
             for(const auto& reads : m_raw_reads)
                 mem_used += reads[0].MemoryFootprint()+reads[1].MemoryFootprint();
@@ -890,48 +852,19 @@ namespace DeBruijn {
 
         }
 
+        template<typename... GraphArgs>
+        void EstimateMaxKmer(int read_len, GraphArgs... gargs) {
+            static_assert(sizeof(DBGraph) != sizeof(DBGraph), "Unknown specialization of CDBGAssembler");
+        }
+
         // counts kmers and build a de Bruijn graph; returns average count of kmers in the graph
         // kmer_len - the size of the kmer
         // reads - reads from input or connected internally
         // is_stranded - whether or not stranded information is meaningful
-        double GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded, double total_seq = 0) {
-            CKmerCounter kmer_counter(reads, kmer_len, m_min_count, is_stranded, AvailableMemory(), m_ncores);
-            if(kmer_counter.Kmers().Size() == 0)
-                return 0;
-
-            TKmerCount& sorted_kmers =  kmer_counter.Kmers();
-
-            if(total_seq > 0) {
-                map<int,size_t> hist;
-                for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
-                    ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically
-                }
-                TBins bins(hist.begin(), hist.end());
-                int genome_size = CalculateGenomeSize(bins);
-                if(genome_size > 0) {
-                    int new_min_count = total_seq/genome_size/50+0.5;
-                    if(new_min_count > m_min_count) {
-                        cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
-                        m_min_count = new_min_count;                
-                        m_low_count = m_min_count;
-                        sorted_kmers.RemoveLowCountKmers(m_min_count);
-                    }
-                }
-            }            
-            if(kmer_counter.Kmers().Size() == 0)
-                return 0;
-                
-            double average_count = kmer_counter.AverageCount();
-            kmer_counter.GetBranches();
-
-            map<int,size_t> hist;
-            for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
-                ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically
-            }
-            TBins bins(hist.begin(), hist.end());
-            m_graphs[kmer_len] = new CDBGraph(move(sorted_kmers), move(bins), is_stranded);
-
-            return average_count;
+        template<typename... GraphArgs>
+        double GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded, double total_seq, GraphArgs... gargs) {
+            static_assert(sizeof(DBGraph) != sizeof(DBGraph), "Unknown specialization of CDBGAssembler");
+            return 0;
         }
 
 
@@ -945,19 +878,126 @@ namespace DeBruijn {
         int m_max_kmer_paired;                               // insert size
         int m_insert_size;                                   // upper bound for the insert size
         int m_maxkmercount;                                  // the minimal average count for estimating the maximal kmer
-        int m_memory;                                        // the upper bound for memory use (GB)
         int m_ncores;                                        // number of threads
 
         int m_max_kmer;                                      // maximal kmer size for the main steps
+        double m_average_count;                              // average count for minimal kmers
 
         list<array<CReadHolder,2>>& m_raw_reads;             // original reads - will be reduced gradually
         list<array<CReadHolder,2>> m_raw_pairs;              // paired original reads for connection - will be reduced gradually
         list<array<CReadHolder,2>> m_connected_reads;        // connected pairs (long reads)
-        map<int,CDBGraph*> m_graphs;                         // De Bruijn graphs for mutiple kmers
+        map<int, DBGraph*> m_graphs;                         // De Bruijn graphs for mutiple kmers
         vector<TContigSequenceList> m_contigs;               // assembled contigs for each iteration
         TContigSequenceList m_short_contigs;
         TContigSequenceList m_seeds;
     };
+
+    template<> template<> // one for graph, the other for args
+    void CDBGAssembler<CDBGraph>::EstimateMaxKmer(int read_len, int memory) {
+        while(m_max_kmer > m_min_kmer) {
+            m_max_kmer -= 1-m_max_kmer%2;           // odd kmers desired
+            CKmerCounter kmer_counter(m_raw_reads, m_max_kmer, m_min_count, true, AvailableMemory(memory), m_ncores);
+            if(kmer_counter.Kmers().Size() < 100) { // find a kmer length with at least 100 distinct kmers at that length
+                m_max_kmer -= read_len/25;          // reduce maximal kmer length by a small amount based on read length
+                continue;
+            }
+            double average_count_for_max_kmer = kmer_counter.AverageCount();
+            if(average_count_for_max_kmer >= m_maxkmercount)
+                break;
+            else 
+                m_max_kmer -= read_len/25;                                    
+        }
+        m_max_kmer = max(m_max_kmer, m_min_kmer);
+    }
+
+    template<> template<> // one for graph, the other for args
+    void CDBGAssembler<CDBHashGraph>::EstimateMaxKmer(int read_len, int estimated_kmer_num, bool skip_bloom_filter) {
+        int64_t M = 1000000;
+        while(m_max_kmer > m_min_kmer) {
+            m_max_kmer -= 1-m_max_kmer%2;           // odd kmers desired
+            CKmerHashCounter  kmer_counter(m_raw_reads, m_max_kmer, m_min_count, M*estimated_kmer_num, true, m_ncores, skip_bloom_filter);
+            if(kmer_counter.KmerNum() < 100) {      // find a kmer length with at least 100 distinct kmers at that length
+                m_max_kmer -= read_len/25;          // reduce maximal kmer length by a small amount based on read length
+                continue;
+            }
+            double average_count_for_max_kmer = GetAverageCount(kmer_counter.Kmers().GetBins());           
+            if(average_count_for_max_kmer >= m_maxkmercount)
+                break;
+            else 
+                m_max_kmer -= read_len/25;                                    
+        }
+        m_max_kmer = max(m_max_kmer, m_min_kmer);
+    }
+
+    template<> template<> // one for graph, the other for args
+    double CDBGAssembler<CDBGraph>::GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded, double total_seq, int memory) {
+        CKmerCounter kmer_counter(reads, kmer_len, m_min_count, is_stranded, AvailableMemory(memory), m_ncores);
+        if(kmer_counter.Kmers().Size() == 0)
+            return 0;
+
+        TKmerCount& sorted_kmers =  kmer_counter.Kmers();
+
+        if(total_seq > 0) {
+            map<int,size_t> hist;
+            for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
+                ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically
+            }
+            TBins bins(hist.begin(), hist.end());
+            int genome_size = CalculateGenomeSize(bins);
+            if(genome_size > 0) {
+                int new_min_count = total_seq/genome_size/50+0.5;
+                if(new_min_count > m_min_count) {
+                    cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
+                    m_min_count = new_min_count;                
+                    m_low_count = m_min_count;
+                    sorted_kmers.RemoveLowCountKmers(m_min_count);
+                }
+            }
+        }            
+        if(kmer_counter.Kmers().Size() == 0)
+            return 0;
+                
+        double average_count = kmer_counter.AverageCount();
+        kmer_counter.GetBranches();
+
+        map<int,size_t> hist;
+        for(size_t index = 0; index < sorted_kmers.Size(); ++index) {
+            ++hist[sorted_kmers.GetCount(index)];                  // count clipped to integer automatically
+        }
+        TBins bins(hist.begin(), hist.end());
+        m_graphs[kmer_len] = new CDBGraph(move(sorted_kmers), move(bins), is_stranded);
+
+        return average_count;
+    }
+
+    template<> template<> // one for graph, the other for args
+    double CDBGAssembler<CDBHashGraph>::GetGraph(int kmer_len, const list<array<CReadHolder,2>>& reads, bool is_stranded, double total_seq, int estimated_kmer_num, bool skip_bloom_filter) {
+        int64_t M = 1000000;
+        CKmerHashCounter  kmer_counter(reads, kmer_len, m_min_count, M*estimated_kmer_num, is_stranded, m_ncores, skip_bloom_filter);
+        if(kmer_counter.KmerNum() == 0)
+            return 0;
+
+        if(total_seq > 0) {
+            TBins bins = kmer_counter.Kmers().GetBins();
+            int genome_size = CalculateGenomeSize(bins);
+            if(genome_size > 0) {
+                int new_min_count = total_seq/genome_size/50+0.5;
+                if(new_min_count > m_min_count) {
+                    cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
+                    m_min_count = new_min_count;                
+                    m_low_count = m_min_count;
+                    kmer_counter.RemoveLowCountKmers(m_min_count);
+                }
+            }
+        }            
+        if(kmer_counter.KmerNum() == 0)
+            return 0;
+                
+        kmer_counter.GetBranches();
+        m_graphs[kmer_len] = new CDBHashGraph(move(kmer_counter.Kmers()), is_stranded);
+
+        return m_graphs[kmer_len]->AverageCount();
+    }
 
 
 }; // namespace

@@ -34,8 +34,16 @@
 #include "DBGraph.hpp"
 #include "glb_align.hpp"
 
+#include "wgmlst.hpp"
+
 using namespace boost::program_options;
 using namespace DeBruijn;
+
+namespace libwgmlst
+{
+
+using TSubject = tuple<string, string>; // (allele_id, contig)
+using TQuery = tuple<string, string>;  //  (allele_id, contig)
 
 class CwgMLST {
 public:
@@ -44,8 +52,17 @@ public:
     typedef vector<tuple<string,string>> TGenome; // <accession,contig>
     typedef CKmerMap<list<tuple<int, int, int>>> TKmerToGenome;  // tuple<contig position, strand, contig's vector index>; list for repeated kmers
 
-    CwgMLST (boost::iostreams::filtering_istream& alleles_file, ofstream& output_mappings, ofstream& output_loci, int ncores) : 
-        m_output_mappings(output_mappings), m_output_loci(output_loci), m_ncores(ncores), m_delta(m_match, m_mismatch) {  
+    // Alignment(locus,allele_first, allele_second, consistency, start, stop, from, to, matches, strand)
+
+    CwgMLST (boost::iostreams::filtering_istream& alleles_file, 
+             TEmitAlignmentCallback alignment_callback, // ofstream& output_mappings, 
+             TEmitAlleleCallback allele_callback,      // ofstream& output_loci, 
+             int ncores) : 
+        m_ncores(ncores), 
+        m_delta(m_match, m_mismatch), 
+        m_EmitAlignmentCallback(alignment_callback),
+        m_EmitAlleleCallback(allele_callback) 
+    {  
         // read alleles
         string locus;
         while(alleles_file >> locus) {
@@ -65,6 +82,45 @@ public:
         } 
     }
 
+    CwgMLST(string locus, 
+            vector<TSubject> subjects,
+            vector<TQuery> queries,
+            TEmitAlignmentCallback callback,
+            int num_cores)
+    :  m_ncores(num_cores),
+       m_delta(m_match, m_mismatch),
+       m_Locus(locus),
+       m_EmitAlignmentCallback(callback)
+    {
+        for ( auto& subject: subjects ) {
+            std::transform(std::get<1>(subject).begin(), std::get<1>(subject).end(), std::get<1>(subject).begin(), ::toupper);
+
+            if(std::get<1>(subject).find_first_not_of("ACGTYRWSKMDVHBXN-") != string::npos) {
+               throw runtime_error("Invalid sequence in the subject sequence");
+            }
+
+        }
+
+        for ( auto& query: queries ) {
+            std::transform(std::get<1>(query).begin(), std::get<1>(query).end(), std::get<1>(query).begin(), ::toupper);
+            
+            if(std::get<1>(query).find_first_not_of("ACGTYRWSKMDVHBXN-") != string::npos) {
+                throw runtime_error("Invalid sequence in the query sequence");
+            }
+        }
+
+        for ( auto& query: queries ) {
+            string const& allele = std::get<0>(query);
+            string const& seq = std::get<1>(query);
+
+            m_alleles[allele].push_back(make_tuple(locus, seq));
+        }
+
+        for ( auto& subject: subjects ) {
+            m_genome_acc_to_index[std::get<0>(subject)] = m_genome.size() + 1;
+            m_genome.push_back(move(subject));            
+       }
+    }
     void CheckAndCleanAlleles() {
         vector<pair<TLocus*, SAtomic<uint8_t>>> loci;
         for(auto& locus : m_alleles)
@@ -282,7 +338,7 @@ public:
             jobs.push_back(bind(&CwgMLST::AnalyzeAllelesJob, this, ref(loci)));
         RunThreads(m_ncores, jobs);
 
-        if(m_output_loci.is_open()) {
+        if(m_EmitAlleleCallback) {
             // remove partials and overlapping with partials
             vector<pair<int,int>> partial_margins(m_genome.size());
             for(unsigned index = 0; index < m_genome.size(); ++index)
@@ -506,15 +562,27 @@ public:
             /* print removed equally good locations to stderr */
             for(auto i = overlap_data.begin(); i != overlap_data.end(); ++i) {
                 SFragment& fragment = get<2>(*i); 
-                ostream& out_loci = fragment.m_print ? m_output_loci : cerr;
-                out_loci << get<0>(*i) << '\t';
-                out_loci << fragment.m_seq << '\t';
-                out_loci << get<0>(m_genome[fragment.m_contig]) << '\t';
-                out_loci << fragment.m_from+1 << "\t";                                                                         
-                out_loci << fragment.m_to+1 << "\t";
-                out_loci << fixed << setprecision(2) << fragment.m_identity << '\t';
-                out_loci << fragment.m_to-fragment.m_from+1 << "\t";
-                out_loci << get<1>(*i) << endl;
+                if ( fragment.m_print ) {
+                    m_EmitAlleleCallback(get<0>(*i),                           // Locus
+                                         fragment.m_seq,                       // Allele sequence
+                                         get<0>(m_genome[fragment.m_contig]),  // Contig Id
+                                         fragment.m_from+1,                    // Range.From                                           
+                                         fragment.m_to+1,                      // Range.To
+                                         fragment.m_identity,                  // identity pct
+                                         fragment.m_to - fragment.m_from + 1,  // length
+                                         get<1>(*i)                            // allele name
+                                        );
+                }
+                else {
+                    cerr << get<0>(*i) << '\t';
+                    cerr << fragment.m_seq << '\t';
+                    cerr << get<0>(m_genome[fragment.m_contig]) << '\t';
+                    cerr << fragment.m_from+1 << "\t";                                                                         
+                    cerr << fragment.m_to+1 << "\t";
+                    cerr << fixed << setprecision(2) << fragment.m_identity << '\t';
+                    cerr << fragment.m_to-fragment.m_from+1 << "\t";
+                    cerr << get<1>(*i) << endl;
+                }
             }
 
             /* get total coverage on genome in loci kept;
@@ -680,6 +748,33 @@ private:
     }
 
     void PrintAlignments(SLocusRslt& locus_rslt) const {
+        if ( m_EmitAlignmentCallback ) {
+            const string& locus_id = locus_rslt.m_locus_id;
+            for(auto& fragment : locus_rslt.m_fragments) {
+                string consistency;
+                if(fragment.m_not_aligned_fivep > 0 || fragment.m_not_aligned_threep > 0)
+                    consistency = "Partial";                                                // partial
+                else
+                    consistency = (fragment.m_consistent ? "Consistent" : "Notconsistent"); // consistency 
+
+                string allele = fragment.m_allele_id.empty() ? "-" : fragment.m_allele_id;
+
+                m_EmitAlignmentCallback(
+                                     (m_Locus.empty() ? locus_id : m_Locus),
+                                     (m_Locus.empty() ? allele : locus_id),  // allele name, really!!
+                                     get<0>(m_genome[fragment.m_contig]),                     // contig id ( subject allele name)
+                                     consistency,
+                                     fragment.m_has_start ? "Start" : std::to_string(fragment.m_not_aligned_fivep), // start || not aligned 5'
+                                     fragment.m_has_stop ? "Stop" : std::to_string(fragment.m_not_aligned_threep), // stop || not aligned 3'
+                                     fragment.m_from + 1,                                     // from on contig
+                                     fragment.m_to + 1,                                       // to on contig
+                                     fragment.m_matches,
+                                     fragment.m_strand > 0 ? '+' : '-',                       // strand
+                                     fragment.m_seq);                                         // seq 
+     
+            }
+        }
+#if 0
         const string& locus_id = locus_rslt.m_locus_id;
         ostream& out = m_output_mappings.is_open() ? m_output_mappings : cout;
         for(auto& fragment : locus_rslt.m_fragments) {
@@ -703,7 +798,8 @@ private:
             out << (fragment.m_strand > 0 ? "+" : "-")  << "\t";                                                       // strand
             out << fragment.m_seq  << "\t";                                                                            // sequence
             out << fragment.m_matches << endl;
-        }    
+        }
+#endif    
     }
 
     void AnalyzeAllelesJob(vector<tuple<string, list<SFragment>, SAtomic<uint8_t>>>& loci) {
@@ -751,7 +847,7 @@ private:
                 lock_guard<mutex> guard(m_out_mutex);
                 PrintAlignments(locus_rslt);
             }
-            if(m_output_loci.is_open()) {
+            if(m_EmitAlleleCallback) {
                 list<SFragment>& new_loci = get<1>(loc);
                 for(auto& fragment : fragments) {
                     if((fragment.m_consistent && fragment.m_has_start && fragment.m_has_stop && fragment.m_identity >= m_minimum_identity) || // complete
@@ -1420,9 +1516,6 @@ private:
     int m_min_bases_to_consider = 15;
     int m_max_off_diag = 15;
 
-    ofstream& m_output_mappings;
-    ofstream& m_output_loci;
-
     int m_ncores;
     //TODO: Other genetic code(s)?
     const array<string,7> m_start_codons = { {"ATG", "TTG", "CTG", "ATT", "ATC", "ATA", "GTG"} };
@@ -1443,182 +1536,248 @@ private:
     SMatrix m_delta;
 
     mutex m_out_mutex;
+
+    string m_Locus;
+    TEmitAlignmentCallback m_EmitAlignmentCallback;
+    TEmitAlleleCallback m_EmitAlleleCallback;
 };
 
 
-int main(int argc, const char* argv[])
+// API
+//
+void wgmlst(boost::iostreams::filtering_istream& genome_file, 
+            boost::iostreams::filtering_istream& alleles_file,
+            ifstream& bad_bases_file, 
+            bool blast_hits_present,
+            boost::iostreams::filtering_istream& blast_file,
+            int kmer_len,
+            int min_kmer_bases,
+            double min_fraction_of_matches,
+            int match,
+            int mismatch,
+            int gap_open,
+            int gap_extend,
+            int ncores,
+            TEmitAlignmentCallback alignment_cb,
+            TEmitAlleleCallback allele_cb)
 {
-    options_description arguments("Program arguments");
-    arguments.add_options()
-        ("help,h", "Produce help message")
-        ("version,v", "Print version")
-        ("genome", value<string>()->required(), "Assembled genome (required)")
-        ("bad_bases", value<string>(), "Positions of low quality genome bases (optional)")
-        ("alleles", value<string>()->required(), "Alleles (required)")
-        ("output_mappings", value<string>(), "Output allele mappings (optional, default cout)")
-        ("output_loci", value<string>(), "Output new loci (optional)")
-        ("blast_hits", value<string>(), "Blast hits (optional)")
-        ("kmer", value<int>()->default_value(15), "Kmer length for allele search")
-        ("min_kmer_bases", value<int>()->default_value(15), "Minimal bases in exact diagonal kmer matches to consider for an alignment")
-        ("min_fraction_of_matches", value<double>()->default_value(0.1, "0.1"), "Minimal fraction of the query found as matches in diagonal hits to consider for an alignment")
-        ("match", value<int>()->default_value(1), "Bonus for match")
-        ("mismatch", value<int>()->default_value(1), "Penalty for mismatch")
-        ("gap_open", value<int>()->default_value(8), "Penalty for gap opening")
-        ("gap_extend", value<int>()->default_value(2), "Penalty for gap extension")
-        ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]");
 
+    CStopWatch timer;
+    timer.Restart();
 
+    CwgMLST wg_mlst(alleles_file, alignment_cb, allele_cb, ncores); 
+    //        cerr << "Alleles input in " << timer.Elapsed();
+    timer.Restart();
+    wg_mlst.CheckAndCleanAlleles();
+    //        cerr << "Alleles cleaning in " << timer.Elapsed(); 
 
-    int kmer_len;
-    int min_kmer_bases;
-    double min_fraction_of_matches;
+    timer.Restart();
+    wg_mlst.ReadGenome(genome_file);
+    if(bad_bases_file.is_open())
+        wg_mlst.ReadBadBases(bad_bases_file);
+
+    if(blast_hits_present) {
+        wg_mlst.ReadBlastHits(blast_file);
+        //            cerr << "Genome and blast hits input in " << timer.Elapsed();
+    } else {
+        wg_mlst.PrepareKmerMap(kmer_len);
+        //            cerr << "Genome input and kmermap in " << timer.Elapsed(); 
+    }
+    
+    timer.Restart();
+    wg_mlst.AnalyzeAlleles(min_kmer_bases, min_fraction_of_matches, match, mismatch, gap_open, gap_extend);  
+    //        cerr << "Alleles found in " << timer.Elapsed(); 
+}
+
+void wgmlst(string const& genome_path,          // Path to a FASTA file; genome's contigs.
+            string const& alleles_path,         // Path to a schema's alleles
+            string const& bad_bases_path,
+            string const& blast_hits_path,
+            string const& output_mappings_path, // Path to a file to emit alignments; STDOUT if path is empty.
+            string const& output_loci_path,     // Path to a file to emit allele calls; STDERR if path is empty.
+            int kmer_len,
+            int min_kmer_bases,
+            double min_fraction_of_matches,
+            int match,
+            int mismatch,
+            int gap_open,
+            int gap_extend,
+            int ncores)
+{
     boost::iostreams::filtering_istream genome_file;
-    ifstream bad_bases_file;
+    std::ifstream bad_bases_file;
     boost::iostreams::filtering_istream alleles_file;
-    boost::iostreams::filtering_istream blast_file;
-    int match;
-    int mismatch;
-    int gap_open;
-    int gap_extend;
+    boost::iostreams::filtering_istream blast_hits_file;
+    std::ofstream output_mappings;
+    std::ofstream output_loci;
+
     bool blast_hits_present = false;
-    ofstream output_mappings;
-    ofstream output_loci;
 
-
-    try {
-        variables_map argmap;                                // boost arguments
-        store(parse_command_line(argc, argv, arguments), argmap);
-
-        if(argmap.count("help")) {
-#ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
-#endif
-            cerr << arguments << "\n";
-            return 1;
-        }
-
-        if(argmap.count("version")) {
-            cerr << "WGMLST v.1.0" << endl;
-#ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
-#endif
-            return 0;
-        }
-
-        // must be after "help" if thre are 'required' options
-        notify(argmap);    
-
-        kmer_len = argmap["kmer"].as<int>();
-        min_kmer_bases = argmap["min_kmer_bases"].as<int>();
-        min_fraction_of_matches = argmap["min_fraction_of_matches"].as<double>();
-
-        {
-            string file = argmap["genome"].as<string>();
-            boost::iostreams::file_source f{file};
-            if(!f.is_open()) {
-                cerr << "Can't open file " << file << endl;
-                return 1; 
-            }            
-            if(file.size() > 3 &&  file.substr(file.size()-3) == ".gz")
-                genome_file.push(boost::iostreams::gzip_decompressor());
-            genome_file.push(f);
-        }
-
-        if(argmap.count("bad_bases")) {
-            string file = argmap["bad_bases"].as<string>();
-            bad_bases_file.open(file);
-            if(!bad_bases_file.is_open()) {
-                cerr << "Can't open file " << file << endl;
-                return 1; 
-            }    
-        }
-
-        {
-            string file = argmap["alleles"].as<string>();
-            boost::iostreams::file_source f{file};
-            if(!f.is_open()) {
-                cerr << "Can't open file " << file << endl;
-                return 1;
-            }
-            if(file.size() > 3 &&  file.substr(file.size()-3) == ".gz")
-                alleles_file.push(boost::iostreams::gzip_decompressor());
-            alleles_file.push(f);
-        }
-
-        if(argmap.count("blast_hits")) {
-            string file = argmap["blast_hits"].as<string>();
-            boost::iostreams::file_source f{file};
-            if(!f.is_open()) {
-                cerr << "Can't open file " << file << endl;
-                return 1;
-            }
-            if(file.size() > 3 &&  file.substr(file.size()-3) == ".gz")
-                blast_file.push(boost::iostreams::gzip_decompressor());
-            blast_file.push(f);
-            blast_hits_present = true;
-        }
-
-        if(argmap.count("output_mappings")) {
-            output_mappings.open(argmap["output_mappings"].as<string>());
-            if(!output_mappings.is_open()) {
-                cerr << "Can't open file " << argmap["output_mappings"].as<string>() << endl;
-                exit(1);
-            }
-        }
-
-        if(argmap.count("output_loci")) {
-            output_loci.open(argmap["output_loci"].as<string>());
-            if(!output_loci.is_open()) {
-                cerr << "Can't open file " << argmap["output_loci"].as<string>() << endl;
-                exit(1);
-            }
-        }
-
-        int ncores = thread::hardware_concurrency();
-        if(argmap["cores"].as<int>()) {
-            int nc = argmap["cores"].as<int>();
-            if(nc < 0) {
-                cerr << "Value of --cores must be >= 0" << endl;
-                exit(1);
-            } else if(nc > ncores) {
-                cerr << "WARNING: number of cores was reduced to the hardware limit of " << ncores << " cores" << endl;
-            } else if(nc > 0) {
-                ncores = nc;
-            }
-        }
-
-        match = argmap["match"].as<int>();
-        mismatch = argmap["mismatch"].as<int>();
-        gap_open = argmap["gap_open"].as<int>();
-        gap_extend = argmap["gap_extend"].as<int>();
-
-        CStopWatch timer;
-        timer.Restart();
-        CwgMLST wg_mlst(alleles_file, output_mappings, output_loci, ncores); 
-        //        cerr << "Alleles input in " << timer.Elapsed();
-        timer.Restart();
-        wg_mlst.CheckAndCleanAlleles();
-        //        cerr << "Alleles cleaning in " << timer.Elapsed(); 
-
-        timer.Restart();
-        wg_mlst.ReadGenome(genome_file);
-        if(bad_bases_file.is_open())
-            wg_mlst.ReadBadBases(bad_bases_file);
-
-        if(blast_hits_present) {
-            wg_mlst.ReadBlastHits(blast_file);
-            //            cerr << "Genome and blast hits input in " << timer.Elapsed();
-        } else {
-            wg_mlst.PrepareKmerMap(kmer_len);
-            //            cerr << "Genome input and kmermap in " << timer.Elapsed(); 
+    auto make_input_stream = [](string const& path, boost::iostreams::filtering_istream& is) {
+        boost::iostreams::file_source f{path};
+        if(!f.is_open()) {
+            ostringstream oss;
+            oss << "Can't open file " << path;
+            throw std::runtime_error(oss.str());
         }
         
-        timer.Restart();
-        wg_mlst.AnalyzeAlleles(min_kmer_bases, min_fraction_of_matches, match, mismatch, gap_open, gap_extend);  
-        //        cerr << "Alleles found in " << timer.Elapsed(); 
-    } catch (exception &e) {
-        cerr << endl << e.what() << endl;
-        return 1;
+        if(path.size() > 3 &&  path.substr(path.size()-3) == ".gz") {
+            is.push(boost::iostreams::gzip_decompressor());
+        }
+
+        is.push(f);
+    };
+
+    make_input_stream(genome_path, genome_file);
+    make_input_stream(alleles_path, alleles_file);
+
+    if ( !bad_bases_path.empty() ) {
+        bad_bases_file.open(bad_bases_path);
+        if ( !bad_bases_file.is_open() ) {
+            ostringstream oss;
+            oss << "Can't open file " << bad_bases_path;
+            throw std::runtime_error(oss.str());
+        }
     }
+
+    if ( !blast_hits_path.empty() ) {
+        make_input_stream(blast_hits_path, blast_hits_file);
+        blast_hits_present = true;
+    }
+
+
+    std::ostream* omappings = &std::cout;
+    if ( !output_mappings_path.empty() ) {
+        output_mappings.open(output_mappings_path, ios::binary | ios::out);
+        if(!output_mappings.is_open()) {
+            ostringstream oss;
+            oss << "Can't open file " << output_mappings_path << endl;
+            throw std::runtime_error(oss.str());
+        }
+        omappings = &output_mappings;
+    }
+
+    std::ostream* output_loci_p = &std::cerr;
+    if( !output_loci_path.empty() ) {
+        output_loci.open(output_loci_path, ios::binary | ios::out);
+        if(!output_loci.is_open()) {
+            ostringstream oss;
+            oss << "Can't open file " << output_loci_path << endl;
+            throw std::runtime_error(oss.str());
+        }
+        output_loci_p = &output_loci;
+    }
+
+
+    TEmitAlignmentCallback record_alignments = [&omappings](string const& locus, string const& allele_first, string const& allele_second, string const& consistency, string const& start, string const& stop, int32_t from, int32_t to, int32_t matches, char strand, string const& seq) {
+
+        *omappings << locus 
+                   << '\t'
+                   << allele_first
+                   << '\t'
+                   << consistency
+                   << '\t'
+                   << start
+                   << '\t'
+                   << stop
+                   << '\t'
+                   << allele_second
+                   << '\t'
+                   << from
+                   << '\t'
+                   << to
+                   << '\t'
+                   << strand
+                   << '\t'
+                   << seq
+                   << '\t'
+                   << matches
+                   << '\n';
+    };
+  
+    TEmitAlleleCallback record_alleles = [&output_loci_p](string const& locus, string const& seq, string const& contig_id, int32_t from, int32_t to, double identity_pct, int32_t length, string const& allele_name) {
+        *output_loci_p 
+            << locus
+            << '\t'
+            << seq
+            << '\t'
+            << contig_id
+            << '\t'
+            << from
+            << '\t'
+            << to
+            << '\t'
+            << std::fixed << std::setprecision(2) << identity_pct
+            << '\t'
+            << length
+            << '\t'
+            << allele_name
+            << '\n';
+    };
+
+    wgmlst(genome_file,
+           alleles_file,
+           bad_bases_file,
+           blast_hits_present,
+           blast_hits_file,
+           kmer_len,
+           min_kmer_bases,
+           min_fraction_of_matches,
+           match,
+           mismatch,
+           gap_open,
+           gap_extend,
+           ncores,
+           record_alignments,
+           record_alleles);
 }
+
+vector<CAlleleAlignment> wgmlst_allele_alignments(string locus, 
+                                                  vector<tuple<string, string> > subjects, 
+                                                  vector<tuple<string, string> > queries,
+                                                  int kmer_len,
+                                                  int min_kmer_bases,
+                                                  double min_fraction_of_matches,
+                                                  int match,
+                                                  int mismatch,
+                                                  int gap_open,
+                                                  int gap_extend)
+{
+    vector<CAlleleAlignment> alignments;
+
+    TEmitAlignmentCallback record_alignment = [&alignments](string const& locus, string const& allele_first, string const& allele_second, string const& consistency, string const& start, string const& stop, int32_t from, int32_t to, int32_t matches, char strand, string const& /*seq*/) {
+        alignments.emplace_back(CAlleleAlignment(locus,
+                                                allele_first,
+                                                allele_second,
+                                                consistency,
+                                                (start == "Start") ? 0 : std::stoi(start),
+                                                (stop == "Stop") ? 0 : std::stoi(stop),
+                                                from,
+                                                to,
+                                                matches,
+                                                strand));
+    };
+
+    CwgMLST wg_mlst(locus, 
+                    subjects, 
+                    queries,
+                    record_alignment,
+                    thread::hardware_concurrency());
+
+    wg_mlst.CheckAndCleanAlleles();
+
+    wg_mlst.PrepareKmerMap(kmer_len);
+
+    wg_mlst.AnalyzeAlleles(min_kmer_bases,
+                           min_fraction_of_matches,
+                           match,
+                           mismatch,
+                           gap_open,
+                           gap_extend);
+
+   
+    return alignments;
+}
+
+} // namespace libwgmlst
 

@@ -28,6 +28,10 @@
 #define _GraphDigger_
 
 #include <stack> 
+#include <deque>
+#include <forward_list>
+#include <unordered_set>
+#include "glb_align.hpp"
 #include "DBGraph.hpp"
 
 namespace DeBruijn {
@@ -87,21 +91,430 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
     mutex out_mutex;
 
 
+    typedef deque<char> TVariation;
+    struct SeqInterval {
+        SeqInterval(TVariation::iterator b, TVariation::iterator e) : begin(b), end(e) {}
+        bool operator<(const SeqInterval& other) const { return lexicographical_compare(begin, end, other.begin, other.end); }
+        bool operator==(const SeqInterval& other) const { return equal(begin, end, other.begin); }
+        
+        TVariation::iterator begin;
+        TVariation::iterator end;
+    };
+    typedef forward_list<TVariation> TLocalVariants;
+    class CContigSequence : public deque<TLocalVariants> {
+    public:
+        int m_left_repeat = 0;     // number of bases which COULD be in repeat
+        int m_right_repeat = 0;    // number of bases which COULD be in repeat 
+        bool m_circular = false;
+
+        int VariantsNumber(int chunk) { return distance((*this)[chunk].begin(), (*this)[chunk].end()); }
+        bool UniqueChunk(int chunk) const {
+            auto it = (*this)[chunk].begin();
+            return (it != (*this)[chunk].end() && ++it == (*this)[chunk].end());
+        }
+        bool VariableChunk(int chunk) const {
+            auto it = (*this)[chunk].begin();
+            return (it != (*this)[chunk].end() && ++it != (*this)[chunk].end());
+        }
+        size_t ChunkLenMax(int chunk) const {
+            size_t mx = 0;
+            for(auto& seq : (*this)[chunk])
+                mx = max(mx, seq.size());
+            return mx;
+        }
+        size_t ChunkLenMin(int chunk) const {
+            size_t mn = numeric_limits<size_t>::max();
+            for(auto& seq : (*this)[chunk])
+                mn = min(mn, seq.size());            
+            return mn;
+        }
+        size_t LenMax() const { 
+            size_t len = 0;
+            for(unsigned chunk = 0; chunk < size(); ++chunk)
+                len += ChunkLenMax(chunk);
+            return len; 
+        }
+        size_t LenMin() const { 
+            size_t len = 0;
+            for(unsigned chunk = 0; chunk < size(); ++chunk)
+                len += ChunkLenMin(chunk);
+            return len; 
+        }
+
+        void InsertNewVariant() { back().emplace_front(); }
+        void InsertNewVariant(char c) { back().emplace_front(1, c); }
+        template <typename ForwardIterator>
+        void InsertNewVariant(ForwardIterator b, ForwardIterator e) { back().emplace_front(b, e); }
+
+        void ExtendTopVariant(char c) { back().front().push_back(c); }
+        template <typename ForwardIterator>
+        void ExtendTopVariant(ForwardIterator b, ForwardIterator e) { back().front().insert(back().front().end(), b, e); }
+
+        void InsertNewChunk() { emplace_back(); }
+        template <typename ForwardIterator>
+        void InsertNewChunk(ForwardIterator b, ForwardIterator e) {
+            InsertNewChunk();
+            InsertNewVariant(b, e);
+        }
+
+        void StabilizeVariantsOrder() {
+            for(auto& chunk : *this) 
+                chunk.sort();
+        }
+        void ReverseComplement() {
+            std::swap(m_left_repeat, m_right_repeat);
+            reverse(begin(), end());
+            for(auto& chunk : *this) {
+                for(auto& seq : chunk)
+                    ReverseComplementSeq(seq.begin(), seq.end());
+            }
+            StabilizeVariantsOrder();
+        }
+        bool RemoveShortUniqIntervals(int min_uniq_len) {
+            if(size() >= 5) {
+                for(unsigned i = 2; i < size()-2; ) {
+                    if((int)ChunkLenMax(i) < min_uniq_len) {
+                        auto& new_chunk = *insert(begin()+i+2, TLocalVariants()); // empty chunk
+                        for(auto& var1 : (*this)[i-1]) {
+                            for(auto& var2 : (*this)[i+1]) {
+                                new_chunk.push_front(var1);
+                                auto& seq = new_chunk.front();
+                                seq.insert(seq.end(), (*this)[i].front().begin(), (*this)[i].front().end());
+                                seq.insert(seq.end(), var2.begin(), var2.end());
+                            }
+                        }
+                        erase(begin()+i-1, begin()+i+2);
+                    } else {
+                        i += 2;
+                    }
+                }
+            }
+
+            if(m_circular && size() >= 5 && (int)(ChunkLenMax(0)+ChunkLenMax(size()-1)) < min_uniq_len) {
+                // rotate contig so that short interval is in the middle
+                ExtendTopVariant(front().front().begin(), front().front().end()); // add first chunk to the last
+                pop_front();
+                push_back(front()); // move first variable chunk to end
+                pop_front();
+                InsertNewChunk();
+                ExtendTopVariant(front().front()[0]); // move first base to the end
+                front().front().pop_front();
+                RemoveShortUniqIntervals(min_uniq_len);
+                return true;
+            }
+
+            return false;
+        }
+        void ContractVariableIntervals() {
+            if(size() > 2) {
+                for(unsigned i = 1; i < size()-1; ++i) {
+                    if(VariableChunk(i)) {
+                        bool all_same = true;
+                        while(all_same) {
+                            for(auto& seq : (*this)[i]) {
+                                if(seq.empty() || seq.front() != (*this)[i].front().front()) {
+                                    all_same = false;
+                                    break;
+                                }
+                            }
+                            if(all_same) {
+                                (*this)[i-1].front().push_back((*this)[i].front().front());
+                                for(auto& seq : (*this)[i])
+                                    seq.pop_front();
+                            }
+                        }
+                        all_same = true;
+                        while(all_same) {
+                            for(auto& seq : (*this)[i]) {
+                                if(seq.empty() || seq.back() != (*this)[i].front().back()) {
+                                    all_same = false;
+                                    break;
+                                }
+                            }
+                            if(all_same) {
+                                (*this)[i+1].front().push_front((*this)[i].front().back());
+                                for(auto& seq : (*this)[i])
+                                    seq.pop_back();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bool AllSameL(int chunk, int shift) const {
+            if(!VariableChunk(chunk))
+                return false;
+            
+            auto Symbol_i = [](const TVariation& seq, const TVariation& next, unsigned i) {
+                if(i < seq.size())
+                    return seq[i];
+                else if(i < seq.size()+next.size()-1 )  // -1 - we don't want to absorb all next
+                    return next[i-seq.size()];
+                else
+                    return char(0);
+            };
+
+            char symb = Symbol_i((*this)[chunk].front(), (*this)[chunk+1].front(), shift);
+            if(!symb)
+                return false;
+
+            auto it = (*this)[chunk].begin();
+            for(++it; it != (*this)[chunk].end(); ++it) {
+                if(Symbol_i(*it, (*this)[chunk+1].front(), shift) != symb)
+                    return false;
+            }
+           
+            return true;
+        }
+
+        bool AllSameR(int chunk, int shift) const {
+            if(!VariableChunk(chunk))
+                return false;
+            
+            auto Symbol_i = [](const TVariation& seq, const TVariation& prev, unsigned i) {
+                if(i < seq.size())
+                    return seq[seq.size()-1-i];
+                else if(i < seq.size()+prev.size()-1)  // -1 - we don't want to absorb all prev
+                    return prev[prev.size()+seq.size()-1-i];
+                else
+                    return char(0);
+            };
+            
+            char symb = Symbol_i((*this)[chunk].front(), (*this)[chunk-1].front(), shift);
+            if(!symb)
+                return false;
+
+            auto it = (*this)[chunk].begin();
+            for(++it; it != (*this)[chunk].end(); ++it) {
+                if(Symbol_i(*it, (*this)[chunk-1].front(), shift) != symb)
+                    return false;
+            }
+           
+            return true;
+        }
+        
+        
+        void IncludeRepeatsInVariableIntervals() {
+            for(unsigned chunk = 1; chunk < size()-1; chunk += 2) {
+                int min_len = ChunkLenMin(chunk);
+                for(int shift = 0; AllSameL(chunk, shift); ++shift) {
+                    if(shift >= min_len) {
+                        for(auto& seq : (*this)[chunk]) {
+                            seq.push_back((*this)[chunk+1].front().front());
+                        }
+                        (*this)[chunk+1].front().pop_front();
+                        ++min_len;
+                    }
+                }
+
+                for(int shift = 0; AllSameR(chunk, shift); ++shift) {
+                    if(shift >= min_len) {
+                        for(auto& seq : (*this)[chunk]) {
+                            seq.push_front((*this)[chunk-1].front().back());
+                        }
+                        (*this)[chunk-1].front().pop_back();
+                    }
+                }
+            }
+        }
+               
+    };
+
+    typedef list<CContigSequence> TContigSequenceList;
+
+    void CombineSimilarContigs(TContigSequenceList& contigs) {
+        int match = 1;
+        int mismatch = 2;
+        int gap_open = 5;
+        int gap_extend = 2;
+        SMatrix delta(match, mismatch);
+
+        list<string> all_variants;
+        for(auto& contig : contigs) {
+            list<string> variants;
+            for(auto& seq : contig[0])
+                variants.emplace_back(seq.begin(), seq.end());
+            for(unsigned l = 1; l < contig.size(); ++l) {
+                if(contig.UniqueChunk(l)) {
+                    for(auto& seq : variants)
+                        seq.insert(seq.end(), contig[l].front().begin(), contig[l].front().end());
+                } else {
+                    list<string> new_variants;
+                    for(auto& seq : variants) {
+                        for(auto& var : contig[l]) {
+                            new_variants.push_back(seq);
+                            new_variants.back().insert(new_variants.back().end(), var.begin(), var.end());
+                        }
+                    }
+                    swap(variants, new_variants);
+                }
+            }
+            all_variants.splice(all_variants.end(), variants);
+        }
+        all_variants.sort([](const string& a, const string& b) { return a.size() > b.size(); });
+
+        list<list<TVariation>> all_groups;
+        while(!all_variants.empty()) {
+            string& query = all_variants.front();
+            list<TVariation> group;
+            auto it_loop = all_variants.begin();
+            for(++it_loop; it_loop != all_variants.end(); ) {
+                auto it = it_loop++;
+                string& subject = *it;
+                if(query.size()-subject.size() > 0.1*query.size())
+                    continue;
+
+                //                CCigar cigar = LclAlign(query.c_str(), query.size(), subject.c_str(), subject.size(), gap_open, gap_extend, delta.matrix);
+                CCigar cigar = BandAlign(query.c_str(), query.size(), subject.c_str(), subject.size(), gap_open, gap_extend, delta.matrix, 0.1*query.size());
+                if(cigar.QueryRange().first != 0 || cigar.QueryRange().second != (int)query.size()-1)
+                    continue;
+                if(cigar.SubjectRange().first != 0 || cigar.SubjectRange().second != (int)subject.size()-1)
+                    continue;
+                if(cigar.Matches(query.c_str(), subject.c_str()) < 0.9*query.size())
+                    continue;
+
+                TCharAlign align = cigar.ToAlign(query.c_str(), subject.c_str());
+                if(group.empty()) {
+                    group.emplace_back(align.first.begin(), align.first.end());
+                    group.emplace_back(align.second.begin(), align.second.end());
+                } else {
+                    TVariation& master = group.front();
+                    int mpos = 0;
+                    TVariation new_member;
+                    for(unsigned i = 0; i < align.first.size(); ++i) {
+                        if(align.first[i] == master[mpos]) {
+                            new_member.push_back(align.second[i]);
+                            ++mpos;
+                        } else if(master[mpos] == '-') {
+                            while(master[mpos] == '-') {
+                                new_member.push_back('-');
+                                ++mpos;
+                            }
+                            new_member.push_back(align.second[i]);
+                            ++mpos;                                                       
+                        } else {  // align.first[i] == '-'
+                            for(TVariation& seq : group)
+                                seq.insert(seq.begin()+mpos, '-');
+                            new_member.push_back(align.second[i]);
+                            ++mpos;
+                        }
+                    }
+                    group.push_back(new_member);
+                }
+                all_variants.erase(it);                
+            }
+            if(group.empty())
+                group.emplace_back(query.begin(), query.end());
+            all_groups.push_back(move(group));
+            all_variants.pop_front();
+        }
+
+        TContigSequenceList new_contigs;
+        for(auto& group : all_groups) {
+            if(group.size() == 1) {
+                new_contigs.push_back(CContigSequence());
+                new_contigs.back().InsertNewChunk(group.front().begin(), group.front().end());
+                continue;
+            } 
+
+            auto NextMismatch = [&](unsigned pos) {
+                for( ; pos < group.front().size(); ++pos) {
+                    for(auto& seq : group) {
+                        if(seq[pos] != group.front()[pos])
+                            return pos;
+                    }
+                }
+                return pos;
+            };
+            
+            CContigSequence combined_seq;
+            int min_uniq_len = 21;
+            for(unsigned mism = NextMismatch(0); mism < group.front().size(); mism = NextMismatch(0)) {
+                if(mism > 0) {
+                    combined_seq.InsertNewChunk(group.front().begin(), group.front().begin()+mism);
+                    for(auto& seq : group)
+                        seq.erase(seq.begin(), seq.begin()+mism);
+                }
+                for(unsigned len = 1; len <= group.front().size(); ) {
+                    unsigned next_mism = NextMismatch(len);
+                    if(next_mism >= len+min_uniq_len || next_mism == group.front().size()) {
+                        map<SeqInterval,set<SeqInterval>> varmap;
+                        for(auto& seq : group)
+                            varmap[SeqInterval(seq.begin(), seq.begin()+len)].emplace(seq.begin()+len, seq.end());
+                        bool all_same = true;
+                        for(auto it = varmap.begin(); all_same && ++it != varmap.end(); ) {
+                            if(varmap.begin()->second != it->second)
+                                all_same = false;
+                        }
+                        if(all_same) {
+                            combined_seq.InsertNewChunk(varmap.begin()->first.begin, varmap.begin()->first.end);
+                            for(auto it = varmap.begin(); ++it != varmap.end(); )
+                                combined_seq.InsertNewVariant(it->first.begin, it->first.end);
+                            for(auto& seq : group)
+                                seq.erase(seq.begin(), seq.begin()+len);
+                            group.sort();
+                            group.erase(unique(group.begin(),group.end()), group.end());
+                            break;
+                        }
+                    }
+                    len = next_mism+1;
+                }
+            }
+            if(!group.front().empty())
+                combined_seq.InsertNewChunk(group.front().begin(), group.front().end());
+
+            for(auto& chunk : combined_seq) {
+                for(auto& seq : chunk)
+                    seq.erase(remove(seq.begin(),seq.end(),'-'), seq.end());
+            }
+            
+            new_contigs.push_back(move(combined_seq));
+        }
+
+        swap(contigs, new_contigs);
+    }    
+
+    typedef list<string> TStrList;
+    template<class DBGraph> using TBases = deque<typename DBGraph::Successor>;
+    
+    template<class DBGraph> class SContig;
+    template<class DBGraph> using TContigList = list<SContig<DBGraph>>;
+
+
+    template<class DBGraph>
     struct SContig {
-        typedef forward_list<CDBGraph::Node> TNodeList;
-        SContig(CDBGraph& graph) :m_graph(graph), m_kmer_len(graph.KmerLen()) {}
-        SContig(const CContigSequence& contig, CDBGraph& graph) : m_seq(contig), m_graph(graph), m_kmer_len(graph.KmerLen()) { GenerateKmersAndCleanSNPs(); }        
+        typedef typename DBGraph::Node Node;
+        typedef forward_list<Node> TNodeList;
+        SContig(DBGraph& graph) :m_graph(graph), m_kmer_len(graph.KmerLen()) {}
+        SContig(const CContigSequence& contig, DBGraph& graph) : m_seq(contig), m_graph(graph), m_kmer_len(graph.KmerLen()) { GenerateKmersAndCleanSNPs(); }        
 
         void GenerateKmersAndCleanSNPs() {
-            m_seq.RemoveShortUniqIntervals(m_kmer_len);
+            if(m_seq.RemoveShortUniqIntervals(m_kmer_len))
+                RotateCircularToMinKmer();
+
+            int rotation = 0;
+            bool extended = false;
+            auto& first_chunk =  m_seq.front().front();
+            auto& last_chunk = m_seq.back().front();
+            if(m_seq.m_circular && (int)(last_chunk.size()+first_chunk.size()) >= m_kmer_len-1) {
+                extended = true;
+                if((int)first_chunk.size() < m_kmer_len-1) {
+                    rotation = m_kmer_len-1-first_chunk.size();
+                    first_chunk.insert(first_chunk.begin(), last_chunk.end()-rotation, last_chunk.end());
+                    last_chunk.erase(last_chunk.end()-rotation, last_chunk.end());
+                }
+                last_chunk.insert(last_chunk.end(), first_chunk.begin(), first_chunk.begin()+m_kmer_len-1);
+            }
+
             for(int i = m_seq.size()-1; i >= 0; ) {
                 if(i == (int)m_seq.size()-1) {
                     if((int)m_seq.ChunkLenMax(i) >= m_kmer_len) {  // last chunk size >= kmer_len
                         CReadHolder rh(false);
                         rh.PushBack(m_seq.back().front());
                         for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len) ; ik != rh.kend(); ++ik) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
-                            if(node && !m_graph.SetVisited(node))
+                            Node node = m_graph.GetNode(*ik);
+                            if(node.isValid() && !m_graph.SetVisited(node))
                                 m_graph.SetMultContig(node);
                         }
                     }
@@ -112,14 +525,14 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         CReadHolder rh(false);
                         rh.PushBack(m_seq[i-1].front());
                         for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len); ik != rh.kend(); ++ik) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
-                            if(node && !m_graph.SetVisited(node))
+                            Node node = m_graph.GetNode(*ik);
+                            if(node.isValid() && !m_graph.SetVisited(node))
                                 m_graph.SetMultContig(node);
                         }
                     }
 
-                    unordered_set<CDBGraph::Node> kmers;
-                    list<deque<CDBGraph::Node>> failed_nodes;
+                    unordered_set<Node, typename Node::Hash> kmers;
+                    list<deque<Node>> failed_nodes;
                     list<TLocalVariants::iterator> failed_variants;
                     for(auto prev = m_seq[i].before_begin(); ;++prev) {
                         auto current = prev;
@@ -132,13 +545,18 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         var_seq.insert(var_seq.end(), variant.begin(), variant.end());
                         int right = min(m_kmer_len-1, (int)m_seq.ChunkLenMax(i+1));
                         var_seq.insert(var_seq.end(), m_seq[i+1].front().begin(), m_seq[i+1].front().begin()+right);
+                        if(i == 1 && m_seq.m_circular && !extended) { // can happen only if there is one long varianle chunk and short ends
+                            if(m_seq.size() != 3)
+                                throw runtime_error("Error in circular extension");
+                            var_seq.insert(var_seq.end(), var_seq.begin(), var_seq.begin()+m_kmer_len-1);
+                        }
                         CReadHolder rh(false);
                         rh.PushBack(var_seq);
-                        deque<CDBGraph::Node> var_nodes;
+                        deque<Node> var_nodes;
                         bool failed = false;
                         for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len) ; ik != rh.kend(); ++ik)  {
                             var_nodes.emplace_back(m_graph.GetNode(*ik));
-                            if(!var_nodes.back())
+                            if(!var_nodes.back().isValid())
                                 failed = true;
                         }
                         if(failed) {
@@ -153,13 +571,6 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         for(auto& nodes : failed_nodes)
                             kmers.insert(nodes.begin(), nodes.end());
                     } else { // some are good
-                        /*
-                        if(!failed_variants.empty()) {
-                            lock_guard<mutex> guard(out_mutex);
-                            cerr << "Removed " << failed_variants.size() << " SNPs from " << m_seq.VariantsNumber(i) << endl;
-                        }
-                        */
-
                         for(auto prev : failed_variants)
                             m_seq[i].erase_after(prev);
                         if(m_seq.UniqueChunk(i)) { // only one left
@@ -170,20 +581,28 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     }
 
                     for(auto& node : kmers) {
-                        if(node && !m_graph.SetVisited(node))
+                        if(node.isValid() && !m_graph.SetVisited(node))
                             m_graph.SetMultContig(node);                        
                     }
                      
                     i -= 2;   
                 }
             }
+            if(m_seq.m_circular && extended) {
+                last_chunk.erase(last_chunk.end()-m_kmer_len+1, last_chunk.end());
+                if(rotation > 0) {
+                    last_chunk.insert(last_chunk.end(), first_chunk.begin(), first_chunk.begin()+rotation);
+                    first_chunk.erase(first_chunk.begin(), first_chunk.begin()+rotation);
+                }
+            }
             m_seq.ContractVariableIntervals();
             m_seq.IncludeRepeatsInVariableIntervals();
-            m_seq.RemoveShortUniqIntervals(m_kmer_len);
+            if(m_seq.RemoveShortUniqIntervals(m_kmer_len))
+                RotateCircularToMinKmer();
             m_seq.StabilizeVariantsOrder();
         }
 
-        SContig(const SContig& to_left, const SContig& to_right, CDBGraph::Node initial_node, CDBGraph::Node lnode, CDBGraph::Node rnode, CDBGraph& graph) :  
+        SContig(const SContig& to_left, const SContig& to_right, const Node& initial_node, const Node& lnode, const Node& rnode, DBGraph& graph) :  
         m_next_left(lnode), m_next_right(rnode), m_graph(graph),  m_kmer_len(graph.KmerLen()) {                                                                                                                                                   
 //          initial_node - the starting kmer
 //          to_left - left extension of the starting kmer
@@ -222,13 +641,8 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 
             m_left_extend = m_right_extend = LenMax();
         }
-        SContig(SContig* link, int shift, CDBGraph::Node takeoff_node, const SContig& extension, CDBGraph::Node rnode, CDBGraph& graph) :
+        SContig(SContig* link, int shift, const Node& takeoff_node, const SContig& extension, const Node& rnode, DBGraph& graph) :
             m_next_left(takeoff_node), m_next_right(rnode), m_left_link(link), m_left_shift(shift),  m_graph(graph), m_kmer_len(graph.KmerLen()) {
-
-            /*
-            m_seq.m_left_repeat = 0;
-            m_seq.m_right_repeat = m_kmer_len-1; 
-            */
 
             string kmer = graph.GetNodeSeq(takeoff_node);
             m_seq.InsertNewChunk(kmer.begin()+1, kmer.end()); // don't include first base
@@ -245,17 +659,17 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             m_left_extend = m_right_extend = LenMax();
         }
 
-        CDBGraph::Node FrontKmer() const {
+        Node FrontKmer() const {
             if(m_seq.VariableChunk(0) || (int)m_seq.ChunkLenMax(0) < m_kmer_len)
-                return 0;
+                return Node();
 
             TKmer kmer(m_seq.front().front().begin(), m_seq.front().front().begin()+m_kmer_len); // front must be unambiguous
             return m_graph.GetNode(kmer);
         }
-        CDBGraph::Node BackKmer() const { 
+        Node BackKmer() const { 
             int last = m_seq.size()-1;
             if(m_seq.VariableChunk(last) || (int)m_seq.ChunkLenMax(last) < m_kmer_len)
-                return 0;
+                return Node();
 
             TKmer kmer(m_seq.back().front().end()-m_kmer_len, m_seq.back().front().end());
             return m_graph.GetNode(kmer);
@@ -267,7 +681,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         bool RightSNP() const { return (m_seq.size() >= 3 && m_seq.UniqueChunk(m_seq.size()-1) && (int)m_seq.ChunkLenMax(m_seq.size()-1) < m_kmer_len); }
         bool LeftSNP() const { return (m_seq.size() >= 3 && m_seq.UniqueChunk(0) &&  (int)m_seq.ChunkLenMax(0) < m_kmer_len); }
 
-        CDBGraph::Node RightConnectingNode() const {
+        Node RightConnectingNode() const {
             int last_index = m_seq.size()-1;
             if((int)m_seq.ChunkLenMax(last_index) >= m_kmer_len) {   // normal end
                 return BackKmer(); 
@@ -280,7 +694,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
             return m_next_left;                        // empty linker
         }
-        CDBGraph::Node LeftConnectingNode() const {
+        Node LeftConnectingNode() const {
             if((int)m_seq.ChunkLenMax(0) >= m_kmer_len) {  // normal end
                 return FrontKmer();
             } else if(m_seq.size() >= 3) {                 // snp
@@ -296,8 +710,8 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         void ReverseComplement() {  
             m_seq.ReverseComplement();
             swap(m_next_left, m_next_right);
-            m_next_left = CDBGraph::ReverseComplement(m_next_left);
-            m_next_right = CDBGraph::ReverseComplement(m_next_right);
+            m_next_left = DBGraph::ReverseComplement(m_next_left);
+            m_next_right = DBGraph::ReverseComplement(m_next_right);
             swap(m_left_link, m_right_link);
             swap(m_left_shift, m_right_shift);
             swap(m_left_extend, m_right_extend);
@@ -327,10 +741,6 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 if(m_left_extend == (int)LenMax())
                     m_left_extend = m_right_extend;
             }
-            
-            /*
-            m_seq.m_right_repeat = other.m_seq.m_right_repeat;
-            */
 
             auto& first_other_chunk = first_other_chunk_it->front();
             last_chunk.insert(last_chunk.end(), first_other_chunk.begin()+min(m_kmer_len-1,last_chunk_len), first_other_chunk.end());  // combine overlapping chunks
@@ -362,10 +772,6 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     m_right_extend = m_left_extend;
             }
 
-            /*
-            m_seq.m_left_repeat = other.m_seq.m_left_repeat;
-            */
-
             auto& last_other_chunk = last_other_chunk_it->front();
             first_chunk.insert(first_chunk.begin(),last_other_chunk.begin(), last_other_chunk.end()-min(m_kmer_len-1,first_chunk_len));  // combine overlapping chunks
             m_seq.insert(m_seq.begin(), other.m_seq.begin(), last_other_chunk_it);                                     // insert remaining chunks
@@ -376,7 +782,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 return;
 
             m_seq.m_circular = false;
-            m_next_right = 0;
+            m_next_right = Node();
             m_right_link = nullptr;
             m_right_shift = 0;            
 
@@ -384,16 +790,10 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 int chunk_len = m_seq.ChunkLenMax(m_seq.size()-1);
                 clip -= chunk_len;
                 m_right_extend = max(0, m_right_extend-chunk_len);
-                /*
-                m_seq.m_right_repeat = max(0, m_seq.m_right_repeat-chunk_len);
-                */
                 m_seq.pop_back();
             }
             if(clip > 0 && !m_seq.empty()) {
                 m_right_extend = max(0, m_right_extend-clip);
-                /*
-                m_seq.m_right_repeat = max(0, m_seq.m_right_repeat-clip);
-                */
                 m_seq.back().front().erase(m_seq.back().front().end()-clip, m_seq.back().front().end());
             }
 
@@ -405,7 +805,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 return;
 
             m_seq.m_circular = false;
-            m_next_left = 0;
+            m_next_left = Node();
             m_left_link = nullptr;
             m_left_shift = 0; 
 
@@ -413,16 +813,10 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 int chunk_len = m_seq.ChunkLenMax(0);
                 clip -= chunk_len;
                 m_left_extend = max(0, m_left_extend-chunk_len);
-                /*
-                m_seq.m_left_repeat = max(0, m_seq.m_left_repeat-chunk_len);
-                */
                 m_seq.pop_front();
             }
             if(clip > 0 && !m_seq.empty()) {
                 m_left_extend = max(0, m_left_extend-clip);
-                /*
-                m_seq.m_left_repeat = max(0, m_seq.m_left_repeat-clip);
-                */
                 m_seq.front().front().erase(m_seq.front().front().begin(), m_seq.front().front().begin()+clip);
             }         
 
@@ -433,50 +827,51 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         size_t LenMax() const { return m_seq.LenMax(); }
         size_t LenMin() const { return m_seq.LenMin(); }
 
-        // find position of the minimal non-zero kmer
-        tuple<int, int, CDBGraph::Node> MinKmerPosition() const {  //chunk, position in chunk, kmer
-            unordered_map<CDBGraph::Node, tuple<int, int, CDBGraph::Node>> kmers;
+        tuple<int, int, int> MinKmerPosition() const {  //chunk, position in chunk, strand
+            int kmer_len = min(21, m_kmer_len); // duplicated in RotateCircularToMinKmer()
+            typedef LargeInt<1> large_t;
+            unordered_map<large_t, tuple<int, int, int>, SKmerHash> kmers; // [kmer], chunk, position in chunk, strand/notvalid
 
             for(int i = m_seq.size()-1; i >= 0; i -= 2) {
-                deque<forward_list<CDBGraph::Node>> chunk_kmers;
+                deque<forward_list<LargeInt<1>>> chunk_kmers;
                 if(i == (int)m_seq.size()-1) {
-                    if((int)m_seq.ChunkLenMax(i) >= m_kmer_len) { // last chunk could be short
-                        chunk_kmers.resize(m_seq.ChunkLenMax(i)-m_kmer_len+1);
+                    if((int)m_seq.ChunkLenMax(i) >= kmer_len) { // last chunk could be short
+                        chunk_kmers.resize(m_seq.ChunkLenMax(i)-kmer_len+1);
                         CReadHolder rh(false);
                         rh.PushBack(m_seq.back().front());
                         int pos = chunk_kmers.size();
-                        for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len) ; ik != rh.kend(); ++ik) // iteration from last kmer to first     
-                            chunk_kmers[--pos].push_front(m_graph.GetNode(*ik));
+                        for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik) // iteration from last kmer to first     
+                            chunk_kmers[--pos].push_front(get<large_t>(TKmer::Type(*ik)));
                     }
                 } else { // all uniq chunks in the middle >= kmer_len-1; first/last could be short
                     chunk_kmers.resize(m_seq.ChunkLenMax(i)+m_seq.ChunkLenMax(i+1));
-                    if((int)m_seq.ChunkLenMax(i) >= m_kmer_len) {
+                    if((int)m_seq.ChunkLenMax(i) >= kmer_len) {
                         TVariation seq(m_seq[i].front().begin(), m_seq[i].front().end());
                         CReadHolder rh(false);
                         rh.PushBack(seq);
-                        int pos = seq.size()-m_kmer_len+1;
-                        for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len) ; ik != rh.kend(); ++ik)  // iteration from last kmer to first 
-                            chunk_kmers[--pos].push_front(m_graph.GetNode(*ik));
+                        int pos = seq.size()-kmer_len+1;
+                        for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik)  // iteration from last kmer to first 
+                            chunk_kmers[--pos].push_front(get<large_t>(TKmer::Type(*ik)));
                     }
                     for(auto& variant : m_seq[i+1]) {
                         TVariation seq;
-                        if((int)m_seq.ChunkLenMax(i) >= m_kmer_len-1)
-                            seq.insert(seq.end(), m_seq[i].front().end()-m_kmer_len+1, m_seq[i].front().end());
+                        if((int)m_seq.ChunkLenMax(i) >= kmer_len-1)
+                            seq.insert(seq.end(), m_seq[i].front().end()-kmer_len+1, m_seq[i].front().end());
                         else
                             seq.insert(seq.end(), m_seq[i].front().begin(), m_seq[i].front().end());
                         seq.insert(seq.end(), variant.begin(), variant.end());
-                        if((int)m_seq.ChunkLenMax(i+2) >= m_kmer_len-1)
-                            seq.insert(seq.end(), m_seq[i+2].front().begin(), m_seq[i+2].front().begin()+m_kmer_len-1);
+                        if((int)m_seq.ChunkLenMax(i+2) >= kmer_len-1)
+                            seq.insert(seq.end(), m_seq[i+2].front().begin(), m_seq[i+2].front().begin()+kmer_len-1);
                         else
                             seq.insert(seq.end(), m_seq[i+2].front().begin(), m_seq[i+2].front().end());
                         CReadHolder rh(false);
                         rh.PushBack(seq);
-                        int pos = seq.size()-m_kmer_len+1;
-                        for(CReadHolder::kmer_iterator ik = rh.kbegin(m_kmer_len) ; ik != rh.kend(); ++ik)  // iteration from last kmer to first 
-                            chunk_kmers[--pos].push_front(m_graph.GetNode(*ik));
+                        int pos = seq.size()-kmer_len+1;
+                        for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik)  // iteration from last kmer to first 
+                            chunk_kmers[--pos].push_front(get<large_t>(TKmer::Type(*ik)));
                     }
                 }
-
+                
                 for(unsigned pos = 0; pos < chunk_kmers.size(); ++pos) {
                     int k = pos;
                     int chunk = i;
@@ -485,45 +880,56 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         chunk = i+1;
                     }
                     for(auto& kmer : chunk_kmers[pos]) {
-                        if(kmer) {
-                            auto mn = min(kmer, m_graph.ReverseComplement(kmer));
-                            auto rslt = kmers.insert(make_pair(mn, make_tuple(chunk, k, kmer)));
-                            if(!rslt.second)
-                                get<2>(rslt.first->second) = 0;
+                        int strand = 1;
+                        large_t* min_kmerp = &kmer;
+                        large_t rkmer = revcomp(kmer, kmer_len);
+                        if(rkmer < kmer) {
+                            strand = -1;
+                            min_kmerp = &rkmer;
                         }
+                        auto rslt = kmers.insert(make_pair(*min_kmerp, make_tuple(chunk, k, strand)));
+                        if(!rslt.second)
+                            get<2>(rslt.first->second) = 0;                        
+                    }
+                }                
+            }
+
+            tuple<int, int, int> rslt(0, 0, 0);
+            large_t min_kmer;            
+            for(auto& elem : kmers) {
+                if(get<2>(elem.second)) { // not a repeat                    
+                    if(!get<2>(rslt) || elem.first < min_kmer) {
+                        min_kmer = elem.first;
+                        rslt = elem.second;
                     }
                 }
             }
-
-            tuple<int, int, CDBGraph::Node> rslt(0, 0, 0);
-            for(auto& elem : kmers) {
-                if(!get<2>(elem.second))
-                    continue;
-                if(!get<2>(rslt) || elem.first < min(get<2>(rslt), m_graph.ReverseComplement(get<2>(rslt))))
-                    rslt = elem.second;
-            }
+            
             return rslt;
         }
 
         // stabilize contig orientation using minimal kmer in the contig
         void SelectMinDirection() {
-            CDBGraph::Node minkmer = get<2>(MinKmerPosition());
-            if(minkmer && minkmer%2)
-                ReverseComplement();            
+            int strand = get<2>(MinKmerPosition());
+            if(strand < 0)
+               ReverseComplement();  
         }
 
         // finds stable origin for circular contigs by placing minimal kmer at the beginning of the sequence
         void RotateCircularToMinKmer() { // assumes that the next extension of sequence would give the first kmer (m_next_right == m_kmers.front())
-            m_seq.back().front().erase(m_seq.back().front().end()-m_kmer_len+1, m_seq.back().front().end());
+
+            int kmer_len = min(21, m_kmer_len);
+            m_seq.back().front().erase(m_seq.back().front().end()-(m_kmer_len-kmer_len), m_seq.back().front().end()); // clip extra portion of overlap
             auto rslt = MinKmerPosition();
-            if(!get<2>(rslt))
+            if(get<2>(rslt) == 0)
                 return;
 
+            m_seq.back().front().erase(m_seq.back().front().end()-kmer_len+1, m_seq.back().front().end());  // clip remaining overlap
             size_t first_chunk = get<0>(rslt);
             size_t first_base = get<1>(rslt);
 
-            if(get<2>(rslt)%2) {
-                first_base += m_kmer_len;
+            if(get<2>(rslt) < 0) {
+                first_base += min(21, m_kmer_len);
                 while(first_base >= m_seq.ChunkLenMax(first_chunk)) {
                     first_base -= m_seq.ChunkLenMax(first_chunk);
                     first_chunk = (first_chunk+1)%m_seq.size();
@@ -565,30 +971,46 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             }
             
             //clean edges   
-            m_next_left = 0;
-            m_next_right = 0;
+            m_next_left = Node();
+            m_next_right = Node();
             m_left_link = nullptr;
             m_left_shift = 0;
             m_right_link = nullptr;
             m_right_shift = 0;
             m_left_extend = 0;   // prevents any further clipping    
             m_right_extend = 0;  // prevents any further clipping    
-            /*
-            m_seq.m_left_repeat = 0; 
-            m_seq.m_right_repeat = 0;
-            */
             m_seq.m_circular = true;
         }
 
         bool operator<(const SContig& other) const { return m_seq < other.m_seq; }
 
         // connects fragments created in different threads and combines doubled 'empty' linkers
-        static TContigList ConnectFragments(vector<TContigList>& fragments, const CDBGraph& graph) {
+        static TContigList<DBGraph> ConnectFragments(vector<TContigList<DBGraph>>& fragments, const DBGraph& graph) {
 
             int total = 0;
-            int len = 0;
+            size_t len = 0;
             for(auto& ns : fragments) {
                 for(auto& seq : ns) {
+                    /*
+                    cerr << "Fragment: " << seq.m_left_link << " " << seq.m_right_link << endl;
+                    cerr << "Lnode: ";
+                    if(seq.m_next_left.isValid())
+                        cerr << graph.GetNodeSeq(seq.m_next_left);
+                    cerr << endl;
+                    cerr << "Rnode: ";
+                    if(seq.m_next_right.isValid())
+                        cerr << graph.GetNodeSeq(seq.m_next_right);
+                    cerr << endl;
+
+                    for(auto& chunk : seq.m_seq) {
+                        cerr << "Chunk:" << endl;
+                        for(auto& var : chunk) {
+                            cerr << "Variant    : ";
+                            for(char c : var) cerr << c;
+                            cerr << endl;
+                        }
+                    }                    
+                    */
                     ++total;
                     len += seq.LenMax()-graph.KmerLen()+1;
                 }
@@ -596,9 +1018,9 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             
             cerr << "Fragments before: " << total << " " <<  len << endl;
 
-            TContigList connected;        
-            unordered_map<CDBGraph::Node, TContigList::iterator> denied_left_nodes;
-            unordered_map<CDBGraph::Node, TContigList::iterator> denied_right_nodes;
+            TContigList<DBGraph> connected;        
+            unordered_map<Node, typename TContigList<DBGraph>::iterator, typename Node::Hash> denied_left_nodes;
+            unordered_map<Node, typename TContigList<DBGraph>::iterator, typename Node::Hash> denied_right_nodes;
             for(auto& ns : fragments) {
                 for(auto iloop = ns.begin(); iloop != ns.end(); ) {
                     auto ic = iloop++;
@@ -607,10 +1029,23 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     if(contig.m_next_left > contig.m_next_right)  // need this to pair two identical empty links
                         contig.ReverseComplement();                
 
-                    if(contig.m_next_left) {
+                    if(contig.m_next_left.isValid()) {
                         auto rslt = denied_left_nodes.insert(make_pair(contig.m_next_left, connected.begin()));
                         if(!rslt.second) {
-                            TContigList::iterator other = rslt.first->second;
+                            typename TContigList<DBGraph>::iterator other = rslt.first->second;
+
+                            if(contig.m_left_link && other->m_right_link) { // other started from end of contig and went all the way to another contig
+                                other->m_left_link = contig.m_left_link;    // add left link to other
+                                connected.pop_front();
+                                continue;
+                            } else if(other->m_left_link && contig.m_right_link) { // contig started from end of contig and went all the way to another contig
+                                contig.m_left_link = other->m_left_link;           // add left link to contig
+                                rslt.first->second = connected.begin();
+                                if(other->m_next_right.isValid())
+                                    denied_right_nodes.erase(other->m_next_right);
+                                connected.erase(other);
+                            
+                            /*
                             if(contig.EmptyLinker() && contig.m_left_link && !other->m_left_link && contig.m_next_right == other->LeftConnectingNode()) {
                                 other->AddToLeft(contig); // add left link to other
                                 connected.pop_front();
@@ -620,46 +1055,71 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                 rslt.first->second = connected.begin();
                                 denied_right_nodes.erase(other->m_next_right);
                                 connected.erase(other);
-                            } else {
-                                cerr << "Unexpected left fork: " << graph.GetNodeSeq(contig.m_next_left) << " " << contig.m_next_left << endl;
-                                /*
-                                cerr << "Other link: " << other->m_left_link << " " << other->m_right_link << endl;
-                                cerr << "Contig link: " << contig.m_left_link << " " << contig.m_right_link << endl;
+                            */
 
-                                cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                if(contig.m_next_right)
-                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_right);
+                            } else {
+                                cerr << "Unexpected left fork: " << graph.GetNodeSeq(contig.m_next_left) << endl;
+
+                                cerr << "Contig: " << contig.m_left_link << " " << contig.m_right_link << " ";
+                                if(contig.m_next_left.isValid())
+                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_left) << " ";
+                                else
+                                    cerr << "LC notvalid ";
+                                if(contig.m_next_right.isValid())
+                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_right) << " ";
+                                else
+                                    cerr << "RC notvalid ";
                                 cerr << endl;
                                 for(auto& chunk : contig.m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
+                                    cerr << "Chunk:" << endl;
+                                    for(auto& var : chunk) {
+                                        cerr << "Variant: ";
+                                        for(char c : var) cerr << c;
                                         cerr << endl;
                                     }
                                 }
 
-                                cerr << "Other: " << other->m_seq.size() << " " << other->m_seq.m_circular << " ";
-                                if(other->m_next_right)
-                                    cerr << other->m_graph.GetNodeSeq(other->m_next_right);
+                                auto& other = *rslt.first->second;
+
+                                cerr << "Other: " << other.m_left_link << " " << other.m_right_link << " ";
+                                if(other.m_next_left.isValid())
+                                    cerr << other.m_graph.GetNodeSeq(other.m_next_left) << " ";
+                                else
+                                    cerr << "LC notvalid ";
+                                if(other.m_next_right.isValid())
+                                    cerr << other.m_graph.GetNodeSeq(other.m_next_right) << " ";
+                                else
+                                    cerr << "RC notvalid ";
                                 cerr << endl;
-                                for(auto& chunk : other->m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
+                                for(auto& chunk : other.m_seq) {
+                                    cerr << "Chunk:" << endl;
+                                    for(auto& var : chunk) {
+                                        cerr << "Variant: ";
+                                        for(char c : var) cerr << c;
                                         cerr << endl;
                                     }
                                 }
-                                */
-
+                                
                             }
                         }
                     }
-                    if(contig.m_next_right) {
+                    if(contig.m_next_right.isValid()) {
                         auto rslt = denied_right_nodes.insert(make_pair(contig.m_next_right, connected.begin()));
                         if(!rslt.second) {
-                            TContigList::iterator other = rslt.first->second;
+                            typename TContigList<DBGraph>::iterator other = rslt.first->second;
+
+                            if(contig.m_right_link && other->m_left_link) { // other started from end of contig and went all the way to another contig
+                                other->m_right_link = contig.m_right_link;  // add right link to other
+                                denied_left_nodes.erase(contig.m_next_left);
+                                connected.pop_front();
+                            } else if(other->m_right_link && contig.m_left_link) { // contig started from end of contig and went all the way to another contig
+                                contig.m_right_link = other->m_right_link;         // add right link to contig
+                                rslt.first->second = connected.begin();
+                                if(other->m_next_left.isValid())
+                                    denied_left_nodes.erase(other->m_next_left);
+                                connected.erase(other);
+
+                                /*
                             if(contig.EmptyLinker() && contig.m_right_link && !other->m_right_link && contig.m_next_left == other->RightConnectingNode()) {
                                 other->AddToRight(contig); // add right link to other
                                 denied_left_nodes.erase(contig.m_next_left);
@@ -669,8 +1129,51 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                 rslt.first->second = connected.begin();
                                 denied_left_nodes.erase(other->m_next_left);
                                 connected.erase(other);
+                                */
+
                             } else {
-                                cerr << "Unexpected right fork: " << graph.GetNodeSeq(contig.m_next_right) << " " << contig.m_next_right << endl;                                
+                                cerr << "Unexpected right fork: " << graph.GetNodeSeq(contig.m_next_right) << endl;                                
+
+                                cerr << "Contig: " << contig.m_left_link << " " << contig.m_right_link << " ";
+                                if(contig.m_next_left.isValid())
+                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_left) << " ";
+                                else
+                                    cerr << "LC notvalid ";
+                                if(contig.m_next_right.isValid())
+                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_right) << " ";
+                                else
+                                    cerr << "RC notvalid ";
+                                cerr << endl;
+                                for(auto& chunk : contig.m_seq) {
+                                    cerr << "Chunk:" << endl;
+                                    for(auto& var : chunk) {
+                                        cerr << "Variant: ";
+                                        for(char c : var) cerr << c;
+                                        cerr << endl;
+                                    }
+                                }
+
+                                auto& other = *rslt.first->second;
+
+                                cerr << "Other: " << other.m_left_link << " " << other.m_right_link << " ";
+                                if(other.m_next_left.isValid())
+                                    cerr << other.m_graph.GetNodeSeq(other.m_next_left) << " ";
+                                else
+                                    cerr << "LC notvalid ";
+                                if(other.m_next_right.isValid())
+                                    cerr << other.m_graph.GetNodeSeq(other.m_next_right) << " ";
+                                else
+                                    cerr << "RC notvalid ";
+                                cerr << endl;
+                                for(auto& chunk : other.m_seq) {
+                                    cerr << "Chunk:" << endl;
+                                    for(auto& var : chunk) {
+                                        cerr << "Variant: ";
+                                        for(char c : var) cerr << c;
+                                        cerr << endl;
+                                    }
+                                }
+
                             }
                         }
                     }
@@ -681,28 +1184,28 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 if(contig.EmptyLinker())
                     continue; 
 
-                if(contig.m_next_right)
+                if(contig.m_next_right.isValid())
                     denied_right_nodes.erase(contig.m_next_right);
-                if(contig.m_next_left)
+                if(contig.m_next_left.isValid())
                     denied_left_nodes.erase(contig.m_next_left);
                 bool keep_doing = true;
                 while(keep_doing) {
                     keep_doing = false;
-                    if(contig.m_next_right) {
-                        CDBGraph::Node rnode = contig.RightConnectingNode();
+                    if(contig.m_next_right.isValid()) {
+                        Node rnode = contig.RightConnectingNode();
                         auto rslt = denied_left_nodes.find(rnode);
                         if(rslt != denied_left_nodes.end()) {
                             keep_doing = true;
                             SContig& rcontig = *rslt->second;
-                            if(rcontig.m_next_right) 
+                            if(rcontig.m_next_right.isValid()) 
                                 denied_right_nodes.erase(rcontig.m_next_right);
                             contig.AddToRight(rcontig);
                             connected.erase(rslt->second);
                             denied_left_nodes.erase(rslt);
-                        } else if((rslt = denied_right_nodes.find(CDBGraph::ReverseComplement(rnode))) != denied_right_nodes.end()) {
+                        } else if((rslt = denied_right_nodes.find(DBGraph::ReverseComplement(rnode))) != denied_right_nodes.end()) {
                             keep_doing = true;
                             SContig& rcontig = *rslt->second;
-                            if(rcontig.m_next_left) 
+                            if(rcontig.m_next_left.isValid()) 
                                 denied_left_nodes.erase(rcontig.m_next_left);
                             rcontig.ReverseComplement();
                             contig.AddToRight(rcontig);
@@ -710,21 +1213,21 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                             denied_right_nodes.erase(rslt);
                         }
                     }               
-                    if(contig.m_next_left) {
-                        CDBGraph::Node lnode = contig.LeftConnectingNode();
+                    if(contig.m_next_left.isValid()) {
+                        Node lnode = contig.LeftConnectingNode();
                         auto rslt = denied_right_nodes.find(lnode);
                         if(rslt != denied_right_nodes.end()) {
                             keep_doing = true;
                             SContig& lcontig = *rslt->second;
-                            if(lcontig.m_next_left) 
+                            if(lcontig.m_next_left.isValid()) 
                                 denied_left_nodes.erase(lcontig.m_next_left);
                             contig.AddToLeft(lcontig);
                             connected.erase(rslt->second);
                             denied_right_nodes.erase(rslt);
-                        } else if((rslt = denied_left_nodes.find(CDBGraph::ReverseComplement(lnode))) != denied_left_nodes.end()) {
+                        } else if((rslt = denied_left_nodes.find(DBGraph::ReverseComplement(lnode))) != denied_left_nodes.end()) {
                             keep_doing = true;
                             SContig& lcontig = *rslt->second;
-                            if(lcontig.m_next_right) 
+                            if(lcontig.m_next_right.isValid()) 
                                 denied_right_nodes.erase(lcontig.m_next_right);
                             lcontig.ReverseComplement();
                             contig.AddToLeft(lcontig);
@@ -753,229 +1256,282 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         // connects and extends contigs from previous iteration using a longer kmer
         // scontigs - previous contigs
         // extensions - connectors and extenders produced by longer kmer
-        
-        static void ConnectAndExtendContigs(TContigList& scontigs, TContigList& extensions) {
+        static void ConnectAndExtendContigs(TContigList<DBGraph>& scontigs, TContigList<DBGraph>& extensions, int ncores) {
             if(scontigs.empty())
                 return;
 
             int kmer_len = scontigs.front().m_kmer_len;
-            typedef unordered_map<SContig*, SContig*> TExtensionsMap; // connections to left contig sides   (pointer to contig; pointer to connection)
-            TExtensionsMap left_connections;
-            TExtensionsMap right_connections;
-            TExtensionsMap left_extensions;
-            TExtensionsMap right_extensions;
             int connectors = 0;
             int extenders = 0;
-
+            //assign links to main contigs
             for(auto& ex : extensions) {
-                if(ex.m_left_link && ex.m_right_link) {
+                if(ex.m_left_link && ex.m_right_link)
                     ++connectors;
-
-                    if(ex.m_left_shift < 0)
-                        left_connections[ex.m_left_link] = &ex;
-                    else
-                        right_connections[ex.m_left_link] = &ex;
-                    if(ex.m_right_shift < 0)
-                        left_connections[ex.m_right_link] = &ex;
-                    else
-                        right_connections[ex.m_right_link] = &ex;
-                } else if(ex.m_left_link) {
+                else
                     ++extenders;
 
-                    if(ex.m_left_shift < 0)
-                        left_extensions[ex.m_left_link] = &ex;
-                    else
-                        right_extensions[ex.m_left_link] = &ex;
-                } else if(ex.m_right_link) {
-                    ++extenders;
+                if(ex.m_left_link) {
+                    auto& contig = *ex.m_left_link;
+                    if(contig.RightConnectingNode() == ex.m_next_left) {
+                        if(contig.m_right_link)
+                            throw runtime_error("Multiple connection of contigs");        
+                        contig.m_right_link = &ex;
+                    } else if(contig.LeftConnectingNode() == DBGraph::ReverseComplement(ex.m_next_left)) {
+                        if(contig.m_left_link)
+                            throw runtime_error("Multiple connection of contigs");        
+                        contig.m_left_link = &ex;
+                    } else {
 
-                    if(ex.m_right_shift < 0)
-                        left_extensions[ex.m_right_link] = &ex;
-                    else
-                        right_extensions[ex.m_right_link] = &ex;
+                        cerr << "Corrupted connection of contigs L" << endl;
+                        cerr << "Contig: ";
+                        if(contig.LeftConnectingNode().isValid())
+                            cerr << contig.m_graph.GetNodeSeq(contig.LeftConnectingNode()) << " ";
+                        else
+                            cerr << "LC notvalid ";
+                        if(contig.RightConnectingNode().isValid())
+                            cerr << contig.m_graph.GetNodeSeq(contig.RightConnectingNode()) << " ";
+                        else
+                            cerr << "RC notvalid ";
+                        cerr << endl;
+                        for(auto& chunk : contig.m_seq) {
+                            cerr << "Chunk:" << endl;
+                            for(auto& var : chunk) {
+                                cerr << "Variant: ";
+                                for(char c : var) cerr << c;
+                                cerr << endl;
+                            }
+                        }
+
+                        cerr << "Extension: ";
+                        if(ex.m_next_left.isValid())
+                            cerr << contig.m_graph.GetNodeSeq(ex.m_next_left);
+                        else
+                            cerr << "Notvalid";
+                        cerr << endl;
+                        for(auto& chunk : ex.m_seq) {
+                            cerr << "Chunk:" << endl;
+                            for(auto& var : chunk) {
+                                cerr << "Variant: ";
+                                for(char c : var) cerr << c;
+                                cerr << endl;
+                            }
+                        }
+
+                        if(ex.m_next_right.isValid())
+                            cerr << "NR: " << contig.m_graph.GetNodeSeq(ex.m_next_right) << endl;
+                        if(ex.m_right_link) {
+                            auto& contig = *ex.m_right_link;
+                            cerr << "RContig: ";
+                            if(contig.LeftConnectingNode().isValid())
+                                cerr << contig.m_graph.GetNodeSeq(contig.LeftConnectingNode()) << " ";
+                            else
+                                cerr << "LC notvalid ";
+                            if(contig.RightConnectingNode().isValid())
+                                cerr << contig.m_graph.GetNodeSeq(contig.RightConnectingNode()) << " ";
+                            else
+                                cerr << "RC notvalid ";
+                            cerr << endl;
+                            for(auto& chunk : contig.m_seq) {
+                                cerr << "Chunk:" << endl;
+                                for(auto& var : chunk) {
+                                    cerr << "Variant: ";
+                                    for(char c : var) cerr << c;
+                                    cerr << endl;
+                                }
+                            }
+                        }
+
+                        //                        throw runtime_error("Corrupted connection of contigs L");
+                    }
                 }
-            
+                if(ex.m_right_link) {
+                    auto& contig = *ex.m_right_link;
+                    if(contig.LeftConnectingNode() == ex.m_next_right) {
+                        if(contig.m_left_link)
+                            throw runtime_error("Multiple connection of contigs");        
+                        contig.m_left_link = &ex;
+                    } else if(contig.RightConnectingNode() == DBGraph::ReverseComplement(ex.m_next_right)) {
+                        if(contig.m_right_link)
+                            throw runtime_error("Multiple connection of contigs");        
+                        contig.m_right_link = &ex;
+                    } else {
+                        cerr << "Corrupted connection of contigs R" << endl;
+                        cerr << "Contig: ";
+                        if(contig.LeftConnectingNode().isValid())
+                            cerr << contig.m_graph.GetNodeSeq(contig.LeftConnectingNode()) << " ";
+                        else
+                            cerr << "LC notvalid ";
+                        if(contig.RightConnectingNode().isValid())
+                            cerr << contig.m_graph.GetNodeSeq(contig.RightConnectingNode()) << " ";
+                        else
+                            cerr << "RC notvalid ";
+                        cerr << endl;
+                        for(auto& chunk : contig.m_seq) {
+                            cerr << "Chunk:" << endl;
+                            for(auto& var : chunk) {
+                                cerr << "Variant: ";
+                                for(char c : var) cerr << c;
+                                cerr << endl;
+                            }
+                        }
+
+                        cerr << "Extension: ";
+                        if(ex.m_next_right.isValid())
+                            cerr << contig.m_graph.GetNodeSeq(ex.m_next_right);
+                        else
+                            cerr << "Notvalid";
+                        cerr << endl;
+                        for(auto& chunk : ex.m_seq) {
+                            cerr << "Chunk:" << endl;
+                            for(auto& var : chunk) {
+                                cerr << "Variant: ";
+                                for(char c : var) cerr << c;
+                                cerr << endl;
+                            }
+                        }
+
+                        if(ex.m_next_left.isValid())
+                            cerr << "NL: " << contig.m_graph.GetNodeSeq(ex.m_next_left) << endl;
+                        if(ex.m_left_link) {
+                            auto& contig = *ex.m_left_link;
+                            cerr << "LContig: ";
+                            if(contig.LeftConnectingNode().isValid())
+                                cerr << contig.m_graph.GetNodeSeq(contig.LeftConnectingNode()) << " ";
+                            else
+                                cerr << "LC notvalid ";
+                            if(contig.RightConnectingNode().isValid())
+                                cerr << contig.m_graph.GetNodeSeq(contig.RightConnectingNode()) << " ";
+                            else
+                                cerr << "RC notvalid ";
+                            cerr << endl;
+                            for(auto& chunk : contig.m_seq) {
+                                cerr << "Chunk:" << endl;
+                                for(auto& var : chunk) {
+                                    cerr << "Variant: ";
+                                    for(char c : var) cerr << c;
+                                    cerr << endl;
+                                }
+                            }
+                        }
+
+
+                        //                        throw runtime_error("Corrupted connection of contigs R");
+                    }
+                }            
             }
             cerr << "Connectors: " << connectors << " Extenders: " << extenders << endl;
+
 
             for(auto& contig : scontigs)
                 contig.m_is_taken = 0;
 
+            //select starting points for chains
             for(auto& contig : scontigs) {
                 if(contig.m_is_taken)
                     continue;
+                if(contig.m_left_link == nullptr && contig.m_right_link == nullptr) {
+                    contig.m_is_taken = 1;
+                    continue;
+                }
 
+                //mark as taken all chain members except the starting point
+                auto parent = &contig;
                 bool circular = false;
-                for(int p = 0; p < 2; ++p) {
-                    bool plus = (p == 0);
-                    SContig* fragment = &contig;
-
-                    while(true) {
-                        TExtensionsMap::iterator rslt;
-                        // check if connection to other contigs is possible
-                        if((plus && (rslt = right_connections.find(fragment)) != right_connections.end()) ||
-                           (!plus && (rslt = left_connections.find(fragment)) != left_connections.end())) {
-                        
-                            SContig* connector = rslt->second;
-                            if(connector->m_right_link == fragment) { // either reversed or circular            
-                                if(CDBGraph::ReverseComplement(connector->m_next_right) == contig.RightConnectingNode())
-                                    connector->ReverseComplement();
-                            }
-                            if(connector->m_left_link != fragment || contig.RightConnectingNode() != connector->m_next_left)
-                                cerr << "Corrupted connectionA" << endl;
-
-                            /*
-                            if(test_contig) {
-                                cerr << "ConnectorA link: " << connector->m_left_link << " " << fragment << endl;
-
-                                cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                if(contig.m_next_right)
-                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_right);
-                                cerr << endl;
-                                for(auto& chunk : contig.m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
-                                        cerr << endl;
-                                    }
-                                }
-
-                                cerr << "Connector: " << connector->m_seq.size() << " " << connector->m_seq.m_circular << " ";
-                                if(connector->m_next_left)
-                                    cerr << connector->m_graph.GetNodeSeq(connector->m_next_left);
-                                cerr << endl;
-                                for(auto& chunk : connector->m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
-                                        cerr << endl;
-                                    }
-                                }
-
-                            }
-                            */
-
-                            contig.AddToRight(*connector);
-
-                            fragment = connector->m_right_link;
-                            if(fragment->m_is_taken)      // don't connect already used contig (this is result of multiple connection)          
-                                break;
-                        
-                            fragment->m_is_taken = 1;     // fragment will be removed
-                            plus = connector->m_right_shift < 0;
-                            if(!plus)
-                                fragment->ReverseComplement();
-
-                            if(fragment->LeftConnectingNode() != connector->m_next_right)
-                                cerr << "Corrupted connectionB" << endl;
-                            
-                            /*
-                            if(test_contig) {
-                                cerr << "ConnectorB link: " << connector->m_right_link << " " << fragment << endl;
-
-                                cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                if(contig.m_next_right)
-                                    cerr << contig.m_graph.GetNodeSeq(contig.m_next_right);
-                                cerr << endl;
-                                for(auto& chunk : contig.m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
-                                        cerr << endl;
-                                    }
-                                }
-
-                                cerr << "Fragment: " << fragment->m_seq.size() << " " << fragment->m_seq.m_circular << " ";
-                                if(fragment->m_next_left)
-                                    cerr << fragment->m_graph.GetNodeSeq(fragment->m_next_left);
-                                cerr << endl;
-                                for(auto& chunk : fragment->m_seq) {
-                                    cerr << "Chunk: " << distance(chunk.begin(), chunk.end()) << endl;
-                                    for(auto& seq : chunk) {
-                                        for(char c : seq)
-                                            cerr << c;
-                                        cerr << endl;
-                                    }
-                                }
-
-                            }
-                            */
-
-                            circular = (fragment == &contig);
-
-                            if(!circular) {  // not circular 
-                                contig.AddToRight(*fragment);
-                                continue;
-                            } else if((int)contig.LenMax() >= 2*kmer_len-1) { //stabilize circular contig            
-                                contig.RotateCircularToMinKmer();
-                                break;                        
-                            }
-                        } 
-                        if((plus && (rslt = right_extensions.find(fragment)) != right_extensions.end()) ||
-                           (!plus && (rslt = left_extensions.find(fragment)) != left_extensions.end())) {
-
-                            SContig* extender = rslt->second;
-                            if((int)extender->LenMax() >= kmer_len) {
-                                if(extender->m_right_link && extender->m_right_link == fragment)
-                                    extender->ReverseComplement();
-                                //                                if(extender->m_left_link != fragment || contig.BackKmer() != extender->m_next_left)
-                                if(extender->m_left_link != fragment || contig.RightConnectingNode() != extender->m_next_left) 
-                                    cerr << "Corrupted extension" << endl;
-
-                                contig.AddToRight(*extender);
-
-                                /*
-                                if(test_contig) {
-                                    cerr << "Ex links: " << extender->m_left_link << " " << extender->m_right_link << " " << fragment << endl;
-                                    cerr << "Extender: " << extender->m_seq.size() << " " << extender->m_seq.m_circular << " ";
-                                    cerr << (extender->m_next_left ? extender->m_graph.GetNodeSeq(extender->m_next_left) : "-");
-                                    cerr << (extender->m_next_right ? extender->m_graph.GetNodeSeq(extender->m_next_right) : "-");
-                                    cerr << endl;
-                                    for(auto& chunk : extender->m_seq) {
-                                        cerr << "Chunk:     " << distance(chunk.begin(), chunk.end()) << endl;
-                                        for(auto& seq : chunk) {
-                                            for(char c : seq)
-                                                cerr << c;
-                                            cerr << endl;
-                                        }
-                                    }
-
-                                    cerr << "Contig links: " << contig.m_left_link << " " << contig.m_right_link << " " << fragment << endl;
-                                    cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                    cerr << (contig.m_next_left ? contig.m_graph.GetNodeSeq(contig.m_next_left) : "-") << " ";
-                                    cerr << (contig.m_next_right ? contig.m_graph.GetNodeSeq(contig.m_next_right) : "-");
-                                    cerr << endl;
-                                    for(auto& chunk : contig.m_seq) {
-                                        cerr << "Chunk:     " << distance(chunk.begin(), chunk.end()) << endl;
-                                        for(auto& seq : chunk) {
-                                            for(char c : seq)
-                                                cerr << c;
-                                            cerr << endl;
-                                        }
-                                    }
-                                }
-                                */
-
-                            }
-                        }                        
-
-                        break;
+                for(auto child = parent->m_right_link; child != nullptr && !circular; ) {
+                    child->m_is_taken = 1;
+                    if(child->m_left_link == parent) {
+                        parent = child;
+                        child = child->m_right_link;
+                    } else {
+                        parent = child;
+                        child = child->m_left_link;
                     }
-                    contig.m_is_taken = 2;  // final contig will be kept
-                    if(circular)
-                        break;
-                    contig.ReverseComplement();
-                } 
-                //clip flanks which are not 'double' checked 
+                    circular = (child == &contig);
+                }
+                if(circular)
+                    continue;
+                parent = &contig;
+                for(auto child = parent->m_left_link; child != nullptr; ) {
+                    child->m_is_taken = 1;
+                    if(child->m_left_link == parent) {
+                        parent = child;
+                        child = child->m_right_link;
+                    } else {
+                        parent = child;
+                        child = child->m_left_link;
+                    }
+                }
+            }
 
+            list<function<void()>> jobs;
+            for(int thr = 0; thr < ncores; ++thr) {
+                jobs.push_back(bind(ConnectContigsJob, ref(scontigs)));
+            }
+            RunThreads(ncores, jobs);
+
+            //remove fragments
+            for(auto iloop = scontigs.begin(); iloop != scontigs.end(); ) {
+                auto ic = iloop++;
+                if(ic->m_is_taken == 2 || (int)ic->LenMin() < kmer_len)
+                    scontigs.erase(ic);
+                else
+                    ic->m_is_taken = 0; 
+            }
+        }
+
+        static void ConnectContigsJob(TContigList<DBGraph>& scontigs) {
+            int kmer_len = scontigs.front().m_kmer_len;
+            for(auto& contig : scontigs) {
+                if(!contig.m_is_taken.Set(1))  // grab contig
+                    continue;
+
+                int num = 0;
+                bool circular = false;
+                for(auto parent = &contig; parent->m_right_link != nullptr && !circular; ++num) {
+                    auto child = parent->m_right_link;
+                    if(child->m_left_link != parent)
+                        child->ReverseComplement();
+
+                    if(child->m_right_link == &contig) {     // circular
+                        circular = true;
+                        if(child->m_left_link == &contig) {  // special case of a single connector needs additional check of orientation
+                            if(contig.RightConnectingNode() != child->m_next_left)
+                                child->ReverseComplement();
+                        }
+                    }
+
+                    contig.AddToRight(*child);
+                    if(num%2) // child is contig, not connector/extender
+                        contig.m_seq.m_right_repeat = child->m_seq.m_right_repeat;
+                    child->m_is_taken = 2;    // will be removed
+
+                    if(circular && (int)contig.LenMax() >= 2*kmer_len-1)  //stabilize circular contig            
+                        contig.RotateCircularToMinKmer();                    
+
+                    parent = child;
+                }
+                if(circular)
+                    continue;
+
+                num = 0;
+                for(auto parent = &contig; parent->m_left_link != nullptr; ++num) {
+                    auto child = parent->m_left_link;
+                    if(child->m_right_link != parent)
+                        child->ReverseComplement();
+                    contig.AddToLeft(*child);
+                    if(num%2) // child is contig, not connector/extender
+                        contig.m_seq.m_left_repeat = child->m_seq.m_left_repeat;
+                    child->m_is_taken = 2;    // will be removed
+
+                    parent = child;
+                }
+
+                //clip flanks which are not 'double' checked 
                 auto& graph = contig.m_graph;
 
                 for(int low_abundance_clip = 10; low_abundance_clip > 0 && contig.m_left_extend > 0; --low_abundance_clip) {
                     auto kmer = contig.FrontKmer();
-                    if(!kmer || graph.Abundance(kmer) > 5)
+                    if(!kmer.isValid() || graph.Abundance(kmer) > 5)
                         break;
                     
                     contig.ClipLeft(1);
@@ -987,7 +1543,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
                 for(int low_abundance_clip = 10; low_abundance_clip > 0 && contig.m_right_extend > 0; --low_abundance_clip) {
                     auto kmer = contig.BackKmer();
-                    if(!kmer || graph.Abundance(kmer) > 5)
+                    if(!kmer.isValid() || graph.Abundance(kmer) > 5)
                         break;
                     
                     contig.ClipRight(1);
@@ -997,22 +1553,12 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 if(contig.m_right_extend > 0)
                     contig.m_seq.m_right_repeat = min(kmer_len-1, contig.m_right_extend+contig.m_seq.m_right_repeat);
             }
-
-            //remove fragments; stabilize orientation and order which are random in multithreading          
-            for(auto iloop = scontigs.begin(); iloop != scontigs.end(); ) {
-                auto ic = iloop++;
-                if(ic->m_is_taken != 2 || (int)ic->LenMin() < kmer_len)
-                    scontigs.erase(ic);
-                else
-                    ic->SelectMinDirection();
-            }
-            scontigs.sort();
-        }        
+        }
 
         CContigSequence m_seq;               // sequence
 
-        CDBGraph::Node m_next_left = 0;      // denied left kmer (connection possible but it is already owned)
-        CDBGraph::Node m_next_right = 0;     // denied right kmer (connection possible but it is already owned)
+        Node m_next_left;          // denied left kmer (connection possible but it is already owned)
+        Node m_next_right;         // denied right kmer (connection possible but it is already owned)
 
         SContig* m_left_link = nullptr;      // if set points to 'left' contig
         int m_left_shift = 0;                // shift+1 for m_next_left in this contig (positive for the right end)
@@ -1022,7 +1568,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         int m_left_extend = 0;               // number of newly assembled bases which could be clipped
         int m_right_extend = 0;              // number of newly assembled bases which could be clipped
 
-        CDBGraph& m_graph;
+        DBGraph& m_graph;
         int m_kmer_len;
         SAtomic<uint8_t> m_is_taken = 0;
     };
@@ -1030,10 +1576,13 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
     // This is a very lightweight class holding a reference to de Bruijn graph and main assembling parameters
     // It provides function used in assembling
+    template<class DBGraph>
     class CDBGraphDigger {
     public:
+        typedef typename DBGraph::Node Node;
+        typedef typename DBGraph::Successor Successor;
 
-        CDBGraphDigger(CDBGraph& graph, double fraction, int jump, int low_count, bool allow_snps = false) : m_graph(graph), m_fraction(fraction), m_jump(jump), m_hist_min(graph.HistogramMinimum()), m_low_count(low_count), m_allow_snps(allow_snps) { 
+        CDBGraphDigger(DBGraph& graph, double fraction, int jump, int low_count, bool allow_snps = false) : m_graph(graph), m_fraction(fraction), m_jump(jump), m_hist_min(graph.HistogramMinimum()), m_low_count(low_count), m_allow_snps(allow_snps) { 
             m_max_branch = 200; // maximum number of paths explored before quitting
         }
 
@@ -1043,29 +1592,29 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
     public:
 
         // starting from a node, find an extension of len l with maximal abundance
-        string MostLikelyExtension(CDBGraph::Node node, unsigned len) const { //don't do FilterNeighbors because it is called in it     
+        string MostLikelyExtension(Node node, unsigned len) const { //don't do FilterNeighbors because it is called in it     
             string s;
             while(s.size() < len) {
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(node);
+                vector<Successor> successors = m_graph.GetNodeSuccessors(node);
                 if(successors.empty())
                     return s;            
-                sort(successors.begin(), successors.end(), [&](const CDBGraph::Successor& a, const CDBGraph::Successor& b) {return m_graph.Abundance(a.m_node) > m_graph.Abundance(b.m_node);}); 
+                sort(successors.begin(), successors.end(), [&](const Successor& a, const Successor& b) {return m_graph.Abundance(a.m_node) > m_graph.Abundance(b.m_node);}); 
                 node = successors[0].m_node;
                 s.push_back(successors[0].m_nt);
             }
             return s;
         }            
 
-        string MostLikelySeq(CDBGraph::Successor base, unsigned len) const {
+        string MostLikelySeq(Successor base, unsigned len) const {
             string s(1, base.m_nt);
             return s+MostLikelyExtension(base.m_node, len-1);
         }
 
         // starting from a node, find an extension of len l without forks (simple path); returns true if hit dead end
-        pair<string, bool> StringentExtension(CDBGraph::Node node, unsigned len) const {
+        pair<string, bool> StringentExtension(Node node, unsigned len) const {
             string s;
             while(s.size() < len) {
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(node);
+                vector<Successor> successors = m_graph.GetNodeSuccessors(node);
                 FilterNeighbors(successors, false);
                 if(successors.empty())
                     return make_pair(s, true);
@@ -1077,24 +1626,24 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             return make_pair(s, false);
         }
 
-        bool ExtendableSuccessor(const CDBGraph::Successor& initial_suc) const {
+        bool ExtendableSuccessor(const Successor& initial_suc) const {
             int kmer_len = m_graph.KmerLen();
             int total_len = max(100, kmer_len);
 
-            unordered_map<CDBGraph::Node,int> node_len;
+            unordered_map<Node, int, typename Node::Hash> node_len;
             node_len.emplace(initial_suc.m_node,0);
 
-            stack<pair<CDBGraph::Node,int>> active_nodes;
+            stack<pair<Node,int>> active_nodes;
             active_nodes.emplace(initial_suc.m_node,0);
 
             while(!active_nodes.empty()) {
 
-                CDBGraph::Node node = active_nodes.top().first;
+                Node node = active_nodes.top().first;
                 int len = active_nodes.top().second;
                 active_nodes.pop();
                 
                 if(len == kmer_len) {
-                    vector<CDBGraph::Successor> step_back = m_graph.GetNodeSuccessors(m_graph.ReverseComplement(node));
+                    vector<Successor> step_back = m_graph.GetNodeSuccessors(m_graph.ReverseComplement(node));
                     FilterLowAbundanceNeighbors(step_back);
                     bool found = false;
                     for(auto& back : step_back) {
@@ -1118,7 +1667,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         continue;
                 }
         
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(node);
+                vector<Successor> successors = m_graph.GetNodeSuccessors(node);
                 FilterLowAbundanceNeighbors(successors);
 
                 if(!successors.empty()) {
@@ -1130,11 +1679,11 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             return false;
         }
 
-        vector<CDBGraph::Successor> GetReversibleNodeSuccessors(CDBGraph::Node node) const {
-            vector<CDBGraph::Successor> neighbors = m_graph.GetNodeSuccessors(node);
+        vector<Successor> GetReversibleNodeSuccessors(const Node& node) const {
+            vector<Successor> neighbors = m_graph.GetNodeSuccessors(node);
             FilterNeighbors(neighbors, true);
             for(auto& neighbor : neighbors) {
-                vector<CDBGraph::Successor> step_back = m_graph.GetNodeSuccessors(m_graph.ReverseComplement(neighbor.m_node));
+                vector<Successor> step_back = m_graph.GetNodeSuccessors(m_graph.ReverseComplement(neighbor.m_node));
                 FilterNeighbors(step_back, true);
                 bool found = false;
                 for(auto& back : step_back) {
@@ -1152,18 +1701,18 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         }
 
 
-        bool GoodNode(const CDBGraph::Node& node) const { return m_graph.Abundance(node) >= m_low_count; }
+        bool GoodNode(const Node& node) const { return m_graph.Abundance(node) >= m_low_count; }
         int HistMin() const { return m_hist_min; }
 
         // removes noise forks
-        void FilterLowAbundanceNeighbors(vector<CDBGraph::Successor>& successors) const {
+        void FilterLowAbundanceNeighbors(vector<Successor>& successors) const {
             // low abundance forks
             if(successors.size() > 1) {
                 int abundance = 0;
                 for(auto& suc : successors) {
                     abundance += m_graph.Abundance(suc.m_node);
                 }
-                sort(successors.begin(), successors.end(), [&](const CDBGraph::Successor& a, const CDBGraph::Successor& b) {return m_graph.Abundance(a.m_node) > m_graph.Abundance(b.m_node);});
+                sort(successors.begin(), successors.end(), [&](const Successor& a, const Successor& b) {return m_graph.Abundance(a.m_node) > m_graph.Abundance(b.m_node);});
                 for(int j = successors.size()-1; j > 0 && m_graph.Abundance(successors.back().m_node) <= m_fraction*abundance; --j) 
                     successors.pop_back();            
             }
@@ -1194,7 +1743,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
         }
         
-        void FilterNeighbors(vector<CDBGraph::Successor>& successors, bool check_extension) const {
+        void FilterNeighbors(vector<Successor>& successors, bool check_extension) const {
             // low abundance forks
             FilterLowAbundanceNeighbors(successors);
 
@@ -1257,25 +1806,25 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             }
         }
 
-        CDBGraph& Graph() { return m_graph; }
+        DBGraph& Graph() { return m_graph; }
 
         enum EConnectionStatus {eSuccess, eNoConnection, eAmbiguousConnection};
 
         struct SElement {
-            SElement (CDBGraph::Successor suc, SElement* link) : m_link(link), m_suc(suc) {}
+            SElement (Successor suc, SElement* link) : m_link(link), m_suc(suc) {}
             struct SElement* m_link;   // previous element  
-            CDBGraph::Successor m_suc;
+            Successor m_suc;
         };
         // connects two nodes in a finite number of steps
-        pair<TBases, EConnectionStatus> ConnectTwoNodes(const CDBGraph::Node& first_node, const CDBGraph::Node& last_node, int steps) const {
+        pair<TBases<DBGraph>, EConnectionStatus> ConnectTwoNodes(const Node& first_node, const Node& last_node, int steps) const {
         
-            pair<TBases, EConnectionStatus> bases(TBases(), eNoConnection);
+            pair<TBases<DBGraph>, EConnectionStatus> bases(TBases<DBGraph>(), eNoConnection);
 
             deque<SElement> storage; // will contain ALL extensions (nothing is deleted)    
-            typedef unordered_map<CDBGraph::Node,SElement*> TElementMap;  //pointer to its own element OR zero if ambiguous path    
+            typedef unordered_map<Node, SElement*, typename Node::Hash> TElementMap;  //pointer to its own element OR zero if ambiguous path    
             TElementMap current_elements;
 
-            vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(first_node);
+            vector<Successor> successors = m_graph.GetNodeSuccessors(first_node);
             FilterNeighbors(successors, false);
             for(auto& suc : successors) {
                 storage.push_back(SElement(suc, 0));
@@ -1286,7 +1835,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             for(int step = 1; step < steps && !current_elements.empty(); ++step) {
                 TElementMap new_elements;
                 for(auto& el : current_elements) {
-                    vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(el.first);
+                    vector<Successor> successors = m_graph.GetNodeSuccessors(el.first);
                     FilterNeighbors(successors, false);
                     if(el.second == 0) {  // ambiguous path 
                         for(auto& suc : successors) {
@@ -1307,7 +1856,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                     connections.push_back(storage.back()); 
                                 }                           
                             }
-                            pair<TElementMap::iterator, bool> rslt = new_elements.insert(make_pair(suc.m_node, &storage.back()));
+                            pair<typename TElementMap::iterator, bool> rslt = new_elements.insert(make_pair(suc.m_node, &storage.back()));
                             if(!rslt.second || !GoodNode(suc.m_node))
                                 rslt.first->second = 0;
                         }
@@ -1331,432 +1880,495 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             return bases;
         }
 
-        typedef list<TBases> TBasesList;
-        typedef unordered_map<CDBGraph::Node, forward_list<TBasesList::iterator>> TBranch;  // all 'leaves' will have the same length  
+        typedef list<TBases<DBGraph>> TBasesList;
+        typedef unordered_map<Node, forward_list<typename TBasesList::iterator>, typename Node::Hash> TBranch;  // all 'leaves' will have the same length  
+        typedef unordered_map<Node, forward_list<pair<typename TBasesList::iterator, int>>, typename Node::Hash> TLinks;
 
-        // makes one step extension for DiscoverSNPs()
-        // sequences - keep the actual assembled sequences
-        // branch - a lightweight map of the last kmer to the sequence
-        // indels - allowed diff in length
-        void OneStepBranchExtend(TBranch& branch, TBasesList& sequences, unsigned indels) {
+        void OneStepBranchExtend(TBranch& branch, TBasesList& sequences, TLinks& links) {
             TBranch new_branch;
             for(auto& leaf : branch) {
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(leaf.first);
+                vector<Successor> successors = m_graph.GetNodeSuccessors(leaf.first);
                 FilterNeighbors(successors, true);
                 if(successors.empty()) {
                     for(auto is : leaf.second)
-                        sequences.erase(is);
-                    continue;
-                }
-                for(int i = successors.size()-1; i >= 0; --i) {
-                    CDBGraph::Node& node = successors[i].m_node;
-                    auto& lst = new_branch[node];
-                    for(auto is : leaf.second) {
-                        if(i > 0) {  // copy sequence if it is a fork               
-                            sequences.push_front(*is);
-                            is = sequences.begin();
+                        is->clear();
+                } else {
+                    for(int i = successors.size()-1; i >= 0; --i) {
+                        auto& lst = new_branch[successors[i].m_node];
+                        for(auto is : leaf.second) {
+                            if(i > 0) {  // copy sequence if it is a fork                   
+                                sequences.push_front(*is);
+                                is = sequences.begin();
+                                for(int p = 0; p < (int)is->size()-1; ++p)
+                                    links[(*is)[p].m_node].emplace_front(is, p);
+                            }
+                            links[leaf.first].emplace_front(is, is->size()-1);
+                            is->push_back(successors[i]);
+                            lst.emplace_front(is);
                         }
-                        TBases& bases = *is;
-                        bases.push_back(successors[i]);
-                        lst.emplace_front(is);
                     }
                 }
             }
 
-            int kmer_len = m_graph.KmerLen();
             for(auto it_loop = new_branch.begin(); it_loop != new_branch.end(); ) {
                 auto it = it_loop++;
-                bool merged = false;
-                for(auto jt = new_branch.begin(); !merged && jt != new_branch.end(); ++jt) {
-                    if(it == jt)
-                        continue;
-
-                    for(unsigned k = 1; !merged && k <= indels; ++k) {
-                        bool all_same = true;
-                        auto& jlst = jt->second;
-                        auto& jseq = *jlst.front();
-                        for(auto& is : jlst) {
-                            if(is->size() < k+kmer_len || *(is->end()-k-1) != *(jseq.end()-k-1)) {
-                                all_same = false;
-                                break;
-                            }                            
-                        }
-                        if(!all_same)
-                            break;
-                        
-                        if(it->first == (jseq.end()-k-1)->m_node) {
-                            auto& ilst = it->second;
-                            for(auto is : ilst) {
-                                is->insert(is->end(), jseq.end()-k, jseq.end());
-                                jlst.push_front(is);
+                auto rslt = links.find(it->first);
+                if(rslt != links.end()) {
+                    auto& lst = rslt->second;
+                    set<TBases<DBGraph>> seqs; // TODO set of intervals
+                    for(auto& link : lst) {
+                        if(!link.first->empty()) {
+                            if(link.first->back().m_node != it->first) {
+                                seqs.emplace(link.first->begin()+link.second+1, link.first->end());
+                            } else { // circular extension
+                                branch.clear();
+                                sequences.clear();
+                                return;
                             }
-                            new_branch.erase(it);
-                            merged = true;
                         }
+                    }
+                    if(!seqs.empty()) {
+                        for(auto is : it->second) {
+                            for(auto ex = next(seqs.begin()); ex != seqs.end(); ++ex) {
+                                sequences.push_front(*is);
+                                sequences.front().insert(sequences.front().end(), ex->begin(), ex->end());
+                                for(int p = 0; p < (int)sequences.front().size()-1; ++p)
+                                    links[sequences.front()[p].m_node].emplace_front(sequences.begin(), p);
+                                new_branch[sequences.front().back().m_node].push_front(sequences.begin());
+                            }
+                            int l = is->size();
+                            is->insert(is->end(), seqs.begin()->begin(), seqs.begin()->end());
+                            for(int p = l-1; p < (int)is->size()-1; ++p)
+                                links[(*is)[p].m_node].emplace_front(is, p);
+                            new_branch[is->back().m_node].push_front(is);
+                        }
+                        new_branch.erase(it);
                     }
                 }
             }
 
             swap(branch, new_branch);
         }
+        
 
-        // for a given fork (successors.size() > 1) perform no more than max_extent extension steps allowinf snps until only one path is left
-        // returns the extension if successful, returns empty sequence otherwise
-        TBasesList DiscoverSNPs(const vector<CDBGraph::Successor>& successors, int max_extent, int min_extent, int indels) {
+        // sequences, last node, intrusion, node corresponding to intrusion shift, max_le - min_le
+        tuple<TLocalVariants, Node, int, Node, int> DiscoverOneSNP(const vector<Successor>& successors, const TVariation& last_chunk, int max_extent) {
+            tuple<TLocalVariants, Node, int, Node, int> rslt;
             TBranch extensions;
             TBasesList sequences; // assembled seqs 
+            TLinks links;
+            int kmer_len = m_graph.KmerLen();
 
-            if(max_extent == 0)
-                return sequences;
+            if(max_extent == 0 || successors.empty())
+                return rslt;
 
             for(auto& suc : successors) {
                 sequences.emplace_front(1,suc);
                 extensions[suc.m_node].emplace_front(sequences.begin());         
             }
 
-            while(!extensions.empty() && extensions.size() < m_max_branch) {
-                int len = 0;
-                for(auto& seq : sequences)
-                    len = max(len, (int)seq.size());
-                if(len >= max_extent)
-                    break;
-            
-                OneStepBranchExtend(extensions, sequences, indels);
-                if(extensions.empty()) { // can't extend 
-                    sequences.clear();
-                    return sequences;
+            int max_len = 1;
+            int min_len = 1;
+            size_t seq_num = sequences.size();
+            while(seq_num < m_max_branch && max_len < max_extent) {
+                OneStepBranchExtend(extensions, sequences, links);
+                max_len = 0;
+                min_len = numeric_limits<int>::max();
+                seq_num = 0;
+                for(auto& seq : sequences) {
+                    if(!seq.empty()) {
+                        max_len = max(max_len, (int)seq.size());
+                        min_len = min(min_len, (int)seq.size());
+                        ++seq_num;
+                    }
                 }
 
-                if(extensions.size() == 1 && len+1 >= min_extent)
+                if(extensions.empty())  // can't extend 
+                    return rslt;                
+                if(extensions.size() == 1 && min_len >= kmer_len)
                     break;
             }
 
-            if(extensions.size() == 1 && sequences.size() > 1) { // found snp
-                // clip extra matches from the end
-                int matches = 0;
-                while(true) {
-                    bool all_same = true;
-                    for(auto& seq : sequences) {
-                        if(matches == (int)seq.size() || (seq.end()-matches-1)->m_nt != (sequences.front().end()-matches-1)->m_nt) {
-                            all_same = false;
-                            break;
-                        }
-                    }
-                    if(all_same)
-                        ++matches;
-                    else
-                        break;
-                }
-                int kmer_len = m_graph.KmerLen();
-                if(matches > kmer_len) {
-                    for(auto& seq : sequences)
-                        seq.erase(seq.end()-(matches-kmer_len), seq.end());
-                }
-
-                return sequences;            
-            }
-
-            sequences.clear();
-            return sequences;
-        }
-
-
-        // starting from initial_node assembles the right extension        
-        tuple<SContig, CDBGraph::Node, int> ExtendToRight(const CDBGraph::Node& initial_node, int allowed_intrusion) { // initial_node may be not owned 
-            CDBGraph::Node node = initial_node;
-            SContig extension(m_graph);
-            int max_extent = m_jump;
-            int kmer_len = m_graph.KmerLen();
-
-            int initial_node_intrusion = 0;
-
-            while(true) {
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(node);                    
-                FilterNeighbors(successors, true);
-                if(successors.empty())                    // no extensions 
-                    break;                                             
-
-                int allowed_indels = 15;
-
-                TBasesList step;
-                if(successors.size() == 1) {  // simple extension  
-                    step.emplace_back(1, successors.front());
-                } else if(m_allow_snps) {     // try snps
-                    step = DiscoverSNPs(successors, max_extent, 0, allowed_indels);  //TODO make sure that rhe branch is at the same point
-                    if(step.empty())        // no snp
-                        break;
-                    
-                } else {
-                    break;                    
-                }
-
-                bool all_good = true;
-                for(auto& stp : step) {
-                    for(auto& s : stp) {
-                        if(!GoodNode(s.m_node)) {
-                            all_good = false;
-                            break;
-                        }
+            if(extensions.size() == 1 && min_len >= kmer_len && max_len <= max_extent) {
+                set<char> first_bases;
+                for(auto it = sequences.begin(); it != sequences.end(); ) {
+                    if(it->empty()) {
+                        it = sequences.erase(it);
+                    } else {
+                        first_bases.insert(it->front().m_nt);
+                        ++it;
                     }
                 }
-                if(!all_good)
-                    break;
-
-                int step_size = 0;  // not all step seqs have same length
-                for(auto& var : step)
-                    step_size = max(step_size, (int)var.size());                
-
-                CDBGraph::Node rev_node = CDBGraph::ReverseComplement(step.front().back().m_node);  // all step seqs have same last kmer
-                vector<CDBGraph::Successor> predecessors = m_graph.GetNodeSuccessors(rev_node);
-                FilterNeighbors(predecessors, true);
-                if(predecessors.empty())                            // no extensions   
-                    break;
-
-                if(step_size == 1 && predecessors.size() == 1) {
-                    if(CDBGraph::ReverseComplement(predecessors[0].m_node) != node) // no return
-                        break;
-
-                    if(!m_graph.SetVisited(successors.front().m_node))  // node is taken
-                        return make_tuple(extension, successors.front().m_node, initial_node_intrusion);                    
-
-                    // normal extension   
-                    if(extension.m_seq.empty()) {
-                        extension.m_seq.InsertNewChunk();
-                        extension.m_seq.InsertNewVariant();
-                    }
-                    extension.m_seq.ExtendTopVariant(successors.front().m_nt);
-
-                    node = successors.front().m_node;
-                    continue;
-                }
-                
-                if(step_size == 1 && predecessors.size() > 1) {           // end of unique seq before repeat
-
-                    /* bad idea - randomly releases nodes after clip
-                    bool returned = false;
-                    for(auto& pred : predecessors) {                        // check if branch doesn't come back
-                        if(CDBGraph::ReverseComplement(pred.m_node) == node)
-                            returned = true;
-                    }
-                    if(!returned) 
-                        break;                    
-
-                    if(extension.m_seq.empty()) {
-                        extension.m_seq.InsertNewChunk();
-                        extension.m_seq.InsertNewVariant();
-                    }
-                    extension.m_seq.ExtendTopVariant(successors.front().m_nt);     // keep one extra base
-                    */
-                    
-                    break; 
-                }
-
-                if(!m_allow_snps)
-                    break;
-                
-                // only snps after this
-
-                TBasesList step_back = DiscoverSNPs(predecessors, max_extent, step_size, allowed_indels);
-
-                if(step.size() != step_back.size())
-                    break;
-
-                int step_back_size = 0;  // not all step seqs have same length
-                for(auto& var : step_back)
-                    step_back_size = max(step_back_size, (int)var.size());
-
-                if(step_back_size != step_size)
-                    break;
-
-                for(auto& seq : step_back) {
-                    reverse(seq.begin(), seq.end());
-                    for(auto& suc : seq) {
-                        suc.m_nt = Complement(suc.m_nt); // not correct but it doesn't matter because we compare nodes  
-                        suc.m_node = CDBGraph::ReverseComplement(suc.m_node);
-                    }
-                }
-                if(step_back.front().front().m_node != node)
-                    break;                
-
-                for(auto& seq : step_back) {
-                    seq.pop_front();
-                    seq.push_back(step.front().back());
-                }
-
-                step.sort();
-                step_back.sort();
-                if(step != step_back)
-                    break; 
-
-                bool has_empty_variant = false;
-                for(auto& seq : step) {
-                    if((int)seq.size() == kmer_len) {
-                        has_empty_variant = true;
-                        break;
-                    }
-                }
-                TLocalVariants extra(1);
-                if(has_empty_variant) {
-                    int last_chunk = extension.m_seq.empty() ? 0 : extension.m_seq.back().front().size();
-                    string initial_node_seq;
-                    if(extension.m_seq.size() <= 1 && last_chunk < kmer_len)
-                        initial_node_seq = m_graph.GetNodeSeq(initial_node);
-                    TLocalVariants seqs;
-                    for(auto& seq : step) {
-                        seqs.push_front(TVariation());
-                        seqs.front().insert(seqs.front().end(), initial_node_seq.begin(), initial_node_seq.end());
-                        if(!extension.m_seq.empty()) {
-                            if(last_chunk <= kmer_len)
-                                seqs.front().insert(seqs.front().end(), extension.m_seq.back().front().begin(), extension.m_seq.back().front().end());
-                            else
-                                seqs.front().insert(seqs.front().end(), extension.m_seq.back().front().end()-kmer_len, extension.m_seq.back().front().end());
-                        }
-                        for(unsigned i = 0; i < seq.size()-kmer_len; ++i)
-                            seqs.front().push_back(seq[i].m_nt);
-                    }
-
-                    int shift = 0;
+                if(first_bases.size() > 1) {  // found snp
+                    // clip extra matches from the end
+                    int matches = 0;
                     bool all_same = true;
                     while(all_same) {
-                        for(auto& seq : seqs) {
-                            if(shift == (int)seq.size() || *(seq.end()-shift-1) != *(seqs.front().end()-shift-1)) {
+                        for(auto& seq : sequences) {
+                            if(matches == (int)seq.size() || (seq.end()-matches-1)->m_nt != (sequences.front().end()-matches-1)->m_nt) {
                                 all_same = false;
                                 break;
                             }
-                        } 
+                        }
                         if(all_same)
-                            ++shift;
-                    }                                    
-                    if(shift > 0) {
-                        if(shift >= kmer_len)
+                            ++matches;
+                    }
+                    if(matches > kmer_len) {
+                        int extra = min(matches-kmer_len, max_len);
+                        max_len -= extra;
+                        min_len -= extra;
+                        for(auto& seq : sequences)
+                            seq.erase(seq.end()-extra, seq.end());
+                    }                
+
+                    // check all nodes  
+                    for(auto& seq : sequences) {
+                        for(auto& base : seq) {
+                            if(!GoodNode(base.m_node))
+                                return rslt;
+                        }
+                    }
+
+                    bool has_empty_variant = false;
+                    for(auto& seq : sequences) {
+                        if((int)seq.size() == kmer_len) {
+                            has_empty_variant = true;
                             break;
-                        if(shift > last_chunk) {
-                            initial_node_intrusion = shift-last_chunk;
-                            if(initial_node_intrusion > allowed_intrusion)
-                                break;
-                            extra.front().insert(extra.front().end(), initial_node_seq.end()-initial_node_intrusion, initial_node_seq.end());
-                            shift = last_chunk;
-                            /*
-                            lock_guard<mutex> guard(out_mutex);
-                            cerr << "ShiftedSNP intrusion: " << initial_node_intrusion << endl;
-                            */
-                        }
-                        if(shift > 0) {
-                            if(extension.m_seq.size() > 1 && last_chunk-shift < kmer_len) { // interfere with existing snp
-                                int existing_snp = extension.m_seq.size()-2;
-                                if(kmer_len+(int)extension.m_seq.ChunkLenMax(existing_snp)+step_size-shift > max_extent) // merged snp is too long
-                                    break;
-                                extra.clear();
-                                for(auto& var : extension.m_seq[existing_snp]) {
-                                    extra.push_front(var);
-                                    extra.front().insert(extra.front().end(), extension.m_seq.back().front().begin(), extension.m_seq.back().front().end());
-                                }
-                                extension.m_seq.pop_back();
-                                extension.m_seq.pop_back();
-                                /*
-                                lock_guard<mutex> guard(out_mutex);
-                                cerr << "ShiftedSNP merge" << endl;
-                                */
-                            } else {
-                                extra.front().insert(extra.front().end(), extension.m_seq.back().front().end()-shift, extension.m_seq.back().front().end());
-                                extension.m_seq.back().front().resize(extension.m_seq.back().front().size()-shift);
-                                if(extension.m_seq.back().front().empty())
-                                    extension.m_seq.pop_back();
-                                /*
-                                lock_guard<mutex> guard(out_mutex);
-                                cerr << "ShiftedSNP standalone" << endl;
-                                */
-                            }
                         }
                     }
-                }
+
+                    // copy seqs to result  
+                    TLocalVariants& seqs = get<0>(rslt);
+                    for(auto& seq : sequences) {
+                        seqs.push_front(TVariation());
+                        for(auto& base : seq)
+                            seqs.front().push_back(base.m_nt);
+                    }
+                    // last node    
+                    get<1>(rslt) = sequences.front().back().m_node;
+                    // diff
+                    get<4>(rslt) = max_len-min_len;
                 
+                    // check for repeat and report if found         
+                    if(has_empty_variant) {
+                        for(auto& seq : seqs) // add kmer_len bases     
+                            seq.insert(seq.begin(), last_chunk.end()-kmer_len, last_chunk.end());
 
-                auto last_node = step.front().back().m_node;
-                char last_base = step.front().back().m_nt;
-                bool my_snp = m_graph.SetVisited(last_node);                                
+                        bool all_same = true;
+                        int shift = 0;
+                        while(all_same) {
+                            for(auto& seq : seqs) {
+                                if(shift == (int)seq.size()-kmer_len || *(seq.end()-shift-1-kmer_len) != *(seqs.front().end()-shift-1-kmer_len)) {
+                                    all_same = false;
+                                    break;
+                                }
+                            } 
+                            if(all_same)
+                                ++shift;
+                        } 
+                        if(shift >= kmer_len) {
+                            return tuple<TLocalVariants, Node, int, Node, int>();
+                        } else {
+                            get<2>(rslt) = shift;
+                            get<3>(rslt) = (sequences.front().end()-1-shift)->m_node;
 
-                extension.m_seq.InsertNewChunk();       // empty chunk for variable part
-                for(auto& extra_seq : extra) {
-                    for(auto& seq : step) {
-                        extension.m_seq.InsertNewVariant(); // empty seq for new variant    
-                        extension.m_seq.ExtendTopVariant(extra_seq.begin(), extra_seq.end());
-                        for(unsigned i = 0; i < seq.size()-kmer_len; ++i)
-                            extension.m_seq.ExtendTopVariant(seq[i].m_nt);
+                            max_len += shift;
+                            min_len += shift;
+                            for(auto& seq : seqs) // erase added extra sequence (shit bases remain) 
+                                seq.erase(seq.begin(), seq.begin()+kmer_len-shift);
+                        }
                     }
                 }
-
-                extension.m_seq.InsertNewChunk();   // empty chunk for matching kmer-1 bases    
-                extension.m_seq.InsertNewVariant(); // empty seq for matching kmer-1 bases 
-                for(auto i = step.front().end()-kmer_len; i != step.front().end()-1; ++i)
-                    extension.m_seq.ExtendTopVariant(i->m_nt);
-
-                if(my_snp) {
-                    extension.m_seq.ExtendTopVariant(last_base);
-                    for(auto& seq : step) {
-                        for(unsigned i = 0; i < seq.size()-1; ++i)
-                            m_graph.SetVisited(seq[i].m_node);
-                    }
-
-                    /*
-                    if(!extra.front().empty()) {
-                        lock_guard<mutex> guard(out_mutex);
-                        cerr << "ShiftedSNP finished" << endl;
-                        cerr << "Initial node: " << m_graph.GetNodeSeq(initial_node) << endl;
-                        int num = 0;
-                        for(auto& chunk : extension.m_seq) {
-                            cerr << "Chunk" << ++num << endl;
-                            for(auto& seq : chunk) {
-                                for(char c : seq)
-                                    cerr << c;
-                                cerr << endl;
-                            }
-                        }
-                    }
-                    */
-                } else {
-                    /*
-                    if(!extra.front().empty()) {
-                        lock_guard<mutex> guard(out_mutex);
-                        cerr << "ShiftedSNP for connection" << endl;
-                        cerr << "Initial node: " << m_graph.GetNodeSeq(initial_node) << endl;
-                        int num = 0;
-                        for(auto& chunk : extension.m_seq) {
-                            cerr << "Chunk" << ++num << endl;
-                            for(auto& seq : chunk) {
-                                for(char c : seq)
-                                    cerr << c;
-                                cerr << endl;
-                            }
-                        }
-                    }
-                    */
-
-                    return make_tuple(extension, last_node, initial_node_intrusion);
-                }                
-
-                node = last_node;
             }
 
-            return make_tuple(extension, 0, initial_node_intrusion);
-        }        
+            return rslt;            
+        }
+
+        //successors by value intentionally
+        tuple<TLocalVariants, Node, int> DiscoverSNPCluster(vector<Successor> successors, const TVariation& last_chunk, int max_extent) {
+            tuple<TLocalVariants, Node, int> rslt;
+
+            int kmer_len = m_graph.KmerLen();
+            const TVariation* last_chunkp = &last_chunk;
+
+            int dist_to_snp = 0;
+            while(dist_to_snp < 2*kmer_len && !successors.empty()) {
+                tuple<TLocalVariants, Node, int, Node, int> snp_data = DiscoverOneSNP(successors, *last_chunkp, max_extent);
+                if(get<0>(snp_data).empty())
+                    break;
+
+                TLocalVariants& seqs = get<0>(snp_data);
+                Node node = get<1>(snp_data);
+                int shift = get<2>(snp_data);
+                int diff_len = get<4>(snp_data);
+
+                /*                                                                               
+                cerr << "Last chunk: ";
+                for(char c : *last_chunkp)
+                    cerr << c;
+                cerr << endl;
+                cerr << "SNP: " << shift << " " << diff_len << " " << m_graph.GetNodeSeq(node) << endl;
+                for(auto& seq: seqs) {
+                    cerr << "Chunk: ";
+                    for(char c : seq)
+                        cerr << c;
+                    cerr << endl;
+                    auto rseq = seq;
+                    ReverseComplementSeq(rseq.begin(), rseq.end());
+                    cerr << "RChunk: ";
+                    for(char c : rseq)
+                        cerr << c;
+                    cerr << endl;
+
+                }
+                */                                                                                          
+
+                if(dist_to_snp == 0) {                // first snp in cluster
+                    get<0>(rslt) = seqs;
+                    get<1>(rslt) = node;
+                    get<2>(rslt) = shift;
+                } else {
+                    int& existing_shift = get<2>(rslt);
+                    if(dist_to_snp >= kmer_len+shift &&                           // take into account repeat (if any)
+                       dist_to_snp+existing_shift >= kmer_len+diff_len-shift)     // long indels need additional steps before they are connected
+                        break;                                                    // no inerference
+                                                                                  // combine snps 
+                    int len = 0;
+                    for(auto& seq: get<0>(rslt)) {
+                        seq.erase(seq.end()-shift, seq.end());                    // erase seq for new shift
+                        if(existing_shift > 0)
+                            seq.erase(seq.begin(), seq.begin()+existing_shift);   // remove existing shift (if any)
+                        for(auto it = next(seqs.begin()); it != seqs.end(); ++it) {
+                            get<0>(rslt).push_front(seq);
+                            get<0>(rslt).front().insert(get<0>(rslt).front().end(), it->begin(), it->end()-shift);
+                        }
+                        seq.insert(seq.end(), seqs.front().begin(), seqs.front().end()-shift);
+                        len = max(len, (int)seq.size());
+                    }
+                    if(len > max_extent)                                          // longer than threshold
+                        return tuple<TLocalVariants, Node, int>();
+                    existing_shift = 0;
+                    if(shift > 0)
+                        node = get<3>(snp_data);
+                    get<1>(rslt) = node;
+                }
+                dist_to_snp = kmer_len;
+
+                //                cerr << "Ext: ";
+
+                bool fork = false;
+                while(dist_to_snp < 2*kmer_len) {
+                    successors = m_graph.GetNodeSuccessors(node);                    
+                    FilterNeighbors(successors, true);
+                    fork = successors.size() > 1;
+                    if(fork || successors.empty() || !GoodNode(successors.front().m_node))
+                        break;                    
+
+                    ++dist_to_snp;
+                    node = successors.front().m_node;
+                    for(auto& seq: get<0>(rslt))
+                        seq.push_back(successors.front().m_nt);
+
+                    //                    cerr << successors.front().m_nt;
+                }
+
+                //                cerr << endl;
+
+                if(!fork)
+                    break;
+
+                last_chunkp = &get<0>(rslt).front();
+            }
+
+            if(dist_to_snp > kmer_len) { // remove extra extension
+                for(auto& seq: get<0>(rslt))
+                    seq.erase(seq.end()-(dist_to_snp-kmer_len), seq.end());
+            }
+            
+            return rslt;            
+        }
+
+        // starting from initial_node assembles the right extension        
+        tuple<SContig<DBGraph>, Node, int> ExtendToRight(const Node& initial_node, int allowed_intrusion) { // initial_node may be not owned 
+            Node node = initial_node;
+            SContig<DBGraph> extension(m_graph);
+            int max_extent = m_jump;
+            int kmer_len = m_graph.KmerLen();
+            int initial_node_intrusion = 0;
+
+            while(true) {
+                vector<Successor> successors = m_graph.GetNodeSuccessors(node);                    
+                FilterNeighbors(successors, true);
+                if(successors.empty()) {                                           // no extensions 
+                    break;  
+                } else if(successors.size() == 1) {                                // simple extension 
+                    Node new_node = successors.front().m_node;
+                    if(!GoodNode(new_node))
+                        break;
+                    vector<Successor> predecessors = m_graph.GetNodeSuccessors(DBGraph::ReverseComplement(new_node));
+                    FilterNeighbors(predecessors, true);
+                    if(predecessors.size() != 1)                                   // no extensions  or end of unique seq before repeat 
+                        break;
+                    if(DBGraph::ReverseComplement(predecessors[0].m_node) != node) // no return
+                        break;
+
+                    node = new_node;
+                    if(m_graph.SetVisited(node)) {                                 // node is available
+                        if(extension.m_seq.empty()) {
+                            extension.m_seq.InsertNewChunk();
+                            extension.m_seq.InsertNewVariant();
+                        }
+                        extension.m_seq.ExtendTopVariant(successors.front().m_nt);
+                    } else {
+                        return make_tuple(extension, node, initial_node_intrusion); 
+                    }                   
+                } else if(!m_allow_snps) {                                        // snps not allowed
+                    break;
+                } else {                                                          // try snps
+                    int last_chunk_len = extension.m_seq.empty() ? 0 : extension.m_seq.back().front().size();
+                    TVariation* last_chunkp = nullptr;
+                    TVariation last_chunk;
+                    if(last_chunk_len >= kmer_len) {
+                        last_chunkp = &extension.m_seq.back().front();
+                    } else {
+                        string initial_node_seq = m_graph.GetNodeSeq(initial_node);
+                        last_chunk.insert(last_chunk.end(), initial_node_seq.begin(), initial_node_seq.end());
+                        if(last_chunk_len > 0)
+                            last_chunk.insert(last_chunk.end(), extension.m_seq.back().front().begin(), extension.m_seq.back().front().end());
+                        last_chunkp = &last_chunk;
+                    }
+
+                    //                    cerr << "Direct" << endl;
+
+                    auto forward = DiscoverSNPCluster(successors, *last_chunkp, max_extent);
+                    TLocalVariants& step = get<0>(forward);
+                    int shift = get<2>(forward);
+
+                    if(step.empty())        // no snp
+                        break;
+                    int step_size = 0;  // not all step seqs have same length
+                    for(auto& var : step)
+                        step_size = max(step_size, (int)var.size());                
+
+                    // check return
+                    vector<Successor> predecessors = m_graph.GetNodeSuccessors(DBGraph::ReverseComplement(get<1>(forward)));
+
+                    //                    cerr << "Lastkmer: " << get<1>(forward).isValid() << " " << m_graph.GetNodeSeq(DBGraph::ReverseComplement(get<1>(forward))) << endl;
+
+                    FilterNeighbors(predecessors, true);
+                    if(predecessors.empty())
+                        break;
+                    TVariation back_chunk;
+                    back_chunk.insert(back_chunk.end(), step.front().end()-kmer_len, step.front().end());
+                    ReverseComplementSeq(back_chunk.begin(), back_chunk.end());                    
+
+                    //                    cerr << "Backward" << endl;
+
+                    auto backward = DiscoverSNPCluster(predecessors, back_chunk, max_extent);
+                    TLocalVariants& step_back = get<0>(backward);
+
+                    if(step_back.empty())        // no snp
+                        break;
+                    int step_back_size = 0;  // not all step seqs have same length
+                    for(auto& var : step_back)
+                        step_back_size = max(step_back_size, (int)var.size());  
+                    if(step_size != step_back_size)
+                        break;
+                    for(auto& seq : step_back) 
+                        ReverseComplementSeq(seq.begin(), seq.end());
+
+                    if(!equal(last_chunkp->end()-kmer_len, last_chunkp->end()-shift, step_back.front().begin()+shift))
+                        break;
+                    for(auto& seq : step_back) {
+                        seq.erase(seq.begin(), seq.begin()+kmer_len);
+                        seq.insert(seq.end(), step.front().end()-kmer_len, step.front().end());
+                    }
+                    step.sort();
+                    step_back.sort();
+
+                    if(step != step_back)
+                        break; 
+
+                    // snp is accepted
+                    node = get<1>(forward);
+
+                    if(shift > 0) {
+                        if(shift >= last_chunk_len) { // extension has no snp and short - pass intrusion (or part of it) to the caller
+                            initial_node_intrusion = shift-last_chunk_len;
+                            if(initial_node_intrusion > allowed_intrusion) {
+                                initial_node_intrusion = 0;
+                                break;
+                            }
+                            if(last_chunk_len > 0)
+                                extension.m_seq.pop_back(); 
+                        } else {       // shorten previous chunk  
+                            extension.m_seq.back().front().erase(extension.m_seq.back().front().end()-shift, extension.m_seq.back().front().end());
+                        }
+                    }
+
+                    extension.m_seq.InsertNewChunk();                         // empty chunk for variable part
+                    for(auto& seq : step) {
+                        extension.m_seq.InsertNewVariant();                   // empty seq for new variant    
+                        extension.m_seq.ExtendTopVariant(seq.begin(), seq.end()-kmer_len);
+                    }
+                    extension.m_seq.InsertNewChunk();                         // empty chunk for matching kmer-1 or kmer bases    
+                    extension.m_seq.InsertNewVariant(step.front().end()-kmer_len, step.front().end()-1); 
+
+                    CReadHolder rh(false);
+                    for(auto& seq : step) {
+                        if(shift == 0)                                                                         // last chunk not clipped, nothing added to snp
+                            seq.insert(seq.begin(), last_chunkp->end()-(kmer_len-1), last_chunkp->end());
+                        else if(shift > last_chunk_len)                                                        // last chunk not clipped, shift bases added to snp
+                            seq.insert(seq.begin(), last_chunkp->end()-(kmer_len-1), last_chunkp->end()-shift);
+                        else                                                                                   // last chunk clipped, shift bases added to snp
+                            seq.insert(seq.begin(), last_chunkp->end()-(kmer_len-1-shift), last_chunkp->end());
+                        rh.PushBack(seq);
+                    }
+                    bool my_snp = true;
+                    list<Node> snp_nodes;
+                    for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend() && my_snp; ++ik) { 
+                        Node n = m_graph.GetNode(*ik);
+                        if(n.isValid()) {
+                            if(m_graph.IsVisited(n))
+                                my_snp = false;
+                            else
+                                snp_nodes.push_back(n);
+                        }
+                    }
+                    if(my_snp && m_graph.SetVisited(node)) {                            // snp belongs to this thread - extend one more base and set all visited
+                        extension.m_seq.ExtendTopVariant(step.front().back());
+                        for(auto& n : snp_nodes)
+                            m_graph.SetVisited(n);                        
+                        
+                        continue;
+                    } else {
+
+                        return make_tuple(extension, node, initial_node_intrusion);
+                    }                
+                }
+            }
+
+
+            return make_tuple(extension, Node(), initial_node_intrusion);
+        }
+
 
         // assembles a contig starting from initial_node 
         // min_len - minimal length for accepted contigs
         // changes the state of all used nodes to 'visited' or 'temporary holding'   
-        SContig GetContigForKmer(CDBGraph::Node initial_node, int min_len) {
+        SContig<DBGraph> GetContigForKmer(const Node& initial_node, int min_len) {
             if(m_graph.Abundance(initial_node) < m_hist_min || !GoodNode(initial_node) || !m_graph.SetVisited(initial_node))
-                return SContig(m_graph);
+                return SContig<DBGraph>(m_graph);
 
             //node is good and this thread owns it  
 
             // don't allow intrusion of snps in the initial kmer
-            tuple<SContig, CDBGraph::Node, int> to_right = ExtendToRight(initial_node, 0);
-            tuple<SContig, CDBGraph::Node, int> to_left = ExtendToRight(CDBGraph::ReverseComplement(initial_node), 0);
+            tuple<SContig<DBGraph>, Node, int> to_right = ExtendToRight(initial_node, 0);
+            tuple<SContig<DBGraph>, Node, int> to_left = ExtendToRight(DBGraph::ReverseComplement(initial_node), 0);
 
-            SContig scontig(get<0>(to_left), get<0>(to_right), initial_node, CDBGraph::ReverseComplement(get<1>(to_left)), get<1>(to_right), m_graph);
+            SContig<DBGraph> scontig(get<0>(to_left), get<0>(to_right), initial_node, DBGraph::ReverseComplement(get<1>(to_left)), get<1>(to_right), m_graph);
             
-            if(!scontig.m_next_left && !scontig.m_next_right && (int)scontig.LenMin() < min_len) {
+            if(!scontig.m_next_left.isValid() && !scontig.m_next_right.isValid() && (int)scontig.LenMin() < min_len) {
                 int kmer_len = m_graph.KmerLen();
                 for(int i = scontig.m_seq.size()-1; i >= 0; i -= 2) {
                     if(i == (int)scontig.m_seq.size()-1) { // last chunk size >= kmer_len
@@ -1784,13 +2396,13 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     }
                 }
 
-                return SContig(m_graph);
+                return SContig<DBGraph>(m_graph);
             } else {
                 return scontig;
             }
         }
 
-        void CheckRepeats(TContigList& scontigs) {
+        void CheckRepeats(TContigList<DBGraph>& scontigs) {
             int kmer_len = m_graph.KmerLen();
 
             for(auto it = scontigs.begin(); it != scontigs.end(); ++it) {
@@ -1800,7 +2412,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     int last_chunk = 0;
                     for(int len = contig.ChunkLenMin(last_chunk); len < contig.m_left_repeat+1; len += contig.ChunkLenMin(++last_chunk));
 
-                    vector<forward_list<CDBGraph::Node>> kmers(contig.m_left_repeat+1-kmer_len+1);
+                    vector<forward_list<Node>> kmers(contig.m_left_repeat+1-kmer_len+1);
 
                     stack<pair<TVariation*, int>> active_chunks;
                     active_chunks.emplace(&contig[0].front(), 0);
@@ -1826,7 +2438,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         rh.PushBack(seq);
                         int pos = kmers.size()-1;
                         for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
+                            Node node = m_graph.GetNode(*ik);
                             if(find(kmers[pos].begin(), kmers[pos].end(), node) == kmers[pos].end())
                                 kmers[pos].push_front(node);
                         }
@@ -1837,7 +2449,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
                         bool bad_node = false;
                         for(auto& kmer : kmers[p]) {
-                            if(!kmer || !GoodNode(kmer)) {
+                            if(!kmer.isValid() || !GoodNode(kmer)) {
                                 bad_node = true;
                                 break;
                             }
@@ -1847,8 +2459,8 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                                  
                         bool no_step = false;
                         for(auto& kmer : kmers[p]) {
-                            if(kmer) {
-                                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(kmer);
+                            if(kmer.isValid()) {
+                                vector<Successor> successors = m_graph.GetNodeSuccessors(kmer);
                                 FilterNeighbors(successors, true);
                                 if(successors.empty()) {
                                     no_step = true;
@@ -1856,7 +2468,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                 }
                                 auto& next_lst = kmers[p+1];
                                 for(auto& suc : successors) {
-                                    if(find_if(next_lst.begin(), next_lst.end(), [suc](const CDBGraph::Node& node) {return node == suc.m_node; }) == next_lst.end()) {
+                                    if(find_if(next_lst.begin(), next_lst.end(), [suc](const Node& node) {return node == suc.m_node; }) == next_lst.end()) {
                                         no_step = true;
                                         break;
                                     }
@@ -1873,7 +2485,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     int first_chunk = contig.size()-1;
                     for(int len = contig.ChunkLenMin(first_chunk); len < contig.m_right_repeat+1; len += contig.ChunkLenMin(--first_chunk));
 
-                    vector<forward_list<CDBGraph::Node>> kmers(contig.m_right_repeat+1-kmer_len+1);
+                    vector<forward_list<Node>> kmers(contig.m_right_repeat+1-kmer_len+1);
 
                     stack<pair<TVariation*, int>> active_chunks;
                     active_chunks.emplace(&contig[contig.size()-1].front(), contig.size()-1);
@@ -1900,7 +2512,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         rh.PushBack(seq);
                         int pos = kmers.size()-1;
                         for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
+                            Node node = m_graph.GetNode(*ik);
                             if(find(kmers[pos].begin(), kmers[pos].end(), node) == kmers[pos].end())
                                 kmers[pos].push_front(node);
                         }
@@ -1911,7 +2523,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
                         bool bad_node = false;
                         for(auto& kmer : kmers[p]) {
-                            if(!kmer || !GoodNode(kmer)) {
+                            if(!kmer.isValid() || !GoodNode(kmer)) {
                                 bad_node = true;
                                 break;
                             }
@@ -1921,8 +2533,8 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
                         bool no_step = false;
                         for(auto& kmer : kmers[p]) {
-                            if(kmer) {
-                                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(CDBGraph::ReverseComplement(kmer));
+                            if(kmer.isValid()) {
+                                vector<Successor> successors = m_graph.GetNodeSuccessors(DBGraph::ReverseComplement(kmer));
                                 FilterNeighbors(successors, true);
                                 if(successors.empty()) {
                                     no_step = true;
@@ -1930,7 +2542,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                                 }
                                 auto& prev_lst = kmers[p-1];
                                 for(auto& suc : successors) {
-                                    if(find_if(prev_lst.begin(), prev_lst.end(), [suc](const CDBGraph::Node& node) {return node == CDBGraph::ReverseComplement(suc.m_node); }) == prev_lst.end()) {
+                                    if(find_if(prev_lst.begin(), prev_lst.end(), [suc](const Node& node) {return node == DBGraph::ReverseComplement(suc.m_node); }) == prev_lst.end()) {
                                         no_step = true;
                                         break;
                                     }
@@ -1942,73 +2554,21 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     }                    
                 }
             }
-
-
-            /*
-            for(auto it = scontigs.begin(); it != scontigs.end(); ++it) {
-                SContig& contig = *it;
-
-                if(contig.m_seq.m_left_repeat >= kmer_len && contig.m_seq.m_left_repeat < (int)contig.m_seq.ChunkLenMax(0)) {
-                    deque<CDBGraph::Node> left_kmers;
-                    TVariation left(contig.m_seq[0].front().begin(), contig.m_seq[0].front().begin()+contig.m_seq.m_left_repeat+1);
-                    CReadHolder rh(false);
-                    rh.PushBack(left);
-                    for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik) {
-                        CDBGraph::Node node = m_graph.GetNode(*ik);
-                        left_kmers.push_front(node);
-                    }
-
-                    for( ; contig.m_seq.m_left_repeat >= kmer_len; --contig.m_seq.m_left_repeat) {
-                        int p = contig.m_seq.m_left_repeat-kmer_len;
-                        auto& kmer = left_kmers[p];
-                        if(!kmer || !GoodNode(kmer))
-                            break;
-                        vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(kmer);
-                        FilterNeighbors(successors, true);
-                        if(successors.size() != 1 || successors[0].m_node != left_kmers[p+1])
-                           break;
-                    }
-
-                }
-
-                int last_chunk = contig.m_seq.size()-1;
-                if(contig.m_seq.m_right_repeat >= kmer_len && contig.m_seq.m_right_repeat < (int)contig.m_seq.ChunkLenMax(last_chunk)) {
-                    deque<CDBGraph::Node> right_kmers;
-                    TVariation right(contig.m_seq[last_chunk].front().end()-contig.m_seq.m_right_repeat-1, contig.m_seq[last_chunk].front().end());
-                    CReadHolder rh(false);
-                    rh.PushBack(right);
-                    for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik) {
-                        CDBGraph::Node node = m_graph.GetNode(*ik);
-                        right_kmers.push_front(node);
-                    }
-
-                    for( ; contig.m_seq.m_right_repeat >= kmer_len; --contig.m_seq.m_right_repeat) {
-                        int p = right_kmers.size()+kmer_len-1-contig.m_seq.m_right_repeat;
-                        auto& kmer = right_kmers[p];
-                        if(!kmer || !GoodNode(kmer))
-                            break;
-                        vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(CDBGraph::ReverseComplement(kmer));
-                        if(successors.size() != 1 || CDBGraph::ReverseComplement(successors[0].m_node) != right_kmers[p-1])
-                           break;
-                    }
-                }
-            }
-            */
         }
 
-        void ConnectOverlappingContigs(TContigList& scontigs) {
+        void ConnectOverlappingContigs(TContigList<DBGraph>& scontigs) {
             int kmer_len = m_graph.KmerLen();
-            unordered_map<CDBGraph::Node, forward_list<pair<TContigList::iterator, int>>> kmers;
+            unordered_map<Node, forward_list<pair<typename TContigList<DBGraph>::iterator, int>>, typename Node::Hash> kmers;
             for(auto it = scontigs.begin(); it != scontigs.end(); ++it) {
-                SContig& contig = *it;
+                SContig<DBGraph>& contig = *it;
                 if((int)contig.m_seq.ChunkLenMax(0) > kmer_len) {
                     CReadHolder rh(false);
                     rh.PushBack(contig.m_seq[0].front());
                     int pos = contig.m_seq.ChunkLenMax(0)-kmer_len;
                     for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) {
                         if(pos < (int)contig.m_seq.ChunkLenMax(0)-kmer_len) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
-                            if(node)
+                            Node node = m_graph.GetNode(*ik);
+                            if(node.isValid())
                                 kmers[node].emplace_front(it, pos);
                         }
                     }
@@ -2019,22 +2579,22 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     int pos = contig.m_seq.LenMax()-kmer_len;
                     for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik, --pos) {
                         if(pos > (int)contig.m_seq.LenMax()-(int)contig.m_seq.ChunkLenMax(contig.m_seq.size()-1)) {
-                            CDBGraph::Node node = m_graph.GetNode(*ik);
-                            if(node)
+                            Node node = m_graph.GetNode(*ik);
+                            if(node.isValid())
                                 kmers[node].emplace_front(it, pos);
                         }
                     }
                 }
             }
 
-            list<tuple<TContigList::iterator, TContigList::iterator, int, int, int>> overlaps; // first contig, second contig, start/end, start/end, len    
+            list<tuple<typename TContigList<DBGraph>::iterator, typename TContigList<DBGraph>::iterator, int, int, int>> overlaps; // first contig, second contig, start/end, start/end, len    
 
             for(auto it = scontigs.begin(); it != scontigs.end(); ++it) {
-                SContig& icontig = *it;
+                SContig<DBGraph>& icontig = *it;
 
                 // right overlap    
                 {
-                    list<tuple<TContigList::iterator, TContigList::iterator, int, int, int>> contig_overlaps;
+                    list<tuple<typename TContigList<DBGraph>::iterator, typename TContigList<DBGraph>::iterator, int, int, int>> contig_overlaps;
 
                     auto& irchunk = icontig.m_seq.back().front();
                     auto rslt = kmers.find(icontig.BackKmer()); // rightend to left end 
@@ -2053,7 +2613,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                             contig_overlaps.emplace_back(it, jt, 1, -1, overlap_len);
                         }
                     }
-                    rslt = kmers.find(CDBGraph::ReverseComplement(icontig.BackKmer())); // right end to right end   
+                    rslt = kmers.find(DBGraph::ReverseComplement(icontig.BackKmer())); // right end to right end   
                     if(rslt != kmers.end()) {
                         for(auto& hit : rslt->second) {
                             auto jt = hit.first;
@@ -2077,7 +2637,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
                 //left overlap  
                 {
-                    list<tuple<TContigList::iterator, TContigList::iterator, int, int, int>> contig_overlaps;
+                    list<tuple<typename TContigList<DBGraph>::iterator, typename TContigList<DBGraph>::iterator, int, int, int>> contig_overlaps;
 
                     auto& ilchunk = it->m_seq.front().front();
                     auto rslt = kmers.find(icontig.FrontKmer()); // left end to right end   
@@ -2096,7 +2656,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                             contig_overlaps.emplace_back(it, jt, -1, 1, overlap_len);
                         }
                     }
-                    rslt = kmers.find(CDBGraph::ReverseComplement(icontig.FrontKmer())); // left end to left end    
+                    rslt = kmers.find(DBGraph::ReverseComplement(icontig.FrontKmer())); // left end to left end    
                     if(rslt != kmers.end()) {
                         for(auto& hit : rslt->second) {
                             auto jt = hit.first;
@@ -2144,13 +2704,13 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 int dirj = get<3>(overlap);
                 
                 auto NextIBase = [&]() {
-                    CDBGraph::Node node = diri > 0 ? icontigp->BackKmer(): CDBGraph::ReverseComplement(icontigp->FrontKmer());
+                    Node node = diri > 0 ? icontigp->BackKmer(): DBGraph::ReverseComplement(icontigp->FrontKmer());
                     auto forward = m_graph.GetNodeSuccessors(node);
                     FilterNeighbors(forward, true);
                     if(forward.size() == 1) {
-                        auto backward = m_graph.GetNodeSuccessors(CDBGraph::ReverseComplement(forward.front().m_node));
+                        auto backward = m_graph.GetNodeSuccessors(DBGraph::ReverseComplement(forward.front().m_node));
                         FilterNeighbors(backward, true);
-                        if(backward.size() == 1 && CDBGraph::ReverseComplement(backward.front().m_node) == node)
+                        if(backward.size() == 1 && DBGraph::ReverseComplement(backward.front().m_node) == node)
                             return forward.front().m_nt;                            
                     }
                     return 'N';
@@ -2218,9 +2778,9 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
 
         // Starting from available graph nodes, generates all contigs >= min_len_for_new_seeds. Uses ncores threads.
-        TContigList GenerateNewSeeds(int min_len_for_new_seeds, int ncores, CDBGraphDigger* test_graphdiggerp) {
+        TContigList<DBGraph> GenerateNewSeeds(int min_len_for_new_seeds, int ncores, CDBGraphDigger* test_graphdiggerp) {
             //assemble new seeds
-            vector<TContigList> new_seeds_for_threads(ncores);
+            vector<TContigList<DBGraph>> new_seeds_for_threads(ncores);
             list<function<void()>> jobs;
             for(auto& ns : new_seeds_for_threads) {
                 jobs.push_back(bind(&CDBGraphDigger::NewSeedsJob, this, ref(ns), min_len_for_new_seeds));
@@ -2229,7 +2789,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
 
             //connect fragments 
             Graph().ClearHoldings();
-            TContigList new_seeds = SContig::ConnectFragments(new_seeds_for_threads, Graph());
+            TContigList<DBGraph> new_seeds = SContig<DBGraph>::ConnectFragments(new_seeds_for_threads, Graph());
             
             int kmer_len = Graph().KmerLen();
             CReadHolder removed_seq(false);
@@ -2257,14 +2817,16 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     }
                 }
 
-                string left(ic->m_seq[0].front().begin(), ic->m_seq[0].front().begin()+2*kmer_len-1);
-                removed_seq.PushBack(left);
-                string right(ic->m_seq[0].front().end()-2*kmer_len+1, ic->m_seq[0].front().end());
-                removed_seq.PushBack(right);
-                ic->ClipLeft(kmer_len);
-                ic->ClipRight(kmer_len); 
-                ic->m_seq.m_left_repeat = kmer_len-1;
-                ic->m_seq.m_right_repeat = kmer_len-1;
+                if(!ic->m_seq.m_circular) {
+                    string left(ic->m_seq[0].front().begin(), ic->m_seq[0].front().begin()+2*kmer_len-1);
+                    removed_seq.PushBack(left);
+                    string right(ic->m_seq[0].front().end()-2*kmer_len+1, ic->m_seq[0].front().end());
+                    removed_seq.PushBack(right);
+                    ic->ClipLeft(kmer_len);
+                    ic->ClipRight(kmer_len); 
+                    ic->m_seq.m_left_repeat = kmer_len-1;
+                    ic->m_seq.m_right_repeat = kmer_len-1;
+                }
             }
             for(CReadHolder::kmer_iterator ik = removed_seq.kbegin(kmer_len) ; ik != removed_seq.kend(); ++ik)            
                 Graph().ClearVisited(Graph().GetNode(*ik));            
@@ -2274,27 +2836,34 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         // Using a longer kmer generates connectors and extenders and improves previously assembled contigs
         // scontigs - contigs (input/output)
         // ncores - number of threads
-        void ConnectAndExtendContigs(TContigList& scontigs, int ncores) {
+        void ConnectAndExtendContigs(TContigList<DBGraph>& scontigs, int ncores) {
+            vector<TContigList<DBGraph>> extensions_for_jobs(ncores);
+            {
+                for(auto& contig : scontigs)
+                    contig.m_is_taken = 0;
 
-            vector<TContigList> extensions_for_jobs(ncores);
-            list<function<void()>> jobs;
-            for(auto& ex : extensions_for_jobs) {
-                jobs.push_back(bind(&CDBGraphDigger::ExtendContigsJob, this, ref(scontigs), ref(ex)));
+                list<function<void()>> jobs;
+                for(auto& ex : extensions_for_jobs) {
+                    jobs.push_back(bind(&CDBGraphDigger::ExtendContigsJob, this, ref(scontigs), ref(ex)));
+                }
+                RunThreads(ncores, jobs);
             }
-            RunThreads(ncores, jobs);
 
-            TContigList extensions = SContig::ConnectFragments(extensions_for_jobs, Graph()); 
-            SContig::ConnectAndExtendContigs(scontigs, extensions);  
-        }
+            TContigList<DBGraph> extensions = SContig<DBGraph>::ConnectFragments(extensions_for_jobs, Graph()); 
+            SContig<DBGraph>::ConnectAndExtendContigs(scontigs, extensions, ncores); 
 
-        /*
-        void ExtendContigsInRepeats(TContigList& scontigs, int ncores) {
-            list<function<void()>> jobs;
-            for(int thr = ncores; thr > 0; --thr) 
-                jobs.push_back(bind(&CDBGraphDigger::ExtendContigsInRepeatsJob, this, ref(scontigs)));
-            RunThreads(ncores, jobs);
+            //stabilize orientation which is random in multithreading 
+            {
+                for(auto& contig : scontigs)
+                    contig.m_is_taken = 0;
+
+                list<function<void()>> jobs;
+                for(int thr = 0; thr < ncores; ++thr) {
+                    jobs.push_back(bind(&CDBGraphDigger::StabilizeContigJob, this, ref(scontigs)));
+                }
+                RunThreads(ncores, jobs);
+            }
         }
-        */
         
         list<array<CReadHolder,2>> ConnectPairs(const list<array<CReadHolder,2>>& mate_pairs, int insert_size, int ncores) {
             CStopWatch timer;
@@ -2330,14 +2899,14 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         // Finds the longest stretch of the read which could be assembled from both ends and clips the rest
         // read - read input/output
         // nodes - kmers for the remaining part
-        void CheckAndClipRead(string& read, deque<CDBGraph::Node>& nodes) {
+        void CheckAndClipRead(string& read, deque<Node>& nodes) {
             int kmer_len = m_graph.KmerLen();
 
-            string lextend = MostLikelyExtension(CDBGraph::ReverseComplement(m_graph.GetNode(read.substr(0, kmer_len))), kmer_len);        
+            string lextend = MostLikelyExtension(DBGraph::ReverseComplement(m_graph.GetNode(read.substr(0, kmer_len))), kmer_len);        
             ReverseComplementSeq(lextend.begin(), lextend.end());
             string rextend = MostLikelyExtension(m_graph.GetNode(read.substr(read.size()-kmer_len)), kmer_len);
 
-            deque<CDBGraph::Node> extended_nodes;
+            deque<Node> extended_nodes;
             CReadHolder rh(false);
             rh.PushBack(lextend+read+rextend);
             for(CReadHolder::kmer_iterator ik = rh.kbegin(kmer_len) ; ik != rh.kend(); ++ik)  // iteration from last kmer to first  
@@ -2346,22 +2915,22 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             vector<int> bases(read.size(), 0);
             unsigned read_pos = kmer_len-lextend.size();
             for(int kk = 0; lextend.size()+read_pos+1 < extended_nodes.size() && read_pos < read.size(); ++kk, ++read_pos) {
-                CDBGraph::Node left = extended_nodes[kk];
-                CDBGraph::Node node = extended_nodes[kk+1];
-                if(!left || !GoodNode(left) || !node || !GoodNode(node))
+                Node left = extended_nodes[kk];
+                Node node = extended_nodes[kk+1];
+                if(!left.isValid() || !GoodNode(left) || !node.isValid() || !GoodNode(node))
                     continue;
-                vector<CDBGraph::Successor> successors = m_graph.GetNodeSuccessors(left);
+                vector<Successor> successors = m_graph.GetNodeSuccessors(left);
                 FilterNeighbors(successors, false);
-                if(find_if(successors.begin(),successors.end(),[node](const CDBGraph::Successor& s){return s.m_node == node;}) == successors.end())                
+                if(find_if(successors.begin(),successors.end(),[node](const Successor& s){return s.m_node == node;}) == successors.end())                
                     continue;
             
-                CDBGraph::Node right = m_graph.ReverseComplement(extended_nodes[lextend.size()+read_pos+1]);
+                Node right = m_graph.ReverseComplement(extended_nodes[lextend.size()+read_pos+1]);
                 node = m_graph.ReverseComplement(extended_nodes[read_pos+lextend.size()]);
-                if(!right || !GoodNode(right) || !node || !GoodNode(node))
+                if(!right.isValid() || !GoodNode(right) || !node.isValid() || !GoodNode(node))
                     continue;
                 successors = m_graph.GetNodeSuccessors(right);
                 FilterNeighbors(successors, false);
-                if(find_if(successors.begin(),successors.end(),[node](const CDBGraph::Successor& s){return s.m_node == node;}) == successors.end())
+                if(find_if(successors.begin(),successors.end(),[node](const Successor& s){return s.m_node == node;}) == successors.end())
                     continue;                
 
                 bases[read_pos] = 1;
@@ -2408,22 +2977,22 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 if((int)min(read1.size(),read2.size()) < kmer_len)
                     continue;
 
-                deque<CDBGraph::Node> nodes1;
+                deque<Node> nodes1;
                 CheckAndClipRead(read1, nodes1);
                 if(read1.empty())
                     continue;
-                CDBGraph::Node last_node1 = nodes1.back();                        
+                Node last_node1 = nodes1.back();                        
                 
                 ReverseComplementSeq(read2.begin(), read2.end());
-                deque<CDBGraph::Node> nodes2;
+                deque<Node> nodes2;
                 CheckAndClipRead(read2, nodes2);
                 if(read2.empty())
                     continue;
-                CDBGraph::Node first_node2 = nodes2.front();
+                Node first_node2 = nodes2.front();
 
                 int steps = insert_size;
 
-                pair<TBases, EConnectionStatus> rslt = ConnectTwoNodes(last_node1, first_node2, steps);
+                pair<TBases<DBGraph>, EConnectionStatus> rslt = ConnectTwoNodes(last_node1, first_node2, steps);
 
                 bool ambiguous = false;
 
@@ -2431,7 +3000,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                     ambiguous = true; 
                 } else {
                     string read;
-                    unordered_set<CDBGraph::Node> read_nodes;
+                    unordered_set<Node, typename Node::Hash> read_nodes;
                     if(rslt.second == eSuccess) {
                         string r1 = read1;
                         for(auto& suc : rslt.first) {
@@ -2440,7 +3009,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                         }
                         r1 += read2.substr(kmer_len);
                         read_nodes.insert(nodes2.begin()+1, nodes2.end());
-                        rslt = ConnectTwoNodes(CDBGraph::ReverseComplement(first_node2), CDBGraph::ReverseComplement(last_node1), steps);
+                        rslt = ConnectTwoNodes(DBGraph::ReverseComplement(first_node2), DBGraph::ReverseComplement(last_node1), steps);
                         if(rslt.second == eSuccess) {
                             string seq;
                             for(auto& suc : rslt.first)
@@ -2474,7 +3043,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 }
 
                 if(ambiguous) {
-                    string lextend =  StringentExtension(CDBGraph::ReverseComplement(nodes1.front()), kmer_len).first;
+                    string lextend =  StringentExtension(DBGraph::ReverseComplement(nodes1.front()), kmer_len).first;
                     ReverseComplementSeq(lextend.begin(), lextend.end());
                     paired_reads[1].PushBack(lextend+read1);
                     read2 += StringentExtension(nodes2.back(), kmer_len).first;
@@ -2488,188 +3057,93 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         // returns contigs sequences which are either >= min_len or are known fragments
         // contigs - generated contigs
         // min_len - minimal length for acceptable contigs
-        void NewSeedsJob(TContigList& contigs, int min_len) {
-            for(size_t index = 0; index < Graph().GraphSize(); ++index) {
-                CDBGraph::Node initial_node = 2*(index+1);
-                SContig contig = GetContigForKmer(initial_node, min_len);
+        void NewSeedsJob(TContigList<DBGraph>& contigs, int min_len) {
+            for(auto it = Graph().Begin(); it != Graph().End(); ++it) {
+                SContig<DBGraph> contig = GetContigForKmer(it, min_len);
                 if(!contig.m_seq.empty())
                     contigs.push_back(contig);
+            }
+        }
+
+        void StabilizeContigJob(TContigList<DBGraph>& scontigs) {
+            for(auto& contig : scontigs) {
+                if(contig.m_is_taken.Set(1))  // grab contig
+                    contig.SelectMinDirection();
             }
         }
 
         // one-thread worker for generating connectors and extenders for previously assembled contigs
         // scontigs - contigs (input/output)
         // extensions - generated sequences
-        //               (K-1)mers from a window are used as contig sequence near end of contig may not be correct
-        
-        void ExtendContigsJob(TContigList& scontigs, TContigList& extensions) {
+        void ExtendContigsJob(TContigList<DBGraph>& scontigs, TContigList<DBGraph>& extensions) {
             for(auto& contig : scontigs) {
-                if(!contig.m_is_taken.Set(1))  // grab contig
+                if(contig.m_seq.m_circular || !contig.m_is_taken.Set(1))  // grab contig
                     continue;
 
                 int kmer_len = contig.m_kmer_len;
                 int chunks = contig.m_seq.size();
-
                 
                 if(contig.m_seq.m_right_repeat < kmer_len) {
-                    if((int)contig.m_seq[chunks-1].front().size() >= kmer_len) { // normal end 
-                        CDBGraph::Node takeoff_node = contig.BackKmer();
+                    Node takeoff_node = contig.BackKmer();
+                    if(takeoff_node.isValid() && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer 
+                        int allowed_intrusion = max(0, (int)contig.m_seq.ChunkLenMax(chunks-1)-kmer_len);
+                        tuple<SContig<DBGraph>, Node, int> extension = ExtendToRight(takeoff_node, allowed_intrusion);
+                        if(!get<0>(extension).m_seq.empty() || get<1>(extension).isValid()) { // extension could be empty - starting kmer + landing kmer  
+                            bool skip = false;
+                            int intrusion = get<2>(extension);
+                            if(intrusion > 0 && !get<1>(extension).isValid()) { // there is intrusion and no further extension
+                                CContigSequence& ext_seq = get<0>(extension).m_seq;
+                                int ext_chunks = ext_seq.size();
+                                int last_chunk = ext_seq.ChunkLenMax(ext_chunks-1);
+                                if(last_chunk < kmer_len && (int)ext_seq.LenMax()-last_chunk-(int)ext_seq.ChunkLenMax(ext_chunks-2) < intrusion) // last chunk and snp will be clipped resulting in shorter sequence
+                                    skip = true;
+                                TKmer back_kmer(contig.m_seq.back().front().end()-intrusion-kmer_len, contig.m_seq.back().front().end()-intrusion);
+                                if(!Graph().GetNode(back_kmer).isValid()) // new back kmer is not in the graph
+                                    skip = true;
+                            }
 
-                        if(takeoff_node && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer  
-                            int allowed_intrusion = max(0, (int)contig.m_seq.ChunkLenMax(chunks-1)-kmer_len);
-                            tuple<SContig, CDBGraph::Node, int> extension = ExtendToRight(takeoff_node, allowed_intrusion);
-                            if(!get<0>(extension).m_seq.empty() || get<1>(extension)) { // extension could be empty - starting kmer + landing kmer  
-                                contig.ClipRight(get<2>(extension));
-                                SContig sc(&contig, 1, contig.BackKmer(), get<0>(extension), get<1>(extension), Graph());
+                            if(!skip) {
+                                contig.ClipRight(intrusion);
+                                SContig<DBGraph> sc(&contig, 1, contig.BackKmer(), get<0>(extension), get<1>(extension), Graph());
                                 extensions.push_back(sc); 
-                            }                   
-                        }                
-                    } else if(chunks > 2 && (int)contig.m_seq[chunks-3].front().size() >= kmer_len) {  // snp close to the end  
-                        CDBGraph::Node takeoff_node = contig.RightConnectingNode();
-                        if(takeoff_node && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer  
-                            int shift = 0;
-                            for( ; contig.m_seq.AllSameL(chunks-2, shift); ++shift);
-                            if(shift < kmer_len) {
-                                if(shift > 0) {
-                                    auto& takeoff_seq = contig.m_seq[chunks-3].front();
-                                    auto& snp_seq = contig.m_seq[chunks-2].front();
-                                    string kmer(takeoff_seq.end()-kmer_len+shift, takeoff_seq.end());
-                                    kmer.insert(kmer.end(), snp_seq.begin(), snp_seq.begin()+shift);
-                                    takeoff_node = Graph().GetNode(kmer);
-                                }
-                                if(takeoff_node && !Graph().IsMultContig(takeoff_node)) {      
-                                    tuple<SContig, CDBGraph::Node, int> extension = ExtendToRight(takeoff_node, shift);
-                                    int ext_chunks = get<0>(extension).m_seq.size();
-                                    if(ext_chunks > 1 && get<2>(extension) == shift) {
-                                        SContig sc(&contig, 1, contig.RightConnectingNode(), get<0>(extension), get<1>(extension), Graph());
-                                        sc.m_seq.StabilizeVariantsOrder();
-                                        if(sc.m_seq[1] == contig.m_seq[chunks-2])
-                                            extensions.push_back(sc); 
-
-                                        /*
-                                        lock_guard<mutex> guard(out_mutex);
-                                        cerr << "ShiftR: " << shift << endl;
-                                        
-                                        cerr << "Right ext: " << sc.m_seq.size() << " ";
-                                        if(sc.m_next_right)
-                                            cerr << m_graph.GetNodeSeq(sc.m_next_right);
-                                        cerr << endl;
-                                        for(auto& chunk: sc.m_seq) {
-                                            cerr << "Chunk" << endl;
-                                            for(auto& seq : chunk) {
-                                                for(char c : seq)
-                                                    cerr << c;
-                                                cerr << endl;
-                                            }
-                                        }                                
-
-                                        cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                        cerr << (contig.m_next_left ? contig.m_graph.GetNodeSeq(contig.m_next_left) : "-") << " ";
-                                        cerr << (contig.m_next_right ? contig.m_graph.GetNodeSeq(contig.m_next_right) : "-");
-                                        cerr << endl;
-                                        for(auto& chunk : contig.m_seq) {
-                                            cerr << "Chunk:     " << distance(chunk.begin(), chunk.end()) << endl;
-                                            for(auto& seq : chunk) {
-                                                for(char c : seq)
-                                                    cerr << c;
-                                                cerr << endl;
-                                            }
-                                        }
-                                        */
-
-                                    }
-                                }
                             }
                         }
-                    }
+                    }                
                 }
-                                 
-
-                
+                                                 
                 if(contig.m_seq.m_left_repeat < kmer_len) {
-                    if((int)contig.m_seq[0].front().size() >= kmer_len) { // normal end 
-                        CDBGraph::Node takeoff_node = CDBGraph::ReverseComplement(contig.FrontKmer());
-                        if(takeoff_node && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer     
-                            int allowed_intrusion = max(0, (int)contig.m_seq.ChunkLenMax(0)-kmer_len);
-                            tuple<SContig, CDBGraph::Node, int> extension = ExtendToRight(takeoff_node, allowed_intrusion);
-                            if(!get<0>(extension).m_seq.empty() || get<1>(extension)) { // extension could be empty - starting kmer + landing kmer   
-                                contig.ClipLeft(get<2>(extension));
-                                SContig sc(&contig, -1, CDBGraph::ReverseComplement(contig.FrontKmer()), get<0>(extension), get<1>(extension), Graph());
-                                sc.ReverseComplement();
-                                extensions.push_back(sc);                        
+                    Node takeoff_node = DBGraph::ReverseComplement(contig.FrontKmer());
+                    if(takeoff_node.isValid() && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer     
+                        int allowed_intrusion = max(0, (int)contig.m_seq.ChunkLenMax(0)-kmer_len);
+                        tuple<SContig<DBGraph>, Node, int> extension = ExtendToRight(takeoff_node, allowed_intrusion);
+                        if(!get<0>(extension).m_seq.empty() || get<1>(extension).isValid()) { // extension could be empty - starting kmer + landing kmer   
+                            bool skip = false;
+                            int intrusion = get<2>(extension);
+                            if(intrusion > 0 && !get<1>(extension).isValid()) { // there is intrusion and no further extension
+                                CContigSequence& ext_seq = get<0>(extension).m_seq;
+                                int ext_chunks = ext_seq.size();
+                                int last_chunk = ext_seq.ChunkLenMax(ext_chunks-1);
+                                if(last_chunk < kmer_len && (int)ext_seq.LenMax()-last_chunk-(int)ext_seq.ChunkLenMax(ext_chunks-2) < intrusion) // last chunk and snp will be clipped resulting in shorter sequence
+                                    skip = true;
+                                TKmer front_kmer(contig.m_seq.front().front().begin()+intrusion, contig.m_seq.front().front().begin()+intrusion+kmer_len);
+                                if(!Graph().GetNode(front_kmer).isValid()) // new back kmer is not in the graph
+                                    skip = true;
                             }
-                        }
-                    } else if(chunks > 2 && (int)contig.m_seq[2].front().size() >= kmer_len) {  // snp close to the end 
-                        CDBGraph::Node takeoff_node = CDBGraph::ReverseComplement(contig.LeftConnectingNode());
-                        
-                        if(takeoff_node && GoodNode(takeoff_node) && !Graph().IsMultContig(takeoff_node)) {         // valid uniq kmer  
-                            int shift = 0;
-                            for( ; contig.m_seq.AllSameR(1, shift); ++shift);
 
-                            if(shift < kmer_len) {
-                                if(shift > 0) {
-                                    auto& takeoff_seq = contig.m_seq[2].front();
-                                    auto& snp_seq = contig.m_seq[1].front();
-                                    string kmer(snp_seq.end()-shift, snp_seq.end());
-                                    kmer.insert(kmer.end(), takeoff_seq.begin(), takeoff_seq.begin()+kmer_len-shift);
-                                    takeoff_node = CDBGraph::ReverseComplement(Graph().GetNode(kmer));
-                                }
-                                if(takeoff_node && !Graph().IsMultContig(takeoff_node)) {                                          
-                                    tuple<SContig, CDBGraph::Node, int> extension = ExtendToRight(takeoff_node, shift);
-                                    int ext_chunks = get<0>(extension).m_seq.size();
-
-                                    if(ext_chunks > 1 && get<2>(extension) == shift) {
-                                        SContig sc(&contig, -1, CDBGraph::ReverseComplement(contig.LeftConnectingNode()), get<0>(extension), get<1>(extension), Graph());
-                                        sc.ReverseComplement();
-                                        sc.m_seq.StabilizeVariantsOrder();
-
-                                        if(sc.m_seq[ext_chunks-1] == contig.m_seq[1]) {
-                                            extensions.push_back(sc);  
-
-                                            /*
-                                            lock_guard<mutex> guard(out_mutex);
-                                            cerr << "ShiftL: " << shift << endl;
-                                            cerr << "Left ext: " << sc.m_seq.size() << " ";
-                                            if(sc.m_next_left)
-                                                cerr << m_graph.GetNodeSeq(sc.m_next_left);
-                                            cerr << endl;
-                                            for(auto& chunk: sc.m_seq) {
-                                                cerr << "Chunk" << endl;
-                                                for(auto& seq : chunk) {
-                                                    for(char c : seq)
-                                                        cerr << c;
-                                                    cerr << endl;
-                                                }
-                                            }  
-                                            
-                                            cerr << "Contig: " << contig.m_seq.size() << " " << contig.m_seq.m_circular << " ";
-                                            cerr << (contig.m_next_left ? contig.m_graph.GetNodeSeq(contig.m_next_left) : "-") << " ";
-                                            cerr << (contig.m_next_right ? contig.m_graph.GetNodeSeq(contig.m_next_right) : "-");
-                                            cerr << endl;
-                                            for(auto& chunk : contig.m_seq) {
-                                                cerr << "Chunk:         " << distance(chunk.begin(), chunk.end()) << endl;
-                                                for(auto& seq : chunk) {
-                                                    for(char c : seq)
-                                                        cerr << c;
-                                                    cerr << endl;
-                                                }
-                                            }
-                                            */
-                                      
-
-                                        }                                                              
-                                    }
-                                }
+                            if(!skip) {
+                                contig.ClipLeft(intrusion);
+                                SContig<DBGraph> sc(&contig, -1, DBGraph::ReverseComplement(contig.FrontKmer()), get<0>(extension), get<1>(extension), Graph());
+                                sc.ReverseComplement();
+                                extensions.push_back(sc); 
                             }
                         }
                     }
                 }
-                  
             }
         }        
 
 
-        CDBGraph& m_graph;
+        DBGraph& m_graph;
         double m_fraction;
         int m_jump;
         int m_hist_min;

@@ -56,6 +56,7 @@
 #include "Model.hpp"
 #include "KmerInit.hpp"
 #include <boost/variant.hpp>
+#include <deque>
 
 /********************************************************************************/
 namespace DeBruijn {
@@ -85,18 +86,12 @@ namespace DeBruijn {
  *
  */
 
+
 class IntegerTemplate
 {
-protected:
-
-    typedef TLargeIntN Type;
-
-    Type v;
-
-          Type& operator *()       { return v; }
-    const Type& operator *() const { return v; }
-
 public:
+    typedef TLargeIntN Type;
+    operator Type() const { return v; }
 
     IntegerTemplate() : v(LargeInt<MaxPrec>(0)) {}
 
@@ -320,8 +315,12 @@ public:
      */
     u_int64_t oahash() const { return  boost::apply_visitor (Integer_oahash(), *(*this)); }
 
-private:
+protected:
+    Type v;
+    Type& operator *()       { return v; }
+    const Type& operator *() const { return v; }
 
+private:
     struct Integer_oahash : public boost::static_visitor<u_int64_t>    {
         template<typename T>  u_int64_t operator() (const T& a) const  { return a.oahash();  }};
 

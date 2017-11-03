@@ -35,6 +35,7 @@
 
 #include "DBGraph.hpp"
 #include "counter.hpp"
+#include "concurrenthash.hpp"
 #include "ngs_includes.hpp"
 
 namespace DeBruijn {
@@ -78,8 +79,8 @@ namespace DeBruijn {
             if(!sra_list.empty())
                 GetFromSRA(sra_list);
 
-            int total = 0;
-            int paired = 0;
+            size_t total = 0;
+            size_t paired = 0;
             for(auto& reads : m_reads) {
 
 
@@ -103,36 +104,89 @@ namespace DeBruijn {
 
         list<array<CReadHolder,2>>& Reads() { return m_reads; }
 
-        void ClipAdaptersFromReads(double vector_percent, int memory) {        
+        void ClipAdaptersFromReads_HashCounter(double vector_percent, int estimated_kmer_num, bool skip_bloom_filter) {        
             CStopWatch timer;
             timer.Restart();
+            int max_count = MaxCount(vector_percent);
 
+            int min_count_for_adapters = 15;
+            int64_t MB = 1000000;
+            CKmerHashCounter kmer_counter(m_reads, m_kmer_for_adapters, min_count_for_adapters, estimated_kmer_num*MB, true, m_ncores, skip_bloom_filter);
+            auto& kmers = kmer_counter.Kmers(); 
+            for(auto it = kmers.Begin(); it != kmers.End(); ++it) {
+                auto kcount = it.GetElement();
+                int count = kcount.second->Count();   
+                if(count > max_count) {
+                    m_adapters[kcount.first] = count;
+                    m_adapters[revcomp(kcount.first, m_kmer_for_adapters)] = count;
+                }
+            }
+                                
+            ClipAdapters();
+            cerr << "Adapters clipped in " << timer.Elapsed();                                               
+        }
+
+        void ClipAdaptersFromReads_SortedCounter(double vector_percent, int memory) {        
+            CStopWatch timer;
+            timer.Restart();
+            int max_count = MaxCount(vector_percent);
+
+            int min_count_for_adapters = 100;
+            int64_t GB = 1000000000;
+            CKmerCounter kmer_counter(m_reads, m_kmer_for_adapters, min_count_for_adapters, true, GB*memory, m_ncores);
+            TKmerCount& kmers = kmer_counter.Kmers(); 
+            for(size_t index = 0; index < kmers.Size(); ++index) {
+                pair<TKmer,size_t> kcount = kmers.GetKmerCount(index);
+                int count = kcount.second;  // clips out upper portion      
+                if(count > max_count) {
+                    m_adapters[kcount.first] = count;
+                    m_adapters[revcomp(kcount.first, m_kmer_for_adapters)] = count;
+                }
+            }
+                                
+            ClipAdapters();
+            cerr << "Adapters clipped in " << timer.Elapsed();                                               
+        }
+
+        void PrintAdapters() {
+            struct Printer {
+                Printer(int kmer_len) : vec_kmer_len(kmer_len) {}
+                int vec_kmer_len;
+                set<pair<int, string>> adapters;
+                void operator()(const TKmer& kmer, int count) {
+                    TKmer rkmer = revcomp(kmer, vec_kmer_len);
+                    if(kmer < rkmer)
+                        adapters.emplace(count, kmer.toString(vec_kmer_len));
+                    else 
+                        adapters.emplace(count, rkmer.toString(vec_kmer_len)); 
+                }
+            };
+            if(m_adapters.Size() > 0) {
+                Printer prob(m_adapters.KmerLen());
+                m_adapters.GetInfo(prob);
+                for(auto it = prob.adapters.rbegin(); it != prob.adapters.rend(); ++it)
+                    cerr << "Adapter: " << it->second << " " << it->first << endl;
+            }
+        }
+
+        CKmerMap<int>& Adapters() { return m_adapters; }
+    
+    private:
+        int MaxCount(double vector_percent) {
+            int64_t total_reads = 0;
+            for(const auto& reads : m_reads)
+                total_reads += reads[0].ReadNum()+reads[1].ReadNum(); 
+
+            return vector_percent*total_reads;
+        }
+
+        void ClipAdapters() {
             int64_t total_reads = 0;
             int64_t total_seq = 0;
             for(const auto& reads : m_reads) {
                 total_reads += reads[0].ReadNum()+reads[1].ReadNum(); 
                 total_seq += reads[0].TotalSeq()+reads[1].TotalSeq();
             }
-            int max_count = vector_percent *total_reads;
-
-            int num = 0;
-            {
-                int min_count_for_adapters = 100;
-                int64_t GB = 1000000000;
-                CKmerCounter kmer_counter(m_reads, m_kmer_for_adapters, min_count_for_adapters, true, GB*memory, m_ncores);
-                TKmerCount& kmers = kmer_counter.Kmers(); 
-
-                for(size_t index = 0; index < kmers.Size(); ++index) {
-                    pair<TKmer,size_t> kcount = kmers.GetKmerCount(index);
-                    int count = kcount.second;  // clips out upper portion      
-                    if(count > max_count) {
-                        m_adapters[kcount.first] = count;
-                        m_adapters[revcomp(kcount.first, m_kmer_for_adapters)] = count;
-                        //                        cerr << "Adapter: " << kcount.first.toString(m_kmer_for_adapters) << " " << count << endl;
-                        ++num;
-                    }
-                }
-            }            
 
             if(m_adapters.Size() > 0) {
                 list<function<void()>> jobs;
@@ -148,13 +202,8 @@ namespace DeBruijn {
                 total_seq_after+= reads[0].TotalSeq()+reads[1].TotalSeq();
             }
 
-            cerr << "Adapters clipped in " << timer.Elapsed();                                               
-            cerr << "Adapters: " << num << " Reads before: " << total_reads << " Sequence before: " << total_seq << " Reads after: " << total_reads_after << " Sequence after: " << total_seq_after << endl;
+            cerr << "Adapters: " <<  m_adapters.Size()/2 << " Reads before: " << total_reads << " Sequence before: " << total_seq << " Reads after: " << total_reads_after << " Sequence after: " << total_seq_after << endl;
         }
-
-        CKmerMap<int>& Adapters() { return m_adapters; }
-    
-    private:
 
         // adapter position in read; -1 if not found
         int FindAdapterInRead(const CReadHolder::string_iterator& is) {

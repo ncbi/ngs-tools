@@ -29,6 +29,7 @@
 
 #include "LargeInt.hpp"
 #include <boost/variant.hpp>
+#include <unordered_map>
 
 /******************
 

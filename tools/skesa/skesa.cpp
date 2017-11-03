@@ -32,6 +32,232 @@
 using namespace boost::program_options;
 using namespace DeBruijn;
 
+template <class DBGraph>
+//void PrintRslt(CDBGAssembler<DBGraph>& assembler, ofstream& contigs_out, ofstream& all_out, ofstream& hist_out, ofstream& connected_reads_out, ofstream& dbg_out, int mincontig) {
+void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
+
+    ofstream contigs_out;
+    ofstream all_out;
+    ofstream hist_out;
+    ofstream connected_reads_out;
+    ofstream dbg_out;
+
+    if(argm.count("contigs_out")) {
+        contigs_out.open(argm["contigs_out"].as<string>());
+        if(!contigs_out.is_open()) {
+            cerr << "Can't open file " << argm["contigs_out"].as<string>() << endl;
+            exit(1);
+        }
+    }
+    
+    if(argm.count("all")) {
+        all_out.open(argm["all"].as<string>());
+        if(!all_out.is_open()) {
+            cerr << "Can't open file " << argm["all"].as<string>() << endl;
+            exit(1);
+        }
+    }
+    
+    if(argm.count("hist")) {
+        hist_out.open(argm["hist"].as<string>());
+        if(!hist_out.is_open()) {
+            cerr << "Can't open file " << argm["hist"].as<string>() << endl;
+            exit(1);
+        }
+    }
+
+    if(argm.count("connected_reads")) {
+        connected_reads_out.open(argm["connected_reads"].as<string>());
+        if(!connected_reads_out.is_open()) {
+            cerr << "Can't open file " << argm["connected_reads"].as<string>() << endl;
+            exit(1);
+        }
+    }
+
+    if(argm.count("dbg_out")) {
+        dbg_out.open(argm["dbg_out"].as<string>());
+        if(!dbg_out.is_open()) {
+            cerr << "Can't open file " << argm["dbg_out"].as<string>() << endl;
+            exit(1);
+        }
+    }
+
+    int mincontig = argm["min_contig"].as<int>();
+    if(mincontig <= 0) {
+        cerr << "Value of --min_contig must be > 0" << endl;
+        exit(1);
+    }
+    
+    DBGraph& first_graph = *assembler.Graphs().begin()->second;
+    int first_kmer_len = first_graph.KmerLen();
+    int num = 0; 
+    ostream& out = contigs_out.is_open() ? contigs_out : cout;
+    auto contigs = assembler.Contigs();
+
+    contigs.sort();
+    for(auto& contig : contigs) {
+        if((int)contig.LenMin() >= mincontig) {
+            deque<list<pair<double, string>>> scored_contig;
+            for(unsigned chunk = 0; chunk < contig.size(); ++chunk) {
+                scored_contig.emplace_back();
+                if(contig.VariableChunk(chunk)) {
+                    double total_abundance = 0.;
+                    for(auto& variant : contig[chunk]) {
+                        TVariation seq = variant;
+                        if(chunk < contig.size()-1) {
+                            auto a = contig[chunk+1].front().begin();
+                            auto b = contig[chunk+1].front().end();
+                            if((int)contig.ChunkLenMax(chunk+1) > first_kmer_len-1)
+                                b = a+first_kmer_len-1;
+                            seq.insert(seq.end(), a, b);
+                        }
+                        if(chunk > 0) {
+                            auto b = contig[chunk-1].front().end();
+                            auto a = contig[chunk-1].front().begin();
+                            if((int)contig.ChunkLenMax(chunk-1) > first_kmer_len-1)
+                                a = b-first_kmer_len+1;
+                            seq.insert(seq.begin(), a, b);
+                        }
+                        CReadHolder rh(false);
+                        rh.PushBack(seq);
+                        double abundance = 0;
+                        for(CReadHolder::kmer_iterator itk = rh.kbegin(first_graph.KmerLen()); itk != rh.kend(); ++itk) {
+                            typename DBGraph::Node node = first_graph.GetNode(*itk);
+                            abundance += first_graph.Abundance(node);
+                        }
+                        total_abundance += abundance;
+                        double score = abundance;
+                        string var_seq(variant.begin(), variant.end());
+                        scored_contig.back().emplace_back(score, var_seq);
+                    }
+
+                    for(auto& score_seq : scored_contig.back())
+                        score_seq.first /= total_abundance;
+                    scored_contig.back().sort();
+                    scored_contig.back().reverse();
+                } else {
+                    double score = 1.;
+                    string var_seq(contig[chunk].front().begin(), contig[chunk].front().end());
+                    scored_contig.back().emplace_back(score, var_seq);
+                }
+            }
+
+            string first_variant;
+            for(auto& lst : scored_contig)
+                first_variant += lst.front().second;
+
+            CReadHolder rh(false);
+            if(contig.m_circular)
+                first_variant += first_variant.substr(0, first_graph.KmerLen()-1);
+            rh.PushBack(first_variant);
+            double abundance = 0; // average count of kmers in contig   
+            for(CReadHolder::kmer_iterator itk = rh.kbegin(first_graph.KmerLen()); itk != rh.kend(); ++itk) {
+                typename DBGraph::Node node = first_graph.GetNode(*itk);
+                abundance += first_graph.Abundance(node);
+            }
+            abundance /= first_variant.size()-first_graph.KmerLen()+1;
+            out << ">Contig_" << ++num << "_" << abundance;
+            if(contig.m_circular) {
+                out << "_Circ";
+                first_variant.erase(first_variant.size()-first_graph.KmerLen()+1, first_graph.KmerLen()-1); 
+            }
+            out << "\n" << first_variant << endl;
+            int pos = 0;
+            for(unsigned chunk = 0; chunk < scored_contig.size(); ++chunk) { //output variants  
+                int chunk_len = scored_contig[chunk].front().second.size();
+                if(contig.VariableChunk(chunk)) {
+                    int left = 0;
+                    if(chunk > 0)
+                        left = min(100,(int)scored_contig[chunk-1].front().second.size());
+                    int right = 0;
+                    if(chunk < scored_contig.size()-1)
+                        right = min(100,(int)scored_contig[chunk+1].front().second.size());
+                    int var = 0;
+                    auto it = scored_contig[chunk].begin();
+                    for(++it; it != scored_contig[chunk].end(); ++it) {
+                        double score = it->first;
+                        string& variant = it->second;
+                        out << ">Variant_" << ++var << "_for_Contig_" << num << ":" << pos-left+1 << "_" << pos+chunk_len+right << ":" << score << "\n";
+                        if(chunk > 0) {                                
+                            for(int l = left ; l > 0; --l)
+                                out << *(scored_contig[chunk-1].front().second.end()-l);
+                        }
+                        out << variant;
+                        if(chunk < scored_contig.size()-1) {
+                            for(int r = 0; r < right; ++r)
+                                out << scored_contig[chunk+1].front().second[r];
+                        }
+                        out << endl;
+                    }
+                }
+                pos += chunk_len;
+            }            
+        } 
+    }  
+
+    if(all_out.is_open()) {
+        auto graphp = assembler.Graphs().begin();
+        auto it = assembler.AllIterations().begin();
+        if(argm.count("seeds")) {
+            auto& contigs = *it;
+            int nn = 0;
+            for(auto& contig : contigs) {
+                string first_variant;
+                for(auto& lst : contig)
+                    first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
+                all_out << ">Seed_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+            }
+            ++it;
+        }
+        for( ; graphp != assembler.Graphs().end(); ++it, ++graphp) {
+            auto& contigs = *it;
+            int nn = 0;
+            for(auto& contig : contigs) {
+                string first_variant;
+                for(auto& lst : contig)
+                    first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
+                all_out << ">kmer" << graphp->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+            }
+        }
+        if(argm.count("allow_snps")) {
+            auto graphpr = assembler.Graphs().rbegin();
+            for( ; graphpr != assembler.Graphs().rend(); ++it, ++graphpr) {
+                auto& contigs = *it;
+                int nn = 0;
+                for(auto& contig : contigs) {
+                    string first_variant;
+                    for(auto& lst : contig)
+                        first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
+                    all_out << ">SNP_recovery_kmer" << graphpr->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+                }
+            } 
+        } 
+    }
+
+    if(hist_out.is_open()) {
+        for(auto& gr : assembler.Graphs()) {
+            const TBins& bins = gr.second->GetBins();
+            for(auto& bin : bins)
+                hist_out << gr.first << '\t' << bin.first << '\t' << bin.second << endl;
+        }
+    }
+
+    if(connected_reads_out.is_open()) {
+        CReadHolder connected_reads = assembler.ConnectedReads();
+        int num = 0;
+        for(CReadHolder::string_iterator is = connected_reads.sbegin(); is != connected_reads.send(); ++is) {
+            string s = *is;
+            connected_reads_out << ">ConnectedRead_" << ++num << "\n" << s << "\n";
+        }
+    }
+    
+    if(dbg_out.is_open()) {
+        for(auto& gr : assembler.Graphs())
+            gr.second->Save(dbg_out);
+    }    
+}
+
+
 int main(int argc, const char* argv[]) {
     for(int n = 0; n < argc; ++n)
         cerr << argv[n] << " ";
@@ -46,18 +272,11 @@ int main(int argc, const char* argv[]) {
     int min_kmer;
     bool usepairedends;
     int maxkmercount;
-    ofstream contigs_out;
-    ofstream all_out;
-    ofstream hist_out;
-    ofstream connected_reads_out;
-    ofstream dbg_out;
-    int memory;
     int max_kmer_paired = 0;
     vector<string> sra_list;
     vector<string> fasta_list;
     vector<string> fastq_list;
     bool gzipped;
-    int mincontig;
     bool allow_snps;
     bool estimate_min_count = true;
 
@@ -65,8 +284,11 @@ int main(int argc, const char* argv[]) {
     general.add_options()
         ("help,h", "Produce help message")
         ("version,v", "Print version")
-        ("memory", value<int>()->default_value(32), "Memory available (GB) [integer]")
-        ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]");
+        ("cores", value<int>()->default_value(0), "Number of cores to use (default all) [integer]")
+        ("memory", value<int>()->default_value(32), "Memory available (GB, only for sorted counter) [integer]")
+        ("hash_count", "Use hash counter [flag]")
+        ("estimated_kmers", value<int>()->default_value(100), "Estimated number of unique kmers for bloom filter (M, only for hash counter) [integer]")
+        ("skip_bloom_filter", "Don't do bloom filter; use --estimated_kmers as the hash table size (only for hash counter) [flag]");
 
     options_description input("Input/output options : at least one input providing reads for assembly must be specified");
     input.add_options()
@@ -87,7 +309,7 @@ int main(int argc, const char* argv[]) {
         ("steps", value<int>()->default_value(11), "Number of assembly iterations from minimal to maximal kmer length in reads [integer]")
         ("max_kmer_count", value<int>()->default_value(10), "Minimum acceptable average count for estimating the maximal kmer length in reads [integer]")
         ("fraction", value<double>()->default_value(0.1, "0.1"), "Maximum noise to signal ratio acceptable for extension [float [0,1)]")
-        ("min_dead_end", value<int>()->default_value(50), "Ignore dead end paths shorter than this when comparing alternate extensions [integer]")
+        ("max_snp_len", value<int>()->default_value(150), "Maximal snp length [integer]")
         ("min_contig", value<int>()->default_value(200), "Minimal contig length reported in output [integer]")
         ("allow_snps", "Allow additional step for snp discovery [flag]");
 
@@ -115,7 +337,7 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "SKESA v.1.0" << endl;
+            cerr << "SKESA v.2.0" << endl;
 #ifdef SVN_REV
             cerr << "SVN revision:" << SVN_REV << endl << endl;
 #endif
@@ -182,9 +404,9 @@ int main(int argc, const char* argv[]) {
             cerr << "Value of --fraction must be >= 0" << endl;
             exit(1);
         }
-        jump = argm["min_dead_end"].as<int>();
+        jump = argm["max_snp_len"].as<int>();
         if(jump < 0) {
-            cerr << "Value of --min_dead_end must be >= 0" << endl;
+            cerr << "Value of --max_snp_len must be >= 0" << endl;
             exit(1);
         }
         if(argm.count("insert_size"))
@@ -202,11 +424,6 @@ int main(int argc, const char* argv[]) {
 
         if(max_kmer_paired < 0) {
             cerr << "Value of --insert_size must be >= 0" << endl;
-            exit(1);
-        }
-        mincontig = argm["min_contig"].as<int>();
-        if(mincontig <= 0) {
-            cerr << "Value of --min_contig must be > 0" << endl;
             exit(1);
         }
         min_kmer = argm["kmer"].as<int>();
@@ -229,53 +446,6 @@ int main(int argc, const char* argv[]) {
         if(maxkmercount <= 0) {
             cerr << "Value of --max_kmer_count must be > 0" << endl;
             exit(1);
-        }
-
-        memory = argm["memory"].as<int>();
-        if(memory <= 0) {
-            cerr << "Value of --memory must be > 0" << endl;
-            exit(1);
-        }
-
-        if(argm.count("contigs_out")) {
-            contigs_out.open(argm["contigs_out"].as<string>());
-            if(!contigs_out.is_open()) {
-                cerr << "Can't open file " << argm["contigs_out"].as<string>() << endl;
-                exit(1);
-            }
-        }
-    
-        if(argm.count("all")) {
-            all_out.open(argm["all"].as<string>());
-            if(!all_out.is_open()) {
-                cerr << "Can't open file " << argm["all"].as<string>() << endl;
-                exit(1);
-            }
-        }
-
-
-        if(argm.count("hist")) {
-            hist_out.open(argm["hist"].as<string>());
-            if(!hist_out.is_open()) {
-                cerr << "Can't open file " << argm["hist"].as<string>() << endl;
-                exit(1);
-            }
-        }
-
-        if(argm.count("connected_reads")) {
-            connected_reads_out.open(argm["connected_reads"].as<string>());
-            if(!connected_reads_out.is_open()) {
-                cerr << "Can't open file " << argm["connected_reads"].as<string>() << endl;
-                exit(1);
-            }
-        }
-
-        if(argm.count("dbg_out")) {
-            dbg_out.open(argm["dbg_out"].as<string>());
-            if(!dbg_out.is_open()) {
-                cerr << "Can't open file " << argm["dbg_out"].as<string>() << endl;
-                exit(1);
-            }
         }
 
         TStrList seeds;
@@ -311,221 +481,39 @@ int main(int argc, const char* argv[]) {
             }
         }
 
+        int low_count = max(min_count, 2); 
         CReadsGetter readsgetter(sra_list, fasta_list, fastq_list, ncores, usepairedends, gzipped);
 
-        readsgetter.ClipAdaptersFromReads(vector_percent, memory);
-        if(readsgetter.Adapters().Size() > 0) {
-            struct PrintAdapters {
-                PrintAdapters(int kmer_len) : vec_kmer_len(kmer_len) {}
-                int vec_kmer_len;
-                set<pair<int, string>> adapters;
-                void operator()(const TKmer& kmer, int count) {
-                    TKmer rkmer = revcomp(kmer, vec_kmer_len);
-                    if(kmer < rkmer)
-                        adapters.emplace(count, kmer.toString(vec_kmer_len));
-                    else 
-                        adapters.emplace(count, rkmer.toString(vec_kmer_len)); 
-                }
-            };
-            PrintAdapters prob(readsgetter.Adapters().KmerLen());
-            readsgetter.Adapters().GetInfo(prob);
-            for(auto it = prob.adapters.rbegin(); it != prob.adapters.rend(); ++it)
-                cerr << "Adapter: " << it->second << " " << it->first << endl;
-        }
-
-        int low_count = max(min_count, 2); 
-        CDBGAssembler assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, memory, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count); 
-
-        CDBGraph& first_graph = *assembler.Graphs().begin()->second;
-        int first_kmer_len = first_graph.KmerLen();
-        int num = 0; 
-        ostream& out = contigs_out.is_open() ? contigs_out : cout;
-        auto contigs = assembler.Contigs();
-
-        contigs.sort();
-        for(auto& contig : contigs) {
-            if((int)contig.LenMin() >= mincontig) {
-
-                deque<list<pair<double, string>>> scored_contig;
-
-                /*
-                cerr << "Contig: " << num+1 << " " << contig.size()  << " " << contig.m_circular << endl;
-                for(unsigned chunk = 0; chunk < contig.size(); ++chunk) {
-                    cerr << "Chunk: " << distance(contig[chunk].begin(), contig[chunk].end()) << endl;
-                    for(auto& seq : contig[chunk]) {
-                        for(char c : seq)
-                            cerr << c;
-                        cerr << endl;
-                    }
-                }
-                continue;
-                */
-
-                for(unsigned chunk = 0; chunk < contig.size(); ++chunk) {
-
-                    scored_contig.emplace_back();
-                    if(contig.VariableChunk(chunk)) {
-                        double total_abundance = 0.;
-                        for(auto& variant : contig[chunk]) {
-                            TVariation seq = variant;
-                            if(chunk < contig.size()-1) {
-                                auto a = contig[chunk+1].front().begin();
-                                auto b = contig[chunk+1].front().end();
-                                if((int)contig.ChunkLenMax(chunk+1) > first_kmer_len-1)
-                                    b = a+first_kmer_len-1;
-                                seq.insert(seq.end(), a, b);
-                            }
-                            if(chunk > 0) {
-                                auto b = contig[chunk-1].front().end();
-                                auto a = contig[chunk-1].front().begin();
-                                if((int)contig.ChunkLenMax(chunk-1) > first_kmer_len-1)
-                                    a = b-first_kmer_len+1;
-                                seq.insert(seq.begin(), a, b);
-                            }
-                            CReadHolder rh(false);
-                            rh.PushBack(seq);
-                            double abundance = 0;
-                            for(CReadHolder::kmer_iterator itk = rh.kbegin(first_graph.KmerLen()); itk != rh.kend(); ++itk) {
-                                CDBGraph::Node node = first_graph.GetNode(*itk);
-                                abundance += first_graph.Abundance(node);
-                            }
-                            total_abundance += abundance;
-                            double score = abundance;
-                            string var_seq(variant.begin(), variant.end());
-                            scored_contig.back().emplace_back(score, var_seq);
-                        }
-
-                        for(auto& score_seq : scored_contig.back())
-                            score_seq.first /= total_abundance;
-                        scored_contig.back().sort();
-                        scored_contig.back().reverse();
-                    } else {
-                        double score = 1.;
-                        string var_seq(contig[chunk].front().begin(), contig[chunk].front().end());
-                        scored_contig.back().emplace_back(score, var_seq);
-                    }
-                }
-
-                string first_variant;
-                for(auto& lst : scored_contig)
-                    first_variant += lst.front().second;
-
-                CReadHolder rh(false);
-                rh.PushBack(first_variant);
-                double abundance = 0; // average count of kmers in contig
-                for(CReadHolder::kmer_iterator itk = rh.kbegin(first_graph.KmerLen()); itk != rh.kend(); ++itk) {
-                    CDBGraph::Node node = first_graph.GetNode(*itk);
-                    abundance += first_graph.Abundance(node);
-                }
-                abundance /= first_variant.size()-first_graph.KmerLen()+1;
-                out << ">Contig_" << ++num << "_" << abundance;
-                if(contig.m_circular)
-                    out << "_Circ";
-                out << "\n" << first_variant << endl;
-
-
-                int pos = 0;
-                for(unsigned chunk = 0; chunk < scored_contig.size(); ++chunk) { //output variants
-                    int chunk_len = scored_contig[chunk].front().second.size();
-                    if(contig.VariableChunk(chunk)) {
-                        int left = 0;
-                        if(chunk > 0)
-                            left = min(100,(int)scored_contig[chunk-1].front().second.size());
-                        int right = 0;
-                        if(chunk < scored_contig.size()-1)
-                            right = min(100,(int)scored_contig[chunk+1].front().second.size());
-                        int var = 0;
-                        auto it = scored_contig[chunk].begin();
-                        for(++it; it != scored_contig[chunk].end(); ++it) {
-                            double score = it->first;
-                            string& variant = it->second;
-                            out << ">Variant_" << ++var << "_for_Contig_" << num << ":" << pos-left+1 << "_" << pos+chunk_len+right << ":" << score << "\n";
-                            if(chunk > 0) {                                
-                                for(int l = left ; l > 0; --l)
-                                    out << *(scored_contig[chunk-1].front().second.end()-l);
-                            }
-                            out << variant;
-                            if(chunk < scored_contig.size()-1) {
-                                for(int r = 0; r < right; ++r)
-                                    out << scored_contig[chunk+1].front().second[r];
-                            }
-                            out << endl;
-                        }
-                    }
-                    pos += chunk_len;
-                }
-            
-
-            } 
-        }  
-
-        if(all_out.is_open()) {
-            auto graphp = assembler.Graphs().begin();
-            auto it = assembler.AllIterations().begin();
-            if(!seeds.empty()) {
-                auto& contigs = *it;
-                int nn = 0;
-                for(auto& contig : contigs) {
-                    string first_variant;
-                    for(auto& lst : contig)
-                        first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                    all_out << ">Seed_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
-                }
-                ++it;
+        if(argm.count("hash_count")) {
+            int estimated_kmer_num =  argm["estimated_kmers"].as<int>();
+            if(estimated_kmer_num <= 0) {
+                cerr << "Value of --estimated_kmers must be > 0" << endl;
+                exit(1);
             }
-            for( ; graphp != assembler.Graphs().end(); ++it, ++graphp) {
-                auto& contigs = *it;
-                int nn = 0;
-                for(auto& contig : contigs) {
-                    string first_variant;
-                    for(auto& lst : contig)
-                        first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                    all_out << ">kmer" << graphp->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
-                }
+            bool skip_bloom_filter = argm.count("skip_bloom_filter");
+            readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
+            readsgetter.PrintAdapters();
+            CDBGAssembler<CDBHashGraph> assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count, estimated_kmer_num, skip_bloom_filter); 
+            PrintRslt(assembler, argm);
+        } else {
+            int memory = argm["memory"].as<int>();
+            if(memory <= 0) {
+                cerr << "Value of --memory must be > 0" << endl;
+                exit(1);
             }
-            if(allow_snps) {
-                auto graphpr = assembler.Graphs().rbegin();
-                for( ; graphpr != assembler.Graphs().rend(); ++it, ++graphpr) {
-                    auto& contigs = *it;
-                    int nn = 0;
-                    for(auto& contig : contigs) {
-                        string first_variant;
-                        for(auto& lst : contig)
-                            first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                        all_out << ">SNP_recovery_kmer" << graphpr->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
-                    }
-                } 
-            } 
+            readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
+            readsgetter.PrintAdapters();
+            CDBGAssembler<CDBGraph> assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count, memory); 
+            PrintRslt(assembler, argm);
         }
 
-        if(hist_out.is_open()) {
-            for(auto& gr : assembler.Graphs()) {
-                const TBins& bins = gr.second->GetBins();
-                for(auto& bin : bins)
-                    hist_out << gr.first << '\t' << bin.first << '\t' << bin.second << endl;
-            }
-        }
-
-        if(connected_reads_out.is_open()) {
-            CReadHolder connected_reads = assembler.ConnectedReads();
-            int num = 0;
-            for(CReadHolder::string_iterator is = connected_reads.sbegin(); is != connected_reads.send(); ++is) {
-                string s = *is;
-                connected_reads_out << ">ConnectedRead_" << ++num << "\n" << s << "\n";
-            }
-        }
-
-        if(dbg_out.is_open()) {
-            for(auto& gr : assembler.Graphs())
-                gr.second->Save(dbg_out);
-        }
-
+        cerr << "DONE" << endl;
+        exit(0);
     } catch (exception &e) {
         cerr << endl << e.what() << endl;
         exit(1);
     }
 
-    cerr << "DONE" << endl;
 
     return 0;
 }

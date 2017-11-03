@@ -34,8 +34,12 @@
 using namespace std;
 namespace DeBruijn {
 
+    template<class DBGraph>
     class CGudedPath {
     public:
+        typedef typename DBGraph::Node Node;
+        typedef typename DBGraph::Successor Successor;
+        using GraphDigger = CDBGraphDigger<DBGraph>;        
 
         struct SPathChunk {
             SPathChunk() : m_score(numeric_limits<int>::min()), m_tlen(0) {}
@@ -44,7 +48,7 @@ namespace DeBruijn {
             string m_seq;
         };
 
-        CGudedPath(CDBGraph::Node initial_node, const string& target_extension, CDBGraphDigger& graph_digger, SMatrix& delta, int gapopen, int gapextend, int dropoff, int max_len = numeric_limits<int>::max()) : 
+        CGudedPath(const Node& initial_node, const string& target_extension, GraphDigger& graph_digger, SMatrix& delta, int gapopen, int gapextend, int dropoff, int max_len = numeric_limits<int>::max()) : 
             m_snp_detected(false), m_b(target_extension), m_fork_count(0), m_path_end(false), m_num(0), m_graph_digger(graph_digger), m_delta(delta), m_rho(gapopen), m_sigma(gapextend), m_dropoff(dropoff), m_max_len(max_len) {
 
             int bignegative = numeric_limits<int>::min()/2;
@@ -68,8 +72,8 @@ namespace DeBruijn {
 
             m_branch.m_node = initial_node;
             m_last_step_nodes.push_back(m_branch.m_node);
-            if(m_branch.m_node) {
-                vector<CDBGraph::Successor> neighbors = m_graph_digger.GetReversibleNodeSuccessors(m_branch.m_node);
+            if(m_branch.m_node.isValid()) {
+                vector<Successor> neighbors = m_graph_digger.GetReversibleNodeSuccessors(m_branch.m_node);
                 if(neighbors.size() == 2 && m_max_len < numeric_limits<int>::max())   // detect SNP
                     DetectSNP(neighbors);
                 if(!m_path_end) {
@@ -105,7 +109,7 @@ namespace DeBruijn {
             if(m_path_end)
                 return true;
 
-            vector<CDBGraph::Successor> neighbors = m_graph_digger.GetReversibleNodeSuccessors(m_branch.m_node);
+            vector<Successor> neighbors = m_graph_digger.GetReversibleNodeSuccessors(m_branch.m_node);
             m_path_end = neighbors.empty();
             if(m_path_end)
                 return true;
@@ -138,14 +142,14 @@ namespace DeBruijn {
         bool PathEnd() const { return m_path_end; }
         int Num() const { return m_num; }
         int ForkCount() const { return m_fork_count; }
-        list<CDBGraph::Node> LastStepNodes() const { return m_last_step_nodes; }
+        list<Node> LastStepNodes() const { return m_last_step_nodes; }
 
     private:
 
         struct SBranch {
             vector<int> m_sm;    // best scores in previous a-row
             vector<int> m_gapb;  // best score with b-gap
-            CDBGraph::Node m_node;         // last node
+            Node m_node;         // last node
             int m_na;
             int m_maxscore;
             int m_maxposa;
@@ -257,15 +261,15 @@ namespace DeBruijn {
             }
         }
 
-        bool CheckIfSNP(CDBGraph::Node nodea, CDBGraph::Node nodeb, vector<CDBGraph::Successor>& patha, vector<CDBGraph::Successor>& pathb) {
+        bool CheckIfSNP(Node nodea, Node nodeb, vector<Successor>& patha, vector<Successor>& pathb) {
             int kmer = m_graph_digger.Graph().KmerLen();
             patha.reserve(kmer);
             pathb.reserve(kmer);
             for(int s = 0; s < kmer; ++s) {
-                vector<CDBGraph::Successor> nbra = m_graph_digger.GetReversibleNodeSuccessors(nodea);
+                vector<Successor> nbra = m_graph_digger.GetReversibleNodeSuccessors(nodea);
                 if(nbra.size() != 1)
                     break;
-                vector<CDBGraph::Successor> nbrb = m_graph_digger.GetReversibleNodeSuccessors(nodeb);
+                vector<Successor> nbrb = m_graph_digger.GetReversibleNodeSuccessors(nodeb);
                 if(nbrb.size() != 1)
                     break;
                 patha.push_back(nbra.front());
@@ -277,20 +281,20 @@ namespace DeBruijn {
             return ((int)patha.size() == kmer && nodea == nodeb);
         }
 
-        void DetectSNP(vector<CDBGraph::Successor>& neighbors) {
+        void DetectSNP(vector<Successor>& neighbors) {
             int kmer = m_graph_digger.Graph().KmerLen();
-            vector<CDBGraph::Successor> patha;
-            vector<CDBGraph::Successor> pathb;
-            CDBGraph::Node nodea = neighbors[0].m_node;
-            CDBGraph::Node nodeb = neighbors[1].m_node;
+            vector<Successor> patha;
+            vector<Successor> pathb;
+            Node nodea = neighbors[0].m_node;
+            Node nodeb = neighbors[1].m_node;
             if(!CheckIfSNP(nodea, nodeb, patha, pathb))
                 return;
                         
             { // check in reverse
                 nodea = m_graph_digger.Graph().ReverseComplement(patha[kmer-2].m_node);
                 nodeb = m_graph_digger.Graph().ReverseComplement(pathb[kmer-2].m_node);
-                vector<CDBGraph::Successor> pathaa;
-                vector<CDBGraph::Successor> pathbb;
+                vector<Successor> pathaa;
+                vector<Successor> pathbb;
                 if(!CheckIfSNP(nodea, nodeb, pathaa, pathbb))
                     return;
             }
@@ -316,17 +320,17 @@ namespace DeBruijn {
         }
 
         SBranch m_branch;
-        list<CDBGraph::Node> m_last_step_nodes;
+        list<Node> m_last_step_nodes;
         bool m_snp_detected;
         string m_a;
         string m_b;
         stack<pair<SBranch,int> > m_forks;
-        stack<CDBGraph::Successor> m_edges;
+        stack<Successor> m_edges;
         int m_fork_count;
         bool m_path_end;
         int m_num;
 
-        CDBGraphDigger m_graph_digger; 
+        GraphDigger m_graph_digger; 
         SMatrix& m_delta;
         int m_rho;
         int m_sigma;
