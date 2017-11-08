@@ -126,6 +126,8 @@ void print(const Contamination &r)
     }
 }
 
+#define SORTED 0
+
 int main(int argc, char const *argv[])
 {
 	Config config(argc, argv);
@@ -138,7 +140,9 @@ int main(int argc, char const *argv[])
 	int kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
 
     const int THREADS = 48;
+#if SORTED
     list<Contamination> contaminations; // todo: list ?
+#endif
 
 	#pragma omp parallel num_threads(THREADS) 
 	for (int i = omp_get_thread_num(); i < file_list.files.size(); i += omp_get_num_threads())
@@ -150,18 +154,22 @@ int main(int argc, char const *argv[])
         {
 		    LOG(contamination.total_hits << "\thits\t" << file_list_element.filename);
             if (contamination.total_hits > 0)
+            {
+#if SORTED
                 contaminations.push_back(contamination);
-//            if (contamination.total_hits > 0)
-//                print(contamination);
+#else
+                print(contamination);
+#endif
+            }
         }
 	}
 
-//    std::sort(contaminations.begin(), contaminations.end());
-//    cout << "sorted:" << endl;
+#if SORTED
     contaminations.sort();
 
     for (auto &r : contaminations)
         print(r);
+#endif
 
 	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }
