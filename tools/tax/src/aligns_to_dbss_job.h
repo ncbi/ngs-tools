@@ -122,6 +122,9 @@ struct DBSSJob : public DBSJob
 			taxes.push_back(t);
 		}
 
+        if (!f.eof())
+            throw std::runtime_error("bad tax list file format");
+
 		sort(taxes.begin(), taxes.end());
 		return taxes;
 	}
@@ -158,7 +161,7 @@ struct DBSSJob : public DBSJob
         assert(hash_array.size() == total_hashes_count);
         
         LOG("dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)");
-        assert(!hash_array.empty());
+//        assert(!hash_array.empty());
         std::sort(hash_array.begin(), hash_array.end());
         LOG("dbss parts merged");
 	}
