@@ -5,6 +5,7 @@ add_executable ( ref-variation common.cpp helper.cpp ref-variation.cpp  )
 # add_dependencies ( ref-variation ngs-vdb )
 
 target_link_libraries ( ref-variation
+    tk-version
     ngs-vdb
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${CMAKE_STATIC_LIBRARY_PREFIX}load${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -18,6 +19,7 @@ links_and_install ( ref-variation )
 add_executable ( var-expand common.cpp helper.cpp var-expand.cpp )
 
 target_link_libraries ( var-expand
+    tk-version
     ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
     ${CMAKE_STATIC_LIBRARY_PREFIX}load${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${SYS_LIBRARIES}

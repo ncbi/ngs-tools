@@ -118,7 +118,11 @@ if [ "$rc" != "$RC" ] ; then
     exit 2
 fi
 
-diff $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
+# remove version number from the actual output
+SED="sed -i -e 's=$(basename $EXE) : \(.[0-9]*\)*==g' $ACTUAL_STDOUT"
+eval $SED
+
+diff --ignore-blank-lines $EXPECTED_STDOUT $ACTUAL_STDOUT >$TEMPDIR/$CASEID.stdout.diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
     echo -e "\ndiff $EXPECTED_STDOUT $ACTUAL_STDOUT failed with $rc"
