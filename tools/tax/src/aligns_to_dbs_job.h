@@ -29,6 +29,8 @@
 
 #include "aligns_to_job.h"
 
+#define LOOKUP_TABLE 0
+
 struct DBSJob : public Job
 {
 	struct KmerTax : public DBS::KmerTax
@@ -71,13 +73,17 @@ public:
 
 	struct Matcher
 	{
+#if LOOKUP_TABLE
         typedef std::vector< std::pair<size_t, size_t> > HashLookupTable;
-		const HashSortedArray &hash_array;
         HashLookupTable hash_lookup_table;
         int hash_lookup_shift;
+#endif
+
+		const HashSortedArray &hash_array;
 		int kmer_len;
 		Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len)
         {
+#if LOOKUP_TABLE
             // determining size of lookup key
             int lookup_key_bits = 1;
             while ((hash_array.size() >> lookup_key_bits) > 5)
@@ -113,14 +119,18 @@ public:
                 bucket.second = hash_idx;
                 //LOG("bucket " << bucket_idx << " " << (bucket.second - bucket.first) << " members, range " << bucket.first << " - " << bucket.second);
             }
+#endif
         }
 
         int find_hash(hash_t hash, int default_value) const
         {
+#if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
             auto &bucket = hash_lookup_table[bucket_idx];
-            auto first = hash_array.begin() + bucket.first;
-            auto last = hash_array.begin() + bucket.second;
+#else
+            auto first = hash_array.begin();
+            auto last = hash_array.end();
+#endif
             first = std::lower_bound(first, last, KmerTax(hash, 0));
             return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
         }
