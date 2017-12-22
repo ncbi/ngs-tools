@@ -146,19 +146,25 @@ struct DBSSJob : public DBSJob
             }
         }
         hash_array.reserve(total_hashes_count);
-        
-        for (auto tax_id : tax_list) {
-            for (auto& annot : annotation) {
-                if (annot.tax_id == tax_id && annot.count > 0) {
-                    std::vector<hash_t> hashes;
-                    IO::load_vector_no_size(f, hashes, annot.offset, annot.count);
-                    for (auto hash : hashes) {
-                        hash_array.emplace_back(hash, annot.tax_id);
+
+        {        
+            std::vector<hash_t> hashes;
+            for (auto tax_id : tax_list)
+                for (auto& annot : annotation) 
+                    if (annot.tax_id == tax_id && annot.count > 0) 
+                    {
+                        hashes.clear();
+                        IO::load_vector_no_size(f, hashes, annot.offset, annot.count);
+                        for (auto hash : hashes)
+                            hash_array.emplace_back(hash, annot.tax_id);
                     }
-                }
-            }
         }
-        assert(hash_array.size() == total_hashes_count);
+
+        if (hash_array.size() != total_hashes_count)
+        {
+            std::cerr << hash_array.size() << " of " << total_hashes_count << " loaded " << std::endl;
+            throw std::runtime_error("unable to load all kmers");
+        }
         
         LOG("dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)");
 //        assert(!hash_array.empty());
