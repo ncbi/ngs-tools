@@ -2865,7 +2865,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
             }
         }
         
-        list<array<CReadHolder,2>> ConnectPairs(const list<array<CReadHolder,2>>& mate_pairs, int insert_size, int ncores) {
+        list<array<CReadHolder,2>> ConnectPairs(const list<array<CReadHolder,2>>& mate_pairs, int insert_size, int ncores, bool extend_connected) {
             CStopWatch timer;
             timer.Restart();
 
@@ -2875,7 +2875,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 auto& job_input = reads[0];
                 paired_reads.push_back(array<CReadHolder,2>({CReadHolder(false), CReadHolder(true)}));
                 if(job_input.ReadNum() > 0)  // not empty       
-                    jobs.push_back(bind(&CDBGraphDigger::ConnectPairsJob, this, insert_size, ref(job_input), ref(paired_reads.back())));            
+                    jobs.push_back(bind(&CDBGraphDigger::ConnectPairsJob, this, insert_size, ref(job_input), ref(paired_reads.back()), extend_connected));            
             }
             RunThreads(ncores, jobs);
                        
@@ -2965,7 +2965,7 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
         // insert_size - the maximal limit of the insert length
         // mate_pairs - pairs for connection (one mate after another)
         // paired_reads - [0] connected reads, [1] reads for future connection    
-        void ConnectPairsJob(int insert_size, const CReadHolder& mate_pairs, array<CReadHolder,2>& paired_reads) {
+        void ConnectPairsJob(int insert_size, const CReadHolder& mate_pairs, array<CReadHolder,2>& paired_reads, bool extend_connected) {
             if(mate_pairs.ReadNum() < 2)
                 return;
 
@@ -2991,58 +2991,55 @@ The length of newly assembled sequence is stored in  m_left_extend/m_right_exten
                 Node first_node2 = nodes2.front();
 
                 int steps = insert_size;
-
-                pair<TBases<DBGraph>, EConnectionStatus> rslt = ConnectTwoNodes(last_node1, first_node2, steps);
-
                 bool ambiguous = false;
+                string read;
 
-                if(rslt.second == CDBGraphDigger::eAmbiguousConnection) {
-                    ambiguous = true; 
+                //check for long overlap with extension     
+                int hit = find(nodes2.begin(), nodes2.end(), last_node1) - nodes2.begin(); // first kmer position of the hit        
+                if(hit < (int)min(nodes1.size(),nodes2.size()) && equal(nodes2.begin(), nodes2.begin()+hit, nodes1.end()-hit-1)) { // overlap
+                    // check for circularity
+                    pair<TBases<DBGraph>, EConnectionStatus> rslt = ConnectTwoNodes(last_node1, last_node1, steps);
+                    if(rslt.second == CDBGraphDigger::eNoConnection)
+                        read = read1+read2.substr(hit+kmer_len);
+                    else
+                        ambiguous = true;                                             
                 } else {
-                    string read;
-                    unordered_set<Node, typename Node::Hash> read_nodes;
-                    if(rslt.second == eSuccess) {
-                        string r1 = read1;
-                        for(auto& suc : rslt.first) {
-                            r1.push_back(suc.m_nt);
-                            read_nodes.insert(suc.m_node);
-                        }
-                        r1 += read2.substr(kmer_len);
-                        read_nodes.insert(nodes2.begin()+1, nodes2.end());
-                        rslt = ConnectTwoNodes(DBGraph::ReverseComplement(first_node2), DBGraph::ReverseComplement(last_node1), steps);
-                        if(rslt.second == eSuccess) {
-                            string seq;
-                            for(auto& suc : rslt.first)
-                                seq.push_back(suc.m_nt);
-                            ReverseComplementSeq(seq.begin(), seq.end());
-                            string r2 = read1.substr(0, read1.size()-kmer_len)+seq+read2;
-                            if(r1 == r2)
-                                read = r1;
-                        }
-                    
-                        if(read.empty())
-                            ambiguous = true;
+                    pair<TBases<DBGraph>, EConnectionStatus> rslt = ConnectTwoNodes(last_node1, first_node2, steps);
+                    if(rslt.second == CDBGraphDigger::eAmbiguousConnection) {
+                        ambiguous = true; 
                     } else {
-                        //check for long overlap with extension     
-                        int hit = find(nodes2.begin(), nodes2.end(), last_node1) - nodes2.begin(); // first kmer position of the hit        
-                        if(hit < (int)min(nodes1.size(),nodes2.size()) && equal(nodes2.begin(), nodes2.begin()+hit, nodes1.end()-hit-1)) {
-                            read = read1+read2.substr(hit+kmer_len);
-                            read_nodes.insert(nodes2.begin()+hit+1, nodes2.end());
-                        }
-                    }
-
-                    if(!read.empty()) { 
-                        read_nodes.insert(nodes1.begin(), nodes1.end());
-                        if(read_nodes.size() == read.size()-kmer_len+1) {
-                            paired_reads[0].PushBack(read);
-                            continue;
-                        } else {
-                            ambiguous = true;
+                        if(rslt.second == eSuccess) {
+                            string r1 = read1;
+                            for(auto& suc : rslt.first) {
+                                r1.push_back(suc.m_nt);
+                            }
+                            r1 += read2.substr(kmer_len);
+                            rslt = ConnectTwoNodes(DBGraph::ReverseComplement(first_node2), DBGraph::ReverseComplement(last_node1), steps);
+                            if(rslt.second == eSuccess) {
+                                string seq;
+                                for(auto& suc : rslt.first)
+                                    seq.push_back(suc.m_nt);
+                                ReverseComplementSeq(seq.begin(), seq.end());
+                                string r2 = read1.substr(0, read1.size()-kmer_len)+seq+read2;
+                                if(r1 == r2)
+                                    read = r1;
+                            }
+                    
+                            if(read.empty())
+                                ambiguous = true;
                         }
                     }
                 }
 
-                if(ambiguous) {
+                if(!read.empty()) { 
+                    if(extend_connected) {
+                        string lextend =  StringentExtension(DBGraph::ReverseComplement(nodes1.front()), kmer_len).first;
+                        ReverseComplementSeq(lextend.begin(), lextend.end());
+                        read = lextend+read;
+                        read += StringentExtension(nodes2.back(), kmer_len).first;
+                    }
+                    paired_reads[0].PushBack(read);                      
+                } else if(ambiguous) {
                     string lextend =  StringentExtension(DBGraph::ReverseComplement(nodes1.front()), kmer_len).first;
                     ReverseComplementSeq(lextend.begin(), lextend.end());
                     paired_reads[1].PushBack(lextend+read1);

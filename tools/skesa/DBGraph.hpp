@@ -130,6 +130,18 @@ namespace DeBruijn {
         };
         Iterator Begin() const { return Iterator(GraphSize() > 0 ? 2 : 0); }
         Iterator End() const { return Iterator(GraphSize() > 0 ? 2*(GraphSize()+1) : 0); }
+        vector<Iterator> Chunks(int desired_num) {
+            vector<Iterator> chunks;
+            size_t step = GraphSize()/desired_num+1;
+            for(size_t index = 0; index < GraphSize(); ++index) {
+                if(index%step == 0)
+                    chunks.push_back(Iterator(2*(index+1)));
+            }
+            if(!chunks.empty())
+                chunks.push_back(End());
+
+            return chunks;
+        }
 
 
         // These two functions map kmers to integer indexes which could be used to retrieve kmer properties
@@ -369,8 +381,10 @@ namespace DeBruijn {
             Status m_status;
         };
 
-        CKmerHashCount::Iterator Begin() { return m_graph_kmers.Begin(); }
-        CKmerHashCount::Iterator End() { return m_graph_kmers.End(); }
+        typedef CKmerHashCount::Iterator Iterator;
+        Iterator Begin() { return m_graph_kmers.Begin(); }
+        Iterator End() { return m_graph_kmers.End(); }
+        vector<Iterator> Chunks(int desired_num) { return m_graph_kmers.Chunks(desired_num); }
  
         Node GetNode(const TKmer& kmer) const {   // finds kmer in graph
             TKmer rkmer = revcomp(kmer, KmerLen());

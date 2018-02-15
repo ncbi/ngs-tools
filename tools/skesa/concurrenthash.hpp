@@ -141,8 +141,8 @@ namespace DeBruijn {
     class CForwardList {
     public:
         struct SNode {
-            E m_data;
-            SNode* m_next;
+            E m_data = E();
+            SNode* m_next = nullptr;
         };
 
         template<bool is_const>
@@ -174,8 +174,19 @@ namespace DeBruijn {
         iterator<true> end() const { return iterator<true>(); }
 
         CForwardList() { m_head.store(nullptr); }
-        CForwardList(const CForwardList& other) { Clear(); m_head.store(other.m_head.load()); }
-        ~CForwardList() { Clear(); }
+        // not mutithread safe
+        CForwardList& operator=(const CForwardList& other) {
+            Clear();
+            for(auto it = other.begin(); it != other.end(); ++it)
+                PushFront(*it);
+            return *this;
+        }
+        CForwardList(const CForwardList& other) { 
+            m_head.store(nullptr);
+            for(auto it = other.begin(); it != other.end(); ++it)
+                PushFront(*it);
+        }
+       ~CForwardList() { Clear(); }
         E& front() { return m_head.load()->m_data; }
         SNode* Head() const { return m_head; }
         SNode* NewNode(const E& e) {
@@ -258,7 +269,16 @@ namespace DeBruijn {
         CDeque(size_t size = 0) : m_chunks(1) {
             m_data.resize(m_chunks);
             Reset(size, m_chunks);
-        }
+        }        
+        ~CDeque() {
+            if(m_chunks  > 1) {
+                list<function<void()>> jobs;
+                for(unsigned chunk = 0; chunk < m_chunks; ++chunk)
+                    jobs.push_back(bind(&CDeque::ReleaseChunk, this, chunk));                
+                RunThreads(m_chunks, jobs);                            
+            }
+        }        
+        
         E& operator[](size_t index) { return m_data[index/m_chunk_size][index%m_chunk_size]; }        
         const E& operator[](size_t index) const { return m_data[index/m_chunk_size][index%m_chunk_size]; }        
         size_t Size() const { return m_size; }
@@ -318,7 +338,9 @@ namespace DeBruijn {
         void ResetChunk(size_t chunk, size_t chunk_size) {
             m_data[chunk].clear();
             m_data[chunk].resize(chunk_size);
-        }
+        }        
+        void ReleaseChunk(size_t chunk) { vector<E>().swap(m_data[chunk]); }
+        
         size_t m_chunks = 0;
         size_t m_size = 0;
         size_t m_chunk_size = 0;
@@ -396,6 +418,21 @@ namespace DeBruijn {
         Iterator Begin() { return Iterator(apply_visitor(hash_begin(0), m_hash_table), this); }
         Iterator End() { return Iterator((BucketBlock+1)*BucketsNum(), nullptr, this); }
         Iterator FirstForBucket(size_t bucket) { return Iterator(apply_visitor(hash_begin(bucket), m_hash_table), this); }
+        vector<Iterator> Chunks(int desired_num) {
+            vector<Iterator> chunks;
+            if(BucketsNum() == 0)
+                return chunks;
+
+            size_t step = BucketsNum()/desired_num+1;
+            for(size_t bucket = 0; bucket < BucketsNum(); ) {
+                chunks.push_back(FirstForBucket(bucket));
+                bucket = chunks.back().m_index/(BucketBlock+1)+step;
+            }
+            if(chunks.back() != End())
+                chunks.push_back(End());
+
+            return chunks;
+        }
 
         //returns pointer to mapped value if exists, otherwise nullptr
         MappedV* Find(const TKmer& kmer) { 
@@ -457,8 +494,14 @@ namespace DeBruijn {
             enum States : uint64_t {eAssigned = 1, eKeyExists = 2};
             enum { eBucketBlock = BucketBlock };
             SHashBlock() : m_status(0) {}
-            SHashBlock(const SHashBlock& other) : m_data(other.m_data), m_status(other.m_status.load()) {} // used for table initialisation only  
-                   
+            SHashBlock(const SHashBlock& other) : m_data(other.m_data), m_extra(other.m_extra), m_status(other.m_status.load()) {} // used for table initialisation only
+            SHashBlock& operator=(const SHashBlock& other) {
+                m_data = other.m_data;
+                m_extra = other.m_extra;
+                m_status.store(other.m_status.load());
+                return *this;
+            }
+            
             pair<int, typename list_t::SNode*> Find(const large_t& k, int hint) {
                 if(BucketBlock > 0) {
                     //try exact position first
@@ -961,7 +1004,6 @@ namespace DeBruijn {
             clean_buckets(int mc, size_t bf, size_t bt, size_t tb) : min_count(mc), bucket_from(bf), bucket_to(bt), table_size(tb) {}            
             template <typename T> size_t operator()(T& v) const {
                 typedef typename T::value_type::element_t element_t;
-                typedef typename T::value_type::mapped_t mapped_t;
 
                 size_t num = 0;
                 for(size_t bind = bucket_from; bind <= bucket_to; ++bind) {

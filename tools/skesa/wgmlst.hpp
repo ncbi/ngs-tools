@@ -37,6 +37,10 @@
 
 #include <boost/iostreams/filtering_stream.hpp>
 
+
+#include "contigs.hpp"
+#include "blast_hits.hpp"
+
 namespace libwgmlst
 {
 
@@ -84,6 +88,7 @@ public:
     int Matches() const { return m_Matches; }
     char Strand() const { return m_Strand; }
 };
+
 
 // Alignment(locus,allele_first, allele_second, consistency, start, stop, from, to, matches, strand, seq)
 using TEmitAlignmentCallback = std::function<void(std::string const&, std::string const&, std::string const&, std::string const&, std::string const&, std::string const&, int32_t, int32_t, int32_t, char, std::string const&)>;
@@ -145,6 +150,20 @@ void wgmlst(std::string const& genome_path,
             int gap_open,
             int gap_extend,
             int ncores);
+
+using allele_seq_t = std::pair<std::string, std::string>;
+
+std::vector<allele_seq_t> wgmlst(CContigsSource& genome,
+                                 std::string const& alleles_path,
+                                 std::string const& bad_bases_path, 
+                                 CBlastHitsSource& blast_hits,
+                                 int min_kmer_bases,
+                                 double min_fraction_of_matches,
+                                 int match,
+                                 int mismatch,
+                                 int gap_open,
+                                 int gap_extend,
+                                 int ncores);
 
 
 //

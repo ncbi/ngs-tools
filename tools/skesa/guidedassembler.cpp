@@ -81,7 +81,8 @@ public:
 
     template<typename... GraphArgs>
     CGuidedAssembler(int kmer_len, int min_count, double fraction, int match, int mismatch, int gap_open, int gap_extend, int drop_off, int ncores, list<array<CReadHolder,2>>& raw_reads, ifstream& targets_in, GraphArgs... gargs) : 
-        m_kmer_len(kmer_len), m_min_count(min_count), m_match(match), m_mismatch(mismatch), m_gap_open(gap_open), m_gap_extend(gap_extend), m_drop_off(drop_off), m_delta(match, mismatch), m_ncores(ncores), m_raw_reads(raw_reads) {
+        m_kmer_len(kmer_len), m_min_count(min_count), m_match(match), m_mismatch(mismatch), m_gap_open(gap_open), m_gap_extend(gap_extend), 
+        m_drop_off(drop_off), m_delta(match, mismatch), m_ncores(ncores), m_raw_reads(raw_reads) {
 
         m_graphp.reset(CreateGraph(gargs...));
         Assemble(fraction, ncores, targets_in);
@@ -130,15 +131,25 @@ private:
         { // hash for kmers
             m_kmer_hash.resize(size_t(numeric_limits<uint16_t>::max())+1);
 
-            for(auto it = m_graphp->Begin(); it != m_graphp->End(); ++it) {
-                const uint16_t* wordp = (uint16_t*)m_graphp->getPointer(it);  // points to the last 8 sybols of kmer stored in graph
-                m_kmer_hash[*wordp].emplace_front(it);  // LAST 8 symbols for forward kmer
-                uint16_t rev_word;
-                uint16_t* rev_wordp = &rev_word;
-                *(uint8_t*)rev_wordp = revcomp_4NT [*((uint8_t*)wordp+1)];
-                *((uint8_t*)rev_wordp+1) = revcomp_4NT [*(uint8_t*)wordp];
-                m_kmer_hash[*rev_wordp].emplace_front(m_graphp->ReverseComplement(it));  // FIRST 8 symbols for reversed kmer
-            }    
+            int cores = min(25, m_ncores);
+            vector<typename DBGraph::Iterator> chunks = m_graphp->Chunks(cores);
+
+            vector<TGraphHash> thread_rslts(chunks.size(), TGraphHash(m_kmer_hash.size()));
+            for(auto& rslt : thread_rslts) {
+                for(unsigned i = 0; i < m_kmer_hash.size(); ++i) {
+                    rslt[i].push_back(vector<Node>());
+                }
+            }
+            list<function<void()>> jobs;
+            for(int thr = 0; thr < (int)chunks.size()-1; ++thr) {
+                jobs.push_back(bind(&CGuidedAssembler::GraphHashJob, this, chunks[thr], chunks[thr+1], ref(thread_rslts[thr])));
+            }
+            RunThreads(cores, jobs);
+
+            for(auto& rslt : thread_rslts) {
+                for(unsigned i = 0; i < m_kmer_hash.size(); ++i)
+                    m_kmer_hash[i].splice(m_kmer_hash[i].end(), rslt[i]);
+            }
         }
         cerr << "Graph hash in " << timer.Elapsed();
 
@@ -164,19 +175,22 @@ private:
         cerr << "Assembling in " << timer.Elapsed();
 
         timer.Restart();
+        m_kmer_hash.clear();
+        cerr << "Graph hash clear in " << timer.Elapsed();
+ 
+        timer.Restart();
         {
-            vector<SAtomic<uint8_t>> centinel;
             size_t total_reads = 0;
             list<function<void()>> jobs;
             for(auto& job_input : m_raw_reads) {
                 total_reads += job_input[0].ReadNum()+job_input[1].ReadNum();
-                jobs.push_back(bind(&CGuidedAssembler::HashForReadsJob, this, ref(centinel), ref(job_input)));
+                jobs.push_back(bind(&CGuidedAssembler::DequeHashJob, this, ref(job_input)));
             }
-            m_reads_hash_table.resize(total_reads);
-            centinel.resize(total_reads);
+            m_deque_hashp = new TDequeHash;
+            m_deque_hashp->Reset(total_reads, ncores);
             RunThreads(ncores, jobs);
         }
-        cerr << "Reads hash in " << timer.Elapsed();
+        cerr << "Read hash in " << timer.Elapsed();
                
         timer.Restart();
         {
@@ -196,6 +210,10 @@ private:
             }
         }
         cerr << "Clean contigs in " << timer.Elapsed();                
+
+        timer.Restart();        
+        delete(m_deque_hashp);
+        cerr << "Read hash clear in " << timer.Elapsed();
 
         //replace remaining SNPs by ambiguous symbols
         timer.Restart();
@@ -302,8 +320,10 @@ private:
     typedef tuple<SAtomic<uint8_t>, deque<int>[2], TContigShifts> TUtilInfo; // centinel, kmers hash values(+/-), inheritance
     typedef map<string, TUtilInfo> TUtilMap;
 
-    typedef forward_list<CReadHolder::string_iterator> TSimpleHashElement;
-    typedef vector<TSimpleHashElement> TSimpleHash;
+    typedef vector<list<vector<Node>>> TGraphHash;
+
+    typedef tuple<CReadHolder::string_iterator, CForwardList<CReadHolder::string_iterator>, SAtomic<uint8_t>> TDequeHashElement;
+    typedef CDeque<TDequeHashElement> TDequeHash;
 
     enum {eLeftComplete = 1, eRightComplete = 2, eBothComplete = 3}; // completeness direction relative contig
     typedef pair<CReadHolder::string_iterator, int> TKeyForHits;  // key - [string_iterator to read, strand]
@@ -482,7 +502,8 @@ private:
         }
     }
 
-    int AlignReads(const string& contig, const vector<int>& ambig_positions, TReadHits& hits) const {
+
+    int AlignReads(const string& contig, const vector<int>& ambig_positions, TReadHits& hits) {
         string variant = contig;
         // scan contig and find all m_kmer_len hits to reads
         int contig_len = contig.size();
@@ -503,7 +524,14 @@ private:
             }
 
             auto FindHits = [&](const TKmer& kmer, int strand, int kmer_len) {
-                for(CReadHolder::string_iterator is : m_reads_hash_table[kmer.oahash()%m_reads_hash_table.size()]) {
+                auto& cell =  (*m_deque_hashp)[kmer.oahash()%m_deque_hashp->Size()];
+                forward_list<CReadHolder::string_iterator> reads;
+                if(get<2>(cell).Load() > 0) {
+                    reads.push_front(get<0>(cell));
+                    for(auto& is : get<1>(cell))
+                        reads.push_front(is);
+                }
+                for(CReadHolder::string_iterator is : reads) {
                     int rlen = is.ReadLen();
                     CReadHolder::kmer_iterator ik = is.KmersForRead(kmer_len);
                     TKeyForHits key(is, strand);
@@ -511,7 +539,7 @@ private:
                         hits[key].emplace_front(kmer_left, kmer_right, strand > 0 ? eRightComplete : eLeftComplete, forward_list<char>(), rlen-m_kmer_len);
                     else if(*(ik += rlen-kmer_len) == kmer)       // read start
                         hits[key].emplace_front(kmer_left, kmer_right, strand > 0 ? eLeftComplete : eRightComplete, forward_list<char>(), rlen-m_kmer_len);                
-                }
+                }                
             };
 
             TKmer first_kmer(variant.begin()+kmer_left, variant.begin()+kmer_right+1);
@@ -1255,28 +1283,28 @@ private:
             }
             rslt[variant] = cdata;            
         }
-    }   
+    }
 
-    void HashForReadsJob(vector<SAtomic<uint8_t>>& centinel, array<CReadHolder,2>& reads) {
+    void DequeHashJob(array<CReadHolder,2>& reads) {
         for(int p = 0; p < 2; ++p) {
             for(CReadHolder::string_iterator is = reads[p].sbegin(); is != reads[p].send(); ++is) {
                 int rlen = is.ReadLen();
                 if(rlen >= m_kmer_len) {
                     CReadHolder::kmer_iterator ik = is.KmersForRead(m_kmer_len);
                     // last read kmer
-                    size_t index = (*ik).oahash()%m_reads_hash_table.size();
-                    //grub bucket   
-                    while(!centinel[index].Set(1, 0));
-                    m_reads_hash_table[index].emplace_front(is);
-                    //release bucket    
-                    centinel[index] = 0;
+                    size_t index = (*ik).oahash()%m_deque_hashp->Size();
+                    auto cellp = &(*m_deque_hashp)[index];
+                    if(get<2>(*cellp).Set(1, 0))
+                        get<0>(*cellp) = is;
+                    else
+                        get<1>(*cellp).PushFront(is);
                     // skip to first kmer (kmers are in inverse order) 
-                    index = (*(ik += rlen-m_kmer_len)).oahash()%m_reads_hash_table.size();
-                    //grub bucket   
-                    while(!centinel[index].Set(1, 0));
-                    m_reads_hash_table[index].emplace_front(is);
-                    //release bucket    
-                    centinel[index] = 0;
+                    index = (*(ik += rlen-m_kmer_len)).oahash()%m_deque_hashp->Size();
+                    cellp = &(*m_deque_hashp)[index];
+                    if(get<2>(*cellp).Set(1, 0))
+                        get<0>(*cellp) = is;
+                    else
+                        get<1>(*cellp).PushFront(is);
                 }
             }
         }
@@ -1404,32 +1432,60 @@ private:
         }
     }
 
-    pair<string, bool> ExtendToFirstFork(Node node, unordered_set<Node, typename Node::Hash>& used_node_indexes) const {
+    pair<string, bool> ExtendToFirstFork(Node node, unordered_set<Node, typename Node::Hash>& used_node_indexes, Node other_end) const {
         string s;
+        bool clip_end = true;
+        bool dead_end = false;
         while(true) {
             //            vector<Successor> successors = m_graphdiggerp->GetReversibleNodeSuccessors(node);
             vector<Successor> successors = m_graphp->GetNodeSuccessors(node);
             m_graphdiggerp->FilterNeighbors(successors, true);
-            if(successors.empty())
-                return make_pair(s, true);                            
-            if(successors.size() != 1)
-                return make_pair(s, false);
+            if(successors.empty()) {
+                clip_end = false;
+                dead_end = true;
+                break;
+            }
+            if(successors.size() != 1) {
+                clip_end = false;
+                break;
+            }
             Node rev_node = DBGraph::ReverseComplement(successors[0].m_node);
             vector<Successor> predecessors = m_graphp->GetNodeSuccessors(rev_node);
             m_graphdiggerp->FilterNeighbors(predecessors, true);
 
-            if(predecessors.size() == 1 && 
-               predecessors[0].m_node == DBGraph::ReverseComplement(node) &&
-               used_node_indexes.insert(successors[0].m_node.DropStrand()).second) { // good extension
-
-                s.push_back(successors[0].m_nt);
-                node = successors[0].m_node;
-            } else {
-                s.erase(s.end()-min((int)s.size(), m_graphp->KmerLen()-1), s.end()); // clip kmer-1 (which go into repeat) if possible
-                return make_pair(s, predecessors.empty());
+            if(predecessors.empty()) {
+                dead_end = true;
+                break;
+            } else if(predecessors.size() != 1 || predecessors[0].m_node != DBGraph::ReverseComplement(node)) {
+                break;
+            } else if(successors[0].m_node == other_end) { // circular
+                clip_end = false;
+                break;
+            } else if(!used_node_indexes.insert(successors[0].m_node.DropStrand()).second) { // repeat
+                break;
             }
+
+            s.push_back(successors[0].m_nt);
+            node = successors[0].m_node;
+        }
+
+        if(clip_end)
+            s.erase(s.end()-min((int)s.size(), m_graphp->KmerLen()-1), s.end()); // clip kmer-1 (which go into repeat) if possible
+        return make_pair(s, dead_end);
+    }
+
+    void GraphHashJob(typename DBGraph::Iterator from, typename DBGraph::Iterator to, TGraphHash& kmer_hash) {
+        for(auto it = from; it != to; ++it) {            
+            const uint16_t* wordp = (uint16_t*)m_graphp->getPointer(it);  // points to the last 8 sybols of kmer stored in graph
+            kmer_hash[*wordp].front().emplace_back(it);  // LAST 8 symbols for forward kmer
+            uint16_t rev_word;
+            uint16_t* rev_wordp = &rev_word;
+            *(uint8_t*)rev_wordp = revcomp_4NT [*((uint8_t*)wordp+1)];
+            *((uint8_t*)rev_wordp+1) = revcomp_4NT [*(uint8_t*)wordp];
+            kmer_hash[*rev_wordp].front().emplace_back(m_graphp->ReverseComplement(it));  // FIRST 8 symbols for reversed kmer
         }
     }
+
     void AssemblerJob(TContigs& rslts) {
         
         for(auto& item : m_targets) {
@@ -1474,18 +1530,20 @@ private:
                     return _mm_popcnt_u64(w);  // count number set of bits == matches 
                 };
 
-                for(const Node& node : m_kmer_hash[word]) {
-                    int dir = node.isMinus();
-                    if(tkmerp[dir]) {                        
-                        const uint64_t* targetp = tkmerp[dir]->getPointer();
-                        const uint64_t* graphp = m_graphp->getPointer(node);
-                        int prec = tkmerp[dir]->getSize()/64;// number of 8-byte blocks
-                        int matches = -(prec*32-m_kmer_len); // empty positions will match  
-                        for(int i = 0; i < prec; ++i)
-                            matches += CountMatches(*(targetp+i), *(graphp+i));
+                for(auto& vec : m_kmer_hash[word]) {
+                    for(const Node& node : vec) {
+                        int dir = node.isMinus();
+                        if(tkmerp[dir]) {                        
+                            const uint64_t* targetp = tkmerp[dir]->getPointer();
+                            const uint64_t* graphp = m_graphp->getPointer(node);
+                            int prec = tkmerp[dir]->getSize()/64;// number of 8-byte blocks
+                            int matches = -(prec*32-m_kmer_len); // empty positions will match  
+                            for(int i = 0; i < prec; ++i)
+                                matches += CountMatches(*(targetp+i), *(graphp+i));
 
-                        if(matches > 0.8*m_kmer_len)
-                            initial_target_kmers[node] = pos[dir];                                        
+                            if(matches > 0.8*m_kmer_len)
+                                initial_target_kmers[node] = pos[dir];                                        
+                        }
                     }
                 }
             }            
@@ -1598,19 +1656,20 @@ private:
                             int left_pos = 0;
                             int right_pos = extension.size()-1;
 
-                            string right_kmer = extension.substr(extension.size()-m_kmer_len);
-                            for(char& c : right_kmer)
-                                c = FromAmbiguousIUPAC[c].front();
-                            Node right_node = m_graphp->GetNode(right_kmer);
-                            auto rslt = ExtendToFirstFork(right_node, used_node_indexes);
-                            extension += rslt.first;
-                            bool right_dead_end = rslt.second;
-
                             string left_kmer = extension.substr(0, m_kmer_len);
                             for(char& c : left_kmer)
                                 c = FromAmbiguousIUPAC[c].front();
                             Node left_node = m_graphp->GetNode(left_kmer);
-                            rslt = ExtendToFirstFork(m_graphp->ReverseComplement(left_node), used_node_indexes);
+                            string right_kmer = extension.substr(extension.size()-m_kmer_len);
+                            for(char& c : right_kmer)
+                                c = FromAmbiguousIUPAC[c].front();
+                            Node right_node = m_graphp->GetNode(right_kmer);
+
+                            auto rslt = ExtendToFirstFork(right_node, used_node_indexes, left_node);
+                            extension += rslt.first;
+                            bool right_dead_end = rslt.second;
+
+                            rslt = ExtendToFirstFork(m_graphp->ReverseComplement(left_node), used_node_indexes, Node());
                             bool left_dead_end = rslt.second;
                             string left_extra = rslt.first;
                             ReverseComplementSeq(left_extra.begin(), left_extra.end());
@@ -1647,9 +1706,8 @@ private:
         }               
     }
 
-    vector<forward_list<Node>> m_kmer_hash;
-
-    TSimpleHash m_reads_hash_table;
+    TGraphHash m_kmer_hash;
+    TDequeHash* m_deque_hashp = nullptr;
 
     unsigned m_max_variants = 10000;
     int m_kmer_for_duplicates = MaxPrec*32;
@@ -1671,7 +1729,6 @@ private:
     list<array<CReadHolder,2>>& m_raw_reads;
     double  m_average_count;
     mutex m_out_mutex;
-
 };
 
 template<> template<> // one for graph, the other for args
@@ -1713,7 +1770,7 @@ void PrintRslt(GAssembler& gassembler, ofstream& contigs_out, ofstream& profile_
     for(auto& rslt : rslts) {
         const string& contig = rslt.first;
         string acc = "Contig"+to_string(++count)+"_kmer"+to_string(kmer_len);
-        out << ">" << acc << " " << rslt.second.FastaDefLine() << "\n" << contig << endl;
+        out << ">" << acc << " " << rslt.second.FastaDefLine() << "\n" << contig << "\n";
             
         if(profile_out.is_open()) {
             auto AbundanceForAllChoices = [&](const string& kmer) {
@@ -1781,10 +1838,33 @@ void PrintRslt(GAssembler& gassembler, ofstream& contigs_out, ofstream& profile_
                         profile_out << '/';
                     profile_out << max(labundance,rabundance);
                 }
-                profile_out << endl;
+                profile_out << "\n";
             }
         }            
     }
+
+    if(contigs_out.is_open()) {
+        contigs_out.close();
+        if(!contigs_out) {
+            cerr << "Write failed " << endl;
+            exit(1);
+        }
+    } else {
+        cout.flush();
+        if(!cout) {
+            cerr << "Write failed " << endl;
+            exit(1);
+        }
+    }
+
+    if(profile_out.is_open()) {
+        profile_out.close();
+        if(!profile_out) {
+            cerr << "Write failed " << endl;
+            exit(1);
+        }
+    }
+
     cerr << "Output in " << timer.Elapsed();
 }
 
@@ -1847,6 +1927,8 @@ int main(int argc, const char* argv[]) {
 
     options_description all("");
     all.add(general).add(input).add(assembly); 
+
+    CStopWatch timer;
 
     try {
         variables_map argm;                                // boost arguments
@@ -1987,111 +2069,32 @@ int main(int argc, const char* argv[]) {
                 exit(1);
             }
             bool skip_bloom_filter = argm.count("skip_bloom_filter");
-            readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
+            if(vector_percent > 0)
+                readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
             readsgetter.PrintAdapters();
             CGuidedAssembler<CDBHashGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, estimated_kmer_num, skip_bloom_filter);
             PrintRslt(gassembler, contigs_out, profile_out);
+            timer.Restart();
         } else {
             int memory = argm["memory"].as<int>();
             if(memory <= 0) {
                 cerr << "Value of --memory must be > 0" << endl;
                 exit(1);
             }
-            readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
+            if(vector_percent > 0)
+                readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
             readsgetter.PrintAdapters();
             CGuidedAssembler<CDBGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, memory);
             PrintRslt(gassembler, contigs_out, profile_out);
+            timer.Restart();
         }
-        /*
-        CStopWatch timer;
-        timer.Restart();
-        int count = 0;
-        ostream& out = contigs_out.is_open() ? contigs_out : cout;
-        for(auto& rslt : rslts) {
-            const string& contig = rslt.first;
-            string acc = "Contig"+to_string(++count)+"_kmer"+to_string(kmer)+"_improved";
-            out << ">" << acc << " " << rslt.second.FastaDefLine() << "\n" << contig << endl;
-
-            
-            if(profile_out.is_open()) {
-                auto AbundanceForAllChoices = [&](const string& kmer) {
-                    auto& graph = gassembler.Graph(); 
-                    map<int,string> ambig_positions;
-                    for(int i = 0; i < (int)kmer.size(); ++i) {
-                        string ambig = FromAmbiguousIUPAC[kmer[i]];
-                        if(ambig.size() > 1)
-                            ambig_positions[i] = ambig;
-                    }
-
-                    string variant = kmer;
-                    stack<pair<int,char>> remaining_choices;
-                    for(auto& pos_sympols : ambig_positions) {
-                        int ap = pos_sympols.first;
-                        string& ambig = pos_sympols.second;
-                        variant[ap] = ambig[0];
-                        for(unsigned i = 1; i < ambig.size(); ++i)
-                            remaining_choices.emplace(ap, ambig[i]);
-                    }
-
-                    int abundance = graph.Abundance(graph.GetNode(variant));
-                    while(!remaining_choices.empty()) {
-                        int current_ap = remaining_choices.top().first;
-                        variant[current_ap] = remaining_choices.top().second;
-                        remaining_choices.pop();
-                        for(auto& pos_sympols : ambig_positions) {
-                            int ap = pos_sympols.first;
-                            if(ap <= current_ap)
-                                continue;
-                            string& ambig = pos_sympols.second;
-                            variant[ap] = ambig[0];
-                            for(unsigned i = 1; i < ambig.size(); ++i)
-                                remaining_choices.emplace(ap, ambig[i]);
-                        }
-                        abundance += graph.Abundance(graph.GetNode(variant));
-                    }
-                    
-                    return abundance;
-                };
-               
-                int contig_len = contig.size();
-                for(int p = 0; p < contig_len; ++p) {
-                    profile_out << acc << '\t' << p+1 << '\t';
-                    string symb = FromAmbiguousIUPAC[contig[p]];
-                    for(unsigned i = 0; i < symb.size(); ++i) {
-                        if(i > 0)
-                            profile_out << '/';
-                        profile_out << symb[i];
-                    }
-                    profile_out << '\t';
-                    for(unsigned i = 0; i < symb.size(); ++i) {
-                        int labundance = 0;
-                        int rabundance = 0;
-                        if(p >= kmer-1) {
-                            string kmer_seq = contig.substr(p-kmer+1, kmer);
-                            kmer_seq.back() = symb[i];
-                            labundance = AbundanceForAllChoices(kmer_seq);
-                        }
-                        if(p <= contig_len-kmer) {
-                            string kmer_seq = contig.substr(p, kmer);
-                            kmer_seq.front() = symb[i];
-                            rabundance = AbundanceForAllChoices(kmer_seq);
-                        }                        
-                        if(i > 0)
-                            profile_out << '/';
-                        profile_out << max(labundance,rabundance);
-                    }
-                    profile_out << endl;
-                }
-            }
-           
-        }
-        cerr << "Output in " << timer.Elapsed();
-        */    
     } catch (exception &e) {
         cerr << endl << e.what() << endl;
         exit(1);
     }
 
+    cerr << "Exit in " << timer.Elapsed(); 
+    
     cerr << "DONE" << endl;
 
     return 0;

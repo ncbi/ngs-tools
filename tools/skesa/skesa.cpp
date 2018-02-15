@@ -161,7 +161,7 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
                 out << "_Circ";
                 first_variant.erase(first_variant.size()-first_graph.KmerLen()+1, first_graph.KmerLen()-1); 
             }
-            out << "\n" << first_variant << endl;
+            out << "\n" << first_variant << "\n";
             int pos = 0;
             for(unsigned chunk = 0; chunk < scored_contig.size(); ++chunk) { //output variants  
                 int chunk_len = scored_contig[chunk].front().second.size();
@@ -187,13 +187,27 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
                             for(int r = 0; r < right; ++r)
                                 out << scored_contig[chunk+1].front().second[r];
                         }
-                        out << endl;
+                        out << "\n";
                     }
                 }
                 pos += chunk_len;
             }            
         } 
-    }  
+    } 
+
+    if(contigs_out.is_open()) {
+        contigs_out.close();
+        if(!contigs_out) {
+            cerr << "Can't write to file " << argm["contigs_out"].as<string>() << endl;
+            exit(1);
+        }
+    } else {
+        cout.flush();
+        if(!cout) {
+            cerr << "Write failed " << endl;
+            exit(1);
+        }
+    }
 
     if(all_out.is_open()) {
         auto graphp = assembler.Graphs().begin();
@@ -205,7 +219,7 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
                 string first_variant;
                 for(auto& lst : contig)
                     first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                all_out << ">Seed_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+                all_out << ">Seed_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << "\n" << first_variant << "\n";
             }
             ++it;
         }
@@ -216,7 +230,7 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
                 string first_variant;
                 for(auto& lst : contig)
                     first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                all_out << ">kmer" << graphp->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+                all_out << ">kmer" << graphp->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << "\n" << first_variant << "\n";
             }
         }
         if(argm.count("allow_snps")) {
@@ -228,17 +242,28 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
                     string first_variant;
                     for(auto& lst : contig)
                         first_variant.insert(first_variant.end(), lst.front().begin(), lst.front().end());
-                    all_out << ">SNP_recovery_kmer" << graphpr->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << endl << first_variant << endl;
+                    all_out << ">SNP_recovery_kmer" << graphpr->first << "_" << ++nn << " " << contig.m_left_repeat << " " << contig.m_right_repeat << "\n" << first_variant << "\n";
                 }
             } 
         } 
+
+        all_out.close();
+        if(!all_out) {
+            cerr << "Can't write to file " << argm["all"].as<string>() << endl;
+            exit(1);
+        }
     }
 
     if(hist_out.is_open()) {
         for(auto& gr : assembler.Graphs()) {
             const TBins& bins = gr.second->GetBins();
             for(auto& bin : bins)
-                hist_out << gr.first << '\t' << bin.first << '\t' << bin.second << endl;
+                hist_out << gr.first << '\t' << bin.first << '\t' << bin.second << "\n";
+        }
+        hist_out.close();
+        if(!hist_out) {
+            cerr << "Can't write to file " << argm["hist"].as<string>() << endl;
+            exit(1);
         }
     }
 
@@ -249,11 +274,21 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
             string s = *is;
             connected_reads_out << ">ConnectedRead_" << ++num << "\n" << s << "\n";
         }
+        connected_reads_out.close();
+        if(!connected_reads_out) {
+            cerr << "Can't write to file " << argm["connected_reads"].as<string>() << endl;
+            exit(1);
+        }
     }
     
     if(dbg_out.is_open()) {
         for(auto& gr : assembler.Graphs())
             gr.second->Save(dbg_out);
+        dbg_out.close();
+        if(!dbg_out) {
+            cerr << "Can't write to file " << argm["dbg_out"].as<string>() << endl;
+            exit(1);
+        }
     }    
 }
 
@@ -303,11 +338,11 @@ int main(int argc, const char* argv[]) {
     assembly.add_options()
         ("kmer", value<int>()->default_value(21), "Minimal kmer length for assembly [integer]")
         ("min_count", value<int>(), "Minimal count for kmers retained for comparing alternate choices [integer]")
+        ("max_kmer_count", value<int>(), "Minimum acceptable average count for estimating the maximal kmer length in reads [integer]")
         ("vector_percent ", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
         ("use_paired_ends", "Use pairing information from paired reads in input [flag]")
         ("insert_size", value<int>(), "Expected insert size for paired reads (if not provided, it will be estimated) [integer]")
         ("steps", value<int>()->default_value(11), "Number of assembly iterations from minimal to maximal kmer length in reads [integer]")
-        ("max_kmer_count", value<int>()->default_value(10), "Minimum acceptable average count for estimating the maximal kmer length in reads [integer]")
         ("fraction", value<double>()->default_value(0.1, "0.1"), "Maximum noise to signal ratio acceptable for extension [float [0,1)]")
         ("max_snp_len", value<int>()->default_value(150), "Maximal snp length [integer]")
         ("min_contig", value<int>()->default_value(200), "Minimal contig length reported in output [integer]")
@@ -421,6 +456,15 @@ int main(int argc, const char* argv[]) {
             cerr << "Value of --min_count must be > 0" << endl;
             exit(1);
         }
+        maxkmercount = 10;
+        if(argm.count("max_kmer_count")) {
+            maxkmercount = argm["max_kmer_count"].as<int>();
+            estimate_min_count = false;
+        }
+        if(maxkmercount <= 0) {
+            cerr << "Value of --max_kmer_count must be > 0" << endl;
+            exit(1);
+        }
 
         if(max_kmer_paired < 0) {
             cerr << "Value of --insert_size must be >= 0" << endl;
@@ -442,11 +486,6 @@ int main(int argc, const char* argv[]) {
         }
 
         usepairedends = argm.count("use_paired_ends");
-        maxkmercount = argm["max_kmer_count"].as<int>();
-        if(maxkmercount <= 0) {
-            cerr << "Value of --max_kmer_count must be > 0" << endl;
-            exit(1);
-        }
 
         TStrList seeds;
         if(argm.count("seeds")) {

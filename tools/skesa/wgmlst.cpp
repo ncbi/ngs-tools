@@ -179,6 +179,18 @@ public:
             m_genome_acc_to_index[acc] = m_genome.size();
         }
     }
+ 
+   void ReadGenome(CContigsSource& genome) {
+        m_genome.clear();
+
+        for( genome.First(); genome; genome.Next() ) {
+            CContig contig  = genome.Get();
+
+            m_genome.push_back(make_tuple(contig.Accession(), contig.Instance()));
+            m_genome_acc_to_index[contig.Accession()] = m_genome.size();
+        }
+    }
+
 
     void ReadBadBases(ifstream& bad_bases_file) {
         m_bad_bases.clear();
@@ -280,9 +292,77 @@ public:
             cerr << endl << endl;                            
             */
         }
+
+        if(m_blast_hits.empty())
+            cerr << "No Blast hits found" << endl;
+    }
+
+    void ReadBlastHits(CBlastHitsSource& blast_hits) {
+        m_blast_hits.clear();
+
+        for ( blast_hits.First(); blast_hits; blast_hits.Next() ) {
+            CBlastHit bhit = blast_hits.Get();
+
+            if(!m_alleles.count(bhit.Query()))
+                continue;
+
+            string const& qid = bhit.Query();
+            string const& sid = bhit.Subject();
+            double ident = bhit.IdentityPct();
+            int length = bhit.Length();
+            int qs,
+                qe,
+                ss,
+                se;
+
+            std::tie(qs, qe) = bhit.QueryRange();
+            std::tie(ss, se) = bhit.SubjectRange();
+
+            string const& btop = bhit.Btop();
+            int strand = ( CBlastHit::CStrand::plus == bhit.Strand() ) ? 1 : -1;
+            if( -1 == strand ) {
+                // ss > se
+                std::swap(ss, se);
+              
+                // Make query coordinates for REVERSED query 
+                std::swap(qs, qe);
+                int qlen = get<1>(m_alleles[qid].front()).size();
+                qs = qlen - qs + 1;
+                qe = qlen - qe + 1;
+            }
+
+            int matches = static_cast<int>(ident*length/100+0.5);
+            int contig_key = m_genome_acc_to_index[sid]*strand;
+            if(contig_key == 0)
+                throw runtime_error("Unknown genome accession");
+            m_blast_hits[qid][contig_key].push_back(SLinkedHit(qs-1, qe-1, ss-1, se-1, matches, contig_key, btop)); 
+        }
+
         if(m_blast_hits.empty())
             throw runtime_error("Blast hits don't correspond to alleles");
     }
+
+    void DumpBlastHits(ostream& oss)
+    {
+        for( auto const& r: m_blast_hits) {
+
+            auto const& qid = r.first;
+            for ( auto const& c: r.second ) {
+                int contig_key = c.first;
+                string const& contig = std::get<1>(m_genome[abs(contig_key)-1]);
+
+                for (auto const& hit: c.second) {
+                     oss << qid
+                        << '\t'
+                        << contig.size()
+                        << '\t'
+                        << hit
+                        << endl;
+                }
+            }
+        }
+    }
+
 
     void PrepareKmerMap(int kmer_len) {
         m_genome_kmers = TKmerToGenome(kmer_len);
@@ -329,7 +409,7 @@ public:
 
         vector<tuple<string,list<SFragment>,SAtomic<uint8_t>>> loci;
         for(auto& loc : m_alleles) {
-            if(m_blast_hits.empty() || m_blast_hits.count(loc.first))
+            if(m_genome_kmers.KmerLen() > 0 || m_blast_hits.count(loc.first))
                 loci.push_back(make_tuple(loc.first,list<SFragment>(), 0));
         }
         
@@ -654,7 +734,9 @@ private:
             else
                 return m_qfrom < other.m_qfrom;
         }
-        
+
+      
+
         int m_qfrom;
         int m_qto;
         int m_sfrom;
@@ -663,6 +745,7 @@ private:
         int m_contig_key;
         list<CCigar::SElement> m_btop;        
     };
+
     struct SLinkedHit : public SHit {
         SLinkedHit(int qfrom, int qto, int sfrom, int sto, int score, int contig_key, const string& btop = "") : SHit(qfrom, qto, sfrom, sto, score, contig_key, btop), m_left(nullptr) {}
         SLinkedHit* m_left;
@@ -814,7 +897,7 @@ private:
             int qlen = seq.size();
 
             THitTandems tandems;
-            if(m_blast_hits.empty())   // find hits from scratch
+            if(m_genome_kmers.KmerLen() > 0)   // find hits from scratch
                 tandems = GetMatchesForLocus(seq);
             else                       // use blast hits
                 tandems = GetMatchesForLocusFromBlast(locus_id, qlen);            
@@ -891,6 +974,7 @@ private:
         bool right_restricted = (max_right == (int)genome.size()-1); 
 
         string contig = genome.substr(left_shift, max_right-left_shift+1);
+
         if(strand < 0) {
             ReverseComplementSeq(contig.begin(), contig.end());
             swap(left_restricted, right_restricted);
@@ -913,7 +997,7 @@ private:
         
         list<SHit> aligns;
 
-        if(m_blast_hits.empty() || locus_hits.size() > 1) {
+        if(m_genome_kmers.KmerLen() > 0 || locus_hits.size() > 1) {
             { // main alignment 
                 CCigar cigar;
                 int left;
@@ -923,7 +1007,7 @@ private:
                 int qright = qlen-1;
                 int qlength = qlen;
 
-                if(!m_blast_hits.empty() && locus_hits.size() > 1 && one_alignment) {  // single alignment with multiple blast hits
+                if(m_genome_kmers.KmerLen() == 0 && locus_hits.size() > 1 && one_alignment) {  // single alignment with multiple blast hits
                     left = locus_hits.front().m_sfrom;
                     right = locus_hits.back().m_sto;
                     length = right-left+1; 
@@ -1163,6 +1247,7 @@ private:
                 if(seq[qlen-1-i-not_aligned_right] == contig[to-i])
                     ++matches;
             }
+            
             string fseq = contig.substr(from, to-from+1);
 
             if(strand < 0) {
@@ -1540,6 +1625,41 @@ private:
     string m_Locus;
     TEmitAlignmentCallback m_EmitAlignmentCallback;
     TEmitAlleleCallback m_EmitAlleleCallback;
+
+    friend ostream& operator << (ostream& oss, CwgMLST::SHit const& hit); 
+
+};
+
+ostream& operator << (ostream& oss, CwgMLST::SHit const& hit) 
+{
+    oss << hit.m_qfrom
+        << '\t'
+        << hit.m_qto
+        << '\t'
+        << hit.m_sfrom
+        << '\t'
+        << hit.m_sto
+        << '\t'
+        << hit.m_score
+        << '\t'
+        << hit.m_contig_key;
+    return oss;
+} 
+
+
+auto make_input_stream = [](string const& path, boost::iostreams::filtering_istream& is) {
+    boost::iostreams::file_source f{path};
+    if(!f.is_open()) {
+        ostringstream oss;
+        oss << "Can't open file " << path;
+        throw std::runtime_error(oss.str());
+    }
+    
+    if(path.size() > 3 &&  path.substr(path.size()-3) == ".gz") {
+        is.push(boost::iostreams::gzip_decompressor());
+    }
+
+    is.push(f);
 };
 
 
@@ -1561,32 +1681,20 @@ void wgmlst(boost::iostreams::filtering_istream& genome_file,
             TEmitAlignmentCallback alignment_cb,
             TEmitAlleleCallback allele_cb)
 {
-
-    CStopWatch timer;
-    timer.Restart();
-
     CwgMLST wg_mlst(alleles_file, alignment_cb, allele_cb, ncores); 
-    //        cerr << "Alleles input in " << timer.Elapsed();
-    timer.Restart();
     wg_mlst.CheckAndCleanAlleles();
-    //        cerr << "Alleles cleaning in " << timer.Elapsed(); 
 
-    timer.Restart();
     wg_mlst.ReadGenome(genome_file);
     if(bad_bases_file.is_open())
         wg_mlst.ReadBadBases(bad_bases_file);
 
     if(blast_hits_present) {
         wg_mlst.ReadBlastHits(blast_file);
-        //            cerr << "Genome and blast hits input in " << timer.Elapsed();
     } else {
         wg_mlst.PrepareKmerMap(kmer_len);
-        //            cerr << "Genome input and kmermap in " << timer.Elapsed(); 
     }
     
-    timer.Restart();
     wg_mlst.AnalyzeAlleles(min_kmer_bases, min_fraction_of_matches, match, mismatch, gap_open, gap_extend);  
-    //        cerr << "Alleles found in " << timer.Elapsed(); 
 }
 
 void wgmlst(string const& genome_path,          // Path to a FASTA file; genome's contigs.
@@ -1612,21 +1720,6 @@ void wgmlst(string const& genome_path,          // Path to a FASTA file; genome'
     std::ofstream output_loci;
 
     bool blast_hits_present = false;
-
-    auto make_input_stream = [](string const& path, boost::iostreams::filtering_istream& is) {
-        boost::iostreams::file_source f{path};
-        if(!f.is_open()) {
-            ostringstream oss;
-            oss << "Can't open file " << path;
-            throw std::runtime_error(oss.str());
-        }
-        
-        if(path.size() > 3 &&  path.substr(path.size()-3) == ".gz") {
-            is.push(boost::iostreams::gzip_decompressor());
-        }
-
-        is.push(f);
-    };
 
     make_input_stream(genome_path, genome_file);
     make_input_stream(alleles_path, alleles_file);
@@ -1730,6 +1823,59 @@ void wgmlst(string const& genome_path,          // Path to a FASTA file; genome'
            ncores,
            record_alignments,
            record_alleles);
+}
+
+//
+// Return collection of (allele-id, allele-seq) pairs
+vector<pair<string, string> > wgmlst(CContigsSource& genome,          // genome's contigs.
+                                     string const& alleles_path,         // Path to a schema's alleles
+                                     string const& bad_bases_path,
+                                     CBlastHitsSource& blast_hits,
+                                     int min_kmer_bases,
+                                     double min_fraction_of_matches,
+                                     int match,
+                                     int mismatch,
+                                     int gap_open,
+                                     int gap_extend,
+                                     int ncores)
+{
+    std::ifstream bad_bases_file;
+    boost::iostreams::filtering_istream alleles_file;
+
+    make_input_stream(alleles_path, alleles_file);
+
+    if ( !bad_bases_path.empty() ) {
+        bad_bases_file.open(bad_bases_path);
+        if ( !bad_bases_file.is_open() ) {
+            ostringstream oss;
+            oss << "Can't open file " << bad_bases_path;
+            throw std::runtime_error(oss.str());
+        }
+    }
+
+
+    TEmitAlignmentCallback record_alignments; // No-op
+  
+    vector<allele_seq_t> result;
+    TEmitAlleleCallback record_alleles = [&result](string const& locus, string const& seq, string const& /*contig_id*/, int32_t /*from*/, int32_t /*to*/, double /*identity_pct*/, int32_t /*length*/, string const& /*allele_name*/) {
+        result.push_back(make_pair(locus, seq));
+
+    };
+
+    CwgMLST wg_mlst(alleles_file, record_alignments, record_alleles, ncores); 
+    wg_mlst.CheckAndCleanAlleles();
+
+    wg_mlst.ReadGenome(genome);
+
+    if(bad_bases_file.is_open()) {
+        wg_mlst.ReadBadBases(bad_bases_file);
+    }
+
+    wg_mlst.ReadBlastHits(blast_hits);
+    
+    wg_mlst.AnalyzeAlleles(min_kmer_bases, min_fraction_of_matches, match, mismatch, gap_open, gap_extend);  
+
+    return result;
 }
 
 vector<CAlleleAlignment> wgmlst_allele_alignments(string locus, 

@@ -234,7 +234,7 @@ namespace DeBruijn {
                 
                         int long_insert_size = 2000; // we don't expect inserts to be longer than 2000 bp for this program
                         GraphDigger graph_digger(*m_graphs[min_kmer], m_fraction, m_jump, m_low_count);
-                        list<array<CReadHolder,2>> connected_mate_pairs = graph_digger.ConnectPairs(mate_pairs, long_insert_size, m_ncores);
+                        list<array<CReadHolder,2>> connected_mate_pairs = graph_digger.ConnectPairs(mate_pairs, long_insert_size, m_ncores, false);
                         CReadHolder connected_mates(false);
                         for(auto& mp : connected_mate_pairs) {
                             for(CReadHolder::string_iterator is = mp[0].sbegin(); is != mp[0].send(); ++is)
@@ -324,12 +324,12 @@ namespace DeBruijn {
                 int kmer_len = gr.first;
                 cerr << endl << "Connecting mate pairs using kmer length: " << kmer_len << endl;
                 GraphDigger graph_digger(*gr.second, m_fraction, m_jump, m_low_count);
-                list<array<CReadHolder,2>> connected_reads_temp = graph_digger.ConnectPairs(m_raw_pairs, m_insert_size, m_ncores);
+                list<array<CReadHolder,2>> connected_reads_temp = graph_digger.ConnectPairs(m_raw_pairs, m_insert_size, m_ncores, true);
                 list<array<CReadHolder,2>>::iterator pairedi = m_connected_reads.begin();
                 list<array<CReadHolder,2>>::iterator rawi = m_raw_pairs.begin();
                 for(auto& pr : connected_reads_temp) {
                     swap((*rawi)[0], pr[1]);                                                         // keep still not connected            
-                    for(CReadHolder::string_iterator is = pr[0].sbegin() ;is != pr[0].send(); ++is)  // add new connected reads             
+                    for(CReadHolder::string_iterator is = pr[0].sbegin(); is != pr[0].send(); ++is)  // add new connected reads             
                         (*pairedi)[0].PushBack(*is);
                     ++rawi;
                     ++pairedi;
@@ -340,6 +340,19 @@ namespace DeBruijn {
             for(auto& rh : m_connected_reads)
                 connected += rh[0].ReadNum();        
             cerr << "Totally connected: " << connected << endl;
+
+            size_t added = 0;
+            list<array<CReadHolder,2>>::iterator pairedi = m_connected_reads.begin();
+            for(auto& reads : m_raw_pairs) {
+                for(CReadHolder::string_iterator is = reads[0].sbegin(); is != reads[0].send(); ++is) {
+                    if((int)is.ReadLen() > m_max_kmer) {
+                        (*pairedi)[0].PushBack(*is);
+                        ++added;
+                    }
+                }
+                ++pairedi;
+            }
+            cerr << "Added notconnected: " << added << endl;
         }
 
         // scans kmers for all assembled contigs and creates a map 
@@ -947,9 +960,12 @@ namespace DeBruijn {
             if(genome_size > 0) {
                 int new_min_count = total_seq/genome_size/50+0.5;
                 if(new_min_count > m_min_count) {
+                    int new_maxkmercount = max(10, int(total_seq/genome_size/10+0.5));
                     cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
+                    cerr << "WARNING: --max_kmer_count " << m_maxkmercount << " to " << new_maxkmercount << " because of high coverage for genome size " << genome_size << endl;
                     m_min_count = new_min_count;                
                     m_low_count = m_min_count;
+                    m_maxkmercount = new_maxkmercount;
                     sorted_kmers.RemoveLowCountKmers(m_min_count);
                 }
             }
@@ -983,9 +999,12 @@ namespace DeBruijn {
             if(genome_size > 0) {
                 int new_min_count = total_seq/genome_size/50+0.5;
                 if(new_min_count > m_min_count) {
+                    int new_maxkmercount = max(10, int(total_seq/genome_size/10+0.5));
                     cerr << "WARNING: --min_count changed from " << m_min_count << " to " << new_min_count << " because of high coverage for genome size " << genome_size << endl;
+                    cerr << "WARNING: --max_kmer_count changed from " << m_maxkmercount << " to " << new_maxkmercount << " because of high coverage for genome size " << genome_size << endl;
                     m_min_count = new_min_count;                
                     m_low_count = m_min_count;
+                    m_maxkmercount = new_maxkmercount;
                     kmer_counter.RemoveLowCountKmers(m_min_count);
                 }
             }

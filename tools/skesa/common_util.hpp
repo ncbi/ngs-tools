@@ -292,6 +292,7 @@ namespace DeBruijn {
         enum {eSingle = 0, eFirstMate = 1, eSecondMate = 2};
         class string_iterator {
         public:
+            string_iterator() : m_readholderp(nullptr), m_position(0), m_read(0) {}
 
             string operator*() const {
                 int read_length = m_readholderp->m_read_length[m_read];

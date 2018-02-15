@@ -924,8 +924,12 @@ int main(int argc, const char* argv[]) {
                         filtering_istream is;
                         is.push(source);
                         out.open(file, ofstream::out | ofstream::app);
-                        copy(is, out);                
+                        copy(is, out); // closes streams               
                     }
+                }
+                if(!out) {
+                    cerr << "Can't write to file " << file << endl;
+                    exit(1);
                 }
 
                 if(argm.count("consensus")) {
@@ -944,8 +948,13 @@ int main(int argc, const char* argv[]) {
                             sort(sorted.begin(), sorted.end(), [](const TCnt& a, const TCnt b) { if(a.second == b.second) return a.first < b.first; else return a.second > b.second; });
                             for(auto& cnt : sorted)
                                 cons_out << '\t' << cnt.first << ':' << cnt.second.Load();
-                            cons_out << endl;
+                            cons_out << "\n";
                         }
+                    }
+                    cons_out.close();
+                    if(!cons_out) {
+                        cerr << "Can't write to file " << argm["consensus"].as<string>() << endl;
+                        exit(1);
                     }
                 }
 
