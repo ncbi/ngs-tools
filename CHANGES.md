@@ -1,5 +1,41 @@
 # NCBI External Developer Release:
 
+## NGS Tools
+**February 23, 2018**
+
+  **build**: Fixed configure allowing to run it on Perl with version >= v5.26 that has "." removed from @INC  
+  **build**: added "smoke tests"  
+  **build**: now supports "./configure && make" build in ngs-tools/; "make" works in all subdirectories; gmake invokes CMake  
+  **build, ngs-tools**: added make targets runtests and slowtests  
+  **build, ngs-tools**: binaries are given versioned names, with corresponding symlinks  
+  **build, ngs-tools**: library dependencies search is now based on configuration files  
+  **build, sra-tools**: "make runtests" now invokes "make all"  
+  **kfg**: added searching of configuration files in ../etc/ncbi/ relative to the binaries  
+  **kfs**: fix to improve on windows  
+  **klib**: Reverted KTimeMakeTime to use UTC  
+  **kns**: Accept the same http_proxy specifications as wget  
+  **kns**: Added possibility to report server's IP address after network error  
+  **kns**: Ignore HTTP headers sent multiple times  
+  **kns**: Improved reporting of network errors  
+  **kns**: fixed generation of invalid error code in response to dropped connection  
+  **ngs-engine**: improved performance when iterating through partially aligned and unaligned reads  
+  **ngs-engine**: optimized filtered access to unaligned runs  
+  **ngs-tools**: Added optional dependency on 'sra-tools' needed for some tests  
+  **ngs-tools**: Created a tool to compute coverage for contigs  
+  **ngs-tools**: added build instructions  
+  **ngs-tools, sra-tools**: general-loader and pileup-stats have been moved from sra-tools to ngs-tools   
+  **sra-search**: added option --fasta for output in FASTA format  
+  **sra-search**: added option to display version number  
+  **sra-search**: added option to search unaligned and partially aligned fragments only  
+  **sra-search**: improved performance in reference-driven mode  
+  **sra-search**: various efficiency/readability improvements in the code   
+  **vdb**: An assert triggered by a rare condition was fixed  
+  **vdb**: new api to estimate pileup-workload based on slice  
+  **vdb**: new function to open HTTP-file with an arbitrary page-size  
+  **vdb**: progressbar can now be created to output on stderr  
+  **vfs**: Name resolving service was updated and switched to protocol version 3.0  
+
+
 ## NGS Tools 2.8.2
 **March 6, 2017**
 
