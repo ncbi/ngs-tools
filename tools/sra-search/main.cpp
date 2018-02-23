@@ -27,11 +27,12 @@
 #include <iostream>
 #include <stdexcept>
 #include <cerrno>
-#include <set>
+#include <map>
 #include <sstream>
 
 #include <strtol.h>
 
+#include <tk-version/inc/toolkit.vers.h>
 #include "vdb-search.hpp"
 
 using namespace std;
@@ -86,7 +87,7 @@ struct FragmentId_Less
     }
 };
 
-typedef set < string, FragmentId_Less > Results;
+typedef map < string, string, FragmentId_Less > Results;
 
 static
 bool
@@ -100,21 +101,31 @@ DoSearch ( const VdbSearch :: Settings& p_settings, bool p_sortOutput  )
     if ( p_sortOutput )
     {
         Results results;
-        while ( s . NextMatch ( acc, fragId ) )
+        while ( true )
         {
-            results . insert ( fragId );
+            VdbSearch :: Match m;
+            if ( ! s . NextMatch ( m ) )
+            {
+                break;
+            }
+            results [ m . m_fragmentId ] = m . m_formatted;
         }
         for ( Results::const_iterator i = results.begin(); i != results.end(); ++i)
         {
-            cout << *i << endl;
+            cout << i -> second << endl;
         }
         ret = results . size () > 0;
     }
     else
     {
-        while ( s . NextMatch ( acc, fragId ) )
+        while ( true )
         {
-            cout << fragId << endl;
+            VdbSearch :: Match m;
+            if ( ! s . NextMatch ( m ) )
+            {
+                break;
+            }
+            cout << m . m_formatted << endl;
             ret = true;
         }
     }
@@ -160,11 +171,12 @@ static void handle_help ( const char * appName )
          << "  -S|--score <number>       Minimum match score (0..100), default 100 (perfect match);" << endl
          << "                            supported for all variants of Agrep and SmithWaterman." << endl
          << "  -T|--threads <number>     The number of threads to use; 2 by deafult" << endl
-         << "  --nothreads               Single-threaded mode" << endl
          << "  --threadperacc            One thread per accession mode (by default, multiple threads per accession)" << endl
          << "  --sort                    Sort output by accession/read/fragment" << endl
          << "  --reference [refName,...] Scan reference(s) for potential matches; all references if none specified" << endl
          << "  -m|--max <number>         Stop after N matches" << endl
+         << "  -U|--unaligned            Search in unaligned and partially aligned reads only" << endl
+         << "  --fasta [ <lineWidth> ]   Output in FASTA format with specified line width (default 70 bases)" << endl
          ;
 
     cout << endl;
@@ -199,6 +211,15 @@ main( int argc, char *argv [] )
             else if ( arg == "-h" || arg == "--help" )
             {
                 handle_help ( argv [ 0 ]  );
+                return 0;
+            }
+            else if ( arg == "-V"  || arg == "--version" )
+            {
+                cout << endl << argv [0] << " : "
+                             << VersionGetMajor ( TOOLKIT_VERS ) << "."
+                             << VersionGetMinor ( TOOLKIT_VERS ) << "."
+                             << VersionGetRelease ( TOOLKIT_VERS )
+                             << endl;
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
@@ -247,13 +268,9 @@ main( int argc, char *argv [] )
                 }
                 settings . m_threads = ( unsigned int ) threads;
             }
-            else if ( arg == "--nothreads" )
-            {
-                settings . m_threads = 0;
-            }
             else if ( arg == "--threadperacc" )
             {
-                settings . m_useBlobSearch = false;
+                settings . m_threadPerAcc = true;
             }
             else if ( arg == "--sort" )
             {
@@ -270,8 +287,8 @@ main( int argc, char *argv [] )
                     {
                         settings . m_references . push_back ( name );
                     }
+                    ++i;
                 }
-                ++i;
             }
             else if ( arg == "-m" || arg == "--max" )
             {
@@ -288,6 +305,28 @@ main( int argc, char *argv [] )
                 }
                 settings . m_maxMatches = ( unsigned int ) maxMatches;
             }
+            else if ( arg == "-U" || arg == "--unaligned" )
+            {
+                settings . m_unaligned = true;
+            }
+            else if ( arg == "--fasta" )
+            {
+                if ( i + 1 < argc )
+                {   // check for an integer parameter
+                    char* endptr;
+                    int32_t lineLength = strtoi32 ( argv [ i + 1 ], &endptr, 10 );
+                    if ( *endptr == 0 )
+                    {
+                        if ( lineLength <= 0 )
+                        {
+                            throw invalid_argument ( string ( "Invalid argument for " ) + arg + ": '" + argv [ i ] + "' (has to be a positive integer)");
+                        }
+                        settings . m_fastaLineLength = lineLength;
+                        ++ i;
+                    }
+                }
+                settings . m_fasta = true;
+            }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );
@@ -299,6 +338,10 @@ main( int argc, char *argv [] )
         if ( settings . m_query . empty () || settings . m_accessions . size () == 0 )
         {
             throw invalid_argument ( "Missing arguments" );
+        }
+        if ( settings . m_referenceDriven && settings . m_isExpression )
+        {
+            throw invalid_argument ( "Options --reference and --expression cannot be used together" );
         }
 
         found = DoSearch ( settings, sortOutput );

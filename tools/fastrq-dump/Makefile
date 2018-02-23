@@ -22,75 +22,8 @@
 #
 # ===========================================================================
 
-
-default: std
-
 TOP ?= $(abspath ../..)
-
-
 MODULE = tools/fastrq-dump
-
 include $(TOP)/build/Makefile.env
 
-ALL_TOOLS = \
-	fastrq-dump \
 
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
-
-$(ALL_TOOLS): vers-includes
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# Common dumper definitions
-#
-DUMP_LIBS = \
-	-lncbi-ngs-c++    \
-	-lngs-c++         \
-	-lncbi-vdb-static \
-	-lkapp \
-
-#-------------------------------------------------------------------------------
-# fastq-dump
-#
-FASTQ_DUMP_SRC = \
-	settings  \
-	operation \
-	filter    \
-	formatter \
-	fastrq-dump
-
-INCDIRS += -I $(TOP)/ngs/ngs-c++
-
-FASTQ_DUMP_OBJ = \
-	$(addsuffix .$(OBJX),$(FASTQ_DUMP_SRC))
-
-$(BINDIR)/fastrq-dump: $(FASTQ_DUMP_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_LIBS)

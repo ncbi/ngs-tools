@@ -7,7 +7,7 @@ add_executable ( sra-search
     vdb-search.cpp
 )
 
-include_directories ( ${CMAKE_SOURCE_DIR} )
+include_directories ( ${CMAKE_SOURCE_DIR}/libs )
 
 add_dependencies ( sra-search ngs-vdb )
 
@@ -16,7 +16,6 @@ target_link_libraries ( sra-search
 	${SYS_LIBRARIES}
 )
 
-ncbi_copy_exec_to_old_outdir ( sra-search )
-install ( TARGETS sra-search RUNTIME DESTINATION bin )
+links_and_install ( sra-search )
 
 add_subdirectory ( test )

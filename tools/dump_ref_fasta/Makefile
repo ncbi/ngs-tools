@@ -22,62 +22,6 @@
 #
 # ===========================================================================
 
-default: std
-
 TOP ?= $(abspath ../..)
-MODULE = dump_ref_fasta
-
-include $(TOP)/build/Makefile.config
-
-INCDIRS += -I$(SRCDIR)/.. -I$(NGS_INCDIR) -I$(VDB_INCDIR) -I$(VDB_INCDIR)/os/$(OSINC) -I$(VDB_INCDIR)/cc/gcc/$(ARCH)
-
-std: $(OBJDIR) $(BINDIR)
-	$(MAKE) $(BINDIR)/dump-ref-fasta
-
-clean:
-	rm -f $(SRA_SEARCH_OBJ) $(BINDIR)/dump-ref-fasta*
-
-runtests: test
-
-slowtests: slow
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,dump_ref_fasta)
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
-# dump_ref_fasta
-#
-DUMP_REF_FASTA_SRC = \
-	DumpReferenceFASTA
-
-DUMP_REF_FASTA_OBJ = \
-	$(addprefix $(OBJDIR)/,$(addsuffix .$(OBJX),$(DUMP_REF_FASTA_SRC)))
-
-DUMP_REF_FASTA_LIBS = \
-	-L$(ILIBDIR)        \
-	-lngs-vdb           \
-	-L$(NGS_LIBDIR)     \
-	-L$(VDB_LIBDIR)     \
-	-lncbi-ngs-c++      \
-	-lncbi-vdb-static   \
-	-lngs-c++           \
-	-lpthread           \
-	-ldl
-
-$(BINDIR)/dump-ref-fasta: $(OBJDIR) $(BINDIR) $(DUMP_REF_FASTA_OBJ)
-	$(LP) -o $@$(VERSION_EXEX) $(DUMP_REF_FASTA_OBJ) $(DUMP_REF_FASTA_LIBS)
-	ln -sf $(@F)$(VERSION_EXEX) $@$(MAJVERS_EXEX)
-	ln -sf $(@F)$(MAJVERS_EXEX) $@
-
-#-------------------------------------------------------------------------------
-# testing
-#
-test slow: std
-	$(MAKE) TOP=$(TOP) MODPATH=$(MODPATH)/test -C test $@
-
+MODULE = tools/dump_ref_fasta
+include $(TOP)/build/Makefile.env

@@ -33,77 +33,114 @@
 using namespace std;
 using namespace ngs;
 
-//////////////////// FragmentSearchBuffer
+///////////////////// FragmentMatchIterator
 
-class FragmentSearchBuffer : public SearchBuffer
+class FragmentMatchIterator : public MatchIterator
 {
 public:
-    FragmentSearchBuffer ( SearchBlock* p_sb, const std::string& p_accession, const Fragment& p_fragment )
-    :   SearchBuffer ( p_sb, p_accession ),
-        m_fragment ( p_fragment ),
-        m_done ( false )
+    FragmentMatchIterator ( SearchBlock :: Factory & p_factory, ngs::ReadCollection p_run, bool p_unalignedOnly = false )
+    :   MatchIterator ( p_factory, p_run . getName () ),
+        m_readIt ( p_run . getReads ( Read :: all ) ),
+        m_sb ( p_factory . MakeSearchBlock () )
     {
+        m_readIt . nextRead ();
     }
 
-    virtual bool NextMatch ( std::string& p_fragmentId )
+    ~ FragmentMatchIterator()
     {
-        if ( ! m_done )
+        delete m_sb;
+    }
+
+    virtual SearchBuffer :: Match * NextMatch ()
+    {
+        do
         {
-            StringRef bases = m_fragment . getFragmentBases();
-            if ( m_searchBlock -> FirstMatch ( bases . data (), bases . size () ) )
+            while ( m_readIt . nextFragment () )
             {
-                p_fragmentId = m_fragment . getFragmentId () . toString ();
-                m_done = true;
-                return true;
+                // report one match per fragment
+                StringRef bases = m_readIt . getFragmentBases ();
+                if ( m_sb -> FirstMatch ( bases . data (), bases . size () ) )
+                {
+                    return new SearchBuffer :: Match ( m_accession, m_readIt . getFragmentId () . toString (), bases . toString () );
+                }
             }
         }
-        return false;
-    }
-
-    virtual std::string BufferId () const
-    {
-        return m_fragment . getFragmentId () . toString ();
+        while ( m_readIt . nextRead () );
+        return 0;
     }
 
 private:
-    const Fragment& m_fragment;
-    bool m_done;
+    ngs::ReadIterator   m_readIt;
+    SearchBlock *       m_sb;
 };
 
-//////////////////// FragmentMatchIterator
+///////////////////// UnalignedFragmentMatchIterator
 
-FragmentMatchIterator :: FragmentMatchIterator ( SearchBlock :: Factory& p_factory, const std :: string& p_accession, ngs :: Read :: ReadCategory p_categories )
-:   MatchIterator ( p_factory, p_accession ),
-    m_coll ( ncbi :: NGS :: openReadCollection ( p_accession ) ),
-    m_readIt ( m_coll . getReads ( p_categories ) )
+UnalignedFragmentMatchIterator :: UnalignedFragmentMatchIterator ( SearchBlock :: Factory & p_factory, const ngs::ReadCollection & m_run )
+:   MatchIterator ( p_factory, m_run . getName () ),
+    m_readIt ( m_run . getReads ( ( ngs :: Read :: ReadCategory ) ( ngs :: Read :: unaligned | ngs :: Read :: partiallyAligned ) ) ),
+    m_sb ( p_factory . MakeSearchBlock () )
 {
     m_readIt . nextRead ();
 }
 
-FragmentMatchIterator :: ~FragmentMatchIterator ()
+UnalignedFragmentMatchIterator :: ~ UnalignedFragmentMatchIterator()
 {
+    delete m_sb;
 }
 
-SearchBuffer*
-FragmentMatchIterator :: NextBuffer ()
+SearchBuffer :: Match *
+UnalignedFragmentMatchIterator :: NextMatch ()
 {
-    if ( ! m_readIt . nextFragment () )
-    {   // end of read, switch to the next
-        bool haveFragment = false;
-        while ( m_readIt . nextRead () )
+    do
+    {
+        while ( m_readIt . nextFragment () )
         {
-            if ( m_readIt . nextFragment () )
+            if ( ! m_readIt . isAligned () )
             {
-                haveFragment = true;
-                break;
+                // report one match per fragment
+                StringRef bases = m_readIt . getFragmentBases ();
+                if ( m_sb -> FirstMatch ( bases . data (), bases . size () ) )
+                {
+                    return new SearchBuffer :: Match ( m_accession, m_readIt . getFragmentId () . toString (), bases . toString () );
+                }
             }
         }
-        if ( ! haveFragment )
-        {
-            return 0;
-        }
     }
-    // report one match per fragment
-    return new FragmentSearchBuffer ( m_factory.MakeSearchBlock(), m_accession, m_readIt );
+    while ( m_readIt . nextRead () );
+    return 0;
 }
 
+///////////////////// FragmentSearch
+
+FragmentSearch :: FragmentSearch ( SearchBlock :: Factory & p_factory, const std::string & p_accession, bool p_unalignedOnly )
+: m_iter ( 0 )
+{
+    ngs::ReadCollection coll ( ncbi :: NGS :: openReadCollection ( p_accession ) );
+
+    if ( p_unalignedOnly )
+    {
+        m_iter = new UnalignedFragmentMatchIterator ( p_factory, coll );
+    }
+    else
+    {
+        m_iter = new FragmentMatchIterator ( p_factory, coll );
+    }
+}
+
+FragmentSearch :: ~ FragmentSearch ()
+{
+    delete m_iter;
+}
+
+MatchIterator *
+FragmentSearch :: NextIterator ()
+{   // fragments can only be processed sequentially, so there is just 1 iterator to return
+    if ( m_iter != 0  )
+    {
+        MatchIterator * ret = m_iter;
+        m_iter = 0;
+        return ret;
+    }
+    return 0;
+}

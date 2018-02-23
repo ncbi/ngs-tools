@@ -34,8 +34,8 @@ namespace VarExpand
     char const OPTION_ALG[] = "algorithm";
     //char const ALIAS_ALG[]  = "a";
     char const* USAGE_ALG[] = { "the algorithm to use for searching. "
-        "\""PARAM_ALG_SW"\" means Smith-Waterman. "
-        "\""PARAM_ALG_RA"\" means Rolling bulldozer algorithm\n", NULL };
+        "\"" PARAM_ALG_SW "\" means Smith-Waterman. "
+        "\"" PARAM_ALG_RA "\" means Rolling bulldozer algorithm\n", NULL };
 
     ::OptDef Options[] =
     {
@@ -113,7 +113,7 @@ namespace VarExpand
                     "REFSLICE=%.*s",
                     (int)del_len, ref_chunk.data() + ref_pos_in_slice ));
             }
-            
+
             cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 allele, var_len, del_len,
@@ -183,7 +183,7 @@ namespace VarExpand
         }
 
         printf (
-            "%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%s\n",
+            "%.*s\t%.*s:%" PRSIZE_T "u:%" PRSIZE_T "u:%.*s\t%.*s:%" PRSIZE_T "u:%" PRSIZE_T "u:%.*s\t%.*s:%" PRSIZE_T "u:%" PRSIZE_T "u:%s\n",
             (int)key_len, key,
 
             (int)ref_name_len, ref_name,
@@ -270,7 +270,7 @@ namespace VarExpand
         {
             return false;
         }
-        
+
         // del_len
         ++i;
         pstr = & line[i];
