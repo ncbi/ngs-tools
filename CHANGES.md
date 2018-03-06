@@ -1,6 +1,6 @@
 # NCBI External Developer Release:
 
-## NGS Tools
+## NGS Tools 2.9.0
 **February 23, 2018**
 
   **build**: Fixed configure allowing to run it on Perl with version >= v5.26 that has "." removed from @INC  
