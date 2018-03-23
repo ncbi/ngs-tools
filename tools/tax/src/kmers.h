@@ -43,7 +43,7 @@ struct Kmers
 
 	Kmers(const TaxIdTree &tax_id_tree) : tax_id_tree(tax_id_tree)
 	{
-		storage.reserve(16L*1024*1024*1024); // todo: tune
+//		storage.reserve(4L*1024*1024*1024); // todo: tune
 	}
 
 	bool has_kmer(hash_t kmer) const
