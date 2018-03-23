@@ -85,11 +85,11 @@ public:
         std::string line;
         read_line(line);
         
-		if (line.empty())
-			throw std::runtime_error("fasta file is empty");
+//		if (line.empty())
+//			throw std::runtime_error("fasta file is empty");
 
-		if (!is_description(line))
-			throw std::runtime_error("this is not a fasta file");
+//		if (!is_description(line))
+//			throw std::runtime_error("this is not a fasta file");
 
 		last_desc = line;
 	}

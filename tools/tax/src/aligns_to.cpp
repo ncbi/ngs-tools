@@ -34,6 +34,7 @@
 
 const std::string VERSION = "0.44";
 
+
 typedef uint64_t hash_t;
 
 #include "dbs.h"
