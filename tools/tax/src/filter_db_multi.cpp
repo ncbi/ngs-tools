@@ -24,34 +24,57 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
 
-#include <string>
 #include "log.h"
+#include "filter_db.h"
+#include "config_filter_db_multi.h"
 
-struct Config
+using namespace std;
+
+const string VERSION = "0.10";
+
+void dont_pass(const string &kmer)
 {
-	std::string input_file;
-	unsigned int only_tax;
+    cerr << kmer << endl;
+}
 
-	Config(int argc, char const *argv[]) : only_tax(0)
+void pass(const string &kmer, const string &rest)
+{
+	cout << kmer << rest << endl;
+}
+
+int main(int argc, char const *argv[])
+{
+	Config config(argc, argv);
+
+	LOG("filter_db_multi version " << VERSION);
+		
+	ifstream f(config.input_file);
+	if (f.fail())
+		throw std::runtime_error("cannot open input file");
+
+	string kmer, line;
+
+	while (!f.eof())
 	{
-		if (argc < 2)
-		{
-			print_usage();
-			exit(1);
-		}
+		f >> kmer;
+		if (!kmer.length() || f.eof())
+			break;
 
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
+        std::getline(f, line);
+        if (line.empty())
+		    throw std::runtime_error("empty tax id for kmer");
+
+		auto score = FilterDB::predicted(kmer);
+	    const int MIN_SCORE = FilterDB::min_score(kmer.length());
+		if (score >= MIN_SCORE)
+			dont_pass(kmer);
+		else
+			pass(kmer, line);
 	}
 
-	static void print_usage()
-	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
-	}
-};
-
-#endif
+    return 0;
+}

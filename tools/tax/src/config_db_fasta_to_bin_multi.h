@@ -24,34 +24,32 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#pragma once
 
 #include <string>
+#include <iostream>
 #include "log.h"
 
 struct Config
 {
-	std::string input_file;
-	unsigned int only_tax;
+	std::string fasta_db, out_file;
 
-	Config(int argc, char const *argv[]) : only_tax(0)
+	Config(int argc, char const *argv[])
 	{
-		if (argc < 2)
+		if (argc < 3)
 		{
 			print_usage();
 			exit(1);
 		}
 
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
+		fasta_db = argv[1];
+		out_file = argv[2];
 	}
 
 	static void print_usage()
 	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
+		LOG("need <fasta db> <out file>");
 	}
+
 };
 
-#endif

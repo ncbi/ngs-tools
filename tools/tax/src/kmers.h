@@ -32,8 +32,9 @@
 #include <map>
 #include <unordered_map>
 #include "tax_id_tree.h"
+#include "kmer_hash.h"
 
-typedef uint64_t hash_t;
+//typedef uint64_t hash_t;
 
 struct Kmers
 {

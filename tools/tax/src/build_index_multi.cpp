@@ -24,34 +24,44 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#include <iostream>
+#include <chrono>
+#include <thread>
+#include <array>
+#include "omp_adapter.h"
+#include "kmers_multi.h"
+#include "kmer_io.h"
+#include "kmer_hash.h"
+#include "ready_seq.h"
+#include "config_build_index_multi.h"
+#include "file_list_loader.h"
+#include "filename_meta.h"
+#include "build_index.h"
 
-#include <string>
-#include "log.h"
+using namespace std;
+using namespace std::chrono;
 
-struct Config
+const string VERSION = "0.10";
+
+int main(int argc, char const *argv[])
 {
-	std::string input_file;
-	unsigned int only_tax;
+	LOG("build_index_multi version " << VERSION);
+	Config config(argc, argv);
 
-	Config(int argc, char const *argv[]) : only_tax(0)
-	{
-		if (argc < 2)
-		{
-			print_usage();
-			exit(1);
-		}
+	auto before = high_resolution_clock::now();
 
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
-	}
+	FileListLoader file_list(config.file_list);
 
-	static void print_usage()
-	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
-	}
-};
+	KmersMulti kmers;
+	size_t total_size = 0;
+	for (auto &file_list_element : file_list.files)
+    {
+		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
+		LOG(file_list_element.filesize << "\t" << config.window_size << "\t" << tax_id << "\t" << file_list_element.filename);
+		total_size += BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
+    }
 
-#endif
+	KmerIO::print_kmers(kmers, config.kmer_len);
+
+	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
+}

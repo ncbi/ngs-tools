@@ -39,13 +39,7 @@ typedef uint64_t hash_t;
 
 #include "dbs.h"
 
-const string VERSION = "0.22";
-
-string reverse_complement(string s) // yes, by value
-{
-    seq_transform_actg::to_rev_complement(s);
-    return s;
-}
+const string VERSION = "0.23";
 
 hash_t hash_of(const string &s)
 {
@@ -66,10 +60,15 @@ void process_without_taxonomy(const string &fasta_db, const string &out_file)
 		string seq;
 		while (loader.load_next_sequence(seq))
 		{
-			kmers.push_back(std::min( hash_of(seq), hash_of(reverse_complement(seq))));
 			if (!kmer_len)
 				kmer_len = seq.length();
 
+            auto hash = hash_of(seq);
+
+            if (seq_transform<hash_t>::min_hash_variant(hash, kmer_len) != hash)
+				throw std::runtime_error("not normalized data : min hash variant != hash");
+			kmers.push_back(hash);
+                
 			if (seq.length() != kmer_len)
 				throw std::runtime_error("seq.length() != kmer_len");
 		}
@@ -99,9 +98,14 @@ void process_with_taxonomy(const string &fasta_db, const string &out_file)
 		int tax_id;
 		while (loader.load_next_sequence(seq, tax_id))
 		{
-			kmers.push_back(KmerTax(std::min( hash_of(seq), hash_of(reverse_complement(seq))), tax_id));
 			if (!kmer_len)
 				kmer_len = seq.length();
+
+            auto hash = hash_of(seq);
+            if (seq_transform<hash_t>::min_hash_variant(hash, kmer_len) != hash)
+				throw std::runtime_error("not normalized data : min hash variant != hash");
+
+			kmers.push_back(KmerTax(hash, tax_id));
 
 			if (seq.length() != kmer_len)
 				throw std::runtime_error("seq.length() != kmer_len");

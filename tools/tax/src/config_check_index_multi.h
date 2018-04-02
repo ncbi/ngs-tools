@@ -24,33 +24,31 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#ifndef CONFIG_CHECK_INDEX_H_INCLUDED
+#define CONFIG_CHECK_INDEX_H_INCLUDED
 
 #include <string>
 #include "log.h"
 
 struct Config
 {
-	std::string input_file;
-	unsigned int only_tax;
+	std::string file_list, kmers_file;
 
-	Config(int argc, char const *argv[]) : only_tax(0)
+	Config(int argc, char const *argv[])
 	{
-		if (argc < 2)
+		if (argc != 3)
 		{
 			print_usage();
 			exit(1);
 		}
 
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
+		file_list = std::string(argv[1]);
+		kmers_file = std::string(argv[2]);
 	}
 
 	static void print_usage()
 	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
+        LOG("need <files.list> <kmers file>");
 	}
 };
 

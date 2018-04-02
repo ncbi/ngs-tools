@@ -24,34 +24,48 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#ifndef KMERS_MULTI_H_INCLUDED
+#define KMERS_MULTI_H_INCLUDED
 
+#include <set>
 #include <string>
-#include "log.h"
+#include <map>
+#include <unordered_map>
+#include "tax_id_tree.h"
+#include "kmer_hash.h"
 
-struct Config
+//typedef uint64_t hash_t;
+
+struct KmersMulti
 {
-	std::string input_file;
-	unsigned int only_tax;
+    typedef std::set<tax_id_t> TaxIds;
 
-	Config(int argc, char const *argv[]) : only_tax(0)
+	std::unordered_map<hash_t, TaxIds> storage;
+
+	bool has_kmer(hash_t kmer) const
 	{
-		if (argc < 2)
-		{
-			print_usage();
-			exit(1);
-		}
-
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
+		auto it = storage.find(kmer);
+		return it != storage.end();
 	}
 
-	static void print_usage()
+	void add_kmer(hash_t kmer, tax_id_t tax_id)
 	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
+		auto &at = storage[kmer];
+        at.insert(tax_id);
 	}
+
+	bool has_kmer_but_not_tax(hash_t kmer, tax_id_t tax_id) const
+	{
+		auto it = storage.find(kmer);
+		if (it == storage.end())
+			return false;
+
+		if (it->second.find(tax_id) == it->second.end())
+			return true;
+
+		return false;
+	}
+
 };
 
 #endif

@@ -45,6 +45,15 @@ struct DBS
 		KmerTax(hash_t kmer = 0, int tax_id = 0) : kmer(kmer), tax_id(tax_id){}
 	};
 
+	struct KmerTaxMulti
+	{
+		hash_t kmer = 0;
+		std::vector<int> tax_ids;
+
+        KmerTaxMulti() = default;
+		KmerTaxMulti(hash_t kmer, const std::vector<int> &tax_ids) : kmer(kmer), tax_ids(tax_ids){}
+	};
+
 	#pragma pack(pop)
 
 	typedef std::vector<KmerTax> Kmers;
@@ -88,6 +97,54 @@ struct DBSIO
 
 		return header.kmer_len;
 	}
+
+	static void save_dbsm(const std::string &out_file, const std::vector<DBS::KmerTaxMulti> &kmers, size_t kmer_len)
+	{
+		std::ofstream f(out_file);
+		DBSHeader header(kmer_len);
+        IO::write(f, header);
+        IO::write(f, kmers.size());
+
+        for (auto &x : kmers)
+        {
+            IO::write(f, x.kmer);
+            IO::write(f, int(x.tax_ids.size())); // todo: short or byte ?
+            for (auto &tax : x.tax_ids)
+                IO::write(f, tax);
+        }
+	}
+
+	static size_t load_dbsm(const std::string &filename, std::vector<DBS::KmerTaxMulti> &kmers)
+	{
+    	std::ifstream f(filename, std::ios::binary | std::ios::in);
+	    if (f.fail() || f.eof())
+		    throw std::runtime_error(std::string("cannot load dbsm ") + filename);
+
+        DBSHeader header;
+        IO::read(f, header);
+		if (header.version != VERSION)
+			throw std::runtime_error("unsupported dbsm file version");
+
+		if (header.kmer_len < 1 || header.kmer_len > 64)
+			throw std::runtime_error("load_dbsm:: invalid kmer_len");
+
+        size_t count = 0;
+        IO::read(f, count);
+        kmers.resize(count);
+
+        for (int i = 0; i < count; i++)
+        {
+            IO::read(f, kmers[i].kmer);
+            int tax_count = 0;
+            IO::read(f, tax_count);
+            kmers[i].tax_ids.resize(tax_count);
+            for (int t = 0; t < tax_count; t++)
+                IO::read(f, kmers[i].tax_ids[t]);
+        }
+
+		return header.kmer_len;
+	}
+
 };
 
 #endif

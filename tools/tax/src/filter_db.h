@@ -24,34 +24,26 @@
 *
 */
 
-#ifndef CONFIG_FILTER_DB_H_INCLUDED
-#define CONFIG_FILTER_DB_H_INCLUDED
+#pragma once
 
-#include <string>
-#include "log.h"
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
 
-struct Config
+struct FilterDB
 {
-	std::string input_file;
-	unsigned int only_tax;
+    static int predicted(const std::string &kmer)
+    {
+	    int pred = 0;
 
-	Config(int argc, char const *argv[]) : only_tax(0)
-	{
-		if (argc < 2)
-		{
-			print_usage();
-			exit(1);
-		}
+	    for (int i = 4; i < int(kmer.length()); i++)
+		    if (kmer[i] == kmer[i - 1] && kmer[i - 1] == kmer[i - 2] && kmer[i - 2] == kmer[i - 3] && kmer[i - 3] == kmer[i - 4])
+			    pred++;
+		    else if (i >= 8 && kmer[i] == kmer[i - 2] && kmer[i - 2] == kmer[i - 4] && kmer[i - 4] == kmer[i - 6] && kmer[i - 6] == kmer[i - 8])
+			    pred++;
 
-		input_file = std::string(argv[1]);
-		if (argc == 4 && std::string(argv[2]) == "-only_tax")
-			only_tax = std::stoi(std::string(argv[3]));
-	}
+	    return pred;
+    }
 
-	static void print_usage()
-	{
-		LOG("need <kmers file> [-only_tax <tax_id>]");
-	}
+    static int min_score(int kmer_len) { return 13 * kmer_len/32; }// const 13 was designed for 32 bp kmers
 };
-
-#endif
