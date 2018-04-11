@@ -38,7 +38,6 @@ struct Config
 {
 	std::string reference, db, dbs, dbss, dbss_tax_list, contig_file, spot_filter_file;
 	typedef std::list<std::string> Strings;
-	Strings contig_files;
     bool unaligned_only;
     bool hide_counts;
 
@@ -65,8 +64,8 @@ struct Config
                 hide_counts = true;
             } else if (arg == "-unaligned_only") {
                 unaligned_only = true;
-            } else if (arg == "-list") {
-                contig_files = load_list(pop_arg(args));
+//            } else if (arg == "-list") {
+//                contig_files = load_list(pop_arg(args));
             } else if (arg == "-spot_filter") {
                 spot_filter_file = pop_arg(args);
             } else if (arg.empty() || arg[0] == '-' || !contig_file.empty()) {
@@ -78,14 +77,12 @@ struct Config
         }
 
         // exactly one should exist
-        if (contig_file.empty() == contig_files.empty()) { 
+        if (contig_file.empty()) // == contig_files.empty())
             fail("please provide either contig file or list");
-        }
 
         int db_count = int(!db.empty()) + int(!dbs.empty()) + int(!dbss.empty());
-        if (db_count != 1) {
+        if (db_count != 1)
             fail("please provide exactly one db argument");
-        }
 
         // tax list makes sense if and only if dbss specified
         if (dbss.empty() != dbss_tax_list.empty()) {
@@ -111,21 +108,21 @@ struct Config
 	}
 
 private:
-	static Strings load_list(const std::string &filename)
-	{
-		Strings lines;
-		std::ifstream f(filename);
+	//static Strings load_list(const std::string &filename)
+	//{
+	//	Strings lines;
+	//	std::ifstream f(filename);
 
-		while (!f.eof())
-		{
-			std::string line;
-			std::getline(f, line);
-			if (!line.empty())
-				lines.push_back(line);
-		}
+	//	while (!f.eof())
+	//	{
+	//		std::string line;
+	//		std::getline(f, line);
+	//		if (!line.empty())
+	//			lines.push_back(line);
+	//	}
 
-		return lines;
-	}
+	//	return lines;
+	//}
 
     std::string pop_arg(std::list<std::string>& args) const
 	{
