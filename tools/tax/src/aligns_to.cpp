@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.45";
+const std::string VERSION = "0.46";
 
 
 typedef uint64_t hash_t;
@@ -60,6 +60,8 @@ int main(int argc, char const *argv[])
 
     auto before = high_resolution_clock::now();
 
+    IO::Writer writer(config.out);
+
     unique_ptr<Job> job; // = nullptr; // todo: unique_ptr
 
     if (!config.db.empty())
@@ -82,7 +84,8 @@ int main(int argc, char const *argv[])
         throw std::runtime_error("contig file(s) is empty");
 
     LOG(config.contig_file);
-    job->run(config.contig_file);
+
+    job->run(config.contig_file, writer);
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 

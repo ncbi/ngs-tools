@@ -203,38 +203,44 @@ public:
 
 	struct TaxPrinter
 	{
+        IO::Writer &writer;
         const bool print_counts;
-		TaxPrinter(bool print_counts) : print_counts(print_counts) {}
+		TaxPrinter(bool print_counts, IO::Writer &writer) : print_counts(print_counts), writer(writer) {}
 
 		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
 		{
 			for (auto seq_id : ids)
 			{
-                for (auto c : processing_sequences[seq_id.seq_id].spotid) {
-                    if (c == '\t' || c == '\n') {
+                for (auto c : processing_sequences[seq_id.seq_id].spotid) 
+                {
+                    if (c == '\t' || c == '\n')
                         c = ' ';
-                    }
-                    std::cout << c;
+                    writer.f() << c;
                 }
-                for (auto &hit : seq_id.hits) {
-                    std::cout << '\t' << hit.first;
+
+                for (auto &hit : seq_id.hits) 
+                {
+                    writer.f() << '\t' << hit.first;
                     if (print_counts && hit.second > 1)
-                        std::cout << 'x' << hit.second;
+                        writer.f() << 'x' << hit.second;
                 }
-                std::cout << std::endl;
+
+                writer.f() << std::endl;
 			}
+
+            writer.check();
         }
 	};
 
-	virtual void run(const std::string &filename) override
+	virtual void run(const std::string &filename, IO::Writer &writer) override
 	{
-		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk); } );
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk) override
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) override
     {
 		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(!config.hide_counts);
+		TaxPrinter print(!config.hide_counts, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };

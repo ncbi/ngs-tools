@@ -32,11 +32,12 @@
 #include "log.h"
 #include "reader.h"
 #include "fasta_reader.h"
+#include "io.h"
 
 struct Job
 {
-	virtual void run(const std::string &contig_filename) = 0;
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk) = 0;
+	virtual void run(const std::string &contig_filename, IO::Writer &writer) = 0;
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) = 0;
 
 	template <class Matcher, class Printer, class MatchId>
     static void match_and_print(const std::vector<Reader::Fragment> &chunk, Printer &print, Matcher &matcher)

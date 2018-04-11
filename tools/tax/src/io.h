@@ -30,9 +30,40 @@
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+#include <string>
 
 struct IO
 {
+    struct Writer
+    {
+        const std::string filename;
+        std::ofstream out_f;
+        Writer(const std::string &filename) : filename(filename), out_f(filename)
+        {
+//            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
+            check();
+        }
+
+        std::ostream &f()
+        {
+            return filename.empty() ? std::cout : out_f;
+        }
+
+        void check()
+        {
+            if (!f().good())
+                throw std::runtime_error("failed to write results (no space left on drive?)");
+        }
+
+        ~Writer()
+        {
+            if (!filename.empty())
+                out_f.close();
+
+            check();
+        }
+    };
+
     template <class C>
     static void save_vector_data(std::ofstream &f, const std::vector<C> &v)
     {

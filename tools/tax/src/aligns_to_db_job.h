@@ -43,10 +43,15 @@ struct BasicMatchId
 
 struct BasicPrinter
 {
+    IO::Writer &writer;
+    BasicPrinter(IO::Writer &writer) : writer(writer){}
+
 	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
 	{
 		for (auto seq_id : ids)
-			std::cout << processing_sequences[seq_id.seq_id].spotid << std::endl;
+			writer.f() << processing_sequences[seq_id.seq_id].spotid << std::endl;
+
+        writer.check();
 	}
 };
 
@@ -90,15 +95,15 @@ struct DBJob : public Job
 		}
 	};
 
-	virtual void run(const std::string &filename) override
+	virtual void run(const std::string &filename, IO::Writer &writer) override
 	{
-		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk); } );
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk) override
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) override
     {
 		Matcher matcher(hash_array, kmer_len);
-		BasicPrinter print;
+		BasicPrinter print(writer);
         Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
     }
 };
