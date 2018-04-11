@@ -35,7 +35,7 @@ struct DBSJob : public Job
 {
 	struct KmerTax : public DBS::KmerTax
 	{
-		KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
+		KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id) { } // todo: remove constructor from KmerTax for faster loading ?
 
 		bool operator < (const KmerTax &x) const // for binary search by hash
 		{
@@ -117,7 +117,6 @@ public:
                     last_hash = hash;
                 }
                 bucket.second = hash_idx;
-                //LOG("bucket " << bucket_idx << " " << (bucket.second - bucket.first) << " members, range " << bucket.first << " - " << bucket.second);
             }
 #endif
         }
@@ -141,10 +140,7 @@ public:
 			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
 				{
 					if (auto tax_id = get_db_tax(hash))
-					{
 						hits[tax_id] ++;
-//						LOG(tax_id << " " << Hash<hash_t>::str_from_hash(hash, KMER_LEN));
-					}
 
 					return true;
 				});
@@ -207,9 +203,8 @@ public:
 
 	struct TaxPrinter
 	{
-		std::ostream &out_f;
         const bool print_counts;
-		TaxPrinter(std::ostream &out_f, bool print_counts) : out_f(out_f), print_counts(print_counts) {}
+		TaxPrinter(bool print_counts) : print_counts(print_counts) {}
 
 		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
 		{
@@ -219,24 +214,29 @@ public:
                     if (c == '\t' || c == '\n') {
                         c = ' ';
                     }
-                    out_f << c;
+                    std::cout << c;
                 }
                 for (auto &hit : seq_id.hits) {
-                    out_f << '\t' << hit.first;
+                    std::cout << '\t' << hit.first;
                     if (print_counts && hit.second > 1)
-                        out_f << 'x' << hit.second;
+                        std::cout << 'x' << hit.second;
                 }
-                out_f << std::endl;
+                std::cout << std::endl;
 			}
         }
 	};
 
-	virtual void run(const std::string &filename, std::ostream &out_f)
+	virtual void run(const std::string &filename) override
 	{
-		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(out_f, !config.hide_counts);
-		Job::run<Matcher, TaxPrinter, TaxMatchId>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk); } );
 	}
+
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk) override
+    {
+		Matcher m(hash_array, kmer_len);
+		TaxPrinter print(!config.hide_counts);
+		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
+    }
 };
 
 struct DBSBasicJob : public DBSJob

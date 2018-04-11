@@ -33,6 +33,23 @@
 #include <map>
 #include "omp_adapter.h"
 
+struct BasicMatchId
+{
+	int seq_id;
+
+	BasicMatchId(int seq_id, int matches) : seq_id(seq_id){}
+	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
+};
+
+struct BasicPrinter
+{
+	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
+	{
+		for (auto seq_id : ids)
+			std::cout << processing_sequences[seq_id.seq_id].spotid << std::endl;
+	}
+};
+
 struct DBJob : public Job
 {
 	typedef std::vector<hash_t> HashSortedArray;
@@ -73,12 +90,17 @@ struct DBJob : public Job
 		}
 	};
 
-	virtual void run(const std::string &filename, std::ostream &out_f)
+	virtual void run(const std::string &filename) override
 	{
-		Matcher m(hash_array, kmer_len);
-		BasicPrinter print(out_f);
-		Job::run<Matcher, BasicPrinter>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk); } );
 	}
+
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk) override
+    {
+		Matcher matcher(hash_array, kmer_len);
+		BasicPrinter print;
+        Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
+    }
 };
 
 #endif
