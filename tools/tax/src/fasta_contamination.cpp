@@ -31,7 +31,7 @@ struct KmerTax : public DBS::KmerTax
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.10";
+const string VERSION = "0.11";
 
 typedef int tax_t;
 typedef vector<KmerTax> HashSortedArray;
@@ -152,7 +152,7 @@ int main(int argc, char const *argv[])
 
         #pragma omp critical (read)
         {
-		    LOG(contamination.total_hits << "\thits\t" << file_list_element.filename);
+		    cerr << contamination.total_hits << "\thits\t" << file_list_element.filename << endl; // must be stderr - stdout for output only
             if (contamination.total_hits > 0)
             {
 #if SORTED
