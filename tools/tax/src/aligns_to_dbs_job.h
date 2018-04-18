@@ -43,18 +43,12 @@ struct DBSJob : public Job
 		}
 	};
 
-	const Config &config;
 	typedef std::vector<KmerTax> HashSortedArray;
 
 	HashSortedArray hash_array;
     static const int DEFAULT_KMER_LEN = 32;
 	typedef unsigned int tax_t;
-	size_t kmer_len;
-
-protected:
-	DBSJob(const Config &config) : kmer_len(0), config(config)
-	{
-	}
+	size_t kmer_len = 0;
 
 public:
 
@@ -211,6 +205,9 @@ public:
 		{
 			for (auto seq_id : ids)
 			{
+                if (writer.stream_id >= 0)
+                    writer.f() << writer.stream_id  << '\t';
+
                 for (auto c : processing_sequences[seq_id.seq_id].spotid) 
                 {
                     if (c == '\t' || c == '\n')
@@ -232,24 +229,27 @@ public:
         }
 	};
 
-	virtual void run(const std::string &filename, IO::Writer &writer) override
+    bool hide_counts = false;
+
+	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
+        hide_counts = config.hide_counts;
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) override
     {
 		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(!config.hide_counts, writer);
+		TaxPrinter print(!hide_counts, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };
 
 struct DBSBasicJob : public DBSJob
 {
-	DBSBasicJob(const Config &config) : DBSJob(config)
+	DBSBasicJob(const std::string &dbs)
 	{
-		kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
+		kmer_len = DBSIO::load_dbs(dbs, hash_array);
 	}
 };
 

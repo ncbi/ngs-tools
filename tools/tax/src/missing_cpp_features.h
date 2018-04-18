@@ -27,6 +27,10 @@
 #pragma once
 
 #include <memory>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <iterator>
 
 // todo: remove in future
 template<typename T, typename... Args>
@@ -35,3 +39,26 @@ std::unique_ptr<T> make_unique(Args&&... args)
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
+template<typename Out>
+void split(const std::string &s, char delim, Out result) 
+{
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim))
+        *(result++) = item;
+}
+
+static std::vector<std::string> split(const std::string &s, char delim) 
+{
+    std::vector<std::string> elems;
+    split(s, delim, std::back_inserter(elems));
+    return elems;
+}
+
+static bool ends_with(const std::string &s, const std::string &with)
+{
+    if (with.size() > s.size()) 
+        return false;
+
+    return std::equal(with.rbegin(), with.rend(), s.rbegin());
+}

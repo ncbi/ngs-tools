@@ -27,6 +27,7 @@
 #ifndef ALIGNS_TO_JOB_H_INCLUDED
 #define ALIGNS_TO_JOB_H_INCLUDED
 
+#include "config_align_to.h"
 #include <time.h>
 #include <thread>
 #include "log.h"
@@ -36,7 +37,7 @@
 
 struct Job
 {
-	virtual void run(const std::string &contig_filename, IO::Writer &writer) = 0;
+	virtual void run(const std::string &contig_filename, IO::Writer &writer, const Config &config) = 0;
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) = 0;
 
 	template <class Matcher, class Printer, class MatchId>

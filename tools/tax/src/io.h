@@ -38,15 +38,22 @@ struct IO
     {
         const std::string filename;
         std::ofstream out_f;
-        Writer(const std::string &filename) : filename(filename), out_f(filename)
+        std::ofstream &stream_f;
+        int stream_id = -1;
+
+        Writer(const std::string &filename) : filename(filename), out_f(filename), stream_f(out_f)
         {
 //            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
             check();
         }
 
+        Writer(const Writer &writer, int stream_id) : filename(writer.filename), stream_f(writer.stream_f), stream_id(stream_id)
+        {
+        }
+
         std::ostream &f()
         {
-            return filename.empty() ? std::cout : out_f;
+            return filename.empty() ? std::cout : stream_f;
         }
 
         void check()
@@ -57,7 +64,7 @@ struct IO
 
         ~Writer()
         {
-            if (!filename.empty())
+            if (!filename.empty() && stream_id < 0)
                 out_f.close();
 
             check();

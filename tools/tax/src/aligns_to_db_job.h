@@ -49,7 +49,11 @@ struct BasicPrinter
 	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
 	{
 		for (auto seq_id : ids)
+        {
+            if (writer.stream_id >= 0)
+                writer.f() << writer.stream_id  << '\t';
 			writer.f() << processing_sequences[seq_id.seq_id].spotid << std::endl;
+        }
 
         writer.check();
 	}
@@ -61,11 +65,10 @@ struct DBJob : public Job
 
 	HashSortedArray hash_array;
 	size_t kmer_len;
-	const Config &config;
 
-	DBJob(const Config &config) : config(config)
+	DBJob(const std::string &db)
 	{
-		kmer_len = DBSIO::load_dbs(config.db, hash_array);
+		kmer_len = DBSIO::load_dbs(db, hash_array);
 	}
 
 	struct Matcher
@@ -95,7 +98,7 @@ struct DBJob : public Job
 		}
 	};
 
-	virtual void run(const std::string &filename, IO::Writer &writer) override
+	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}

@@ -36,7 +36,7 @@
 
 struct Config
 {
-	std::string reference, db, dbs, dbss, dbss_tax_list, contig_file, spot_filter_file, out;
+	std::string reference, db, dbs, dbss, many, dbss_tax_list, contig_file, spot_filter_file, out;
     bool unaligned_only;
     bool hide_counts;
 
@@ -56,6 +56,8 @@ struct Config
                 dbs = pop_arg(args);
             else if (arg == "-dbss")
                 dbss = pop_arg(args);
+            else if (arg == "-many")
+                many = pop_arg(args);
             else if (arg == "-tax_list")
                 dbss_tax_list = pop_arg(args);
             else if (arg == "-hide_counts")
@@ -79,7 +81,7 @@ struct Config
         if (contig_file.empty()) // == contig_files.empty())
             fail("please provide either contig file or list");
 
-        int db_count = int(!db.empty()) + int(!dbs.empty()) + int(!dbss.empty());
+        int db_count = int(!db.empty()) + int(!dbs.empty()) + int(!dbss.empty()) + int(!many.empty());
         if (db_count != 1)
             fail("please provide exactly one db argument");
 
@@ -97,11 +99,12 @@ struct Config
 
 	static void print_usage()
 	{
-        LOG("need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl 
+        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl 
             << "where <database> is one of:" << std::endl
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl
-            << "-dbss <sorted database +tax> -tax_list <tax_list file>")
+            << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl
+            << "-many <comma-separated list of databases>" << std::endl;
 	}
 
 private:
