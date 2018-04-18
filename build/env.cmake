@@ -110,7 +110,6 @@ elseif (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
     # use Unicode
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_UNICODE /DUNICODE")
     add_definitions(-DUNICODE -D_UNICODE)
     
     # static run time libraries

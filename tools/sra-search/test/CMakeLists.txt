@@ -1,8 +1,9 @@
 include_directories ("..")
 
 # test-sra-search
-
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:main")
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:main")
+endif ()
 
 add_executable ( test-sra-search
     test-sra-search.cpp

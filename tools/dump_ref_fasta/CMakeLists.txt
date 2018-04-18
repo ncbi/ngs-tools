@@ -1,4 +1,7 @@
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+endif ()
+
 add_executable ( dump-ref-fasta DumpReferenceFASTA.cpp)
 
 target_link_libraries ( dump-ref-fasta
