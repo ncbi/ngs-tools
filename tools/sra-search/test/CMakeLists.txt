@@ -2,6 +2,8 @@ include_directories ("..")
 
 # test-sra-search
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:main")
+
 add_executable ( test-sra-search
     test-sra-search.cpp
     ../vdb-search.cpp

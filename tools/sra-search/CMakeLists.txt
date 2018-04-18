@@ -1,3 +1,5 @@
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+
 add_executable ( sra-search
     main.cpp
     searchblock.cpp

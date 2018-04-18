@@ -91,6 +91,7 @@ namespace fastrq
 
     rc_t CC Usage ( struct Args const * args )
     {
+        return 0;
     }
 
     static
