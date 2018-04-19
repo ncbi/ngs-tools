@@ -46,7 +46,6 @@ struct DBSJob : public Job
 	typedef std::vector<KmerTax> HashSortedArray;
 
 	HashSortedArray hash_array;
-    static const int DEFAULT_KMER_LEN = 32;
 	typedef unsigned int tax_t;
 	size_t kmer_len = 0;
 

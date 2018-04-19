@@ -36,7 +36,7 @@
 
 struct Config
 {
-	std::string reference, db, dbs, dbss, many, dbss_tax_list, contig_file, spot_filter_file, out;
+	std::string reference, db, dbs, dbsm, dbss, many, dbss_tax_list, contig_file, spot_filter_file, out;
     bool unaligned_only;
     bool hide_counts;
 
@@ -54,6 +54,8 @@ struct Config
                 db = pop_arg(args);
             else if (arg == "-dbs")
                 dbs = pop_arg(args);
+            else if (arg == "-dbsm")
+                dbsm = pop_arg(args);
             else if (arg == "-dbss")
                 dbss = pop_arg(args);
             else if (arg == "-many")
@@ -81,7 +83,7 @@ struct Config
         if (contig_file.empty()) // == contig_files.empty())
             fail("please provide either contig file or list");
 
-        int db_count = int(!db.empty()) + int(!dbs.empty()) + int(!dbss.empty()) + int(!many.empty());
+        int db_count = int(!db.empty()) + int(!dbs.empty()) + int(!dbss.empty()) + int(!dbsm.empty()) + int(!many.empty());
         if (db_count != 1)
             fail("please provide exactly one db argument");
 
@@ -103,6 +105,7 @@ struct Config
             << "where <database> is one of:" << std::endl
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl
+            << "-dbsm <database +taxes>" << std::endl
             << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl
             << "-many <comma-separated list of databases>" << std::endl;
 	}

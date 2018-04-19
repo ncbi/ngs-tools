@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.47";
+const std::string VERSION = "0.48";
 
 typedef uint64_t hash_t;
 
@@ -40,6 +40,7 @@ typedef uint64_t hash_t;
 #include "aligns_to_job.h"
 #include "aligns_to_db_job.h"
 #include "aligns_to_dbs_job.h"
+#include "aligns_to_dbsm_job.h"
 #include "aligns_to_dbss_job.h"
 #include "aligns_to_many_jobs.h"
 #include "missing_cpp_features.h"
@@ -67,6 +68,8 @@ int main(int argc, char const *argv[])
         job = make_unique<DBJob>(config.db);
     else if (!config.dbs.empty())
         job = make_unique<DBSBasicJob>(config.dbs);
+    else if (!config.dbsm.empty())
+        job = make_unique<DBSMJob>(config.dbsm);
     else if (!config.dbss.empty())
         job = make_unique<DBSSJob>(config.dbss, config.dbss_tax_list);
     else if (!config.many.empty())

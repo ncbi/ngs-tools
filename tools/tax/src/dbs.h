@@ -114,7 +114,8 @@ struct DBSIO
         }
 	}
 
-	static size_t load_dbsm(const std::string &filename, std::vector<DBS::KmerTaxMulti> &kmers)
+    template <class KmerTax>
+	static size_t load_dbsm(const std::string &filename, std::vector<KmerTax> &kmers) // DBS::KmerTaxMulti
 	{
     	std::ifstream f(filename, std::ios::binary | std::ios::in);
 	    if (f.fail() || f.eof())
