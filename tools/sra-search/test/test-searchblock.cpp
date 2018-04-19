@@ -115,7 +115,7 @@ TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
 }
 
 int
-main( int argc, char *argv [] )
+wmain( int argc, char *argv [] )
 {
     return SearchBlockTestSuite(argc, argv);
 }
