@@ -204,8 +204,8 @@ public:
 		{
 			for (auto seq_id : ids)
 			{
-                if (writer.stream_id >= 0)
-                    writer.f() << writer.stream_id  << '\t';
+//                if (writer.stream_id >= 0)
+//                    writer.f() << writer.stream_id  << '\t';
 
                 for (auto c : processing_sequences[seq_id.seq_id].spotid) 
                 {

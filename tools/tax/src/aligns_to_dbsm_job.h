@@ -24,91 +24,93 @@
 *
 */
 
-#ifndef ALIGNS_TO_DB_JOB_H_INCLUDED
-#define ALIGNS_TO_DB_JOB_H_INCLUDED
+#pragma once
 
-#include "aligns_to_job.h"
-#include "hash.h"
-#include "seq_transform.h"
-#include <map>
-#include "omp_adapter.h"
+#include "aligns_to_dbs_job.h"
 
-struct BasicMatchId
+struct DBSMJob : public Job
 {
-	int seq_id;
-
-	BasicMatchId(int seq_id, int matches) : seq_id(seq_id){}
-	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
-};
-
-struct BasicPrinter
-{
-    IO::Writer &writer;
-    BasicPrinter(IO::Writer &writer) : writer(writer){}
-
-	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
+	struct KmerTax : public DBS::KmerTaxMulti
 	{
-		for (auto seq_id : ids)
-        {
-//            if (writer.stream_id >= 0)
-//                writer.f() << writer.stream_id  << '\t';
-			writer.f() << processing_sequences[seq_id.seq_id].spotid << std::endl;
-        }
+        KmerTax() = default;
+		KmerTax(hash_t kmer, const std::vector<int> &tax_ids) : DBS::KmerTaxMulti(kmer, tax_ids) { } // todo: remove constructor from KmerTax for faster loading ?
 
-        writer.check();
-	}
-};
+		bool operator < (const KmerTax &x) const // for binary search by hash
+		{
+			return kmer < x.kmer;
+		}
+	};
 
-struct DBJob : public Job
-{
-	typedef std::vector<hash_t> HashSortedArray;
+	typedef std::vector<KmerTax> HashSortedArray;
 
 	HashSortedArray hash_array;
-	size_t kmer_len;
+	size_t kmer_len = 0;
 
-	DBJob(const std::string &db)
+public:
+
+	DBSMJob(const std::string &dbsm)
 	{
-		kmer_len = DBSIO::load_dbs(db, hash_array);
+		kmer_len = DBSIO::load_dbsm(dbsm, hash_array);
 	}
+
+    typedef DBSJob::Hits Hits;
+
+	virtual size_t db_kmers() const { return hash_array.size();}
 
 	struct Matcher
 	{
 		const HashSortedArray &hash_array;
-		size_t kmer_len;
-		Matcher(const HashSortedArray &hash_array, size_t kmer_len) : hash_array(hash_array), kmer_len(kmer_len){}
+		int kmer_len;
+        const std::vector<int> EMPTY_TAXES;
 
-		int operator() (const std::string &seq) const 
+		Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len) { }
+
+        const std::vector<int> &find_hash(hash_t hash, const std::vector<int> &default_value) const
+        {
+            auto first = hash_array.begin();
+            auto last = hash_array.end();
+            first = std::lower_bound(first, last, KmerTax(hash, default_value));
+            return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_ids;
+        }
+
+		Hits operator() (const std::string &seq) const 
 		{
-			int found = 0;
+			Hits hits;
 			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
 				{
-					if (in_db(hash) > 0)
-						found++;
+					auto &tax_ids = get_db_tax(hash);
+                    for (auto tax_id : tax_ids)
+                        hits[tax_id] ++;
 
-					return !found;
+					return true;
 				});
 
-			return found;
+			return hits;
 		}
 
-		bool in_db(hash_t hash) const
+		const std::vector<int> &get_db_tax(hash_t hash) const
 		{
 			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
-			return std::binary_search(hash_array.begin(), hash_array.end(), hash);
+            return find_hash(hash, EMPTY_TAXES);
 		}
 	};
 
+    typedef DBSJob::TaxMatchId TaxMatchId;
+    typedef DBSJob::TaxPrinter TaxPrinter;
+
+    bool hide_counts = false;
+
 	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
+        hide_counts = config.hide_counts;
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) override
     {
-		Matcher matcher(hash_array, kmer_len);
-		BasicPrinter print(writer);
-        Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
+		Matcher m(hash_array, kmer_len);
+		TaxPrinter print(!hide_counts, writer);
+		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };
 
-#endif

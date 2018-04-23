@@ -31,9 +31,69 @@
 #include <vector>
 #include <stdexcept>
 #include <string>
+#include "missing_cpp_features.h"
 
 struct IO
 {
+#if 1
+    struct Writer
+    {
+        std::vector<std::ofstream> out_f;
+        std::ostream &stream_f;
+
+        Writer(const std::string &_filenames) : stream_f(std::cout)
+        {
+            if (_filenames.empty())
+                return;
+
+            auto filenames = split(_filenames, ',');
+            for (auto &filename : filenames)
+                out_f.emplace_back(std::ofstream(filename));
+            
+//            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
+            check();
+        }
+
+        Writer(Writer &writer, int stream_id) : stream_f(writer.get_out_f(stream_id))
+        {
+        }
+
+        std::ostream &f()
+        {
+            if (!out_f.empty())
+                throw std::runtime_error("trying to write to composite stream");
+
+            return stream_f;
+        }
+
+        std::ostream &get_out_f(int stream_id)
+        {
+            if (stream_id < 0 || stream_id >= out_f.size())
+                throw std::runtime_error("Writer:: stream_id < 0 || stream_id >= out_f.size()");
+
+            return out_f[stream_id];
+        }
+
+        void check()
+        {
+            for (int i = 0; i < out_f.size(); i++)
+                if (!out_f[i].good())
+                    throw std::runtime_error("failed to write results (no space left on drive?)");
+
+            if (!std::cout.good())
+                throw std::runtime_error("failed to write results to std::cout (no space left on drive?)");
+        }
+
+        ~Writer()
+        {
+            for (int i = 0; i < out_f.size(); i++)
+                out_f[i].close();
+
+            check();
+        }
+    };
+
+#else
     struct Writer
     {
         const std::string filename;
@@ -70,6 +130,7 @@ struct IO
             check();
         }
     };
+#endif
 
     template <class C>
     static void save_vector_data(std::ofstream &f, const std::vector<C> &v)
