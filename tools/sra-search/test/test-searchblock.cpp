@@ -114,8 +114,12 @@ TEST_CASE ( SearchSmithWaterman_Coords_NotSupported )
     REQUIRE_EQ ( (uint64_t)8, hitEnd );
 }
 
+#if WIN32
+    #define main wmain
+#endif
+
 int
-wmain( int argc, char *argv [] )
+main( int argc, char *argv [] )
 {
     return SearchBlockTestSuite(argc, argv);
 }

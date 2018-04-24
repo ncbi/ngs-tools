@@ -632,8 +632,12 @@ FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )
     //etc...
 }
 
+#if WIN32
+    #define main wmain
+#endif
+
 int
-wmain( int argc, char *argv [] )
+main( int argc, char *argv [] )
 {
     return SraSearchTestSuite(argc, argv);
 }
