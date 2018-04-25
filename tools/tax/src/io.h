@@ -39,17 +39,22 @@ struct IO
     struct Writer
     {
         std::vector<std::ofstream> out_f;
-        std::ostream &stream_f;
+        std::ostream *stream_f = nullptr;
 
-        Writer(const std::string &_filenames) : stream_f(std::cout)
+        Writer(const std::string &_filenames) 
         {
             if (_filenames.empty())
+            {
+                stream_f = &std::cout;
                 return;
+            }
 
             auto filenames = split(_filenames, ',');
             for (auto &filename : filenames)
                 out_f.emplace_back(std::ofstream(filename));
             
+            if (out_f.size() == 1)
+                stream_f = get_out_f(0);
 //            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
             check();
         }
@@ -60,18 +65,15 @@ struct IO
 
         std::ostream &f()
         {
-            if (!out_f.empty())
-                throw std::runtime_error("trying to write to composite stream");
-
-            return stream_f;
+            return *stream_f;
         }
 
-        std::ostream &get_out_f(int stream_id)
+        std::ostream *get_out_f(int stream_id)
         {
             if (stream_id < 0 || stream_id >= out_f.size())
                 throw std::runtime_error("Writer:: stream_id < 0 || stream_id >= out_f.size()");
 
-            return out_f[stream_id];
+            return &out_f[stream_id];
         }
 
         void check()
