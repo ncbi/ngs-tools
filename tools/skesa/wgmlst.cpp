@@ -178,6 +178,8 @@ public:
             m_genome.push_back(make_tuple(acc, contig));            
             m_genome_acc_to_index[acc] = m_genome.size();
         }
+        if(genome_file.bad())
+            throw runtime_error("Error in reading genome file");
     }
  
    void ReadGenome(CContigsSource& genome) {
@@ -216,6 +218,8 @@ public:
             if(!m_bad_bases[index].insert(base-1).second)
                 throw runtime_error("Do not expect to have same position present multiple times in bad bases input");
         }
+        if(bad_bases_file.bad())
+            throw runtime_error("Error in reading bad bases");
     }
 
     bool AllGoodBases(int contig_index, int from, int to) {
@@ -231,18 +235,20 @@ public:
         m_blast_hits.clear();
 
         // read blast hits
-        string qid, sid;
-        double ident;
-        int length, mism, gap, qs, qe, ss, se;
-        double score, evalue;
-        string btop;
+        string line;
+        while(getline(blast_file, line)) {
+            istringstream sstream(line);        
+            string qid, sid;
+            double ident;
+            int length, mism, gap, qs, qe, ss, se;
+            double score, evalue;
+            string btop;
 
-        // allele - query
-        // contig - subject 
-        // btop is ALREADY REVERSED for minus strand
-        while(blast_file >> qid >> sid >> ident >> length >> mism >> gap >> qs >> qe >> ss >> se >> evalue >> score >> btop) {
-            string remain;
-            getline(blast_file, remain);
+            // allele - query   
+            // contig - subject     
+            // btop is ALREADY REVERSED for minus strand    
+            if(!(sstream >> qid >> sid >> ident >> length >> mism >> gap >> qs >> qe >> ss >> se >> evalue >> score >> btop))
+                throw runtime_error("Invalid blast hits file");
 
             if(!m_alleles.count(qid))
                 continue;
@@ -261,37 +267,9 @@ public:
             if(contig_key == 0)
                 throw runtime_error("Unknown genome accession");
             m_blast_hits[qid][contig_key].push_back(SLinkedHit(qs-1, qe-1, ss-1, se-1, matches, contig_key, btop)); 
-
-            /* debug output
-            const string& contig = get<1>(m_genome[abs(contig_key)-1]);
-            string query = get<1>(m_alleles[qid].front());
-            if(strand < 0)
-                ReverseComplementSeq(query.begin(), query.end());
-            CCigar cigar(qs-2, ss-2);
-            for(auto& elem : m_blast_hits[qid][contig_key].back().m_btop) {
-                cigar.PushBack(elem);
-                cerr << elem.m_len << elem.m_type;
-            }
-            cerr << endl;
-            cerr << qid << " " << sid << " " << qs << " " << qe << " " << ss << " " << se << " " << strand << " " << query.size() << " " << m_blast_hits[qid][contig_key].back().m_btop.size() << " " << btop << endl;
-            cerr << cigar.CigarString(0, query.size()) << endl;
-
-            TCharAlign align = cigar.ToAlign(query.c_str(), contig.c_str());
-            for(unsigned i = 0; i < align.first.size(); ++i)
-                cerr << align.first[i];
-            cerr << endl;
-            for(unsigned i = 0; i < align.first.size(); ++i) {
-                if(align.first[i] == align.second[i])
-                    cerr << "|";
-                else
-                    cerr << " ";
-            }
-            cerr << endl;
-            for(unsigned i = 0; i < align.first.size(); ++i)
-                cerr << align.second[i];
-            cerr << endl << endl;                            
-            */
         }
+        if(blast_file.bad())
+            throw runtime_error("Error in reading blast hits");
 
         if(m_blast_hits.empty())
             cerr << "No Blast hits found" << endl;
@@ -1648,14 +1626,19 @@ ostream& operator << (ostream& oss, CwgMLST::SHit const& hit)
 
 
 auto make_input_stream = [](string const& path, boost::iostreams::filtering_istream& is) {
-    boost::iostreams::file_source f{path};
+    bool gzipped = path.size() > 3 &&  path.substr(path.size()-3) == ".gz";
+    ios_base::openmode mode = ios_base::in;
+    if(gzipped)
+        mode |= ios_base::binary;
+
+    boost::iostreams::file_source f{path, mode};
     if(!f.is_open()) {
         ostringstream oss;
         oss << "Can't open file " << path;
         throw std::runtime_error(oss.str());
     }
     
-    if(path.size() > 3 &&  path.substr(path.size()-3) == ".gz") {
+    if(gzipped) {
         is.push(boost::iostreams::gzip_decompressor());
     }
 
@@ -1823,6 +1806,20 @@ void wgmlst(string const& genome_path,          // Path to a FASTA file; genome'
            ncores,
            record_alignments,
            record_alleles);
+
+    if (!output_mappings_path.empty())
+        output_mappings.close();    
+    else
+        cout.flush();
+    if(!(*omappings)) 
+        throw runtime_error("Error in alignments output");
+
+    if(!output_loci_path.empty())
+        output_loci.close();
+    else
+        cerr.flush();
+    if(!(*output_loci_p)) 
+        throw runtime_error("Error in loci output");
 }
 
 //

@@ -56,7 +56,7 @@ int main(int argc, const char* argv[]) {
         ("use_paired_ends", "Use pairing information from paired reads in fasta input [flag]")
         ("kmer", value<int>()->default_value(21), "Kmer length [integer]")
         ("min_count", value<int>()->default_value(2), "Minimal count for kmers retained for comparing alternate choices [integer]")
-        ("vector_percent ", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
+        ("vector_percent", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number (1. disables) [float (0,1]]")
 
         ("hash_count", "Use hash counter [flag]")
         ("estimated_kmers", value<int>()->default_value(100), "Estimated number of unique kmers for bloom filter (M) only for hash count [integer]")
@@ -83,10 +83,11 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "kmercounter v.2.0" << endl;
+            cerr << "kmercounter v.2.1";
 #ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
+            cerr << "-SVN_" << SVN_REV;
 #endif
+            cerr << endl;
             return 0;
         }
 
@@ -138,11 +139,23 @@ int main(int argc, const char* argv[]) {
         kmer = argm["kmer"].as<int>();
 
         CReadsGetter readsgetter(sra_list, fasta_list, vector<string>(), ncores, usepairedends, false);
-        vector_percent = argm["vector_percent "].as<double>();
+        vector_percent = argm["vector_percent"].as<double>();
+        if(vector_percent > 1.) {
+            cerr << "Value of --vector_percent  must be <= 1" << endl;
+            exit(1);
+        }
+        if(vector_percent <= 0.) {
+            cerr << "Value of --vector_percent  must be > 0" << endl;
+            exit(1);
+        }
  
         if(argm.count("hash_count")) {
-            readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, argm.count("skip_bloom_filter"));
-            readsgetter.PrintAdapters();
+            if(vector_percent < 1.) {
+                readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, argm.count("skip_bloom_filter"));
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
 
             size_t MB = 1000000;
             CKmerHashCounter counter(readsgetter.Reads(), kmer, min_count, estimated_kmer_num*MB, true, ncores, argm.count("skip_bloom_filter"));
@@ -159,6 +172,11 @@ int main(int argc, const char* argv[]) {
                     auto rslt = index.GetElement();
                     out << rslt.first.toString(kmer) << "\t" << rslt.second->Count() << "\t" << (rslt.second->m_data.Load() >> 32) << endl;
                 }
+                out.close();
+                if(!out) {
+                    cerr << "Can't write to file " << argm["text_out"].as<string>() << endl;
+                    return 1;             
+                }
             }
 
             if(argm.count("hist")) {
@@ -170,23 +188,37 @@ int main(int argc, const char* argv[]) {
                 TBins bins = counter.Kmers().GetBins();
                 for(auto& bin : bins)
                     out << bin.first << '\t' << bin.second << endl;
+                out.close();
+                if(!out) {
+                    cerr << "Can't write to file " << argm["hist"].as<string>() << endl;
+                    return 1;             
+                }
             }
 
             if(argm.count("dbg_out")) {
                 counter.GetBranches();
                 CDBHashGraph graph(move(counter.Kmers()), true);
-                ofstream dbg_out(argm["dbg_out"].as<string>());
+                ofstream dbg_out(argm["dbg_out"].as<string>(), ios::binary | ios::out);
                 if(!dbg_out.is_open()) {
                     cerr << "Can't open file " << argm["dbg_out"].as<string>() << endl;
                     exit(1);
                 }
                 graph.Save(dbg_out);
+                dbg_out.close();
+                if(!dbg_out) {
+                    cerr << "Can't write to file " << argm["dbg_out"].as<string>() << endl;
+                    return 1;             
+                }
             }                
         } else {
             int64_t memory = argm["memory"].as<int>();
 
-            readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
-            readsgetter.PrintAdapters();
+            if(vector_percent < 1.) {
+                readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
 
             int64_t GB = 1000000000;            
             CKmerCounter counter(readsgetter.Reads(), kmer, min_count, true, GB*memory, ncores);
@@ -203,6 +235,11 @@ int main(int argc, const char* argv[]) {
                     pair<TKmer,size_t> rslt = kmers.GetKmerCount(index);
                     out << rslt.first.toString(kmer) << "\t" << (uint32_t)rslt.second << "\t" << (rslt.second >> 32) << endl;
                 }
+                out.close();
+                if(!out) {
+                    cerr << "Can't write to file " << argm["text_out"].as<string>() << endl;
+                    return 1;             
+                }
             }
 
             if(argm.count("hist")) {
@@ -218,6 +255,10 @@ int main(int argc, const char* argv[]) {
                 TBins bins(hist.begin(), hist.end());
                 for(auto& bin : bins)
                     out << bin.first << '\t' << bin.second << endl;
+                if(!out) {
+                    cerr << "Can't write to file " << argm["hist"].as<string>() << endl;
+                    return 1;             
+                }
             }
 
             if(argm.count("dbg_out")) {
@@ -228,12 +269,17 @@ int main(int argc, const char* argv[]) {
                 }
                 TBins bins(hist.begin(), hist.end());
                 CDBGraph graph(move(kmers), move(bins), true);
-                ofstream dbg_out(argm["dbg_out"].as<string>());
+                ofstream dbg_out(argm["dbg_out"].as<string>(), ios::binary | ios::out);
                 if(!dbg_out.is_open()) {
                     cerr << "Can't open file " << argm["dbg_out"].as<string>() << endl;
                     exit(1);
                 }
                 graph.Save(dbg_out);
+                dbg_out.close();
+                if(!dbg_out) {
+                    cerr << "Can't write to file " << argm["dbg_out"].as<string>() << endl;
+                    return 1;             
+                }
             }
         }
         

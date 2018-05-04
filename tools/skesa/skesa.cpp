@@ -75,7 +75,7 @@ void PrintRslt(CDBGAssembler<DBGraph>& assembler, variables_map& argm) {
     }
 
     if(argm.count("dbg_out")) {
-        dbg_out.open(argm["dbg_out"].as<string>());
+        dbg_out.open(argm["dbg_out"].as<string>(), ios::binary | ios::out);
         if(!dbg_out.is_open()) {
             cerr << "Can't open file " << argm["dbg_out"].as<string>() << endl;
             exit(1);
@@ -330,8 +330,9 @@ int main(int argc, const char* argv[]) {
         ("fasta", value<vector<string>>(), "Input fasta file(s) (could be used multiple times for different runs) [string]")
         ("fastq", value<vector<string>>(), "Input fastq file(s) (could be used multiple times for different runs) [string]")
         ("gz", "Input fasta/fastq files are gzipped [flag]")
+#ifndef NO_NGS
         ("sra_run", value<vector<string>>(), "Input sra run accession (could be used multiple times for different runs) [string]")
-        ("seeds", value<string>(), "Input file with seeds [string]")
+#endif
         ("contigs_out", value<string>(), "Output file for contigs (stdout if not specified) [string]");
 
     options_description assembly("Assembly options");
@@ -339,7 +340,7 @@ int main(int argc, const char* argv[]) {
         ("kmer", value<int>()->default_value(21), "Minimal kmer length for assembly [integer]")
         ("min_count", value<int>(), "Minimal count for kmers retained for comparing alternate choices [integer]")
         ("max_kmer_count", value<int>(), "Minimum acceptable average count for estimating the maximal kmer length in reads [integer]")
-        ("vector_percent ", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
+        ("vector_percent", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number (1. disables) [float (0,1]]")
         ("use_paired_ends", "Use pairing information from paired reads in input [flag]")
         ("insert_size", value<int>(), "Expected insert size for paired reads (if not provided, it will be estimated) [integer]")
         ("steps", value<int>()->default_value(11), "Number of assembly iterations from minimal to maximal kmer length in reads [integer]")
@@ -350,6 +351,7 @@ int main(int argc, const char* argv[]) {
 
     options_description debug("Debugging options");
     debug.add_options()
+        ("seeds", value<string>(), "Input file with seeds [string]")
         ("all", value<string>(), "Output fasta for each iteration [string]")
         ("dbg_out", value<string>(), "Output kmer file [string]")
         ("hist", value<string>(), "File for histogram [string]")
@@ -372,19 +374,25 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "SKESA v.2.0" << endl;
+            cerr << "SKESA v.2.2";
 #ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
+            cerr << "-SVN_" << SVN_REV;
 #endif
+            cerr << endl;
             return 0;
         }
 
-        if(!argm.count("fasta") && !argm.count("fastq") && !argm.count("sra_run")) {
+        if(!argm.count("fasta") && !argm.count("fastq") 
+#ifndef NO_NGS
+           && !argm.count("sra_run")
+#endif
+                                                     ) {
             cerr << "Provide some input reads" << endl;
             cerr << all << "\n";
             return 1;
         }
 
+#ifndef NO_NGS
         if(argm.count("sra_run")) {
             sra_list = argm["sra_run"].as<vector<string>>();
             unsigned num = sra_list.size();
@@ -393,6 +401,7 @@ int main(int argc, const char* argv[]) {
             if(sra_list.size() != num)
                 cerr << "WARNING: duplicate input entries were removed from SRA run list" << endl; 
         }
+#endif
         if(argm.count("fasta")) {
             fasta_list = argm["fasta"].as<vector<string>>();
             unsigned num = fasta_list.size();
@@ -475,13 +484,13 @@ int main(int argc, const char* argv[]) {
             cerr << "Kmer must be an odd number >= 21" << endl;
             return 1;
         }
-        vector_percent = argm["vector_percent "].as<double>();
-        if(fraction >= 1.) {
-            cerr << "Value of --vector_percent  must be < 1" << endl;
+        vector_percent = argm["vector_percent"].as<double>();
+        if(vector_percent > 1.) {
+            cerr << "Value of --vector_percent  must be <= 1" << endl;
             exit(1);
         }
-        if(fraction < 0.) {
-            cerr << "Value of --vector_percent  must be >= 0" << endl;
+        if(vector_percent <= 0.) {
+            cerr << "Value of --vector_percent  must be > 0" << endl;
             exit(1);
         }
 
@@ -530,8 +539,12 @@ int main(int argc, const char* argv[]) {
                 exit(1);
             }
             bool skip_bloom_filter = argm.count("skip_bloom_filter");
-            readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
-            readsgetter.PrintAdapters();
+            if(vector_percent < 1.) {
+                readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
             CDBGAssembler<CDBHashGraph> assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count, estimated_kmer_num, skip_bloom_filter); 
             PrintRslt(assembler, argm);
         } else {
@@ -540,8 +553,12 @@ int main(int argc, const char* argv[]) {
                 cerr << "Value of --memory must be > 0" << endl;
                 exit(1);
             }
-            readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
-            readsgetter.PrintAdapters();
+            if(vector_percent < 1.) {
+                readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
             CDBGAssembler<CDBGraph> assembler(fraction, jump, low_count, steps, min_count, min_kmer, usepairedends, max_kmer_paired, maxkmercount, ncores, readsgetter.Reads(), seeds, allow_snps, estimate_min_count, memory); 
             PrintRslt(assembler, argm);
         }

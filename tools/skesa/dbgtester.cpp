@@ -225,7 +225,7 @@ int main(int argc, const char* argv[])
         }
 
         if(argm.count("version")) {
-            cerr << "dbgtester v.1.0" << endl;
+            cerr << "dbgtester v.1.1" << endl;
 #ifdef SVN_REV
             cerr << "SVN revision:" << SVN_REV << endl << endl;
 #endif
@@ -283,10 +283,18 @@ int main(int argc, const char* argv[])
                 genome_size += line.size();
             }
         }
+        if(fasta.bad()) {
+            cerr << "Error reading genome file" << endl;
+            return 1;
+        }
         cerr << "Genome size: " << genome_size << " Number of contigs: " << genome.size() << endl;
     }
 
-    ifstream file(dbg);
+    ifstream file(dbg, ios::binary | ios::in);
+    if(!file.is_open()) {
+        cerr << "Can't open file " << dbg << endl;
+        return 1;             
+    }
     file.seekg (0, file.end);
     streampos file_length = file.tellg();
     file.seekg (0, file.beg);

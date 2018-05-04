@@ -123,6 +123,8 @@ private:
                 for(char& c : target) c = toupper(c);
                 m_targets.emplace_back(target,acc,0);
             }
+            if(targets_in.bad())
+                throw runtime_error("Error in reading targets");
         }
 
 
@@ -1917,7 +1919,7 @@ int main(int argc, const char* argv[]) {
     assembly.add_options()
         ("kmer", value<int>()->default_value(41), "Minimal kmer length for assembly [integer]")
         ("min_count", value<int>()->default_value(2), "Minimal count for kmers retained for comparing alternate choices [integer]")
-        ("vector_percent", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number [float [0,1)]")
+        ("vector_percent", value<double>()->default_value(0.05, "0.05"), "Count for  vectors as a fraction of the read number (1. disables) [float (0,1]]")
         ("fraction", value<double>()->default_value(0.05, "0.05"), "Maximum noise to signal ratio acceptable for extension [float [0,1)]")
         ("match", value<int>()->default_value(1), "Bonus for match")
         ("mismatch", value<int>()->default_value(2), "Penalty for mismatch")
@@ -1944,9 +1946,10 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "guidedassembler v.2.0" << endl;
+            cerr << "guidedassembler v.2.1";
 #ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
+            cerr << "-SVN_" << SVN_REV;
+            cerr << endl;
 #endif
             return 0;
         }
@@ -2023,12 +2026,12 @@ int main(int argc, const char* argv[]) {
             exit(1);
         }
         vector_percent = argm["vector_percent"].as<double>();
-        if(fraction >= 1.) {
-            cerr << "Value of --vector_percent  must be < 1" << endl;
+        if(vector_percent > 1.) {
+            cerr << "Value of --vector_percent  must be <= 1" << endl;
             exit(1);
         }
-        if(fraction < 0.) {
-            cerr << "Value of --vector_percent  must be >= 0" << endl;
+        if(vector_percent <= 0.) {
+            cerr << "Value of --vector_percent  must be > 0" << endl;
             exit(1);
         }
 
@@ -2069,9 +2072,12 @@ int main(int argc, const char* argv[]) {
                 exit(1);
             }
             bool skip_bloom_filter = argm.count("skip_bloom_filter");
-            if(vector_percent > 0)
+            if(vector_percent < 1.) {
                 readsgetter.ClipAdaptersFromReads_HashCounter(vector_percent, estimated_kmer_num, skip_bloom_filter);
-            readsgetter.PrintAdapters();
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
             CGuidedAssembler<CDBHashGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, estimated_kmer_num, skip_bloom_filter);
             PrintRslt(gassembler, contigs_out, profile_out);
             timer.Restart();
@@ -2081,9 +2087,12 @@ int main(int argc, const char* argv[]) {
                 cerr << "Value of --memory must be > 0" << endl;
                 exit(1);
             }
-            if(vector_percent > 0)
+            if(vector_percent < 1.) {
                 readsgetter.ClipAdaptersFromReads_SortedCounter(vector_percent, memory);
-            readsgetter.PrintAdapters();
+                readsgetter.PrintAdapters();
+            } else {
+                cerr << "Adapters clip is disabled" << endl;
+            }
             CGuidedAssembler<CDBGraph> gassembler(kmer, min_count, fraction, match, mismatch, gap_open, gap_extend, drop_off, ncores, readsgetter.Reads(), targets_in, memory);
             PrintRslt(gassembler, contigs_out, profile_out);
             timer.Restart();

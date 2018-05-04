@@ -95,9 +95,12 @@ namespace DeBruijn {
         void Save(ostream& out) const { 
             out.write(reinterpret_cast<const char*>(&m_kmer_len), sizeof(m_kmer_len));
             apply_visitor(save(out), m_container);
+            if(!out)
+                throw runtime_error("Error in counter write"); 
         }
         void Load(istream& in) {
-            in.read(reinterpret_cast<char*>(&m_kmer_len), sizeof(m_kmer_len));
+            if(!in.read(reinterpret_cast<char*>(&m_kmer_len), sizeof(m_kmer_len)))
+                throw runtime_error("Error in counter read");
             m_container = CreateVariant<TKmerCountN, TLargeIntVec>((m_kmer_len+31)/32);
             apply_visitor(load(in), m_container);
         }
@@ -250,10 +253,12 @@ namespace DeBruijn {
             load(istream& in) : is(in) {}
             template <typename T> void operator() (T& v) const {
                 size_t num;
-                is.read(reinterpret_cast<char*>(&num), sizeof num);
+                if(!is.read(reinterpret_cast<char*>(&num), sizeof num))
+                    throw runtime_error("Error in counter read");
                 if(num > 0) {
                     v.resize(num);
-                    is.read(reinterpret_cast<char*>(&v[0]), num*sizeof(v[0]));
+                    if(!is.read(reinterpret_cast<char*>(&v[0]), num*sizeof(v[0])))
+                        throw runtime_error("Error in counter read");
                 }
             }
             istream& is;

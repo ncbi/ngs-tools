@@ -74,14 +74,17 @@ namespace DeBruijn {
             m_max_kmer = TKmer(max_kmer);
 
             int bin_num;
-            in.read(reinterpret_cast<char*>(&bin_num), sizeof bin_num);
+            if(!in.read(reinterpret_cast<char*>(&bin_num), sizeof bin_num))
+                throw runtime_error("Error in CDBGraph read");
             for(int i = 0; i < bin_num; ++i) {
                 pair<int, size_t> bin;
-                in.read(reinterpret_cast<char*>(&bin), sizeof bin);
+                if(!in.read(reinterpret_cast<char*>(&bin), sizeof bin))
+                    throw runtime_error("Error in CDBGraph read");
                 m_bins.push_back(bin);
             }
 
-            in.read(reinterpret_cast<char*>(&m_is_stranded), sizeof m_is_stranded);
+            if(!in.read(reinterpret_cast<char*>(&m_is_stranded), sizeof m_is_stranded))
+                throw runtime_error("Error in CDBGraph read");
             m_visited.resize(GraphSize(), 0);
         }
 
@@ -93,6 +96,8 @@ namespace DeBruijn {
             out.write(reinterpret_cast<const char*>(&bin_num), sizeof bin_num);         
             out.write(reinterpret_cast<const char*>(&m_bins[0]), bin_num*(sizeof m_bins[0])); 
             out.write(reinterpret_cast<const char*>(&m_is_stranded), sizeof m_is_stranded);
+            if(!out)
+                throw runtime_error("Error in CDBGraph write"); 
         }
 
         class Node {
@@ -315,16 +320,19 @@ namespace DeBruijn {
             m_max_kmer = TKmer(max_kmer);
 
             int bin_num;
-            in.read(reinterpret_cast<char*>(&bin_num), sizeof bin_num);
+            if(!in.read(reinterpret_cast<char*>(&bin_num), sizeof bin_num))
+                throw runtime_error("Error in CDBHashGraph read");
             for(int i = 0; i < bin_num; ++i) {
                 pair<int, size_t> bin;
-                in.read(reinterpret_cast<char*>(&bin), sizeof bin);
+                if(!in.read(reinterpret_cast<char*>(&bin), sizeof bin))
+                    throw runtime_error("Error in CDBHashGraph read");
                 m_bins.push_back(bin);
             }
             m_graph_size = 0;
             for(auto& bin : m_bins)
                 m_graph_size += bin.second;
-            in.read(reinterpret_cast<char*>(&m_is_stranded), sizeof m_is_stranded);
+            if(!in.read(reinterpret_cast<char*>(&m_is_stranded), sizeof m_is_stranded))
+                throw runtime_error("Error in CDBHashGraph read");
             ClearAllVisited();
         }
 
@@ -336,6 +344,8 @@ namespace DeBruijn {
             out.write(reinterpret_cast<const char*>(&bin_num), sizeof bin_num);         
             out.write(reinterpret_cast<const char*>(&m_bins[0]), bin_num*(sizeof m_bins[0])); 
             out.write(reinterpret_cast<const char*>(&m_is_stranded), sizeof m_is_stranded);
+            if(!out)
+                throw runtime_error("Error in CDBHashGraph write");
         }
 
         class Node : public CKmerHashCount::Index {

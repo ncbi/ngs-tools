@@ -86,10 +86,11 @@ int main(int argc, const char* argv[])
         }
 
         if(argmap.count("version")) {
-            cerr << "WGMLST v.1.0" << endl;
+            cerr << "WGMLST v.1.1";
 #ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
+            cerr << "-SVN_" << SVN_REV;
 #endif
+            cerr << endl;
             return 0;
         }
 

@@ -720,10 +720,11 @@ int main(int argc, const char* argv[]) {
         }
 
         if(argm.count("version")) {
-            cerr << "k_aligner v.1.0" << endl;
+            cerr << "k_aligner v.1.1";
 #ifdef SVN_REV
-            cerr << "SVN revision:" << SVN_REV << endl << endl;
+            cerr << "-SVN_" << SVN_REV;
 #endif
+            cerr << endl;
             return 0;
         }
 
@@ -788,6 +789,8 @@ int main(int argc, const char* argv[]) {
                 for(char& c : read) c = toupper(c);
                 reads.push_back(TSeq(acc, TSeqV(read.begin(), read.end())));
             }
+            if(fasta.bad())
+                throw runtime_error("Error reading "+argm["fasta"].as<string>());
             size_t total = reads.size();
             size_t job_length = total/ncores+1;
             size_t remaining = total;
@@ -795,7 +798,7 @@ int main(int argc, const char* argv[]) {
                 read_chunks.emplace_back();
                 size_t chunk = min(job_length, remaining);
                 read_chunks.back().splice(read_chunks.back().end(), reads, reads.begin(), next(reads.begin(), chunk));
-                remaining -= chunk;;
+                remaining -= chunk;
             }
 
             cerr << "Reads from fasta acquired in " << sw.Elapsed() << endl;
@@ -861,6 +864,8 @@ int main(int argc, const char* argv[]) {
                     get<2>(contigs.back()).resize(contig.size());
                 total_len += contig.size();
             }
+            if(fasta.bad())
+                throw runtime_error("Error reading "+argm["contigs"].as<string>());
             cerr << "Contigs: " << contigs.size() << endl;
             cerr << "Contigs input in " << sw.Elapsed() << endl;
         }
@@ -923,7 +928,7 @@ int main(int argc, const char* argv[]) {
                         array_source source{rslt.m_out.data(), rslt.m_out.size()};
                         filtering_istream is;
                         is.push(source);
-                        out.open(file, ofstream::out | ofstream::app);
+                        out.open(file, ofstream::out | ofstream::app | ofstream::binary);
                         copy(is, out); // closes streams               
                     }
                 }

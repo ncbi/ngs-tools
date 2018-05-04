@@ -36,7 +36,9 @@
 #include "DBGraph.hpp"
 #include "counter.hpp"
 #include "concurrenthash.hpp"
+#ifndef NO_NGS
 #include "ngs_includes.hpp"
+#endif
 
 namespace DeBruijn {
 
@@ -76,8 +78,10 @@ namespace DeBruijn {
                 ReadFastaOrFastq(fasta_list, true);
             if(!fastq_list.empty())
                 ReadFastaOrFastq(fastq_list, false);
+#ifndef NO_NGS
             if(!sra_list.empty())
                 GetFromSRA(sra_list);
+#endif
 
             size_t total = 0;
             size_t paired = 0;
@@ -341,6 +345,7 @@ namespace DeBruijn {
             }
         }
 
+#ifndef NO_NGS
         // A one-thread worker to get reads from SRA
         // job - accession(s) and interval(s) to get
         // rslt - destination
@@ -403,6 +408,7 @@ namespace DeBruijn {
             }
             RunThreads(m_ncores, jobs);
         }
+#endif
 
         // Acquires reads from fasta or fastq
         // file_list - file names (could be separated by comma for paired reads)
@@ -414,8 +420,12 @@ namespace DeBruijn {
 
                 if(isfasta) {// fasta   
                     string record;
-                    if(!getline(is, record, '>'))
-                        return false;
+                    if(!getline(is, record, '>')) {
+                        if(is.eof() && !is.bad())
+                            return false;
+                        else
+                            throw runtime_error("Error reading "+source_name);
+                    }
                     size_t first_ret = min(record.size(),record.find('\n'));
                     if(first_ret == string::npos)
                         throw runtime_error("Invalid fasta file format in "+source_name);
@@ -423,17 +433,21 @@ namespace DeBruijn {
                     read = record.substr(first_ret+1);
                     read.erase(remove(read.begin(),read.end(),'\n'),read.end());            
                 } else { // fastq 
-                    if(!getline(is, acc))
-                        return false;
+                    if(!getline(is, acc)) {
+                        if(is.eof() && !is.bad())
+                            return false;
+                        else
+                            throw runtime_error("Error reading "+source_name);
+                    }
                     if(acc[0] != '@')
                         throw runtime_error("Invalid fastq file format in "+source_name);
                     if(!getline(is, read))
-                        throw runtime_error("Invalid fastq file format in "+source_name);
+                        throw runtime_error("Error reading "+source_name);
                     string line;
                     if(!getline(is, line) || line[0] != '+')
-                        throw runtime_error("Invalid fastq file format in "+source_name);
+                        throw runtime_error("Error reading "+source_name);
                     if(!getline(is, line))
-                        throw runtime_error("Invalid fastq file format in "+source_name);
+                        throw runtime_error("Error reading "+source_name);
                 }                
 
                 acc = acc.substr(0, acc.find_first_of(" \t"));
@@ -442,7 +456,10 @@ namespace DeBruijn {
             };
 
             auto OpenStream = [] (const string& file, bool gzipped, bool isfasta, boost::iostreams::filtering_istream& is) {
-                boost::iostreams::file_source f{file};
+                ios_base::openmode mode = ios_base::in;
+                if(gzipped)
+                    mode |= ios_base::binary;
+                boost::iostreams::file_source f{file, mode};
                 if(!f.is_open())
                     throw runtime_error("Error opening "+file);
                 if(gzipped)

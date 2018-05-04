@@ -234,18 +234,23 @@ namespace DeBruijn {
             os.write(reinterpret_cast<const char*>(&elements), sizeof elements);
             for(auto& elem : *this) 
                 os.write(reinterpret_cast<const char*>(&elem), sizeof elem);
+            if(!os)
+                throw runtime_error("Error in CForwardList write"); 
         }
         void Load(istream& is) { 
             Clear();
             size_t vsize; 
-            is.read(reinterpret_cast<char*>(&vsize), sizeof vsize);
+            if(!is.read(reinterpret_cast<char*>(&vsize), sizeof vsize))
+                throw runtime_error("Error in CForwardList read");
             if(vsize != sizeof(E))
                 throw runtime_error("Wrong format for CForwardList load");
             size_t elements;
-            is.read(reinterpret_cast<char*>(&elements), sizeof elements);
+            if(!is.read(reinterpret_cast<char*>(&elements), sizeof elements))
+                throw runtime_error("Error in CForwardList read");
             for( ; elements > 0; --elements) {
                 E* p = Emplace();
-                is.read(reinterpret_cast<char*>(p), sizeof *p);
+                if(!is.read(reinterpret_cast<char*>(p), sizeof *p))
+                    throw runtime_error("Error in CForwardList read"); 
             }
         }
         void Clear() {
@@ -316,22 +321,30 @@ namespace DeBruijn {
                 os.write(reinterpret_cast<const char*>(&num), sizeof num);
                 os.write(reinterpret_cast<const char*>(chunk.data()), num*vsize);
             }
+            if(!os)
+                throw runtime_error("Error in CDeque write"); 
         }
         void Load(istream& is) {
             size_t vsize; 
-            is.read(reinterpret_cast<char*>(&vsize), sizeof vsize);
+            if(!is.read(reinterpret_cast<char*>(&vsize), sizeof vsize))
+                throw runtime_error("Error in CDeque read");
             if(vsize != sizeof(E))
                 throw runtime_error("Wrong format for CDeque load");
-            is.read(reinterpret_cast<char*>(&m_chunks), sizeof m_chunks);
-            is.read(reinterpret_cast<char*>(&m_size), sizeof m_size);
-            is.read(reinterpret_cast<char*>(&m_chunk_size), sizeof m_chunk_size);
+            if(!is.read(reinterpret_cast<char*>(&m_chunks), sizeof m_chunks))
+                throw runtime_error("Error in CDeque read");
+            if(!is.read(reinterpret_cast<char*>(&m_size), sizeof m_size))
+                throw runtime_error("Error in CDeque read");
+            if(!is.read(reinterpret_cast<char*>(&m_chunk_size), sizeof m_chunk_size))
+                throw runtime_error("Error in CDeque read");
             m_data.clear();
             m_data.resize(m_chunks);
             for(auto& chunk : m_data) {
                 size_t num;
-                is.read(reinterpret_cast<char*>(&num), sizeof num);
+                if(!is.read(reinterpret_cast<char*>(&num), sizeof num))
+                    throw runtime_error("Error in CDeque read");
                 chunk.resize(num);
-                is.read(reinterpret_cast<char*>(chunk.data()), num*vsize); 
+                if(!is.read(reinterpret_cast<char*>(chunk.data()), num*vsize))
+                    throw runtime_error("Error in CDeque read");
             }
         }
     private:
@@ -473,10 +486,14 @@ namespace DeBruijn {
             os.write(reinterpret_cast<const char*>(&m_table_size), sizeof m_table_size);
             os.write(reinterpret_cast<const char*>(&m_kmer_len), sizeof m_kmer_len);
             apply_visitor(save(os), m_hash_table);
+            if(!os)
+              throw runtime_error("Error in CKmerHashMap write");  
         }
         void Load(istream& is) { 
-            is.read(reinterpret_cast<char*>(&m_table_size), sizeof m_table_size);
-            is.read(reinterpret_cast<char*>(&m_kmer_len), sizeof m_kmer_len);
+            if(!is.read(reinterpret_cast<char*>(&m_table_size), sizeof m_table_size))
+                throw runtime_error("Error in CKmerHashMap read");
+            if(!is.read(reinterpret_cast<char*>(&m_kmer_len), sizeof m_kmer_len))
+                throw runtime_error("Error in CKmerHashMap read");
             m_hash_table = CreateVariant<TKmerHashTable<MappedV>, THashBlockVec, MappedV>((m_kmer_len+31)/32);
             apply_visitor(load(is), m_hash_table);
         }
@@ -668,10 +685,12 @@ namespace DeBruijn {
             void operator()(T& v) const {
                 v.Load(is);
                 size_t list_num;
-                is.read(reinterpret_cast<char*>(&list_num), sizeof list_num);
+                if(!is.read(reinterpret_cast<char*>(&list_num), sizeof list_num))
+                    throw runtime_error("Error in CKmerHashMap read");
                 for( ; list_num > 0; --list_num) {
                     size_t i;
-                    is.read(reinterpret_cast<char*>(&i), sizeof i);
+                    if(!is.read(reinterpret_cast<char*>(&i), sizeof i))
+                        throw runtime_error("Error in CKmerHashMap read");
                     v[i].m_extra.Init();
                     v[i].m_extra.Load(is);
                 }
@@ -947,10 +966,12 @@ namespace DeBruijn {
                         
                         auto rslt = bucket.Find(*min_kmerp, hint);
                         if(rslt.first < bucket_block) {                          // found in array
-                            bucket.m_data[rslt.first].second.Increment(is_plus);
+                            if(bucket.m_data[rslt.first].second.Increment(is_plus) == 1)
+                                ++new_kmers;
                             continue;
                         } else if(rslt.first == bucket_block) {                  // found in list
-                            rslt.second->m_data.second.Increment(is_plus);
+                            if(rslt.second->m_data.second.Increment(is_plus) == 1)
+                                ++new_kmers;
                             continue;
                         }                        
                         
