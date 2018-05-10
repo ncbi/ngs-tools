@@ -13,6 +13,7 @@ set ( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAG
 set ( SHARED_OBJECTS src/reader.cpp )
 
 add_executable ( aligns_to                      src/aligns_to.cpp ${SHARED_OBJECTS})
+add_executable ( dump_kmers                     src/dump_kmers.cpp ${SHARED_OBJECTS})
 add_executable ( build_index                    src/build_index.cpp ${SHARED_OBJECTS})
 add_executable ( build_index_multi              src/build_index_multi.cpp ${SHARED_OBJECTS})
 add_executable ( check_index                    src/check_index.cpp ${SHARED_OBJECTS})
@@ -30,6 +31,7 @@ add_executable ( sort_dbs                       src/sort_dbs.cpp ${SHARED_OBJECT
 include_directories ( ${CMAKE_SOURCE_DIR} )
 
 target_link_libraries ( aligns_to ${SYS_LIBRARIES} )
+target_link_libraries ( dump_kmers ${SYS_LIBRARIES} )
 target_link_libraries ( build_index ${SYS_LIBRARIES} )
 target_link_libraries ( build_index_multi ${SYS_LIBRARIES} )
 target_link_libraries ( check_index ${SYS_LIBRARIES} )
@@ -44,7 +46,7 @@ target_link_libraries ( find_closest_profile_linear ${SYS_LIBRARIES} )
 target_link_libraries ( contig_connectivity ${SYS_LIBRARIES} )
 target_link_libraries ( sort_dbs ${SYS_LIBRARIES} )
 
-install ( TARGETS aligns_to build_index build_index_multi check_index check_index_multi db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_db_multi
+install ( TARGETS aligns_to dump_kmers build_index build_index_multi check_index check_index_multi db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_db_multi
                   contig_builder fasta_contamination find_closest_profile_linear
                   contig_connectivity sort_dbs
           RUNTIME DESTINATION bin/tax )
