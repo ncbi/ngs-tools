@@ -89,17 +89,17 @@ struct BuildIndex
 	    }
 
     //	kmers.add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len), tax_id);
-        add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len));
+        add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len), chosen_kmer_pos);
     }
 
     template <class Lambda>
     static void process_clean_string(p_string p_str, int window_size, int kmer_len, Lambda &&add_kmer)
     {
-	    for (int start = 0; start <= p_str.len - window_size; start += window_size)
+	    for (int start = 0; start <= p_str.len - window_size; start += window_size) // todo: check for integer overflows on very long sequences
         {
             int from = std::max(0, start - (kmer_len - 1));
             int to = std::min(start + window_size, p_str.len);
-		    process_window(p_str.s + from, to - from, kmer_len, add_kmer);
+		    process_window(p_str.s + from, to - from, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer, offset + from); } );
         }
     }
 
@@ -122,7 +122,7 @@ struct BuildIndex
 		    total_size += processing_seq.seq.size();
 
 		    for (auto &clean_string : processing_seq.clean_strings)
-			    process_clean_string(clean_string, window_size, kmer_len, add_kmer);
+			    process_clean_string(clean_string, window_size, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer); } );
 
 		    seq_index++;
 		    if (seq_index % DOT_INTERVAL == 0)
@@ -137,5 +137,72 @@ struct BuildIndex
 
 	    return total_size;
     }
+
+
+    static std::vector<ReadySeq> load_all(const std::string &filename)
+    {
+	    Fasta fasta(filename);
+
+        std::vector<ReadySeq> seqs;
+        seqs.reserve(100); // todo: tune
+
+        {
+            std::string loaded_seq;
+
+            while (fasta.get_next_sequence(loaded_seq))
+            {
+                ReadySeq seq;
+                seq.seq = loaded_seq;
+                seqs.push_back(seq);
+            }
+        }
+
+        for (auto &seq : seqs)
+        {
+	        SeqCleaner cleaner(seq.seq);
+	        seq.clean_strings = move(cleaner.clean_strings);
+        }
+
+        return seqs;
+    }
+
+    static size_t total_len(const SeqCleaner::p_strings &clean_strings)
+    {
+        size_t len = 0;
+        for (auto &s : clean_strings)
+            len += s.len;
+        return len;
+    }
+
+    template <class Lambda>
+    static size_t add_kmers_with_markup(const std::string &filename, int window_size, int kmer_len, Lambda &&add_kmer)
+    {
+        auto seqs = load_all(filename);
+
+        size_t total_size = 0;
+        size_t base = 0;
+        size_t sum_total_len = 0;
+        
+        for (auto &processing_seq : seqs)
+            sum_total_len += total_len(processing_seq.clean_strings);
+
+        if (sum_total_len > size_t(std::numeric_limits<int>::max()))
+            throw std::runtime_error("so long fasta files are not supported in this mode");
+
+	    //while (!processing_seq.seq.empty())
+        for (auto &processing_seq : seqs)
+        {
+		    for (auto &clean_string : processing_seq.clean_strings)
+            {
+			    process_clean_string(clean_string, window_size, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer, base + offset, sum_total_len); } );
+                base += clean_string.len;
+            }
+
+            total_size += processing_seq.seq.size();
+        }
+
+	    return total_size;
+    }
+
 
 };

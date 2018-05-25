@@ -33,11 +33,11 @@
 struct Config
 {
 	std::string file_list;
-	unsigned int kmer_len, window_size;
+	unsigned int kmer_len, window_size, pos_encoding_mul;
 
 	Config(int argc, char const *argv[])
 	{
-		if (argc != 4)
+		if (argc != 5)
 		{
 			print_usage();
 			exit(1);
@@ -46,11 +46,12 @@ struct Config
 		file_list = std::string(argv[1]);
 		kmer_len = std::stoi(std::string(argv[2]));
         window_size = std::stoi(std::string(argv[3]));
+        pos_encoding_mul = std::stoi(std::string(argv[4]));
 	}
 
 	static void print_usage()
 	{
-        LOG("need <files.list> <kmer len> <window size>");
+        LOG("need <files.list> <kmer len> <window size> <pos encoding mul>");
 	}
 };
 

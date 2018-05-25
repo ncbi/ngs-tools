@@ -41,7 +41,29 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.10";
+const string VERSION = "0.11";
+
+int create_tax_offset_id(int tax_id, int offset, int total_len, int kmer_len, int POS_ENCODING_MUL)
+{
+    if (POS_ENCODING_MUL <= 1)
+        return tax_id;
+
+    total_len = total_len - kmer_len + 1;
+    if (total_len < 0)
+        throw std::runtime_error("create_tax_offset_id::");
+    if (offset < 0 || offset >= total_len)
+        throw std::runtime_error("create_tax_offset_id::offset < 0 || offset >= total_len");
+
+//    const int POS_ENCODING_MUL = 100;
+    if (tax_id >= std::numeric_limits<int>::max()/POS_ENCODING_MUL)
+        throw std::runtime_error("too large tax ids are not supported");
+
+    size_t pos_encoding = size_t(offset) * POS_ENCODING_MUL / size_t(total_len);
+    if (pos_encoding >= POS_ENCODING_MUL)
+        throw std::runtime_error("pos_encoding >= POS_ENCODING_MUL");
+
+    return POS_ENCODING_MUL * tax_id + pos_encoding;
+}
 
 int main(int argc, char const *argv[])
 {
@@ -58,7 +80,7 @@ int main(int argc, char const *argv[])
     {
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		LOG(file_list_element.filesize << "\t" << config.window_size << "\t" << tax_id << "\t" << file_list_element.filename);
-		total_size += BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
+		total_size += BuildIndex::add_kmers_with_markup(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer, int offset, int total_len){ kmers.add_kmer(kmer, create_tax_offset_id(tax_id, offset, total_len, config.kmer_len, config.pos_encoding_mul)); });
     }
 
 	KmerIO::print_kmers(kmers, config.kmer_len);

@@ -202,6 +202,13 @@ struct IO
 	    f.seekg(0, std::ios_base::end);
 	    return f.tellg();
     }
+
+    static bool file_exists(const std::string &filename)
+    {
+        std::ifstream f(filename);
+        return f.good();
+    }
+
 };
 
 #endif
