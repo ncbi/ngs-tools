@@ -24,6 +24,7 @@ add_executable ( filter_db                      src/filter_db.cpp ${SHARED_OBJEC
 add_executable ( filter_db_multi                src/filter_db_multi.cpp ${SHARED_OBJECTS})
 add_executable ( contig_builder                 src/contig_builder.cpp ${SHARED_OBJECTS})
 add_executable ( fasta_contamination            src/fasta_contamination.cpp ${SHARED_OBJECTS})
+add_executable ( fasta_contamination_multi      src/fasta_contamination_multi.cpp ${SHARED_OBJECTS})
 add_executable ( find_closest_profile_linear    src/find_closest_profile_linear.cpp ${SHARED_OBJECTS})
 add_executable ( contig_connectivity            src/contig_connectivity.cpp ${SHARED_OBJECTS})
 add_executable ( sort_dbs                       src/sort_dbs.cpp ${SHARED_OBJECTS})
@@ -42,12 +43,13 @@ target_link_libraries ( filter_db ${SYS_LIBRARIES} )
 target_link_libraries ( filter_db_multi ${SYS_LIBRARIES} )
 target_link_libraries ( contig_builder ${SYS_LIBRARIES} )
 target_link_libraries ( fasta_contamination ${SYS_LIBRARIES} )
+target_link_libraries ( fasta_contamination_multi ${SYS_LIBRARIES} )
 target_link_libraries ( find_closest_profile_linear ${SYS_LIBRARIES} )
 target_link_libraries ( contig_connectivity ${SYS_LIBRARIES} )
 target_link_libraries ( sort_dbs ${SYS_LIBRARIES} )
 
 install ( TARGETS aligns_to dump_kmers build_index build_index_multi check_index check_index_multi db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_db_multi
-                  contig_builder fasta_contamination find_closest_profile_linear
+                  contig_builder fasta_contamination fasta_contamination_multi find_closest_profile_linear
                   contig_connectivity sort_dbs
           RUNTIME DESTINATION bin/tax )
 
