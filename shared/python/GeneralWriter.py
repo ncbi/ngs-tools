@@ -88,8 +88,6 @@ class GeneralWriter:
     evt_logmsg             = (1 << 24) + evt_add_mbr_tbl
     evt_progmsg            = (1 << 24) + evt_logmsg
 
-    evt_max_id             = (1 << 24) + evt_progmsg # must be last
-
 
 
     def errorMessage(self, message):
