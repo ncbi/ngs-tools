@@ -74,15 +74,29 @@ class GeneralWriter:
     evt_empty_default   = (1 << 24) + evt_cell_data2    # this one is not used here
     
     # BEGIN VERSION 2 MESSAGES
-    evt_software_name   = (1 << 24) + evt_empty_default
-    evt_mdata_node_db   = (1 << 24) + evt_software_name
-    evt_mdata_node_tbl  = (1 << 24) + evt_mdata_node_db
-    evt_mdata_node_col  = (1 << 24) + evt_mdata_node_tbl
+    evt_software_name      = (1 << 24) + evt_empty_default
+    evt_db_metadata_node   = (1 << 24) + evt_software_name
+    evt_tbl_metadata_node  = (1 << 24) + evt_db_metadata_node
+    evt_col_metadata_node  = (1 << 24) + evt_tbl_metadata_node
+    evt_db_metadata_node2  = (1 << 24) + evt_col_metadata_node
+    evt_tbl_metadata_node2 = (1 << 24) + evt_db_metadata_node2
+    evt_col_metadata_node2 = (1 << 24) + evt_tbl_metadata_node2
+
+    evt_add_mbr_db         = (1 << 24) + evt_col_metadata_node2
+    evt_add_mbr_tbl        = (1 << 24) + evt_add_mbr_db
+
+    evt_logmsg             = (1 << 24) + evt_add_mbr_tbl
+    evt_progmsg            = (1 << 24) + evt_logmsg
+
+    evt_max_id             = (1 << 24) + evt_progmsg # must be last
+
 
 
     def errorMessage(self, message):
         os.write(sys.stdout.fileno(), _make1StringEvent(self.evt_errmsg, message.encode('utf-8')))
 
+    def logMessage(self, message):
+        os.write(sys.stdout.fileno(), _make1StringEvent(self.evt_logmsg, message.encode('utf-8')))
 
     def write(self, spec):
         tableId = spec['_tableId']
@@ -146,17 +160,17 @@ class GeneralWriter:
 
     @classmethod
     def _writeDbMetadata(cls, dbId, nodeName, nodeValue):
-        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_db + dbId, nodeName, nodeValue))
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_db_metadata_node + dbId, nodeName, nodeValue))
     
     
     @classmethod
     def _writeTableMetadata(cls, tblId, nodeName, nodeValue):
-        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_tbl + tblId, nodeName, nodeValue))
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_tbl_metadata_node + tblId, nodeName, nodeValue))
     
     
     @classmethod
     def _writeColumnMetadata(cls, colId, nodeName, nodeValue):
-        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_col + colId, nodeName, nodeValue))
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_col_metadata_node + colId, nodeName, nodeValue))
     
     
     @classmethod
