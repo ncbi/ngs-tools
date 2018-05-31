@@ -314,11 +314,13 @@ if __name__ == "__main__":
             }
         },
     }
-    gw = GeneralWriter(sys.argv[1], sys.argv[2], sys.argv[3], spec)
-    
+    gw = GeneralWriter('file name', 'test/bogus.vschema', 'Test:BOGUS:tbl', 'GeneralWriter-test', '1.0.0', spec)
+
     spec['SEQUENCE']['READ_LENGTH']['data'] = array.array('I', [ 1, 2 ])
     gw.write(spec['SEQUENCE'])
     gw.write(spec['SEQUENCE'])
 
-    gw = None
+    gw.logMessage('log message')
+    gw.errorMessage('error message')
 
+    gw = None
