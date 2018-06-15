@@ -26,7 +26,10 @@
 
 #include <align/reference.h> // ReferenceList_Release
 #include <align/unsupported_pileup_estimator.h> // ReleasePileupEstimator
+
 #include <klib/rc.h>
+#include <kapp/main.h>
+
 #include <iostream> // cout
 #include <cstdlib> // EXIT_SUCCESS
 
@@ -53,15 +56,72 @@ static rc_t ReferenceObjRelease ( const ReferenceObj * self ) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-int main ( int argc, char const * argv [] ) {
+static
+void handle_help ()
+{
+    std :: cout
+        << '\n'
+        << "Usage:\n"
+        << "  " << UsageDefaultName << " [options] <accession>"
+        << "\n\n"
+        << "Options:\n"
+        << "  -h|--help                        Output brief explanation for the program. \n"
+        << "  -V|--version                     Display the version of the program then\n"
+        << "                                   quit.\n"
+        ;
+    HelpVersion ( UsageDefaultName, KAppVersion () );
+}
+
+int run ( int argc, char const * argv [] ) {
     bool TESTING = getenv ( "VDB_TEST" ) != NULL;
-    const char * accession ( "SRR543323" );
-    if ( argc != 2 ) {
-        cerr << "Usage: " << argv [ 0 ] << " <accession>" << endl;
-        return EXIT_FAILURE;
+//    const char * accession ( "SRR543323" );
+   const char * accession = 0;
+
+    for ( int i = 1; i < argc; ++ i )
+    {
+        const char * arg = argv [ i ];
+        if ( arg [ 0 ] != '-' )
+        {
+            if ( accession != 0 )
+            {
+                cerr << "More than one accession specified" << endl;
+                return EXIT_FAILURE;
+            }
+            accession = argv [ i ];
+        }
+        else
+        {
+            switch ( arg [ 1 ] )
+            {
+            case 'h':
+                handle_help ();
+                return true;
+            case 'V':
+                HelpVersion ( UsageDefaultName, KAppVersion () );
+                return true;
+            case '-':
+                if ( strcmp ( & arg [ 2 ], "help"  ) == 0 )
+                {
+                    handle_help ();
+                    return true;
+                }
+                else if ( strcmp ( & arg [ 2 ], "version"  ) == 0 )
+                {
+                    HelpVersion ( UsageDefaultName, KAppVersion () );
+                    return true;
+                }
+                else
+                {
+                    cerr << "Invalid argument '" << & arg [ 2 ] << "'" << endl;
+                    return EXIT_FAILURE;
+                }
+                break;
+            default:
+                cerr << "Invalid argument '" << & arg [ 1 ] << "'" << endl;
+                return EXIT_FAILURE;
+            }
+        }
     }
-    else
-        accession = argv [ 1 ];
 
     const VDBManager * mgr = NULL;
     rc_t rc = VDBManagerMakeRead ( & mgr, NULL );
@@ -238,3 +298,24 @@ int main ( int argc, char const * argv [] ) {
 
     return rc == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
+
+extern "C"
+{
+    const char UsageDefaultName[] = "compute-coverage";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        return run ( argc, (const char**)argv );
+    }
+}
+

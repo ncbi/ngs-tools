@@ -32,6 +32,8 @@
 
 #include <strtol.h>
 
+#include <kapp/main.h>
+
 #include "vdb-search.hpp"
 
 using namespace std;
@@ -179,10 +181,12 @@ static void handle_help ( const char * appName )
          ;
 
     cout << endl;
+
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
 int
-main( int argc, char *argv [] )
+run( int argc, const char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -210,6 +214,11 @@ main( int argc, char *argv [] )
             else if ( arg == "-h" || arg == "--help" )
             {
                 handle_help ( argv [ 0 ]  );
+                return 0;
+            }
+            else if ( arg == "-V"  || arg == "--version" )
+            {
+                HelpVersion ( UsageDefaultName, KAppVersion () );
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
@@ -361,4 +370,25 @@ main( int argc, char *argv [] )
     }
 
     return rc;
+}
+
+
+extern "C"
+{
+    const char UsageDefaultName[] = "sra-search";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        return run ( argc, (const char**)argv );
+    }
 }

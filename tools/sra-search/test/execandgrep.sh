@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,5 +23,12 @@
 #
 # ===========================================================================
 
-# NGS-TOOLS and library version
-VERSION = 2.9.1
+#
+# A helper script to grep output of a command line (useful in CMake which does not do redirections on its own)
+#
+# $1 - the command line
+# $2 - pattern to grep for
+#
+# return code: as returned by $1 > grep $2
+
+$1 > grep $2
