@@ -1,5 +1,15 @@
 # NCBI External Developer Release:
 
+## NCBI NGS Toolkit 2.9.1
+**June 15, 2018**
+
+  **fasterq-dump**: a tool to dump a whole run in fastq by using a simple query engine approach  
+  **kfg, vdb-config**: name resolver service now makes use of fcgi  
+  **kfg, vfs**: Fixed a bug that prevented decryption of objects encrypted with non-UTF8 text password keys  
+  **kns**: Randomly select from multiple proxies in configuration  
+  **ngs-tools**: all tools now report their version correctly  
+
+
 ## NGS Tools 2.9.0
 **February 23, 2018**
 
