@@ -35,6 +35,7 @@
 #include "operation.hpp"
 
 #include <kfc/rsrc.h>
+#include <kapp/main.h>
 
 #include <iostream>
 #include <string.h>
@@ -79,7 +80,7 @@ namespace fastrq
         return purse;
     }
 
-    static 
+    static
     FastRQOperation * make_operation ( const FastRQSettings &settings )
     {
         if ( settings . op == op_refseq )
@@ -88,21 +89,28 @@ namespace fastrq
         return makeReadOperation ();
     }
 
-    static 
-    void handle_help ( const char *appName )
+    rc_t CC Usage ( struct Args const * args )
     {
-        const char *appLeaf = strrchr ( appName, '/' );
-        if ( appLeaf ++ == 0 )
-            appLeaf = appName;
-    
+        return 0;
+    }
+
+    static
+    void handle_help ()
+    {
         std :: cout
             << '\n'
             << "Usage:\n"
-            << "  " << appLeaf << " [options] <accession>"
+            << "  " << UsageDefaultName << " [options] <accession>"
             << "\n\n"
             << "Options:\n"
-            << '\n'
+            << "  -l|-L|--spot_id_length <value>   Minimum spot_id length.\n"
+            << "  -n|-N|--max_n_count <value>      Filter out reads with more than <value> 'N' bases.\n"
+            << "  --fasta                          Output in FASTA format.\n"
+            << "  -h|-?|--help                     Output brief explanation for the program. \n"
+            << "  -V|--version                     Display the version of the program then\n"
+            << "                                   quit.\n"
             ;
+        HelpVersion ( UsageDefaultName, KAppVersion () );
     }
 
     static
@@ -139,8 +147,6 @@ namespace fastrq
     static
     bool parse_cmdline ( int argc, const char *argv [], FastRQSettings &settings )
     {
-        const char *appName = argv [ 0 ];
-        
         for ( int i = 1; i < argc; ++ i )
         {
             const char * arg = argv [ i ];
@@ -153,7 +159,7 @@ namespace fastrq
             {
             case 'h':
             case '?':
-                handle_help ( appName );
+                handle_help ();
                 return true;
             case 'l':
             case 'L': // Get the minimum spot_id length
@@ -165,6 +171,9 @@ namespace fastrq
                 ++ arg;
                 settings . n_count = ( uint32_t ) smart_atoi ( nextArg ( arg, i, argc, argv ) );
                 break;
+            case 'V':
+                HelpVersion ( UsageDefaultName, KAppVersion () );
+                return true;
             case '-':
                 ++ arg;
                 if ( strcmp ( arg, "fasta"  ) == 0 )
@@ -175,16 +184,21 @@ namespace fastrq
                     settings . n_count = ( uint32_t ) atoi ( nextArg ( i, argc, argv ) );
                 else if ( strcmp ( arg, "help"  ) == 0 )
                 {
-                    handle_help ( appName );
+                    handle_help ();
+                    return true;
+                }
+                else if ( strcmp ( arg, "version"  ) == 0 )
+                {
+                    HelpVersion ( UsageDefaultName, KAppVersion () );
                     return true;
                 }
                 else
                 {
                     throw "Invalid Argument";
                 }
-            
+
                 arg = "\0";
-                
+
                 break;
             default:
                 throw "Invalid argument";
@@ -196,7 +210,7 @@ namespace fastrq
     }
 
     static
-    int run ( int argc, char const *argv[] )
+    int run ( int argc, const char *argv[] )
     {
         FastRQSettings settings;
 
@@ -226,40 +240,53 @@ namespace fastrq
         delete ( operation );
         delete ( filters );
         delete ( formatter );
-        
+
         return 0;
     }
 }
 
-using namespace ngs;
-
-int main ( int argc, char const *argv[] )
+extern "C"
 {
-    try
-    {
-        return fastrq :: run ( argc, argv );
+    const char UsageDefaultName[] = "fastrq-dump";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see handle_help()
+        return 0;
     }
-    catch ( ErrorMsg & x )
-    {
-        std :: cerr <<  x.toString () << '\n';
-        return -1;
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see handle_help()
+        return 0;
     }
-    catch ( std :: exception & x )
+
+    rc_t CC KMain ( int argc, char *argv [] )
     {
-        std :: cerr <<  x.what () << '\n';
-        return -1;
+        try
+        {
+            return fastrq :: run ( argc, (const char**)argv );
+        }
+        catch ( ErrorMsg & x )
+        {
+            std :: cerr <<  x.toString () << '\n';
+            return -1;
+        }
+        catch ( std :: exception & x )
+        {
+            std :: cerr <<  x.what () << '\n';
+            return -1;
+        }
+        catch ( const char x [] )
+        {
+            std :: cerr <<  x << '\n';
+            return -1;
+        }
+        catch ( ... )
+        {
+            std :: cerr <<  "unknown exception\n";
+            return -1;
+        }
+
+        return 0;
     }
-    catch ( const char x [] )
-    {
-        std :: cerr <<  x << '\n';
-        return -1;
-    }
-    catch ( ... )
-    {
-        std :: cerr <<  "unknown exception\n";
-        return -1;
-    }
-    
-    return 0;
 }
 

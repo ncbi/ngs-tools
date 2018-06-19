@@ -30,6 +30,8 @@
 #include <ngs/ReadIterator.hpp>
 #include <ngs/Read.hpp>
 
+#include <kapp/main.h>
+
 
 #include <math.h>
 #include <iostream>
@@ -50,7 +52,7 @@ class Range
         uint64_t len;
 
         Range() : offset( 0 ), len( 0 ) {}
-        
+
         Range( const String & spec )
         {
             const string::size_type dash_pos = spec.find( DASH );
@@ -79,11 +81,11 @@ class Range
                 len = offset <= end ? end - offset : offset - end;
                 if ( offset > end ) { offset = end; }
             }
-            
+
             /* we expect the coordinates 1-based, but we are using internally 0-based offsets */
             if ( offset > 0 ) { offset--; }
         }
-        
+
         static uint64_t to_uint64_t( const String & num )
         {
             uint64_t res = 0;
@@ -101,7 +103,7 @@ class Range
             else
             {
                 if ( offset >= reflen ) { offset = reflen - 1; }
-                
+
                 if ( len == 0 )
                 {
                     len = reflen - offset;
@@ -119,9 +121,9 @@ class Slice
     public :
         String name;
         Range range;
-    
+
         Slice() {}
-        
+
         // spec = 'name[:from[-to]]' or 'name[:from[.count]]'
         Slice( const String & spec )
         {
@@ -154,7 +156,7 @@ class DumpReferenceFASTA
                 uint64_t count = 0;
                 uint64_t offset = range.offset;
                 uint64_t left = range.len;
-                
+
                 while ( left > 0 )
                 {
                     StringRef chunk = ref.getReferenceChunk( offset, left > CHUNK_SIZE ? CHUNK_SIZE : left );
@@ -172,7 +174,7 @@ class DumpReferenceFASTA
                             line = 0;
                         }
                     }
-                    offset += chunk_len;                    
+                    offset += chunk_len;
                     count += chunk_len;
                     left -= chunk_len;
                 }
@@ -181,10 +183,10 @@ class DumpReferenceFASTA
             }
             catch ( ErrorMsg x )
             {
-                cerr <<  x.toString() << '\n';            
+                cerr <<  x.toString() << '\n';
             }
         }
-    
+
     static void run( const String & acc, Slice * slices, int n )
     {
         // open requested accession using SRA implementation of the API
@@ -219,15 +221,27 @@ class DumpReferenceFASTA
 static void print_help ( void )
 {
     cout << "Usage: dump-ref-fasta accession [ reference[ slice ] ] ... " << endl;
+
+    cout
+        << '\n'
+        << "Usage:\n"
+        << "  " << UsageDefaultName << " [options] accession [ reference[ slice ] ] ... "
+        << "\n\n"
+        << "Options:\n"
+        << "  -h|--help                        Output brief explanation for the program. \n"
+        << "  -v|-V|--version                  Display the version of the program then\n"
+        << "                                   quit.\n"
+        ;
+
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
 static void print_version ( void )
 {
-    cout << "dump-ref-fata : 2.9.0" << endl;
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
-
-int main ( int argc, char const *argv[] )
+int run ( int argc, char const *argv[] )
 {
     if ( argc < 2 )
     {
@@ -241,7 +255,7 @@ int main ( int argc, char const *argv[] )
         {
             print_help ();
         }
-        else if ( arg1 == "-v" || arg1 == "--version" )
+        else if ( arg1 == "-v" || arg1 == "-V" || arg1 == "--version" )
         {
             print_version ();
         }
@@ -278,3 +292,49 @@ int main ( int argc, char const *argv[] )
 
     return 10;
 }
+
+extern "C"
+{
+    const char UsageDefaultName[] = "dump-ref-fasta";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see print_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see print_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        try
+        {
+            return run ( argc, (const char**)argv );
+        }
+        catch ( ErrorMsg & x )
+        {
+            std :: cerr <<  x.toString () << '\n';
+            return -1;
+        }
+        catch ( std :: exception & x )
+        {
+            std :: cerr <<  x.what () << '\n';
+            return -1;
+        }
+        catch ( const char x [] )
+        {
+            std :: cerr <<  x << '\n';
+            return -1;
+        }
+        catch ( ... )
+        {
+            std :: cerr <<  "unknown exception\n";
+            return -1;
+        }
+
+        return 0;
+    }
+}
+

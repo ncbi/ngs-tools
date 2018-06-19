@@ -288,8 +288,8 @@ class FastQData:
         f5 = poretools.Fast5File(fname)
         try:
             if f5.get_channel_number() == None:
-                errMsg = "Info:\tchannel number missing. skipping file '{}'".format(os.path.basename(fname))
-                gw.errorMessage(errMsg)
+                logMsg = "Info:\tchannel number missing. skipping file '{}'".format(os.path.basename(fname))
+                gw.logMessage(logMsg)
                 return None
 
             channel = int(f5.get_channel_number())

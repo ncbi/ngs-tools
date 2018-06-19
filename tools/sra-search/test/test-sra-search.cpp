@@ -632,6 +632,10 @@ FIXTURE_TEST_CASE ( Unaligned, VdbSearchFixture )
     //etc...
 }
 
+#if WIN32
+    #define main wmain
+#endif
+
 int
 main( int argc, char *argv [] )
 {

@@ -32,7 +32,8 @@
 
 #include <strtol.h>
 
-#include <tk-version/inc/toolkit.vers.h>
+#include <kapp/main.h>
+
 #include "vdb-search.hpp"
 
 using namespace std;
@@ -180,10 +181,12 @@ static void handle_help ( const char * appName )
          ;
 
     cout << endl;
+
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
 int
-main( int argc, char *argv [] )
+run( int argc, const char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -215,11 +218,7 @@ main( int argc, char *argv [] )
             }
             else if ( arg == "-V"  || arg == "--version" )
             {
-                cout << endl << argv [0] << " : "
-                             << VersionGetMajor ( TOOLKIT_VERS ) << "."
-                             << VersionGetMinor ( TOOLKIT_VERS ) << "."
-                             << VersionGetRelease ( TOOLKIT_VERS )
-                             << endl;
+                HelpVersion ( UsageDefaultName, KAppVersion () );
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
@@ -371,4 +370,25 @@ main( int argc, char *argv [] )
     }
 
     return rc;
+}
+
+
+extern "C"
+{
+    const char UsageDefaultName[] = "sra-search";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        return run ( argc, (const char**)argv );
+    }
 }

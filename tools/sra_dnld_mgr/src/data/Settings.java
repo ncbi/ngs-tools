@@ -56,7 +56,7 @@ public class Settings extends IniFile
     private static final int DFLT_YPOS = 100;
     private static final int DFLT_WIDTH = 500;
     private static final int DFLT_HEIGHT = 400;
-    private static final String DFLT_RESOLVER_URL = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+    private static final String DFLT_RESOLVER_URL = "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
     private static final int DFLT_DNLD_BLOCK_SIZE = 1024 * 128;
     private static final int DFLT_CONN_TIMEOUT = 5000;
     private static final int DFLT_READ_TIMEOUT = 5000;
