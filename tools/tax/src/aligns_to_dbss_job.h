@@ -49,8 +49,8 @@ struct DBSSJob : public DBSJob
 			throw std::runtime_error("inconsistent dbss annotation file");
 
 		auto tax_list = load_tax_list(dbss_tax_list);
-		if (tax_list.empty())
-			throw std::runtime_error("empty tax list");
+//		if (tax_list.empty())
+//			throw std::runtime_error("empty tax list");
 
 		load_dbss(dbss, tax_list, annotation);
 	}
