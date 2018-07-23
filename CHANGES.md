@@ -1,5 +1,10 @@
 # NCBI External Developer Release:
 
+## NCBI NGS Toolkit 2.9.2
+**July 23, 2018**
+  **kfg, vfs**: Introduced enhanced handling of download-only NGC files that lack read/decrypt permissions
+
+
 ## NCBI NGS Toolkit 2.9.1
 **June 15, 2018**
 
