@@ -106,8 +106,8 @@ struct Config
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl
             << "-dbsm <database +taxes>" << std::endl
-            << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl
-            << "-many <comma-separated list of databases>" << std::endl;
+            << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl;
+//            << "-many <comma-separated list of databases>" << std::endl;
 	}
 
 private:

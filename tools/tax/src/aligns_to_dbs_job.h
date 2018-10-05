@@ -29,7 +29,7 @@
 
 #include "aligns_to_job.h"
 
-#define LOOKUP_TABLE 0
+#define LOOKUP_TABLE 1
 
 struct DBSJob : public Job
 {
@@ -119,6 +119,8 @@ public:
 #if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
             auto &bucket = hash_lookup_table[bucket_idx];
+            auto first = hash_array.begin() + bucket.first;
+            auto last = hash_array.begin() + bucket.second;
 #else
             auto first = hash_array.begin();
             auto last = hash_array.end();
@@ -233,12 +235,13 @@ public:
 	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
         hide_counts = config.hide_counts;
-		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
+        Matcher m(hash_array, kmer_len);
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
 	}
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) override
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, Matcher &m) // override
     {
-		Matcher m(hash_array, kmer_len);
+//		Matcher m(hash_array, kmer_len);
 		TaxPrinter print(!hide_counts, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }

@@ -38,7 +38,7 @@
 struct Job
 {
 	virtual void run(const std::string &contig_filename, IO::Writer &writer, const Config &config) = 0;
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer) = 0;
+//    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer);
 
 	template <class Matcher, class Printer, class MatchId>
     static void match_and_print(const std::vector<Reader::Fragment> &chunk, Printer &print, Matcher &matcher)

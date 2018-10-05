@@ -68,7 +68,7 @@ struct ManyJobs : public Job
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &_writer) override
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &_writer)
     {
         int stream_id = 0;
         for (auto &job : jobs)
