@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.52";
+const std::string VERSION = "0.54";
 
 typedef uint64_t hash_t;
 

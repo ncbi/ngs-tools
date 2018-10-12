@@ -37,12 +37,10 @@
 struct Config
 {
 	std::string reference, db, dbs, dbsm, dbss, many, dbss_tax_list, contig_file, spot_filter_file, out;
-    bool unaligned_only;
-    bool hide_counts;
+    bool unaligned_only = false;
+    bool hide_counts = false, compact = false;
 
 	Config(int argc, char const *argv[])
-        : hide_counts(false)
-        , unaligned_only(false)
 	{
         std::list<std::string> args;
         for (int i = 1; i < argc; ++i)
@@ -64,6 +62,8 @@ struct Config
                 dbss_tax_list = pop_arg(args);
             else if (arg == "-hide_counts")
                 hide_counts = true;
+            else if (arg == "-compact")
+                compact = true;
             else if (arg == "-unaligned_only")
                 unaligned_only = true;
             else if (arg == "-out")
@@ -101,7 +101,7 @@ struct Config
 
 	static void print_usage()
 	{
-        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-unaligned_only] <contig fasta or accession>" << std::endl 
+        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-compact] [-unaligned_only] <contig fasta or accession>" << std::endl 
             << "where <database> is one of:" << std::endl
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl

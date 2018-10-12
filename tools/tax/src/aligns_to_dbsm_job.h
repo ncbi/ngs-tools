@@ -109,7 +109,7 @@ public:
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer)
     {
 		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(!hide_counts, writer);
+		TaxPrinter print(!hide_counts, false, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };

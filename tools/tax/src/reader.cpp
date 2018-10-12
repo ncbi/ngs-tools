@@ -58,7 +58,7 @@ static ReaderPtr create_threaded(const std::string& filter_file, bool exclude_fi
     if (thread_count < 0) {
 //        thread_count = std::max(omp_get_max_threads() / 2, 1);
 //        thread_count = std::max(std::thread::hardware_concurrency() / 2, 1u);
-        thread_count = 1; //std::max(std::thread::hardware_concurrency() / 2, 1u); workaround over ngs high overhead
+        thread_count = 1; //bug SRA-6371 - does not work with stdin std::max(std::thread::hardware_concurrency() / 2, 1u); workaround over ngs high overhead
     }
     if (chunk_size == 0) {
         chunk_size = Reader::DEFAULT_CHUNK_SIZE;

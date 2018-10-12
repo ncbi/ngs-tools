@@ -28,6 +28,7 @@
 #define ALIGNS_TO_DBS_JOB_H_INCLUDED
 
 #include "aligns_to_job.h"
+#include <set>
 
 #define LOOKUP_TABLE 1
 
@@ -199,42 +200,121 @@ public:
 	struct TaxPrinter
 	{
         IO::Writer &writer;
-        const bool print_counts;
-		TaxPrinter(bool print_counts, IO::Writer &writer) : print_counts(print_counts), writer(writer) {}
+        const bool print_counts, compact;
+		TaxPrinter(bool print_counts, bool compact, IO::Writer &writer) : print_counts(print_counts), compact(compact), writer(writer) {}
 
 		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
 		{
+			if (compact)
+				print_compact(processing_sequences, ids);
+			else
+				print(processing_sequences, ids);
+
+			writer.check();
+        }
+
+	private:
+		void print(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
+        {
 			for (auto seq_id : ids)
+				print_id_info(processing_sequences, seq_id);
+		}
+
+		void print_spotid(const Reader::Fragment &fragment)
+		{
+			for (auto c : fragment.spotid) 
 			{
-//                if (writer.stream_id >= 0)
-//                    writer.f() << writer.stream_id  << '\t';
+            	if (c == '\t' || c == '\n')
+                	c = ' ';
+				writer.f() << c;
+			}
+		}
 
-                for (auto c : processing_sequences[seq_id.seq_id].spotid) 
-                {
-                    if (c == '\t' || c == '\n')
-                        c = ' ';
-                    writer.f() << c;
-                }
+		void print_id_info(const std::vector<Reader::Fragment> &processing_sequences, const TaxMatchId &seq_id)
+		{
+			print_spotid(processing_sequences[seq_id.seq_id]);
 
-                for (auto &hit : seq_id.hits) 
-                {
-                    writer.f() << '\t' << hit.first;
-                    if (print_counts && hit.second > 1)
-                        writer.f() << 'x' << hit.second;
-                }
-
-                writer.f() << std::endl;
+			for (auto &hit : seq_id.hits) 
+            {
+            	writer.f() << '\t' << hit.first;
+                if (print_counts && hit.second > 1)
+                	writer.f() << 'x' << hit.second;
 			}
 
-            writer.check();
+			writer.f() << std::endl;
         }
+
+		void print_compact(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
+        {
+			int from = 0, to = 0;
+			for (from = 0; from < ids.size() && processing_sequences.begin()->spotid == processing_sequences[ids[from].seq_id].spotid; from++);
+			for (to = ids.size() - 1; to >= 0 && processing_sequences.rbegin()->spotid == processing_sequences[ids[to].seq_id].spotid; to--);
+
+			print_first_and_last(processing_sequences, ids, from, to); // to merge them later correctly
+
+			auto spots = merge_to_spots(processing_sequences, ids, from, to);
+			auto reverse_index = spot_tax_reverse_index(spots);
+
+			for (auto &x: reverse_index)
+			{
+				writer.f() << x.second;
+				for (auto &tax : x.first)
+					writer.f() << '\t' << tax;
+
+				writer.f() << std::endl;
+			}
+        }
+
+		void print_first_and_last(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids, int &from, int &to)
+		{
+			for (int i = 0; i < from; i++)
+			{
+				writer.f() << '\t';
+				print_id_info(processing_sequences, ids[i]);
+			}
+
+			for (int i = to + 1; i < ids.size(); i++)
+			{
+				writer.f() << '\t';
+				print_id_info(processing_sequences, ids[i]);
+			}
+		}
+
+		typedef std::map<int, std::set<int> > SpotTaxIds; // todo: unordered map ?
+
+		SpotTaxIds merge_to_spots(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids, int &from, int &to)
+		{
+			SpotTaxIds spots;
+			for (int i = from; i <= to; i++)
+			{
+				auto &spot = spots[std::stol(processing_sequences[ids[i].seq_id].spotid)];
+				for (auto &hit : ids[i].hits)
+					spot.insert(hit.first);
+			}
+
+			return spots;
+		}
+		
+		typedef std::map< std::set<int>, int> TaxSpotIds;
+
+		TaxSpotIds spot_tax_reverse_index(const SpotTaxIds &spots)
+		{
+			TaxSpotIds tax_spots;
+			for (auto &spot : spots)
+				tax_spots[spot.second]++;
+
+			return tax_spots;
+		}
+
 	};
 
     bool hide_counts = false;
+    bool compact = false;
 
 	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
         hide_counts = config.hide_counts;
+        compact = config.compact;
         Matcher m(hash_array, kmer_len);
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
 	}
@@ -242,7 +322,7 @@ public:
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, Matcher &m) // override
     {
 //		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(!hide_counts, writer);
+		TaxPrinter print(!hide_counts, compact, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };
