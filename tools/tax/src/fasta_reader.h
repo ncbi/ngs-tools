@@ -51,6 +51,7 @@ private:
 
     void read_line(std::string& line) {
         std::getline(*f, line);
+
         // handling windows line endings
         if (!line.empty() && *line.rbegin() == '\r')
             line.erase(line.size() - 1);
@@ -84,7 +85,7 @@ public:
         
         std::string line;
         read_line(line);
-        
+
 //		if (line.empty())
 //			throw std::runtime_error("fasta file is empty");
 
@@ -142,7 +143,7 @@ public:
         if (output) 
         {
             if (output->bases.empty())
-                throw std::runtime_error("Read is empty");
+                throw std::runtime_error(std::string("Read is empty: ") + last_desc);
 //            output->bases.shrink_to_fit(); todo: tune
         }
 
