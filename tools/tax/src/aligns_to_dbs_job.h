@@ -280,14 +280,16 @@ public:
 			}
 		}
 
-		typedef std::map<int, std::set<int> > SpotTaxIds; // todo: unordered map ?
+        typedef long long spot_id_t;
+        typedef int tax_id_t;
+		typedef std::map<spot_id_t, std::set<tax_id_t> > SpotTaxIds; // todo: unordered map ?
 
 		SpotTaxIds merge_to_spots(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids, int &from, int &to)
 		{
 			SpotTaxIds spots;
 			for (int i = from; i <= to; i++)
 			{
-				auto &spot = spots[std::stol(processing_sequences[ids[i].seq_id].spotid)];
+				auto &spot = spots[std::stoll(processing_sequences[ids[i].seq_id].spotid)];
 				for (auto &hit : ids[i].hits)
 					spot.insert(hit.first);
 			}
@@ -295,7 +297,7 @@ public:
 			return spots;
 		}
 		
-		typedef std::map< std::set<int>, int> TaxSpotIds;
+		typedef std::map< std::set<tax_id_t>, spot_id_t> TaxSpotIds;
 
 		TaxSpotIds spot_tax_reverse_index(const SpotTaxIds &spots)
 		{
