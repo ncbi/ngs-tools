@@ -15,13 +15,19 @@ if ( NOT WIN32)
     add_test ( NAME dump-ref-fasta-1.2-V WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} -V" ${VERSION} )
     add_test ( NAME dump-ref-fasta-1.3-v WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} -v" ${VERSION} )
     add_test ( NAME dump-ref-fasta-1.4-version WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND ./execandgrep.sh "${DUMP_REF_FASTA} --version" ${VERSION} )
-	# regular run
-	add_test ( NAME dump-ref-fasta-2.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 2.0 --args "SRR821492 | head -n 100" )
+	# regular run (includes non-local references starting at around 365000 bytes)
+	add_test ( NAME dump-ref-fasta-2.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 2.0 --args "SRR496123  | head -n 370000" )
+	# full ref
+    add_test ( NAME dump-ref-fasta-3.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 3.0 --args "SRR496123 NW_003336815.1" )
 	# slice
-    add_test ( NAME dump-ref-fasta-3.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 3.0 --args "SRR821492 NC_000002.11:1000-2000" )
-	# local references only
-    add_test ( NAME dump-ref-fasta-4.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 4.0 --args "--localref SRR821492" )
-	# local references only, slice
-    add_test ( NAME dump-ref-fasta-4.1 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 4.1 --args "-l SRR821492 NC_000002.11:1000-2000" )
+    add_test ( NAME dump-ref-fasta-3.1 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 3.1 --args "SRR496123 NW_003336815.1:0-100" )
+	# open slice
+    add_test ( NAME dump-ref-fasta-3.2 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 3.2 --args "SRR496123 NW_003336815.1:100" )
+	# multiple slices on the same ref
+    add_test ( NAME dump-ref-fasta-3.3 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 3.3 --args "SRR496123 NW_003336837.1:100-200 NW_003336815.1:0-100" )
+	# local references only (non-local references start at around 365000 bytes)
+    add_test ( NAME dump-ref-fasta-4.0 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 4.0 --args "--localref SRR496123  | head -n 370000" )
+	# local references only, slice (NW_001884453.3 is non-local and will not be included)
+    add_test ( NAME dump-ref-fasta-4.1 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COMMAND runtestcase.sh ${DUMP_REF_FASTA} 4.1 --args "-l SRR496123 NW_003336837.1:100-200 NW_001884453.3:0-100" )
 
 endif ()
