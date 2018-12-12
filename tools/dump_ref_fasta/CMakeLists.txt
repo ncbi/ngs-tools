@@ -11,3 +11,5 @@ target_link_libraries ( dump-ref-fasta
 )
 
 links_and_install (dump-ref-fasta)
+
+add_subdirectory ( test )
