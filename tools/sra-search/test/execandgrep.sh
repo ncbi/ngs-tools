@@ -31,4 +31,4 @@
 #
 # return code: as returned by $1 > grep $2
 
-$1 > grep $2
+$1 | grep $2
