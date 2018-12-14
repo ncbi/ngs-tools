@@ -149,7 +149,7 @@ class DumpReferenceFASTA
     public :
         static void process ( const Reference & ref, const Range & range )
         {
-            cout << '>' << ref.getCanonicalName () << ':' << range.offset + 1 << '.' << range.len << '\n';
+            cout << '>' << ref.getCanonicalName () << endl; // VDB-3665: do not need the slice // << ':' << range.offset + 1 << '.' << range.len << '\n';
             try
             {
                 size_t line = 0;
