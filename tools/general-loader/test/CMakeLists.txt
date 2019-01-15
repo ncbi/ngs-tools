@@ -57,7 +57,7 @@ if ( NOT WIN32)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test ( NAME GeneralLoader-1.0-Basic-Unpacked
-                COMMAND ${CMD} 1 0 -I${VDB_INCDIR}
+                COMMAND ${CMD} 1 0 "-I${VDB_INCDIR} -L=debug"
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
         add_test ( NAME GeneralLoader-1.1-Basic-Packed
