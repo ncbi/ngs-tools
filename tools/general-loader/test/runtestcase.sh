@@ -98,12 +98,11 @@ fi
 
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
-    cat $TEMPDIR/load.stderr
     echo "command executed:"
     echo $CMD
     exit 4
 fi
 
-#rm -rf $TEMPDIR
+rm -rf $TEMPDIR
 
 exit 0
