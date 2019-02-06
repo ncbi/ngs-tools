@@ -149,7 +149,7 @@ class DumpReferenceFASTA
     public :
         static void process ( const Reference & ref, const Range & range )
         {
-            cout << '>' << ref.getCanonicalName () << ':' << range.offset + 1 << '.' << range.len << '\n';
+            cout << '>' << ref.getCanonicalName () << endl; // VDB-3665: do not need the slice // << ':' << range.offset + 1 << '.' << range.len << '\n';
             try
             {
                 size_t line = 0;
@@ -187,7 +187,7 @@ class DumpReferenceFASTA
             }
         }
 
-    static void run( const String & acc, Slice * slices, int n )
+    static void run( const String & acc, Slice * slices, int n, bool local_only )
     {
         // open requested accession using SRA implementation of the API
         ReadCollection run = ncbi::NGS::openReadCollection( acc );
@@ -198,12 +198,15 @@ class DumpReferenceFASTA
             {
                 ref = run.getReference( slices[ i ].name );
             }
-            slices[ i ].range.adjust_by_reflen( ref.getLength() );
-            process( ref, slices[ i ].range );
+            if ( ! local_only || ref.getIsLocal() )
+            {
+                slices[ i ].range.adjust_by_reflen( ref.getLength() );
+                process( ref, slices[ i ].range );
+            }
         }
     }
 
-    static void run( const String & acc )
+    static void run( const String & acc, bool local_only )
     {
 
         // open requested accession using SRA implementation of the API
@@ -211,9 +214,12 @@ class DumpReferenceFASTA
         ReferenceIterator refs = run.getReferences();
         while ( refs.nextReference () )
         {
-            Slice slice( refs.getCanonicalName() );
-            slice.range.adjust_by_reflen( refs.getLength() );
-            process( refs, slice.range );
+            if ( ! local_only || refs.getIsLocal() )
+            {
+                Slice slice( refs.getCanonicalName() );
+                slice.range.adjust_by_reflen( refs.getLength() );
+                process( refs, slice.range );
+            }
         }
     }
 };
@@ -228,6 +234,7 @@ static void print_help ( void )
         << "  " << UsageDefaultName << " [options] accession [ reference[ slice ] ] ... "
         << "\n\n"
         << "Options:\n"
+        << "  -l|--localref                    Skip non-local references. \n"
         << "  -h|--help                        Output brief explanation for the program. \n"
         << "  -v|-V|--version                  Display the version of the program then\n"
         << "                                   quit.\n"
@@ -246,35 +253,62 @@ int run ( int argc, char const *argv[] )
     if ( argc < 2 )
     {
         print_help ();
+        return 1;
     }
     else try
     {
         ncbi::NGS::setAppVersionString ( "DumpReferenceFASTA.1.0.0" );
-        const String arg1( argv[ 1 ] );
-        if ( arg1 == "-h" || arg1 == "--help" )
+
+        String acc;
+        Slice * slices = 0;
+        int n = 0;
+        bool local_only = false;
+
+        unsigned int i = 1;
+        while ( i < argc )
         {
-            print_help ();
-        }
-        else if ( arg1 == "-v" || arg1 == "-V" || arg1 == "--version" )
-        {
-            print_version ();
-        }
-        else
-        {
-            if ( argc > 2 )
+            const String arg = argv [ i ];
+
+            if ( arg == "-h" || arg == "--help" )
             {
-                int n = ( argc - 2 );
-                Slice * slices = new Slice[ n ];
-                for ( int i = 0; i < n; ++i )
-                    slices[ i ] = Slice( argv[ 2 + i ] );
-                DumpReferenceFASTA::run( arg1, slices, n );
-                delete [] slices;
+                print_help ();
+                return 0;
+            }
+            else if ( arg == "-v" || arg == "-V" || arg == "--version" )
+            {
+                print_version ();
+                return 0;
+            }
+            else if ( arg == "-l" || arg == "--localref" )
+            {
+                local_only = true;
             }
             else
             {
-                DumpReferenceFASTA::run( arg1 );
+                acc = arg;
+                if ( argc > i + 1 )
+                {
+                    n = ( argc - i - 1 );
+                    slices = new Slice[ n ];
+                    for ( int j = 0; j < n; ++j )
+                        slices[ j ] = Slice( argv[ i + j + 1] );
+                    i += n;
+                }
             }
+
+            ++i;
         }
+
+        if ( n != 0 )
+        {
+            DumpReferenceFASTA::run( acc, slices, n, local_only );
+        }
+        else
+        {
+            DumpReferenceFASTA::run( acc, local_only );
+        }
+
+        delete [] slices;
         return 0;
     }
     catch ( ErrorMsg &x )
