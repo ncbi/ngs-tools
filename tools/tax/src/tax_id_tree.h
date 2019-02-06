@@ -91,6 +91,20 @@ struct TaxIdTree
 		return node_ptr->subids.find(tax_a) != node_ptr->subids.end();
 	}
 
+	int level(tax_id_t tax_id) const
+	{
+		auto it = nodes.find(tax_id);
+		if (it == nodes.end())
+			return 0;
+
+		return level(it->second->parent_tax_id) + 1;
+	}
+
+	bool known_id(tax_id_t tax_id) const
+	{
+		return nodes.find(tax_id) != nodes.end();
+	}
+
 	Node *get_node_ptr(tax_id_t tax_id) const
 	{
 		auto it = nodes.find(tax_id);
