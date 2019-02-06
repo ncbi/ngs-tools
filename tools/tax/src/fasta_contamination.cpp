@@ -163,8 +163,9 @@ int main(int argc, char const *argv[])
 
 	HashSortedArray hash_array;
 	int kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
+	cerr << "dbs loaded" << endl;
 
-    const int THREADS = 48;
+    const int THREADS = 16;
 #if SORTED
     list<Contamination> contaminations; // todo: list ?
 #endif
