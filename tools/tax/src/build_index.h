@@ -30,7 +30,8 @@
 #include <iostream>
 #include "omp_adapter.h"
 //#include "kmers.h"
-//#include "kmer_io.h"
+#include "kmer_io.h"
+#include "seq_transform.h"
 #include "kmer_hash.h"
 #include "ready_seq.h"
 
