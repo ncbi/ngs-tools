@@ -24,34 +24,42 @@
 *
 */
 
-#pragma once
+#ifndef CONFIG_FILTER_DB_H_INCLUDED
+#define CONFIG_FILTER_DB_H_INCLUDED
 
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
+#include <string>
+#include "log.h"
 
-struct FilterDB
+struct Config
 {
-    static int predicted(const std::string &kmer)
-    {
-	    int pred = 0;
+	std::string in_file, out_file;
+	int argc;
+	char const **argv;
 
-	    for (int i = 4; i < int(kmer.length()); i++)
-		    if (kmer[i] == kmer[i - 1] && kmer[i - 1] == kmer[i - 2] && kmer[i - 2] == kmer[i - 3] && kmer[i - 3] == kmer[i - 4])
-			    pred++;
-		    else if (i >= 4*2 && kmer[i] == kmer[i - 2] && kmer[i - 2] == kmer[i - 4] && kmer[i - 4] == kmer[i - 6] && kmer[i - 6] == kmer[i - 8])
-			    pred++;
-		    else if (i >= 4*3 && kmer[i] == kmer[i - 1*3] && kmer[i - 1*3] == kmer[i - 2*3] && kmer[i - 2*3] == kmer[i - 3*3] && kmer[i - 3*3] == kmer[i - 4*3])
-			    pred++;
-
-	    return pred;
-    }
-
-    static int min_score(int kmer_len) { return 13 * kmer_len/32; }// const 13 was designed for 32 bp kmers
-
-	static bool low_complexity(const std::string &kmer)
+	std::string arg(int index) const
 	{
-		return FilterDB::predicted(kmer) >= FilterDB::min_score(kmer.length());
+		if (index >= argc)
+			fail();
+
+		return std::string(argv[index]);
 	}
-	
+
+	Config(int argc, char const *argv[]) : argc(argc), argv(argv)
+	{
+		in_file = arg(1);
+		out_file = arg(2);
+	}
+
+	void fail() const
+	{
+		print_usage();
+        exit(1);
+	}
+
+	static void print_usage()
+	{
+		std::cerr << "need <in .dbs> <out .dbs>" << std::endl;
+	}
 };
+
+#endif
