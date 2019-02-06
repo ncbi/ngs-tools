@@ -23,35 +23,24 @@
 * ===========================================================================
 *
 */
-#pragma once
 #include <string>
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include "dbs.h"
+#include "config_db_to_dbs.h"
 
-struct FilenameMeta
+int main(int argc, char const *argv[])
 {
-    static bool is_eukaryota(const std::string &filename)
-    {
-	    return filename.find("/Eukaryota/") != std::string::npos;
-    }
+	Config config(argc, argv);
 
-    static bool is_virus(const std::string &filename)
-    {
-	    return filename.find("/Viruses/") != std::string::npos;
-    }
+	std::vector<hash_t> db;
+	int kmer_len = DBSIO::load_dbs(config.db, db);
 
-    static int tax_id_from(const std::string &filename)
-    {
-	    auto to = filename.find_last_of('.');
-	    auto from = filename.find_last_of('/') + 1;
-	    return stoi(filename.substr(from, to - from));
-    }
-/*
-    static int tax_id_from_folder(const std::string &filename)
-    {
-	    auto to = filename.find_last_of('/');
-	    auto from = filename.find_last_of('/', to - 1) + 1;
-//		std::cout << filename << " " << from << " " << to << " |" << filename.substr(from, to - from) << "|" << std::endl;
-	    return stoi(filename.substr(from, to - from));
-    }
-*/
+	std::vector<DBS::KmerTax> dbs;
+	dbs.reserve(db.size());
+	for (auto &kmer : db)
+		dbs.push_back(DBS::KmerTax(kmer, config.tax_id));
 
-};
+	DBSIO::save_dbs(config.dbs, dbs, kmer_len);
+}

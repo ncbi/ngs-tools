@@ -24,34 +24,44 @@
 *
 */
 #pragma once
+
 #include <string>
+#include <iostream>
+#include <fstream>
+#include <list>
 
-struct FilenameMeta
+struct Config
 {
-    static bool is_eukaryota(const std::string &filename)
-    {
-	    return filename.find("/Eukaryota/") != std::string::npos;
-    }
+	std::string db, dbs;
+    int tax_id;
+	int argc;
+	char const **argv;
 
-    static bool is_virus(const std::string &filename)
-    {
-	    return filename.find("/Viruses/") != std::string::npos;
-    }
+	std::string arg(int index) const
+	{
+		if (index >= argc)
+			fail();
 
-    static int tax_id_from(const std::string &filename)
-    {
-	    auto to = filename.find_last_of('.');
-	    auto from = filename.find_last_of('/') + 1;
-	    return stoi(filename.substr(from, to - from));
-    }
-/*
-    static int tax_id_from_folder(const std::string &filename)
-    {
-	    auto to = filename.find_last_of('/');
-	    auto from = filename.find_last_of('/', to - 1) + 1;
-//		std::cout << filename << " " << from << " " << to << " |" << filename.substr(from, to - from) << "|" << std::endl;
-	    return stoi(filename.substr(from, to - from));
-    }
-*/
+		return std::string(argv[index]);
+	}
+
+	Config(int argc, char const *argv[]) : argc(argc), argv(argv)
+	{
+		db = arg(1);
+		dbs = arg(2);
+		tax_id = std::stoi(arg(3));
+	}
+
+	void fail() const
+	{
+		print_usage();
+        exit(1);
+	}
+
+	static void print_usage()
+	{
+		std::cerr << "need <in db> <out dbs> <tax id>" << std::endl;
+	}
 
 };
+
