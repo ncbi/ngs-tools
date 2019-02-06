@@ -31,6 +31,7 @@
 #include <vector>
 #include <stdexcept>
 #include <string>
+#include <set>
 #include "missing_cpp_features.h"
 
 struct IO
@@ -135,28 +136,43 @@ struct IO
 #endif
 
     template <class C>
-    static void save_vector_data(std::ofstream &f, const std::vector<C> &v)
+    static void save_vector_data(std::ofstream &f, const std::vector<C> &v, size_t offset = 0)
     {
-        f.write((char*)&v[0], sizeof(C) * v.size());
+		if (offset > v.size())
+			throw std::runtime_error("IO::save_vector_data offset > v.size()");
+        f.write((char*)&v[offset], sizeof(C) * (v.size() - offset));
     }
 
     template <class C>
     static void load_vector_data(std::ifstream &f, std::vector<C> &v, size_t size)
     {
-        v.clear();
+        v.clear(); // todo: remove clear?
+//		std::cerr << "x1 loading " << size << " elements of " << sizeof(C) * size << " bytes" << std::endl;
+//		std::cerr << "new alloc" << std::endl;
+//		C *v = new C[size];
+//		std::vector<C> v(size);
+//		std::cerr << "reserving.." << std::endl;
+//		v.reserve(size);
         v.resize(size);
+//		std::cerr << "x2" << std::endl;
         f.read((char*)&v[0], sizeof(C) * size);
+//		std::cerr << "x3" << std::endl;
+//		std::swap(v, _v);
+//		std::cerr << "x4" << std::endl;
 
 	    if (!f)
 		    throw std::runtime_error("load_vector_data:: failed to load vector");
     }
 
     template <class C>
-    static void save_vector(std::ofstream &f, const std::vector<C> &v)
+    static void save_vector(std::ofstream &f, const std::vector<C> &v, size_t offset = 0)
     {
-        size_t size = v.size();
+		if (offset > v.size())
+			throw std::runtime_error("IO::save_vector offset > v.size()");
+
+        size_t size = v.size() - offset;
         write(f, size);
-        save_vector_data(f, v);
+        save_vector_data(f, v, offset);
 
 	    if (!f)
 		    throw std::runtime_error("save_vector:: failed to save vector");
@@ -167,6 +183,7 @@ struct IO
     {
         size_t size = 0;
         read(f, size);
+//		std::cerr << "IO::load vector size " << size << std::endl;
         load_vector_data(f, v, size);
     }
 
@@ -208,6 +225,16 @@ struct IO
         std::ifstream f(filename);
         return f.good();
     }
+
+	template <class C>
+	static void save(std::ofstream &f, const std::set<C> &data)
+	{
+//		std::ofstream f(out_file);
+        IO::write(f, data.size());
+
+        for (auto &x : data)
+            IO::write(f, x);
+	}
 
 };
 
