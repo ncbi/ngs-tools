@@ -43,8 +43,6 @@ struct CheckIndex
 {
     static void check_hash(hash_t kmer, int kmer_len, Kmers &kmers, tax_id_t tax_id, std::list<hash_t> &result_hashes)
     {
-	    kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
-
 	    if (kmers.has_kmer_but_not_tax(kmer, tax_id))
 		    result_hashes.push_back(kmer);
     }
@@ -71,6 +69,7 @@ struct CheckIndex
 		    auto thread_id = omp_get_thread_num();
 
 		    auto kmer = Hash<hash_t>::hash_of(s + i, kmer_len);
+	    	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
 		    check_hash(kmer, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
 
     #if 0 // ~ x100 times slower!
