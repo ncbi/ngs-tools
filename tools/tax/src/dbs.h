@@ -27,6 +27,7 @@
 #ifndef DBS_H_INCLUDED
 #define DBS_H_INCLUDED
 
+#include "kmer_hash.h"
 #include "io.h"
 #include <string>
 #include <fstream>
@@ -39,10 +40,11 @@ struct DBS
 
 	struct KmerTax
 	{
-		hash_t kmer;
-		int tax_id;
+		hash_t kmer = 0;
+		int tax_id = 0;
+		KmerTax() = default;
 
-		KmerTax(hash_t kmer = 0, int tax_id = 0) : kmer(kmer), tax_id(tax_id){}
+		KmerTax(hash_t kmer, int tax_id) : kmer(kmer), tax_id(tax_id){}
 	};
 
 	struct KmerTaxMulti
@@ -70,12 +72,21 @@ struct DBSIO
 	};
 
 	template <class C>
-	static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len)
+	static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len, size_t offset = 0)
 	{
 		std::ofstream f(out_file);
 		DBSHeader header(kmer_len);
         IO::write(f, header);
-        IO::save_vector(f, kmers);
+        IO::save_vector(f, kmers, offset);
+	}
+
+	template <class C>
+	static void save(const std::string &out_file, const std::set<C> &kmers, size_t kmer_len)
+	{
+		std::ofstream f(out_file);
+		DBSHeader header(kmer_len);
+        IO::write(f, header);
+        IO::save(f, kmers);
 	}
 
 	template <class C>

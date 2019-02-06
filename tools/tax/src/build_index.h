@@ -57,6 +57,7 @@ struct BuildIndex
 	    for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i += omp_get_num_threads())
 	    {
 		    hash_t kmer = KmerIO::kmer_from(s, i, kmer_len);
+	    	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
 
 		    auto thread_id = omp_get_thread_num();
 
@@ -89,7 +90,9 @@ struct BuildIndex
 	    }
 
     //	kmers.add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len), tax_id);
-        add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len), chosen_kmer_pos);
+		hash_t kmer = KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len);
+    	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
+        add_kmer(kmer, chosen_kmer_pos);
     }
 
     template <class Lambda>
