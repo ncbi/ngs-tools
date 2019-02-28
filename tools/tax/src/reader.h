@@ -38,7 +38,7 @@ typedef std::unique_ptr<Reader> ReaderPtr;
 
 class Reader {
 public:
-    static const size_t DEFAULT_CHUNK_SIZE = 1024; // todo: tune
+    static const size_t DEFAULT_CHUNK_SIZE = 32*1024; // todo: tune
 
     struct Fragment
     {
