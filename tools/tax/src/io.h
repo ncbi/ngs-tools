@@ -30,32 +30,149 @@
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+#include <string>
+#include <set>
+#include "missing_cpp_features.h"
 
 struct IO
 {
-    template <class C>
-    static void save_vector_data(std::ofstream &f, const std::vector<C> &v)
+#if 1
+    struct Writer
     {
-        f.write((char*)&v[0], sizeof(C) * v.size());
+        std::vector<std::ofstream> out_f;
+        std::ostream *stream_f = nullptr;
+
+        Writer(const std::string &_filenames) 
+        {
+            if (_filenames.empty())
+            {
+                stream_f = &std::cout;
+                return;
+            }
+
+            auto filenames = split(_filenames, ',');
+            for (auto &filename : filenames)
+                out_f.emplace_back(std::ofstream(filename));
+            
+            if (out_f.size() == 1)
+                stream_f = get_out_f(0);
+//            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
+            check();
+        }
+
+        Writer(Writer &writer, int stream_id) : stream_f(writer.get_out_f(stream_id))
+        {
+        }
+
+        std::ostream &f()
+        {
+            return *stream_f;
+        }
+
+        std::ostream *get_out_f(int stream_id)
+        {
+            if (stream_id < 0 || stream_id >= out_f.size())
+                throw std::runtime_error("Writer:: stream_id < 0 || stream_id >= out_f.size()");
+
+            return &out_f[stream_id];
+        }
+
+        void check()
+        {
+            for (int i = 0; i < out_f.size(); i++)
+                if (!out_f[i].good())
+                    throw std::runtime_error("failed to write results (no space left on drive?)");
+
+            if (!std::cout.good())
+                throw std::runtime_error("failed to write results to std::cout (no space left on drive?)");
+        }
+
+        ~Writer()
+        {
+            for (int i = 0; i < out_f.size(); i++)
+                out_f[i].close();
+
+            check();
+        }
+    };
+
+#else
+    struct Writer
+    {
+        const std::string filename;
+        std::ofstream out_f;
+        std::ofstream &stream_f;
+        int stream_id = -1;
+
+        Writer(const std::string &filename) : filename(filename), out_f(filename), stream_f(out_f)
+        {
+//            f.exceptions( ~std::fstream::goodbit); // todo: think about enabling exceptions here
+            check();
+        }
+
+        Writer(const Writer &writer, int stream_id) : filename(writer.filename), stream_f(writer.stream_f), stream_id(stream_id)
+        {
+        }
+
+        std::ostream &f()
+        {
+            return filename.empty() ? std::cout : stream_f;
+        }
+
+        void check()
+        {
+            if (!f().good())
+                throw std::runtime_error("failed to write results (no space left on drive?)");
+        }
+
+        ~Writer()
+        {
+            if (!filename.empty() && stream_id < 0)
+                out_f.close();
+
+            check();
+        }
+    };
+#endif
+
+    template <class C>
+    static void save_vector_data(std::ofstream &f, const std::vector<C> &v, size_t offset = 0)
+    {
+		if (offset > v.size())
+			throw std::runtime_error("IO::save_vector_data offset > v.size()");
+        f.write((char*)&v[offset], sizeof(C) * (v.size() - offset));
     }
 
     template <class C>
     static void load_vector_data(std::ifstream &f, std::vector<C> &v, size_t size)
     {
-        v.clear();
+        v.clear(); // todo: remove clear?
+//		std::cerr << "x1 loading " << size << " elements of " << sizeof(C) * size << " bytes" << std::endl;
+//		std::cerr << "new alloc" << std::endl;
+//		C *v = new C[size];
+//		std::vector<C> v(size);
+//		std::cerr << "reserving.." << std::endl;
+//		v.reserve(size);
         v.resize(size);
+//		std::cerr << "x2" << std::endl;
         f.read((char*)&v[0], sizeof(C) * size);
+//		std::cerr << "x3" << std::endl;
+//		std::swap(v, _v);
+//		std::cerr << "x4" << std::endl;
 
 	    if (!f)
 		    throw std::runtime_error("load_vector_data:: failed to load vector");
     }
 
     template <class C>
-    static void save_vector(std::ofstream &f, const std::vector<C> &v)
+    static void save_vector(std::ofstream &f, const std::vector<C> &v, size_t offset = 0)
     {
-        size_t size = v.size();
+		if (offset > v.size())
+			throw std::runtime_error("IO::save_vector offset > v.size()");
+
+        size_t size = v.size() - offset;
         write(f, size);
-        save_vector_data(f, v);
+        save_vector_data(f, v, offset);
 
 	    if (!f)
 		    throw std::runtime_error("save_vector:: failed to save vector");
@@ -66,6 +183,7 @@ struct IO
     {
         size_t size = 0;
         read(f, size);
+//		std::cerr << "IO::load vector size " << size << std::endl;
         load_vector_data(f, v, size);
     }
 
@@ -101,6 +219,23 @@ struct IO
 	    f.seekg(0, std::ios_base::end);
 	    return f.tellg();
     }
+
+    static bool file_exists(const std::string &filename)
+    {
+        std::ifstream f(filename);
+        return f.good();
+    }
+
+	template <class C>
+	static void save(std::ofstream &f, const std::set<C> &data)
+	{
+//		std::ofstream f(out_file);
+        IO::write(f, data.size());
+
+        for (auto &x : data)
+            IO::write(f, x);
+	}
+
 };
 
 #endif

@@ -27,6 +27,8 @@
 
 #include <iostream>
 #include "hash.h"
+#include "kmers.h"
+#include "kmers_multi.h"
 #include "seq_transform.h"
 #include "tax_id_tree.h"
 
@@ -52,5 +54,19 @@ struct KmerIO
 			    std::cout << str_kmer(kmer.first, kmer_len) << '\t' << tax_id << std::endl;
 	    }
     }
+
+    static void print_kmers(const KmersMulti &kmers, int kmer_len)
+    {
+	    for (auto &kmer : kmers.storage)
+        {
+            std::cout << str_kmer(kmer.first, kmer_len);
+
+		    for (auto tax_id : kmer.second)
+			     std::cout << '\t' << tax_id;
+                 
+            std::cout << std::endl;
+        }
+    }
+
 };
 

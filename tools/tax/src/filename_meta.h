@@ -44,4 +44,14 @@ struct FilenameMeta
 	    auto from = filename.find_last_of('/') + 1;
 	    return stoi(filename.substr(from, to - from));
     }
+/*
+    static int tax_id_from_folder(const std::string &filename)
+    {
+	    auto to = filename.find_last_of('/');
+	    auto from = filename.find_last_of('/', to - 1) + 1;
+//		std::cout << filename << " " << from << " " << to << " |" << filename.substr(from, to - from) << "|" << std::endl;
+	    return stoi(filename.substr(from, to - from));
+    }
+*/
+
 };

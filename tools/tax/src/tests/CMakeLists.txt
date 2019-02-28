@@ -1,9 +1,9 @@
 include_directories ( ${CMAKE_SOURCE_DIR} )
 include_directories ( ${CMAKE_CURRENT_SOURCE_DIR}/.. )
 
-add_executable ( hash           hash )
-add_executable ( reader_test    reader_test ${CMAKE_CURRENT_SOURCE_DIR}/../reader.cpp )
-add_executable ( seq_transform  seq_transform )
+add_executable ( hash           hash.cpp )
+add_executable ( reader_test    reader_test.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../reader.cpp )
+add_executable ( seq_transform  seq_transform.cpp )
 
 target_link_libraries ( hash ${SYS_LIBRARIES} )
 target_link_libraries ( reader_test ${SYS_LIBRARIES} )

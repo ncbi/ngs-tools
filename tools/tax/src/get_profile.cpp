@@ -18,6 +18,46 @@ typedef uint64_t hash_t;
 using namespace std;
 using namespace std::chrono;
 
+#define DO_PARALLEL_PER_FILE 0
+
+#define CACHED_RANDOM 1
+
+#if CACHED_RANDOM
+
+#include "random_table.inc"
+struct Random
+{
+    size_t i = 0;
+
+    unsigned int operator()()
+    {
+        if (i >= RANDOM_TABLE.size())
+            throw std::runtime_error("out of random numbers from random table");
+
+        return RANDOM_TABLE[i++];
+    }
+};
+
+#else
+
+struct Random
+{
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::mt19937::result_type> dist;
+
+    Random() : dist(0, UINT32_MAX)
+    {
+        rng.seed(0);
+    }
+
+    unsigned int operator()()
+    {
+        return dist(rng);
+    }
+};
+
+#endif
+
 struct MinHash
 {
     struct Best
@@ -36,11 +76,13 @@ struct MinHash
 
     MinHash(size_t count) : best(count), xors(count)
     {
-        std::mt19937 rng;
-        rng.seed(0);
-        std::uniform_int_distribution<std::mt19937::result_type> dist(0, UINT32_MAX);
+        Random random;
         for (int i = 0; i < count; i++)
-            xors[i] = (uint64_t(dist(rng)) << 32) | dist(rng);
+        {
+            auto hi = random();
+            auto lo = random();
+            xors[i] = (uint64_t(hi) << 32) | lo;
+        }
 
         storage_hash.reserve(10000000); // todo: think. filesize ?
         storage_kmer.reserve(10000000); // todo: think. filesize ?
@@ -54,7 +96,9 @@ struct MinHash
 
     void finish()
     {
+#if !DO_PARALLEL_PER_FILE
         #pragma omp parallel for
+#endif
         for (int ib = 0; ib < best.size(); ib ++)
         {
             auto _xor = xors[ib];
@@ -67,6 +111,7 @@ struct MinHash
             auto storage_limit = (storage_hash.size() / BUCKETS) * BUCKETS;
             for (size_t to_check_i = 0; to_check_i < storage_limit; to_check_i += BUCKETS)
             {
+#if 0
                 union
                 {
                     __uint128_t h128;
@@ -83,6 +128,17 @@ struct MinHash
                 hash_t h1 = h01.h64.h1 ^ _xor;
                 hash_t h2 = h23.h64.h0 ^ _xor;
                 hash_t h3 = h23.h64.h1 ^ _xor;
+#else
+                const auto to_check0 = storage_hash[to_check_i + 0];
+                const auto to_check1 = storage_hash[to_check_i + 1];
+                const auto to_check2 = storage_hash[to_check_i + 2];
+                const auto to_check3 = storage_hash[to_check_i + 3];
+
+                hash_t h0 = to_check0 ^ _xor;
+                hash_t h1 = to_check1 ^ _xor;
+                hash_t h2 = to_check2 ^ _xor;
+                hash_t h3 = to_check3 ^ _xor;
+#endif
 
                 if (h0 < best_chosen[0].hash)
                     best_chosen[0] = Best(h0, storage_kmer[to_check_i + 0]);
@@ -131,7 +187,7 @@ hash_t hash_of(hash_t hash)
 
 void update_min_hash(MinHash &min_hash, const string &seq, int kmer_len)
 {
-    cerr << '.';
+//    cerr << '.';
 
     Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
     {
@@ -143,7 +199,7 @@ void update_min_hash(MinHash &min_hash, const string &seq, int kmer_len)
 
 void save(const string &filename, const MinHash &min_hash)
 {
-    cout << "saving to " << filename << endl;
+//    cout << "saving to " << filename << endl;
     std::ofstream f(filename, std::ios::out | std::ios::binary);
     IO::write(f, min_hash.best.size());
     for (auto &b : min_hash.best)
@@ -174,7 +230,8 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
 {
     MinHash min_hash(min_hash_count);
 
-    cout << "loading " << filename << endl;
+//    cout << "loading " << filename << endl;
+    cout << '.';
 
     Fasta fasta(filename);
     string seq;
@@ -184,7 +241,7 @@ void get_profile(const string &filename, int kmer_len, int min_hash_count)
 
     min_hash.finish();
 
-    cout << endl;
+//    cout << endl;
     save(save_file(filename), min_hash);
 }
 
@@ -192,7 +249,9 @@ void get_profile(const Config &config)
 {
 	FileListLoader file_list(config.file_list);
 
-//   	#pragma omp parallel for
+#if DO_PARALLEL_PER_FILE
+   	#pragma omp parallel for num_threads(96)
+#endif
     for (int file_number = 0; file_number < int(file_list.files.size()); file_number ++)
     {
         auto &file = file_list.files[file_number];
