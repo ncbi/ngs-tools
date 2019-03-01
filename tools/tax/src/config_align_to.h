@@ -44,7 +44,7 @@ struct Config
 	{
         std::list<std::string> args;
         for (int i = 1; i < argc; ++i)
-            args.push_back(argv[i]);
+            args.emplace_back(argv[i]);
 
         while (!args.empty()) {
             auto arg = pop_arg(args);
