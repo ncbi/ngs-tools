@@ -25,6 +25,8 @@
 */
 #pragma once
 
+#include <cstdint>
+
 typedef uint64_t hash_t;
 
 struct KmerHash

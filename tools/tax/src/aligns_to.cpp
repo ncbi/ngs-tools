@@ -65,13 +65,13 @@ int main(int argc, char const *argv[])
     unique_ptr<Job> job;
 
     if (!config.db.empty())
-        job = make_unique<DBJob>(config.db);
+        job = unique_ptr<DBJob>(new DBJob(config.db));
     else if (!config.dbs.empty())
-        job = make_unique<DBSBasicJob>(config.dbs);
+        job = unique_ptr<DBSBasicJob>(new DBSBasicJob(config.dbs));
     else if (!config.dbsm.empty())
-        job = make_unique<DBSMJob>(config.dbsm);
+        job = unique_ptr<DBSMJob>(new DBSMJob(config.dbsm));
     else if (!config.dbss.empty())
-        job = make_unique<DBSSJob>(config.dbss, config.dbss_tax_list);
+        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list));
 //    else if (!config.many.empty())
 //        job = make_unique<ManyJobs>(config.many);
     else
