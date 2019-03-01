@@ -36,7 +36,7 @@
 
 struct IO
 {
-#if 1
+#if 0
     struct Writer
     {
         std::vector<std::ofstream> out_f;
@@ -52,7 +52,7 @@ struct IO
 
             auto filenames = split(_filenames, ',');
             for (auto &filename : filenames)
-                out_f.emplace_back(std::ofstream(filename));
+                out_f.emplace_back(std::ofstream(filename)); // #todo: emplace
             
             if (out_f.size() == 1)
                 stream_f = get_out_f(0);
