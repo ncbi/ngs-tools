@@ -28,20 +28,16 @@
 
 #include <string>
 #include <fstream>
-#include <iostream>
 #include <vector>
 #include <assert.h>
 
 #include "reader.h"
 
-class FastaReader final: public Reader 
-{
+class FastaReader final: public Reader {
 private:
-    mutable std::istream *f;
-    mutable std::ifstream f_of_filename;
-
-    size_t filesize = 0;
-    size_t spot_idx = 0;
+    mutable std::ifstream f;
+    size_t fsize;
+    size_t spot_idx;
     std::string last_desc;
 
     static bool is_description(const std::string &s)
@@ -50,11 +46,11 @@ private:
 	}
 
     void read_line(std::string& line) {
-        std::getline(*f, line);
-
+        std::getline(f, line);
         // handling windows line endings
-        if (!line.empty() && *line.rbegin() == '\r')
+        if (!line.empty() && *line.rbegin() == '\r') {
             line.erase(line.size() - 1);
+        }
     }
 
     static bool ends_with(const std::string &s, const std::string &end)
@@ -67,87 +63,74 @@ private:
 public:
 
     static bool is_fasta(const std::string &filename) {
-        return ends_with(filename, ".fasta") || ends_with(filename, ".fa") || ends_with(filename, ".fna") || filename == "stdin";
+        return ends_with(filename, ".fasta") || ends_with(filename, ".fa") || ends_with(filename, ".fna");
     }
     
 	FastaReader(const std::string &filename)
-        : f_of_filename(filename, std::ios::binary)
+        : f(filename, std::ios::binary)
+        , spot_idx(0)
 	{
-        if (filename != "stdin")
-        {
-            f = &f_of_filename;
-            f->seekg(0, std::ios::end);
-            filesize = f->tellg();
-            f->seekg(0, std::ios::beg);
-        }
-        else
-            f = &std::cin;
+        f.seekg(0, std::ios::end);
+        fsize = f.tellg();
+        f.seekg(0, std::ios::beg);
         
         std::string line;
         read_line(line);
+        
+		if (line.empty())
+			throw std::runtime_error("fasta file is empty");
 
-//		if (line.empty())
-//			throw std::runtime_error("fasta file is empty");
-
-//		if (!is_description(line))
-//			throw std::runtime_error("this is not a fasta file");
+		if (!is_description(line))
+			throw std::runtime_error("this is not a fasta file");
 
 		last_desc = line;
 	}
 
-    size_t file_size() const { return filesize; }
+    size_t file_size() const { return fsize; }
 
-    virtual SourceStats stats() const override 
-    {
-        assert(f->eof());
+    virtual SourceStats stats() const override {
+        assert(f.eof());
         return SourceStats(spot_idx);
     }
     
-    virtual float progress() const override 
-    {
-        if (filesize == 0)
-            return 0;
-
-        return f->eof() ? 1.0f : float(f->tellg()) / filesize;
+    virtual float progress() const override {
+        if (!f.eof()) {
+            return float(f.tellg()) / fsize;
+        } else {
+            return 1;
+        }
     }
 
-    bool read(Fragment* output) override 
-    {
-        if (f->eof())
+    bool read(Fragment* output) override {
+        if (f.eof()) {
             return false;
+        }
 
-        if (output) 
-        {
-            auto end_pos = last_desc.find('/');
-            if (end_pos == std::string::npos)
-                end_pos = last_desc.size();
-            output->spotid.assign(last_desc, 1, end_pos - 1);
+        if (output) {
+            output->spotid.assign(last_desc, 1, last_desc.size() - 1);
             output->bases.clear();
-            output->bases.reserve(300); // todo: tune
+            output->bases.reserve(10000); // todo: tune
         }
 
 		std::string line;
-		while (!f->eof()) 
-        {
+		while (!f.eof()) {
             read_line(line);
 
-            if (is_description(line)) 
-            {
+            if (is_description(line)) {
                 last_desc = line;
                 break;
-            } 
-            else if (output)
+            } else if (output) {
                 output->bases += line;
+            }
         }
 
-        if (output) 
-        {
-            if (output->bases.empty())
-                throw std::runtime_error(std::string("Read is empty: ") + last_desc);
-//            output->bases.shrink_to_fit(); todo: tune
+        if (output) {
+            if (output->bases.empty()) {
+                throw std::runtime_error("Read is empty");
+            }
+            output->bases.shrink_to_fit();
         }
-
-        spot_idx++;
+        ++spot_idx;
         return true;
     }
 };

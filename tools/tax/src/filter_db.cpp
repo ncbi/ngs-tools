@@ -29,7 +29,6 @@
 #include <stdexcept>
 
 #include "log.h"
-#include "filter_db.h"
 #include "config_filter_db.h"
 
 using namespace std;
@@ -51,6 +50,19 @@ void pass(const string &kmer)
 	cout << kmer << endl;
 }
 
+int predicted(const string &kmer)
+{
+	int pred = 0;
+
+	for (int i = 4; i<int(kmer.length()); i++)
+		if (kmer[i] == kmer[i - 1] && kmer[i - 1] == kmer[i - 2] && kmer[i - 2] == kmer[i - 3] && kmer[i - 3] == kmer[i - 4])
+			pred++;
+		else if (i >= 8 && kmer[i] == kmer[i - 2] && kmer[i - 2] == kmer[i - 4] && kmer[i - 4] == kmer[i - 6] && kmer[i - 6] == kmer[i - 8])
+			pred++;
+
+	return pred;
+}
+
 bool bad_tax(unsigned int tax_id, unsigned int config_only_tax_id)
 {
 	const int CELLULAR_ORGANISMS = 131567;
@@ -62,7 +74,7 @@ bool bad_tax(unsigned int tax_id, unsigned int config_only_tax_id)
 
 int main(int argc, char const *argv[])
 {
-	Config config(argc, argv);
+	ConfigFilterDB config(argc, argv);
 
 	LOG("filter_db version " << VERSION);
 		
@@ -89,8 +101,8 @@ int main(int argc, char const *argv[])
 			continue;
 		}
 
-		auto score = FilterDB::predicted(kmer);
-	    const int MIN_SCORE = FilterDB::min_score(kmer.length());
+		auto score = predicted(kmer);
+		const int MIN_SCORE = 13 * kmer.length()/32; // const 13 was designed for 32 bp kmers
 		if (score >= MIN_SCORE)
 			dont_pass(kmer, tax_id);
 		else

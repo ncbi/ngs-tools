@@ -32,30 +32,30 @@
 
 struct DBSSJob : public DBSJob
 {
-	DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
+	DBSSJob(const Config &config) : DBSJob(config)
 	{
 		DBSIO::DBSHeader header;
 
-	    std::ifstream f(dbss, std::ios::binary | std::ios::in);
+	    std::ifstream f(config.dbss, std::ios::binary | std::ios::in);
 	    if (f.fail() || f.eof())
-		    throw std::runtime_error(std::string("cannot open dbss ") + dbss);
+		    throw std::runtime_error(std::string("cannot open dbss ") + config.dbss);
 
 		IO::read(f, header);
 		kmer_len = header.kmer_len;
 
 		DBSAnnotation annotation;
-		auto sum_offset = load_dbs_annotation(dbss + ".annotation", annotation);
-		if (sum_offset != IO::filesize(dbss))
+		auto sum_offset = load_dbs_annotation(config.dbss + ".annotation", annotation);
+		if (sum_offset != IO::filesize(config.dbss))
 			throw std::runtime_error("inconsistent dbss annotation file");
 
-		auto tax_list = load_tax_list(dbss_tax_list);
-//		if (tax_list.empty())
-//			throw std::runtime_error("empty tax list");
+		auto tax_list = load_tax_list(config.dbss_tax_list);
+		if (tax_list.empty())
+			throw std::runtime_error("empty tax list");
 
-		load_dbss(dbss, tax_list, annotation);
+		load_dbss(config.dbss, tax_list, annotation);
 	}
 
-	typedef int tax_id_t;
+	typedef unsigned int tax_id_t;
 
 	struct DBSAnnot
 	{
@@ -86,7 +86,7 @@ struct DBSSJob : public DBSJob
 		{
 			DBSAnnot a(0, 0, 0);
 			f >> a.tax_id >> a.count;
-			if (f.fail())
+			if (!a.tax_id)
 				break;
 
 			if (!a.count)
@@ -116,14 +116,11 @@ struct DBSSJob : public DBSJob
 		{
 			tax_id_t t = 0;
 			f >> t;
-			if (f.fail())
+			if (!t)
 				break;
 
 			taxes.push_back(t);
 		}
-
-        if (!f.eof())
-            throw std::runtime_error("bad tax list file format");
 
 		sort(taxes.begin(), taxes.end());
 		return taxes;
@@ -146,28 +143,22 @@ struct DBSSJob : public DBSJob
             }
         }
         hash_array.reserve(total_hashes_count);
-
-        {        
-            std::vector<hash_t> hashes;
-            for (auto tax_id : tax_list)
-                for (auto& annot : annotation) 
-                    if (annot.tax_id == tax_id && annot.count > 0) 
-                    {
-                        hashes.clear();
-                        IO::load_vector_no_size(f, hashes, annot.offset, annot.count);
-                        for (auto hash : hashes)
-                            hash_array.emplace_back(hash, annot.tax_id);
+        
+        for (auto tax_id : tax_list) {
+            for (auto& annot : annotation) {
+                if (annot.tax_id == tax_id && annot.count > 0) {
+                    std::vector<hash_t> hashes;
+                    IO::load_vector_no_size(f, hashes, annot.offset, annot.count);
+                    for (auto hash : hashes) {
+                        hash_array.emplace_back(hash, annot.tax_id);
                     }
+                }
+            }
         }
-
-        if (hash_array.size() != total_hashes_count)
-        {
-            std::cerr << hash_array.size() << " of " << total_hashes_count << " loaded " << std::endl;
-            throw std::runtime_error("unable to load all kmers");
-        }
+        assert(hash_array.size() == total_hashes_count);
         
         LOG("dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)");
-//        assert(!hash_array.empty());
+        assert(!hash_array.empty());
         std::sort(hash_array.begin(), hash_array.end());
         LOG("dbss parts merged");
 	}

@@ -37,7 +37,7 @@
 
 #include "log.h"
 
-typedef int tax_id_t;
+typedef unsigned int tax_id_t;
 
 struct TaxIdTree
 {
@@ -66,13 +66,6 @@ struct TaxIdTree
 		if (tax_a == ROOT || tax_b == ROOT)
 			return ROOT;
 
-        if (tax_a <= 0 && tax_b > 0)
-            return tax_a;
-
-        // negative tax ids have higher priority over positive
-        if (tax_b <= 0 && tax_a > 0)
-            return tax_b;
-
 		if (a_sub_b(tax_a, tax_b))
 			return tax_b;
 
@@ -89,20 +82,6 @@ struct TaxIdTree
 
 		auto node_ptr = get_node_ptr(tax_b);
 		return node_ptr->subids.find(tax_a) != node_ptr->subids.end();
-	}
-
-	int level(tax_id_t tax_id) const
-	{
-		auto it = nodes.find(tax_id);
-		if (it == nodes.end())
-			return 0;
-
-		return level(it->second->parent_tax_id) + 1;
-	}
-
-	bool known_id(tax_id_t tax_id) const
-	{
-		return nodes.find(tax_id) != nodes.end();
 	}
 
 	Node *get_node_ptr(tax_id_t tax_id) const

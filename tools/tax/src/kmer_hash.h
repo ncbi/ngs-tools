@@ -25,8 +25,6 @@
 */
 #pragma once
 
-typedef uint64_t hash_t;
-
 struct KmerHash
 {
     typedef uint64_t hash_of_hash_t;

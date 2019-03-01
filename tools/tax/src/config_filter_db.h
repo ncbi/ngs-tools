@@ -30,12 +30,12 @@
 #include <string>
 #include "log.h"
 
-struct Config
+struct ConfigFilterDB
 {
 	std::string input_file;
 	unsigned int only_tax;
 
-	Config(int argc, char const *argv[]) : only_tax(0)
+	ConfigFilterDB(int argc, char const *argv[]) : only_tax(0)
 	{
 		if (argc < 2)
 		{
