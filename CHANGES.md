@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.9.6
+**March 15, 2019**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
 ## NCBI NGS Toolkit 2.9.4
 **January 31, 2019**
 
