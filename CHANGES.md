@@ -2,7 +2,7 @@
 
 
 ## NCBI NGS Toolkit 2.9.6
-**March 15, 2019**
+**March 18, 2019**
 
   **ngs-tools**: changed version to match that of _sra-tools_
 
