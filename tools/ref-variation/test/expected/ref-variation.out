@@ -157,8 +157,8 @@ info: processed 100%
 info: percent="0"
 info: processed 0%
 : Seeding the random number generator 
-: Loading CA root certificates 
-: Parsing text for default CA root certificates 
+: Configuring SSl defaults 
+: Seeding the random number generator 
 : Configuring SSl defaults 
 info: Found indel box at pos=36662041, length=10
 info: reference: ...CAACA[ATAATTATAA]GATTC...

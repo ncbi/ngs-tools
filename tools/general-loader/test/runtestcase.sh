@@ -60,7 +60,7 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/*
 
-CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+CMD="export NCBI_SETTINGS=$TEMPDIR/../t.mkfg ; cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
 eval $CMD
 rc="$?"
