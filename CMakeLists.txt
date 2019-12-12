@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8.12)
 
 set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
+set (CMAKE_CXX_STANDARD 11)
 
 # best to use at the top
 project ( ngs-tools )
