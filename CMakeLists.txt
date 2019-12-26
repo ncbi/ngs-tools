@@ -9,6 +9,8 @@ else ()
    set (CMAKE_CXX_STANDARD 11)
 endif ()
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 # best to use at the top
 project ( ngs-tools )
 
