@@ -73,9 +73,10 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 if [ "$rc" == "0" ] ; then
+    echo "Load succeeded, dumping and matching stdout"
     CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
-    eval $CMD || ( echo "$CMD" && exit 3 )
+    eval $CMD || ( echo "$CMD failed" && cat $TEMPDIR/dump.stdout && exit 3 )
 
     # remove timestamps, date from metadata
     sed -i -e 's/<timestamp>.*<\/timestamp>/<timestamp\/>/g' $TEMPDIR/dump.stdout
@@ -84,6 +85,7 @@ if [ "$rc" == "0" ] ; then
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else
+    echo "Load failed as expected, matching stderr"
     # remove timestamps
     sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
     # remove pathnames
@@ -98,7 +100,7 @@ fi
 
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
-    echo "command executed:"
+    echo "Diff failed. Command executed:"
     echo $CMD
     exit 4
 fi
