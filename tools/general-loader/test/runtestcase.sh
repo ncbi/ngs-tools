@@ -79,6 +79,8 @@ if [ "$rc" == "0" ] ; then
     #echo $CMD
     eval $CMD
     rc="$?"
+cat $TEMPDIR/dump.stdout
+cat $TEMPDIR/dump.stderr
     if [ "$rc" != "0" ] ; then
         echo "$CMD failed"
         cat $TEMPDIR/dump.stdout
