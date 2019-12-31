@@ -39,6 +39,9 @@ echo "$0 $*"
 # 3 - vdb-dump failed on the output of general-loader
 # 4 - outputs differ
 
+SRATOOLS_BINDIR=$1
+shift
+
 BINDIR=$1
 DUMPER=$2
 WORKDIR=$3
@@ -75,7 +78,7 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     echo "/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"" >$TEMPDIR/ref-var.kfg
-    VDB_CONFIG=$TEMPDIR/ref-var.kfg vdb-config -on
+    VDB_CONFIG=$TEMPDIR/ref-var.kfg $SRATOOLS_BINDIR/vdb-config -on
     CMD="VDB_CONFIG=$TEMPDIR/ref-var.kfg $DUMP -+VFS -+KFG  $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
 
