@@ -75,11 +75,15 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     echo "/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"" >$TEMPDIR/ref-var.kfg
-    CMD="export VDB_CONFIG=$TEMPDIR/ref-var.kfg; $DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    CMD="VDB_CONFIG=$TEMPDIR/ref-var.kfg $DUMP -vvv -+KFG $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
     eval $CMD
     rc="$?"
+echo "rc=$rc"
+ls $TEMPDIR
+echo "--stdout"
 cat $TEMPDIR/dump.stdout
+echo "--stderr"
 cat $TEMPDIR/dump.stderr
     if [ "$rc" != "0" ] ; then
         echo "$CMD failed"
