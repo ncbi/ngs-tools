@@ -60,7 +60,7 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/*
 
-CMD="export NCBI_SETTINGS=$TEMPDIR/../t.mkfg ; cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
 eval $CMD
 rc="$?"
@@ -75,8 +75,10 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     echo "/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"" >$TEMPDIR/ref-var.kfg
+    VDB_CONFIG=$TEMPDIR/ref-var.kfg vdb-config -on
     CMD="VDB_CONFIG=$TEMPDIR/ref-var.kfg $DUMP -+VFS -+KFG  $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
+
     eval $CMD
     rc="$?"
 echo "rc=$rc"
@@ -87,6 +89,8 @@ echo "--stderr"
 cat $TEMPDIR/dump.stderr
 echo "--ref-var.kfg"
 cat $TEMPDIR/ref-var.kfg
+echo "--../t.mkfg"
+cat $TEMPDIR/../t.mkfg
     if [ "$rc" != "0" ] ; then
         echo "$CMD failed"
         cat $TEMPDIR/dump.stdout
