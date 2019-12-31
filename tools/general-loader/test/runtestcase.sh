@@ -76,7 +76,14 @@ if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
-    eval $CMD || ( echo "$CMD failed" && cat $TEMPDIR/dump.stdout && exit 3 )
+    eval $CMD
+    rc="$?"
+    if [ "$rc" != "0" ] ; then
+        echo "$CMD failed"
+        cat $TEMPDIR/dump.stdout
+        cat $TEMPDIR/dump.stderr
+        exit 3
+    fi
 
     # remove timestamps, date from metadata
     sed -i -e 's/<timestamp>.*<\/timestamp>/<timestamp\/>/g' $TEMPDIR/dump.stdout
