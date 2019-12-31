@@ -45,12 +45,13 @@ if ( NOT WIN32)
 
     # tests depending on vdb-dump
     find_program(VDB_DUMP vdb-dump HINTS ${SRATOOLS_BINDIR})
+    find_program(VDB_CONFIG vdb-config HINTS ${SRATOOLS_BINDIR})
     if (NOT VDB_DUMP)
         message(WARNING "vdb-dump is not found, skipping tests depending on it")
     else ()
         message(STATUS "vdb-dump found in ${VDB_DUMP}")
 
-        set ( CMD runtestcase.sh ${SRATOOLS_BINDIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${VDB_DUMP} ${CMAKE_CURRENT_SOURCE_DIR} )
+        set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${VDB_DUMP} ${VDB_CONFIG} ${CMAKE_CURRENT_SOURCE_DIR} )
 
         file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
                    "vdb/schema/paths = \"${VDB_INCDIR}\"")
@@ -132,7 +133,7 @@ if ( NOT WIN32)
     else ()
         message(STATUS "kdbmeta found in ${KDBMETA}")
 
-        set ( CMD runtestcase.sh ${SRATOOLS_BINDIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${KDBMETA} ${CMAKE_CURRENT_SOURCE_DIR} )
+        set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${KDBMETA}  ${VDB_CONFIG} ${CMAKE_CURRENT_SOURCE_DIR} )
 
         add_test ( NAME GeneralLoader-6.0-SoftwareName-Unpacked
                 COMMAND ${CMD} 6 0 "-L=info -I${VDB_INCDIR}" SOFTWARE/formatter

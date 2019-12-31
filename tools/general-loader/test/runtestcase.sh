@@ -26,11 +26,12 @@ echo "$0 $*"
 
 # $1 - path to general-loader,
 # $2 - dumper executable (vdb-dump, kdbmeta etc.; full path if not in PATH)
-# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $4 - test case ID (expect a file input/$3.gl to exist)
-# $5 - expected return code
-# $6 - command line options for general-loader
-# $7 - command line options for dumper
+# $3 - vdb-config executable (full path if not in PATH)
+# $4 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $5 - test case ID (expect a file input/$3.gl to exist)
+# $6 - expected return code
+# $7 - command line options for general-loader
+# $8 - command line options for dumper
 #
 # return codes:
 # 0 - passed
@@ -39,16 +40,14 @@ echo "$0 $*"
 # 3 - vdb-dump failed on the output of general-loader
 # 4 - outputs differ
 
-SRATOOLS_BINDIR=$1
-shift
-
 BINDIR=$1
 DUMPER=$2
-WORKDIR=$3
-CASEID=$4
-RC=$5
-LOAD_OPTIONS=$6
-DUMP_OPTIONS=$7
+CONFIG=$3
+WORKDIR=$4
+CASEID=$5
+RC=$6
+LOAD_OPTIONS=$7
+DUMP_OPTIONS=$8
 
 DUMP="$DUMPER"
 LOAD="$BINDIR/general-loader"
@@ -78,7 +77,7 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     echo "/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"" >$TEMPDIR/ref-var.kfg
-    VDB_CONFIG=$TEMPDIR/ref-var.kfg $SRATOOLS_BINDIR/vdb-config -on
+    VDB_CONFIG=$TEMPDIR/ref-var.kfg $CONFIG -on
     CMD="VDB_CONFIG=$TEMPDIR/ref-var.kfg $DUMP -+VFS -+KFG  $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
 
