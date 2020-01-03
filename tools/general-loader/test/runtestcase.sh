@@ -76,7 +76,7 @@ fi
 
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
-    CMD="VDB_CONFIG=$TEMPDIR/../t.mkfg $DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg $DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
 
     eval $CMD
