@@ -54,7 +54,7 @@ if ( NOT WIN32)
         set ( CMD runtestcase.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ${VDB_DUMP} ${VDB_CONFIG} ${CMAKE_CURRENT_SOURCE_DIR} )
 
         file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/actual/t.mkfg
-                   "vdb/schema/paths = \"${VDB_INCDIR}\"")
+                   "vdb/schema/paths = \"${VDB_INCDIR}\"\n/LIBS/GUID = \"c1d99592-6ab7-41b2-bfd0-8aeba5ef8498\"\n")
 
         add_test ( NAME makeinputs
                 COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/makeinputs
