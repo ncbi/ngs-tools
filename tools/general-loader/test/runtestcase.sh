@@ -61,7 +61,7 @@ if [ "$?" != "0" ] ; then
     exit 1
 fi
 rm -rf $TEMPDIR/*
-
+$CONFIG
 CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg cat input/$CASEID.gl | $LOAD -L debug -+VDB $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 echo $CMD
 eval $CMD
