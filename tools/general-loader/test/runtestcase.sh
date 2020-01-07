@@ -62,7 +62,7 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/*
 
-CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg cat input/$CASEID.gl | $LOAD -+VDB $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
 eval $CMD
 rc="$?"
@@ -112,9 +112,10 @@ if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
     echo "Diff failed. Command executed:"
     echo $CMD
+cat $TEMPDIR/load.stderr
     exit 4
 fi
 
-rm -rf $TEMPDIR
+#rm -rf $TEMPDIR
 
 exit 0
