@@ -63,7 +63,7 @@ fi
 rm -rf $TEMPDIR/*
 
 CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg cat input/$CASEID.gl | $LOAD -L debug -+VDB $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
-#echo $CMD
+echo $CMD
 eval $CMD
 rc="$?"
 if [ "$rc" != "$RC" ] ; then
@@ -77,8 +77,7 @@ fi
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
     CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg $DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
-    #echo $CMD
-
+    echo $CMD
     eval $CMD
     rc="$?"
     if [ "$rc" != "0" ] ; then
