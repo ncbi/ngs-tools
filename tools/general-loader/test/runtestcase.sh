@@ -60,9 +60,11 @@ if [ "$?" != "0" ] ; then
     echo "cannot create "
     exit 1
 fi
+
 rm -rf $TEMPDIR/*
-NCBI_SETTINGS=$TEMPDIR/../t.mkfg $CONFIG
-CMD="cat input/$CASEID.gl | NCBI_SETTINGS=$TEMPDIR/../t.mkfg $LOAD -L debug -+VDB $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+export NCBI_SETTINGS=$TEMPDIR/../t.mkfg
+#$CONFIG
+CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 echo $CMD
 eval $CMD
 rc="$?"
@@ -76,7 +78,7 @@ fi
 
 if [ "$rc" == "0" ] ; then
     echo "Load succeeded, dumping and matching stdout"
-    CMD="NCBI_SETTINGS=$TEMPDIR/../t.mkfg $DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     echo $CMD
     eval $CMD
     rc="$?"
