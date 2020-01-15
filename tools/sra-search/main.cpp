@@ -33,6 +33,7 @@
 #include <strtol.h>
 
 #include <kapp/main.h>
+#include <kfg/config.h> /* KConfigSetNgcFile */
 
 #include "vdb-search.hpp"
 
@@ -325,6 +326,16 @@ run( int argc, const char *argv [] )
                     }
                 }
                 settings . m_fasta = true;
+            }
+            else if ( arg == "--ngc" )
+            {
+                ++i;
+                if (i >= argc)
+                {
+                    throw invalid_argument (
+                        string ( "Missing argument for ") + arg );
+                }
+                KConfigSetNgcFile ( argv [ i ] );
             }
             else
             {
