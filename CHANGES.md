@@ -1,6 +1,24 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.10.4
+**February 26, 2020**
+
+  **kns, ngs-tools:**: fixed errors when using ngc file
+
+
+## NCBI NGS Toolkit 2.10.3
+**February 18, 2020***
+
+  **ngs-tools**: updated for _sra-tools 2.10.3_
+
+
+## NCBI NGS Toolkit 2.10.2
+**January 15, 2020**
+
+  **ngs-tools**: updated tax tools to the latest version  
+
+
 ## NCBI NGS Toolkit 2.10.0
 **March 18, 2019**
 
