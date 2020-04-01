@@ -1,10 +1,10 @@
 cmake_minimum_required (VERSION 2.8.12)
 
 set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
+
+set ( CMAKE_CXX_EXTENSIONS OFF )
 if (CMAKE_VERSION VERSION_LESS "3.1")
-   if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-      set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
-   endif ()
+   set (CMAKE_CXX_FLAGS "-std=std++11 ${CMAKE_CXX_FLAGS}")
 else ()
    set (CMAKE_CXX_STANDARD 11)
 endif ()
