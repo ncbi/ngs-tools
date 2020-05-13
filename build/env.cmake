@@ -24,6 +24,7 @@ if (UNIX)
 
     set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                              CACHE PATH "ngs include directory" )
     set ( NGS_LIBDIR  ${HOME}/ncbi-outdir/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${HOME}/ncbi-outdir/ngs-java/                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                     CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -48,6 +49,7 @@ elseif (WIN32)
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
     set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                                       CACHE PATH "ngs include directory" )
     set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${HOME}/../OUTDIR/ngs-java/                                                                              CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                                               CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -78,9 +80,16 @@ if (UNIX)
     include_directories ("${VDB_INCDIR}/os/unix")
 
     set ( SYS_LIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            pthread
+            dl
+    )
+
+    set ( SYS_WLIBRARIES
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-wvdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
     )
@@ -111,7 +120,7 @@ elseif (WIN32)
 
     # use Unicode
     add_definitions(-DUNICODE -D_UNICODE)
-    
+
     # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
@@ -148,7 +157,7 @@ endif()
 if ( NOT DEFINED ENV{JAVA_HOME} )
     message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
 endif ()
-set ( NGSJAR "${OLD_OUTDIR}/ngs-java/jar/ngs-java.jar" )
+set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # look for dependencies

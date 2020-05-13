@@ -31,9 +31,6 @@
 #include <ngs-vdb/inc/NGS-VDB.hpp>
 #include <ngs-vdb/inc/VdbAlignment.hpp>
 
-#define __mod__     "TEST_NGS_VDB"
-#define __file__    "test-ngs-vdb"
-#define __fext__    "cpp"
 #include <kfc/ctx.h>
 
 #include <kfc/rsrc.h>
