@@ -1,6 +1,14 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.10.6
+**MAY 18, 2020**
+
+  **align, sra-tools, ngs-tools**: fixed fetching of reference sequences from cloud  
+  **kns, sra-tools, ngs-tools**: added new header to HTTP requests to communicate SRA version  
+  **kns, sra-tools, ngs-tools**: introduced a additional configurable network retry loop  
+
+
 ## NCBI NGS Toolkit 2.10.5
 **April 1, 2020**
 
