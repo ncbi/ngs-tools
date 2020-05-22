@@ -42,31 +42,31 @@ namespace ncbi
             public:
 
                 const char* Data() const
-                    throw ();
+                    NGS_NOTHROW();
 
                 uint64_t Size() const
-                    throw ();
+                    NGS_NOTHROW();
 
                 void GetRowRange ( int64_t * first, uint64_t * count ) const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS ( :: ngs :: ErrorMsg );
 
                 void GetFragmentInfo ( uint64_t offset, std::string * fragId, uint64_t * startInBlob, uint64_t * lengthInBases, bool * biological ) const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
                 FragmentBlob ( FragmentBlobRef ref )
-                    throw ();
+                    NGS_NOTHROW();
 
                 FragmentBlob & operator = ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
                 FragmentBlob ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
                 ~ FragmentBlob ()
-                    throw ();
+                    NGS_NOTHROW();
 
             private:
                 FragmentBlobRef self;

@@ -42,34 +42,34 @@ namespace ncbi
             public:
 
                 const char* Data() const
-                    throw ();
+                    NGS_NOTHROW();
 
                 uint64_t Size() const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS ( :: ngs :: ErrorMsg );
 
                 uint64_t UnpackedSize() const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
                 void GetRowRange ( int64_t * first, uint64_t * count ) const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
                 void ResolveOffset ( uint64_t inBlob, uint64_t * inReference, uint32_t * repeatCount, uint64_t * increment ) const
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
                 ReferenceBlob ( ReferenceBlobRef ref )
-                    throw ();
+                    NGS_NOTHROW();
 
                 ReferenceBlob & operator = ( const ReferenceBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
                 ReferenceBlob ( const ReferenceBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
                 ~ ReferenceBlob ()
-                    throw ();
+                    NGS_NOTHROW();
 
             private:
                 ReferenceBlobRef self;

@@ -55,7 +55,7 @@ namespace ncbi
                 */
                 static
                 VdbReadCollection openVdbReadCollection ( const ncbi :: String & spec )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
             };
         };
     }

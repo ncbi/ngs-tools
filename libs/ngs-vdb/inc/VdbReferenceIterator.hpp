@@ -45,22 +45,22 @@ namespace ncbi
 
                 :: ngs :: ReferenceIterator toReferenceIterator () const { return *this; }
 
-                VdbReference nextReference () throw ( :: ngs :: ErrorMsg );
+                VdbReference nextReference () NGS_THROWS( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
                 VdbReferenceIterator ( const :: ngs :: ReferenceIterator & dad )
-                    throw ();
+                    NGS_NOTHROW ();
 
                 VdbReferenceIterator & operator = ( const VdbReferenceIterator & obj )
-                    throw ();
+                    NGS_NOTHROW();
                 VdbReferenceIterator ( const VdbReferenceIterator & obj )
-                    throw ();
+                    NGS_NOTHROW();
 
                 ~ VdbReferenceIterator ()
-                    throw ();
+                    NGS_NOTHROW();
 
             };
         };

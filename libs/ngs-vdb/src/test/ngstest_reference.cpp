@@ -692,7 +692,12 @@ FIXTURE_TEST_CASE(SRA_Reference_Open_FailsOnNonReference, NGS_C_Fixture)
 }
 #endif
 
-#include <unistd.h> // gethostname
+// gethostname
+#if _WIN32
+    #include <winsock.h>
+#else
+    #include <unistd.h>
+#endif
 static bool expectToFail() {
     char name[512] ="";
     gethostname(name, sizeof name);

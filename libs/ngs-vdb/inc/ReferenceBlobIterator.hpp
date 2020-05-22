@@ -42,24 +42,24 @@ namespace ncbi
             {
             public:
 
-                bool hasMore() const throw ( :: ngs :: ErrorMsg );
+                bool hasMore() const NGS_THROWS ( :: ngs :: ErrorMsg );
 
-                ReferenceBlob nextBlob() throw ( :: ngs :: ErrorMsg );
+                ReferenceBlob nextBlob() NGS_THROWS( :: ngs :: ErrorMsg );
 
             public:
 
                 // C++ support
 
                 ReferenceBlobIterator ( ReferenceBlobIteratorRef ref )
-                    throw ();
+                    NGS_NOTHROW();
 
                 ReferenceBlobIterator & operator = ( const ReferenceBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
                 ReferenceBlobIterator ( const ReferenceBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                    NGS_THROWS( :: ngs :: ErrorMsg );
 
                 ~ ReferenceBlobIterator ()
-                    throw ();
+                    NGS_NOTHROW();
 
             private:
                 ReferenceBlobIterator () throw ();

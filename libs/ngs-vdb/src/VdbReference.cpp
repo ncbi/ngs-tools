@@ -40,24 +40,24 @@
 
 using namespace ncbi :: ngs :: vdb;
 
-VdbReference :: VdbReference ( const :: ngs :: Reference & dad ) throw ()
+VdbReference :: VdbReference ( const :: ngs :: Reference & dad ) NGS_NOTHROW ()
 : :: ngs :: Reference ( dad )
 {
 }
 
 VdbReference &
-VdbReference :: operator = ( const VdbReference & obj ) throw ()
+VdbReference :: operator = ( const VdbReference & obj ) NGS_NOTHROW()
 {
     :: ngs :: Reference :: operator = ( obj );
     return *this;
 }
 
-VdbReference :: VdbReference ( const VdbReference & obj ) throw ()
+VdbReference :: VdbReference ( const VdbReference & obj ) NGS_NOTHROW()
 : :: ngs :: Reference ( obj )
 {
 }
 
-VdbReference :: ~ VdbReference () throw ()
+VdbReference :: ~ VdbReference () NGS_NOTHROW()
 {
 }
 
@@ -71,7 +71,7 @@ public:
 };
 
 ReferenceBlobIterator
-VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
+VdbReference :: getBlobs() const NGS_THROWS( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
@@ -82,7 +82,7 @@ VdbReference :: getBlobs() const throw ( :: ngs :: ErrorMsg )
 }
 
 ReferenceBlobIterator
-VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const throw ( :: ngs :: ErrorMsg )
+VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const NGS_THROWS( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 

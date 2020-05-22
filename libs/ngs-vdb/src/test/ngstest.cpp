@@ -941,8 +941,8 @@ const char UsageDefaultName[] = "test-ngs";
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    rc_t m_coll=NgsTestSuite(argc, argv);
-    return m_coll;
+    int ret = NgsTestSuite(argc, argv);
+    return (rc_t)ret;
 }
 
 }

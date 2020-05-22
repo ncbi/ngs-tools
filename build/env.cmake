@@ -40,6 +40,8 @@ elseif (WIN32)
         set ( PLATFORM_TOOLSET "v100" )
     elseif (CMAKE_GENERATOR MATCHES "2013" )
         set ( PLATFORM_TOOLSET "v120" )
+    elseif (CMAKE_GENERATOR MATCHES "2017" )
+        set ( PLATFORM_TOOLSET "v141" )
     else()
         message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )
     endif()
@@ -49,7 +51,7 @@ elseif (WIN32)
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
     set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                                       CACHE PATH "ngs include directory" )
     set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( NGS_JAVADIR  ${HOME}/../OUTDIR/ngs-java/                                                                              CACHE PATH "ngs Java directory" )
+    set ( NGS_JAVADIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-java/                                                                              CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                                               CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -137,9 +139,11 @@ elseif (WIN32)
         ${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
+        ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs${CMAKE_STATIC_LIBRARY_SUFFIX}
         libngs-bind-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
         libngs-disp${CMAKE_STATIC_LIBRARY_SUFFIX}
         ws2_32
+        Crypt32
     )
 
     set ( CPACK_GENERATOR "ZIP" )

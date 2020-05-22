@@ -43,7 +43,7 @@
 
 using namespace ncbi :: ngs :: vdb;
 
-ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) throw ()
+ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) NGS_NOTHROW()
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -51,7 +51,7 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) 
 }
 
 ReferenceBlobIterator &
-ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) NGS_THROWS ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
@@ -59,7 +59,7 @@ ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) throw 
     return *this;
 }
 
-ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & obj ) throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & obj ) NGS_THROWS( :: ngs :: ErrorMsg )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -67,17 +67,17 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & o
     THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
 }
 
-ReferenceBlobIterator :: ~ ReferenceBlobIterator () throw ()
+ReferenceBlobIterator :: ~ ReferenceBlobIterator () NGS_NOTHROW()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
+    ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) )
     {
         CLEAR ();
     }
 }
 
 bool
-ReferenceBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: hasMore() const NGS_THROWS( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret = false;
@@ -86,7 +86,7 @@ ReferenceBlobIterator :: hasMore() const throw ( :: ngs :: ErrorMsg )
 }
 
 ReferenceBlob
-ReferenceBlobIterator :: nextBlob() throw ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: nextBlob() NGS_THROWS( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     NGS_ReferenceBlob* blob;
