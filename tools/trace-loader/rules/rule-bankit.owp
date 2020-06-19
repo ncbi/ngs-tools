@@ -1,0 +1,792 @@
+##  set of rules for center_name = BANKIT
+##
+
+### Part I
+##  set of rules checking field presense
+#
+<<--OWP-->>
+name = AFLP_PCR
+condition = center_name == "BANKIT" AND strategy == "AFLP" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse plate_id
+## primer_list - removed cuz does not exists
+## 
+
+<<--OWP-->>
+name = BARCODE_PCR
+condition = center_name == "BANKIT" AND strategy == "BARCODE" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse chromosome gene_name organism_name
+
+<<--OWP-->>
+name = CCS_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CCS" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right plate_id seq_lib_id
+
+<<--OWP-->>
+name = CLONE_454
+condition = center_name == "BANKIT" AND strategy == "CLONE" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id seq_lib_id
+
+<<--OWP-->>
+name = CLONE_PCR
+condition = center_name == "BANKIT" AND strategy == "CLONE" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse clone_id library_id plate_id
+
+<<--OWP-->>
+name = CLONE_PRIMERWALK
+condition = center_name == "BANKIT" AND strategy == "CLONE" AND trace_type_code == "PRIMERWALK"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = CLONE_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CLONE" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id seq_lib_id
+
+<<--OWP-->>
+name = CLONE_TRANSPOSON
+condition = center_name == "BANKIT" AND strategy == "CLONE" AND trace_type_code == "TRANSPOSON"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id transposon_code transposon_acc
+
+<<--OWP-->>
+name = CLONEEND_CLONEEND
+condition = center_name == "BANKIT" AND strategy == "CLONEEND" AND trace_type_code == "CLONEEND"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id insert_size insert_stdev library_id plate_id
+
+<<--OWP-->>
+name = CTS_HTP_SELEX
+condition = center_name == "BANKIT" AND strategy == "CTS" AND trace_type_code == "HTP"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = EST_EST
+condition = center_name == "BANKIT" AND strategy == "EST" AND trace_type_code == "EST"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = FINISHING_OTHER
+condition = center_name == "BANKIT" AND strategy == "FINISHING" AND trace_type_code == "OTHER"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = FINISHING_PCR
+condition = center_name == "BANKIT" AND strategy == "FINISHING" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse library_id plate_id
+
+<<--OWP-->>
+name = FINISHING_PRIMERWALK
+condition = center_name == "BANKIT" AND strategy == "FINISHING" AND trace_type_code == "PRIMERWALK"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right plate_id
+
+<<--OWP-->>
+name = FINISHING_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "FINISHING" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id seq_lib_id
+
+<<--OWP-->>
+name = FINISHING_TRANSPOSON
+condition = center_name == "BANKIT" AND strategy == "FINISHING" AND trace_type_code == "TRANSPOSON"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id transposon_code transposon_acc
+
+<<--OWP-->>
+name = MODEL_RT-PCR
+condition = center_name == "BANKIT" AND strategy == "MODEL" AND trace_type_code == "RT-PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse chromosome gene_name
+
+<<--OWP-->>
+name = POOLCLONE_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "POOLCLONE" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id_list library_id plate_id
+
+<<--OWP-->>
+name = RE-SEQUENCING_CHIP
+condition = center_name == "BANKIT" AND strategy == "RE-SEQUENCING" AND trace_type_code == "CHIP"
+action = check_field_presence
+yes_fields = feature_id_file_name feature_signal_file_name reference_accession reference_offset
+
+<<--OWP-->>
+name = RE-SEQUENCING_PCR
+condition = center_name == "BANKIT" AND strategy == "RE-SEQUENCING" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse reference_accession reference_acc_min reference_acc_max
+
+<<--OWP-->>
+name = RE-SEQUENCING_RT-PCR
+condition = center_name == "BANKIT" AND strategy == "RE-SEQUENCING" AND trace_type_code == "RT-PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse reference_accession reference_acc_min reference_acc_max
+
+<<--OWP-->>
+name = RE-SEQUENCING_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "RE-SEQUENCING" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id seq_lib_id
+
+<<--OWP-->>
+name = RT-PCR_RT-PCR
+condition = center_name == "BANKIT" AND strategy == "RT-PCR" AND trace_type_code == "RT-PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse
+
+<<--OWP-->>
+name = SNP_PCR
+condition = center_name == "BANKIT" AND strategy == "SNP" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse chromosome plate_id strain
+
+<<--OWP-->>
+name = SNP_WCS
+condition = center_name == "BANKIT" AND strategy == "SNP" AND trace_type_code == "WCS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right chromosome insert_size insert_stdev plate_id seq_lib_id strain
+
+<<--OWP-->>
+name = SNP_WGS
+condition = center_name == "BANKIT" AND strategy == "SNP" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right insert_size insert_stdev plate_id seq_lib_id strain
+
+<<--OWP-->>
+name = WCS_WCS
+condition = center_name == "BANKIT" AND strategy == "WCS" AND trace_type_code == "WCS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right chromosome insert_size insert_stdev plate_id seq_lib_id
+
+<<--OWP-->>
+name = WGA_454
+condition = center_name == "BANKIT" AND strategy == "WGA" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right seq_lib_id
+
+<<--OWP-->>
+name = WGA_WGS
+condition = center_name == "BANKIT" AND strategy == "WGA" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right insert_size insert_stdev plate_id seq_lib_id
+
+<<--OWP-->>
+name = RE-SEQUENCING_454
+condition = center_name == "BANKIT" AND strategy == "RE-SEQUENCING" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right seq_lib_id reference_accession reference_acc_min reference_acc_max
+
+<<--OWP-->>
+name = CDNA_CLONEEND
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "CLONEEND"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id insert_size insert_stdev plate_id
+
+<<--OWP-->>
+name = CDNA_EST
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "EST"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = CDNA_PCR
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse plate_id
+
+<<--OWP-->>
+name = CDNA_PRIMERWALK
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "PRIMERWALK"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id
+
+<<--OWP-->>
+name = CDNA_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id seq_lib_id
+
+<<--OWP-->>
+name = CDNA_TRANSPOSON
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "TRANSPOSON"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right clone_id library_id plate_id transposon_code transposon_acc
+
+<<--OWP-->>
+name = CDNA_454
+condition = center_name == "BANKIT" AND strategy == "CDNA" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right seq_lib_id
+
+<<--OWP-->>
+name = COMPARATIVE_PCR
+condition = center_name == "BANKIT" AND strategy == "COMPARATIVE" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse reference_accession reference_acc_min reference_acc_max plate_id
+
+<<--OWP-->>
+name = ENV_454
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right collection_date environment_type latitude longitude seq_lib_id
+
+<<--OWP-->>
+name = ENV_PCR
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse collection_date environment_type latitude longitude
+
+<<--OWP-->>
+name = ENV_WGS
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right collection_date environment_type insert_size insert_stdev latitude longitude plate_id seq_lib_id
+
+<<--OWP-->>
+name = ENV_454
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right host_id host_location host_species seq_lib_id
+
+<<--OWP-->>
+name = ENV_PCR
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse host_id host_location host_species plate_id
+
+<<--OWP-->>
+name = ENV_WGS
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right host_id host_location host_species insert_size insert_stdev plate_id seq_lib_id
+
+<<--OWP-->>
+name = ENV_454
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right host_id host_location host_species seq_lib_id
+
+<<--OWP-->>
+name = ENV_PCR
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse host_id host_location host_species plate_id
+
+<<--OWP-->>
+name = ENV_WGS
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right host_id host_location host_species insert_size insert_stdev plate_id seq_lib_id
+
+<<--OWP-->>
+name = ENV_454
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "454"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right collection_date environment_type latitude longitude seq_lib_id
+
+<<--OWP-->>
+name = ENV_PCR
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = amplification_forward amplification_reverse collection_date environment_type latitude longitude
+
+<<--OWP-->>
+name = ENV_WGS
+condition = center_name == "BANKIT" AND strategy == "ENV" AND trace_type_code == "WGS"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right collection_date environment_type insert_size insert_stdev latitude longitude plate_id seq_lib_id
+
+<<--OWP-->>
+name = CF-S_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CF-S" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right plate_id seq_lib_id
+
+<<--OWP-->>
+name = CF-M_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CF-M" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = seq_lib_id plate_id clip_vector_right insert_flank_right clip_vector_left insert_flank_left
+
+<<--OWP-->>
+name = CF-H_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CF-H" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = clip_vector_left insert_flank_left clip_vector_right insert_flank_right plate_id seq_lib_id
+
+<<--OWP-->>
+name = CF-T_SHOTGUN
+condition = center_name == "BANKIT" AND strategy == "CF-T" AND trace_type_code == "SHOTGUN"
+action = check_field_presence
+yes_fields = seq_lib_id plate_id clip_vector_right insert_flank_right clip_vector_left insert_flank_left
+
+<<--OWP-->>
+name = MEDICAL_PCR
+condition = center_name == "BANKIT" AND strategy == "MEDICAL" AND trace_type_code == "PCR"
+action = check_field_presence
+yes_fields = anonymized_id amplification_forward amplification_reverse amplification_size center_name center_project program_id project_name reference_accession reference_acc_max reference_acc_min reference_set_min reference_set_max source_type species_code strategy submission_type template_id trace_end trace_file trace_format trace_name trace_type_code
+no_fields = individual_id plate_id population_id run_date run_lane run_group_id run_machine_id
+
+<<--OWP-->>
+name = SYNTHETIC_PRIMERWALK
+condition = center_name == "BANKIT" AND strategy == "SYNTHETIC" AND trace_type_code == "PRIMERWALK"
+action = check_field_presence
+yes_fields = template_id clip_vector_left insert_flank_left clip_vector_right insert_flank_right
+
+### Part II
+##  set of rules checking field type
+#
+<<--OWP-->>
+name = ACCESSION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = accession
+type = string
+other = existing Genbank accession 
+
+<<--OWP-->>
+name = AMPLIFICATION_FORWARD_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = amplification_forward
+type = string
+min = 5
+max = 100
+alphabet = acgtnACGTN
+
+<<--OWP-->>
+name = AMPLIFICATION_REVERSE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = amplification_reverse
+type = string
+min = 5
+max = 100
+alphabet = acgtnACGTN
+
+<<--OWP-->>
+name = AMPLIFICATION_SIZE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = amplification_size
+type = int
+min = 0
+max = 500000
+other = should be used when AMPLIFICATION_FORWARD/REVERSE Fields are required   
+
+<<--OWP-->>
+name = ANONYMIZED_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = anonymized_id
+type = string
+
+<<--OWP-->>
+name = ATTEMPT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = attempt
+type = int
+min = 0
+
+<<--OWP-->>
+name = BASE_FILE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = base_file
+type = string
+other = should be also PEAK_FILE and QUALITY_FILE    
+
+<<--OWP-->>
+name = CENTER_NAME_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = center_name
+type = string
+
+<<--OWP-->>
+name = CENTER_PROJECT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = center_project
+type = string
+
+<<--OWP-->>
+name = CHEMISTRY_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = chemistry
+type = string
+
+<<--OWP-->>
+name = CHROMOSOME_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = chromosome
+type = string
+
+<<--OWP-->>
+name = CLIP_QUALITY_LEFT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = clip_quality_left
+type = int
+min = 0
+other = <basecall_len
+
+<<--OWP-->>
+name = CLIP_QUALITY_RIGHT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = clip_quality_right
+type = int
+min = 0
+other = <basecall_len
+
+<<--OWP-->>
+name = CLIP_VECTOR_LEFT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = clip_vector_left
+type = int
+min = 0
+other = <basecall_len
+
+<<--OWP-->>
+name = CLIP_VECTOR_RIGHT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = clip_vector_right
+type = int
+min = 0
+other = <basecall_len
+
+<<--OWP-->>
+name = CLONE_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = clone_id
+type = string
+
+<<--OWP-->>
+name = COLLECTION_DATE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = collection_date
+type = date
+
+<<--OWP-->>
+name = CVECTOR_ACCESSION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = cvector_accession
+type = string
+
+<<--OWP-->>
+name = CVECTOR_CODE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = cvector_code
+type = string
+
+<<--OWP-->>
+name = DEPTH_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = depth
+type = float
+min = 0
+max = 12000
+
+<<--OWP-->>
+name = ELEVATION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = elevation
+type = int
+min = 0
+max = 9000
+
+<<--OWP-->>
+name = ENVIRONMENT_TYPE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = environment_type
+type = string
+
+<<--OWP-->>
+name = EXTENDED_DATA_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = extended_data
+type = string
+
+<<--OWP-->>
+name = GENE_NAME_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = gene_name
+type = string
+
+<<--OWP-->>
+name = HI_FILTER_SIZE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = hi_filter_size
+type = string
+
+<<--OWP-->>
+name = HOST_CONDITION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = host_condition
+type = string
+
+<<--OWP-->>
+name = HOST_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = host_id
+type = string
+
+<<--OWP-->>
+name = HOST_LOCATION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = host_location
+type = string
+
+<<--OWP-->>
+name = HOST_SPECIES_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = host_species
+type = string
+
+<<--OWP-->>
+name = INDIVIDUAL_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = individual_id
+type = string
+
+<<--OWP-->>
+name = INSERT_FLANK_LEFT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = insert_flank_left
+type = string
+min = 5
+max = 100
+alphabet = acgtnACGTN
+
+<<--OWP-->>
+name = INSERT_FLANK_RIGHT_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = insert_flank_right
+type = string
+min = 5
+max = 100
+alphabet = acgtnACGTN
+
+<<--OWP-->>
+name = INSERT_SIZE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = insert_size
+type = int
+min = 100
+max = 500000
+
+<<--OWP-->>
+name = INSERT_STDEV_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = insert_stdev
+type = int
+min = 10
+max = 50000
+
+<<--OWP-->>
+name = LATITUDE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = latitude
+type = float
+min = -90
+max = 90
+
+<<--OWP-->>
+name = LIBRARY_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = library_id
+type = string
+
+<<--OWP-->>
+name = LONGITUDE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = longitude
+type = float
+min = -180
+max = 180
+
+<<--OWP-->>
+name = LO_FILTER_SIZE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = lo_filter_size
+type = string
+
+<<--OWP-->>
+name = NCBI_PROJECT_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = ncbi_project_id
+type = int
+
+<<--OWP-->>
+name = PH_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = ph
+type = string
+
+<<--OWP-->>
+name = PICK_GROUP_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = pick_group_id
+type = string
+
+<<--OWP-->>
+name = PLACE_NAME_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = place_name
+type = string
+
+<<--OWP-->>
+name = PLATE_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = plate_id
+type = string
+
+<<--OWP-->>
+name = POPULATION_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = population_id
+type = string
+
+<<--OWP-->>
+name = PREP_GROUP_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = prep_group_id
+type = string
+
+<<--OWP-->>
+name = PRIMER_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = primer
+type = string
+alphabet = acgtnACGTN
+
+<<--OWP-->>
+name = PRIMER_CODE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = primer_code
+type = string
+
+<<--OWP-->>
+name = PROGRAM_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = program_id
+type = string
+
+<<--OWP-->>
+name = REFERENCE_ACCESSION_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_accession
+type = string
+other = existing Genbank accession.version  
+
+<<--OWP-->>
+name = REFERENCE_ACC_MAX_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_acc_max
+type = int
+min = 0
+
+<<--OWP-->>
+name = REFERENCE_ACC_MIN_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_acc_min
+type = int
+min = 0
+
+<<--OWP-->>
+name = REFERENCE_OFFSET_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_offset
+type = int
+min = 0
+
+<<--OWP-->>
+name = REFERENCE_SET_MAX_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_set_max
+type = int
+min = 0
+
+<<--OWP-->>
+name = REFERENCE_SET_MIN_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = reference_set_min
+type = int
+min = 0
+
+<<--OWP-->>
+name = RUN_DATE_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = run_date
+type = date
+
+<<--OWP-->>
+name = RUN_GROUP_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = run_group_id
+type = string
+
+<<--OWP-->>
+name = SEQ_LIB_ID_BANKIT
+condition = center_name == "BANKIT"
+action = check_field_type
+field = seq_lib_id
+type = string
+

@@ -1,0 +1,41 @@
+##  set of rules for everything
+##
+
+##  Test for recursion
+##
+<<--OWP-->>
+name = INIT
+general = rule-general.owp
+
+### Kinda true
+##
+#
+<<--OWP-->>
+name = BASE_FILE
+condition = base_file OR qual_file OR peak_file
+action = check_field_presence
+yes_fields = base_file qual_file peak_file
+
+##
+## Many submissions have invalid characters in that field
+## For example TI 2338210644 contains R
+##
+## <<--OWP-->>
+## name = AMPLIFICATION_FORWARD_GENERAL
+## condition = center_name != "BANKIT"
+## action = check_field_type
+## field = amplification_forward
+## type = string
+## alphabet = acgtnACGTN
+
+##
+## Many submissions have invalid characters in that field
+## For example TI 2338210644 contains R
+##
+## <<--OWP-->>
+## name = AMPLIFICATION_REVERSE_GENERAL
+## condition = center_name != "BANKIT"
+## action = check_field_type
+## field = amplification_reverse
+## type = string
+## alphabet = acgtnACGTN

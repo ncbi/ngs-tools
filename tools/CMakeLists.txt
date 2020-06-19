@@ -7,6 +7,7 @@ add_subdirectory(compute-coverage)
 if ( NOT WIN32)
     add_subdirectory(general-loader)
     add_subdirectory(pileup-stats)
+    add_subdirectory(trace-loader)
 endif()
 
 if ( ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )

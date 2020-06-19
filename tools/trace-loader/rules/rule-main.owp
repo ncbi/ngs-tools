@@ -1,0 +1,14 @@
+##  set of rules for everything
+##
+
+##  this section is simple :
+##  rules_collection_name = rules_collection_path
+##
+<<--OWP-->>
+name = INIT
+general = rule-general.owp
+bankit = rule-bankit.owp 
+
+##
+## There also could be rules after that comment.
+##
