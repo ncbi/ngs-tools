@@ -2,9 +2,9 @@
 
 
 ## NCBI NGS Toolkit 2.10.8
-**June 24, 2020**
+**June 29, 2020**
 
-  **ngs-tools, sra-tools, vfs**: report an error when file was encrypted for a different ngc file  
+  **vfs, sra-tools, ngs-tools**: report an error when file was encrypted for a different ngc file  
 
 
 ## NCBI NGS Toolkit 2.10.7
