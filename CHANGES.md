@@ -1,8 +1,15 @@
 # NCBI External Developer Release:
 
 
-## NCBI VDB 2.10.7
+## NCBI NGS Toolkit 2.10.8
+**June 29, 2020**
+
+  **vfs, sra-tools, ngs-tools**: report an error when file was encrypted for a different ngc file  
+
+
+## NCBI NGS Toolkit 2.10.7
 **May 21, 2020**
+
   **kns, ngs-tools, sra-tools**: added new header to HTTP requests to communicate VDB version 
 
 

@@ -1366,7 +1366,7 @@ namespace KProc
         m_ThreadFunc = thread_func;
         m_pData = data;
 
-        rc_t rc = ::KThreadMake ( & m_pSelf, KThreadFunc, this );
+        rc_t rc = ::KThreadMakeStackSize ( & m_pSelf, KThreadFunc, this, 0 );
         if (rc)
             throw Utils::CErrorMsg(rc, "KThreadMake");
     }
