@@ -33,11 +33,11 @@
 struct ConfigBuildIndex
 {
 	std::string file_list, tax_parents_file;
-	unsigned int window_divider, kmer_len, min_window_size;
+	unsigned int window_divider, kmer_len, min_window_size, min_kmers_per_seq;
 
 	ConfigBuildIndex(int argc, char const *argv[])
 	{
-		if (argc != 6)
+		if (argc != 7)
 		{
 			print_usage();
 			exit(1);
@@ -48,11 +48,12 @@ struct ConfigBuildIndex
 		window_divider = std::stoi(std::string(argv[3]));
 		kmer_len = std::stoi(std::string(argv[4]));
         min_window_size = std::stoi(std::string(argv[5]));
+        min_kmers_per_seq = std::stoi(std::string(argv[6]));
 	}
 
 	static void print_usage()
 	{
-        LOG("need <files.list> <tax.parents> <window divider> <kmer len> <min window size>");
+        LOG("need <files.list> <tax.parents> <window divider> <kmer len> <min window size> <min kmers per seq>");
 	}
 };
 
