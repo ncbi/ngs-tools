@@ -69,7 +69,7 @@ int main(int argc, char const *argv[])
 
         set<hash_t> kmers;
         std::vector<std::string> summary;
-        BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, summary, [&](hash_t kmer){ kmers.insert(kmer); });
+        BuildIndex::add_kmers(file_list_element.filename, BuildIndex::VariableWindowSize(config.window_size, config.min_window_size, config.min_kmers_per_seq), config.kmer_len, summary, [&](hash_t kmer){ kmers.insert(kmer); });
 
         cout << "writing " << out_file << endl;
         DBSIO::save(out_file, kmers, config.kmer_len);

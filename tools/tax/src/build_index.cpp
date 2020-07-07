@@ -88,7 +88,7 @@ int main(int argc, char const *argv[])
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		LOG(file_list_element.filesize << "\t" << window_size << "\t" << tax_id << "\t" << file_list_element.filename);
 		std::vector<std::string> summary;
-		total_size += BuildIndex::add_kmers(file_list_element.filename, window_size, config.kmer_len, summary, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
+		total_size += BuildIndex::add_kmers(file_list_element.filename, BuildIndex::VariableWindowSize(window_size, config.min_window_size, config.min_kmers_per_seq), config.kmer_len, summary, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
 		{
 			auto seconds_past = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
 			if (seconds_past < 1)

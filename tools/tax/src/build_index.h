@@ -126,8 +126,8 @@ struct BuildIndex
         return win_proc;
     }
 
-    template <class Lambda>
-    static size_t add_kmers(const std::string &filename, int window_size, int kmer_len, std::vector<std::string> &summary, Lambda &&add_kmer)
+    template <class Lambda, class WindowSizeLambda>
+    static size_t add_kmers(const std::string &filename, WindowSizeLambda &&window_size, int kmer_len, std::vector<std::string> &summary, Lambda &&add_kmer)
     {
         Fasta fasta(filename);
 
@@ -149,7 +149,7 @@ struct BuildIndex
             total_size += processing_seq.seq.size();
 
             for (auto &clean_string : processing_seq.clean_strings)
-                kmers_added = process_clean_string(clean_string, window_size, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer); } );
+                kmers_added = process_clean_string(clean_string, window_size(processing_seq.seq.length()), kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer); } );
 
             seq_index++;
             if (seq_index % DOT_INTERVAL == 0)
