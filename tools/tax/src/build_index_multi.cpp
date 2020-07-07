@@ -41,7 +41,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.11";
+const string VERSION = "0.12";
 
 int create_tax_offset_id(int tax_id, int offset, int total_len, int kmer_len, int POS_ENCODING_MUL)
 {
@@ -67,23 +67,23 @@ int create_tax_offset_id(int tax_id, int offset, int total_len, int kmer_len, in
 
 int main(int argc, char const *argv[])
 {
-	LOG("build_index_multi version " << VERSION);
-	Config config(argc, argv);
+    LOG("build_index_multi version " << VERSION);
+    Config config(argc, argv);
 
-	auto before = high_resolution_clock::now();
+    auto before = high_resolution_clock::now();
 
-	FileListLoader file_list(config.file_list);
+    FileListLoader file_list(config.file_list);
 
-	KmersMulti kmers;
-	size_t total_size = 0;
-	for (auto &file_list_element : file_list.files)
+    KmersMulti kmers;
+    size_t total_size = 0;
+    for (auto &file_list_element : file_list.files)
     {
-		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
-		LOG(file_list_element.filesize << "\t" << config.window_size << "\t" << tax_id << "\t" << file_list_element.filename);
-		total_size += BuildIndex::add_kmers_with_markup(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer, int offset, int total_len){ kmers.add_kmer(kmer, create_tax_offset_id(tax_id, offset, total_len, config.kmer_len, config.pos_encoding_mul)); });
+        auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
+        LOG(file_list_element.filesize << "\t" << config.window_size << "\t" << tax_id << "\t" << file_list_element.filename);
+        total_size += BuildIndex::add_kmers_with_markup(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer, int offset, int total_len, int seq_id){ kmers.add_kmer(kmer, create_tax_offset_id(tax_id, offset, total_len, config.kmer_len, config.pos_encoding_mul)); });
     }
 
-	KmerIO::print_kmers(kmers, config.kmer_len);
+    KmerIO::print_kmers(kmers, config.kmer_len);
 
-	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
+    LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }
