@@ -81,6 +81,37 @@ struct DBSIO
 	}
 
 	template <class C>
+	static void save_centroid(const std::string &out_file, const C &centroid, size_t kmer_len)
+	{
+		std::ofstream f(out_file);
+		DBSHeader header(kmer_len);
+        IO::write(f, header);
+		IO::write(f, centroid.seq_count);
+        IO::save_vector(f, centroid.kmers);
+	}
+
+	template <class C>
+	static size_t load_centroid(const std::string &filename, C &centroid)
+	{
+    	std::ifstream f(filename, std::ios::binary | std::ios::in);
+	    if (f.fail() || f.eof())
+		    throw std::runtime_error(std::string("cannot load centroid ") + filename);
+
+        DBSHeader header;
+        IO::read(f, header);
+		if (header.version != VERSION)
+			throw std::runtime_error("unsupported dbs file version");
+
+		IO::read(f, centroid.seq_count);
+        IO::load_vector(f, centroid.kmers);
+
+		if (header.kmer_len < 1 || header.kmer_len > 64)
+			throw std::runtime_error("load_centroid:: invalid kmer_len");
+
+		return header.kmer_len;
+	}
+
+	template <class C>
 	static void save(const std::string &out_file, const std::set<C> &kmers, size_t kmer_len)
 	{
 		std::ofstream f(out_file);

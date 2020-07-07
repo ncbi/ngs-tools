@@ -37,53 +37,53 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.15";
+const string VERSION = "0.16";
 
 int main(int argc, char const *argv[])
 {
-	LOG("build_index_of_each_file version " << VERSION);
-	Config config(argc, argv);
-	LOG("window size: " << config.window_size);
-	LOG("kmer len: " << config.kmer_len);
+    LOG("build_index_of_each_file version " << VERSION);
+    Config config(argc, argv);
+    LOG("window size: " << config.window_size);
+    LOG("kmer len: " << config.kmer_len);
 
-	auto before = high_resolution_clock::now();
+    auto before = high_resolution_clock::now();
 
-	FileListLoader file_list(config.file_list);
+    FileListLoader file_list(config.file_list);
 
-	for (auto &file_list_element : file_list.files)
-	{
-		string out_file = file_list_element.filename + config.out_ext;
-		if (IO::file_exists(out_file))
-		{
-			cout << "skipping " << out_file << endl;
-			continue;
-		}
+    for (auto &file_list_element : file_list.files)
+    {
+        string out_file = file_list_element.filename + config.out_ext;
+        if (IO::file_exists(out_file))
+        {
+            cout << "skipping " << out_file << endl;
+            continue;
+        }
 
-		std::string summary_file = out_file + ".summary.tsv";
+        std::string summary_file = out_file + ".summary.tsv";
 
-		size_t start = summary_file.rfind("/");
-		std::string jf = summary_file.substr(start + 1, summary_file.length() - start);
+        size_t start = summary_file.rfind("/");
+        std::string jf = summary_file.substr(start + 1, summary_file.length() - start);
 
-		size_t end = jf.find(".");
-		std::string summary_basename = jf.substr(0, end);
+        size_t end = jf.find(".");
+        std::string summary_basename = jf.substr(0, end);
 
-		set<hash_t> kmers;
-		std::vector<std::string> summary;
-		BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, summary, [&](hash_t kmer){ kmers.insert(kmer); });
+        set<hash_t> kmers;
+        std::vector<std::string> summary;
+        BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, summary, [&](hash_t kmer){ kmers.insert(kmer); });
 
-		cout << "writing " << out_file << endl;
-		DBSIO::save(out_file, kmers, config.kmer_len);
+        cout << "writing " << out_file << endl;
+        DBSIO::save(out_file, kmers, config.kmer_len);
 
-		cout << "writing summary " << summary_file << endl;
-		ofstream fsummary;
-		fsummary.open(summary_file);
+        cout << "writing summary " << summary_file << endl;
+        ofstream fsummary;
+        fsummary.open(summary_file);
 
-		for (size_t sit = 0; sit < summary.size(); sit++)
-		    fsummary << summary_basename << "\t" << summary[sit] << endl;
+        for (size_t sit = 0; sit < summary.size(); sit++)
+            fsummary << summary_basename << "\t" << summary[sit] << endl;
 
-		fsummary.close();
+        fsummary.close();
 
-	}
+    }
 
-	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
+    LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }

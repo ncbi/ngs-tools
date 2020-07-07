@@ -41,7 +41,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.35";
+const string VERSION = "0.37";
 
 size_t weight(size_t kmers_count)
 {
@@ -51,7 +51,7 @@ size_t weight(size_t kmers_count)
 int calculate_window_size_(size_t filesize, bool eukaryota, bool virus)
 {
 	if (virus)
-		return 200;
+		return 64;
 
 	if (eukaryota)
 		return 8000;
@@ -70,6 +70,8 @@ int main(int argc, char const *argv[])
 	ConfigBuildIndex config(argc, argv);
 	LOG("window divider: " << config.window_divider);
 	LOG("kmer len: " << config.kmer_len);
+	LOG("min window size: " << config.min_window_size);
+	LOG("min kmers per clean string: " << config.min_kmers_per_seq);
 
 	auto before = high_resolution_clock::now();
 

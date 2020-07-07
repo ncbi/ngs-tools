@@ -25,38 +25,29 @@
 */
 #pragma once
 
-#include "fasta.h"
-#include "seq_cleaner.h"
+#include <vector>
+#include "dbs.h"
 
-struct ReadySeq
+typedef uint64_t hash_t;
+
+struct KmerTax : public DBS::KmerTax
 {
-    std::string seq;
-    std::string desc;
-    SeqCleaner::p_strings clean_strings;
+	KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
+
+	bool operator < (const KmerTax &x) const // for binary search by hash
+	{
+		return kmer < x.kmer;
+	}
 };
 
-static void swap(ReadySeq &a, ReadySeq &b)
+typedef int tax_t;
+typedef std::vector<KmerTax> HashSortedArray;
+
+static tax_t find_hash(hash_t hash, tax_t default_value, HashSortedArray &hash_array)
 {
-    swap(a.seq, b.seq);
-    swap(a.desc, b.desc);
-    swap(a.clean_strings, b.clean_strings);
-}
-
-static void load_sequence(Fasta *_fasta, ReadySeq *_seq)
-{
-    Fasta &fasta = *_fasta;
-    ReadySeq &seq = *_seq;
-
-    seq.seq.clear(); // for better performance clear instad of constructor
-    seq.desc.clear();
-    seq.clean_strings.clear();
-
-    if (!fasta.get_next_sequence(seq.seq))
-        return;
-
-    seq.desc = fasta.sequence_description();
-
-    SeqCleaner cleaner(seq.seq);
-    seq.clean_strings = move(cleaner.clean_strings);
+    auto first = hash_array.begin();
+    auto last = hash_array.end();
+    first = std::lower_bound(first, last, KmerTax(hash, 0));
+    return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
 }
 

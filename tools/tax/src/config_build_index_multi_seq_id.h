@@ -23,40 +23,33 @@
 * ===========================================================================
 *
 */
+
 #pragma once
 
-#include "fasta.h"
-#include "seq_cleaner.h"
+#include <string>
+#include "log.h"
 
-struct ReadySeq
+struct Config
 {
-    std::string seq;
-    std::string desc;
-    SeqCleaner::p_strings clean_strings;
+    std::string file_list;
+    unsigned int kmer_len, window_size;
+
+    Config(int argc, char const *argv[])
+    {
+        if (argc != 4)
+        {
+            print_usage();
+            exit(1);
+        }
+
+        file_list = std::string(argv[1]);
+        kmer_len = std::stoi(std::string(argv[2]));
+        window_size = std::stoi(std::string(argv[3]));
+    }
+
+    static void print_usage()
+    {
+        LOG("need <files.list> <kmer len> <window size>");
+    }
 };
-
-static void swap(ReadySeq &a, ReadySeq &b)
-{
-    swap(a.seq, b.seq);
-    swap(a.desc, b.desc);
-    swap(a.clean_strings, b.clean_strings);
-}
-
-static void load_sequence(Fasta *_fasta, ReadySeq *_seq)
-{
-    Fasta &fasta = *_fasta;
-    ReadySeq &seq = *_seq;
-
-    seq.seq.clear(); // for better performance clear instad of constructor
-    seq.desc.clear();
-    seq.clean_strings.clear();
-
-    if (!fasta.get_next_sequence(seq.seq))
-        return;
-
-    seq.desc = fasta.sequence_description();
-
-    SeqCleaner cleaner(seq.seq);
-    seq.clean_strings = move(cleaner.clean_strings);
-}
 
