@@ -34,6 +34,7 @@
 #include "seq_transform.h"
 #include "kmer_hash.h"
 #include "ready_seq.h"
+#include "log.h"
 
 struct BuildIndex
 {
@@ -97,23 +98,30 @@ struct BuildIndex
     }
 
     template <class Lambda>
-    static void process_clean_string(p_string p_str, int window_size, int kmer_len, Lambda &&add_kmer)
+    static size_t process_clean_string(p_string p_str, int window_size, int kmer_len, Lambda &&add_kmer)
     {
+	    size_t win_proc = 0;
 	    for (int start = 0; start <= p_str.len - window_size; start += window_size) // todo: check for integer overflows on very long sequences
         {
             int from = std::max(0, start - (kmer_len - 1));
             int to = std::min(start + window_size, p_str.len);
 		    process_window(p_str.s + from, to - from, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer, offset + from); } );
+		    win_proc++;
         }
+        return win_proc;
     }
 
     template <class Lambda>
-    static size_t add_kmers(const std::string &filename, int window_size, int kmer_len, Lambda &&add_kmer)
+    static size_t add_kmers(const std::string &filename, int window_size, int kmer_len, std::vector<std::string> &summary, Lambda &&add_kmer)
     {
 	    Fasta fasta(filename);
 
 	    size_t seq_index = 0;
 	    size_t total_size = 0;
+	    size_t kmers_added = 0;
+
+	    summary.clear();
+
 	    const int DOT_INTERVAL = 128;
 
 	    ReadySeq loading_seq, processing_seq;
@@ -126,11 +134,13 @@ struct BuildIndex
 		    total_size += processing_seq.seq.size();
 
 		    for (auto &clean_string : processing_seq.clean_strings)
-			    process_clean_string(clean_string, window_size, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer); } );
+			    kmers_added = process_clean_string(clean_string, window_size, kmer_len, [&](hash_t kmer, int offset) { add_kmer(kmer); } );
 
 		    seq_index++;
 		    if (seq_index % DOT_INTERVAL == 0)
 			    std::cerr << ".";
+
+		    summary.push_back(processing_seq.desc + "\t" + std::to_string(processing_seq.seq.size()) + "\t" + std::to_string(kmers_added));
 
 		    loading_thread.join();
 		    swap(processing_seq, loading_seq); // todo: move?

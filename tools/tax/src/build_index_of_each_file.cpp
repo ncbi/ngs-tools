@@ -37,7 +37,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.14";
+const string VERSION = "0.15";
 
 int main(int argc, char const *argv[])
 {
@@ -59,10 +59,30 @@ int main(int argc, char const *argv[])
 			continue;
 		}
 
+		std::string summary_file = out_file + ".summary.tsv";
+
+		size_t start = summary_file.rfind("/");
+		std::string jf = summary_file.substr(start + 1, summary_file.length() - start);
+
+		size_t end = jf.find(".");
+		std::string summary_basename = jf.substr(0, end);
+
 		set<hash_t> kmers;
-		BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, [&](hash_t kmer){ kmers.insert(kmer); });
+		std::vector<std::string> summary;
+		BuildIndex::add_kmers(file_list_element.filename, config.window_size, config.kmer_len, summary, [&](hash_t kmer){ kmers.insert(kmer); });
+
 		cout << "writing " << out_file << endl;
 		DBSIO::save(out_file, kmers, config.kmer_len);
+
+		cout << "writing summary " << summary_file << endl;
+		ofstream fsummary;
+		fsummary.open(summary_file);
+
+		for (size_t sit = 0; sit < summary.size(); sit++)
+		    fsummary << summary_basename << "\t" << summary[sit] << endl;
+
+		fsummary.close();
+
 	}
 
 	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());

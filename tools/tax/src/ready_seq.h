@@ -31,12 +31,14 @@
 struct ReadySeq
 {
 	std::string seq;
+	std::string desc;
 	SeqCleaner::p_strings clean_strings;
 };
 
 static void swap(ReadySeq &a, ReadySeq &b)
 {
 	swap(a.seq, b.seq);
+	swap(a.desc, b.desc);
 	swap(a.clean_strings, b.clean_strings);
 }
 
@@ -46,10 +48,13 @@ static void load_sequence(Fasta *_fasta, ReadySeq *_seq)
 	ReadySeq &seq = *_seq;
 
 	seq.seq.clear(); // for better performance clear instad of constructor
+	seq.desc.clear();
 	seq.clean_strings.clear();
 
 	if (!fasta.get_next_sequence(seq.seq))
 		return;
+
+	seq.desc = fasta.sequence_description();
 
 	SeqCleaner cleaner(seq.seq);
 	seq.clean_strings = move(cleaner.clean_strings);
