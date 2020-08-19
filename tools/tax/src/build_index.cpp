@@ -87,7 +87,8 @@ int main(int argc, char const *argv[])
 		auto window_size = calculate_window_size(file_list_element.filesize, FilenameMeta::is_eukaryota(file_list_element.filename), FilenameMeta::is_virus(file_list_element.filename), config.window_divider, config.min_window_size);
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		LOG(file_list_element.filesize << "\t" << window_size << "\t" << tax_id << "\t" << file_list_element.filename);
-		total_size += BuildIndex::add_kmers(file_list_element.filename, BuildIndex::VariableWindowSize(window_size, config.min_window_size, config.min_kmers_per_seq), config.kmer_len, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
+		std::vector<std::string> summary;
+		total_size += BuildIndex::add_kmers(file_list_element.filename, BuildIndex::VariableWindowSize(window_size, config.min_window_size, config.min_kmers_per_seq), config.kmer_len, summary, [&](hash_t kmer){ kmers.add_kmer(kmer, tax_id); });
 		{
 			auto seconds_past = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
 			if (seconds_past < 1)
