@@ -33,11 +33,11 @@
 struct Config
 {
     std::string file_list, out_ext;
-    unsigned int window_size, kmer_len, min_kmers_per_seq, min_window_size;
+    unsigned int window_size, kmer_len, min_kmers_per_seq = 0, min_window_size = 0;
 
     Config(int argc, char const *argv[])
     {
-        if (argc != 7)
+        if (argc != 5)
         {
             print_usage();
             exit(1);
@@ -47,13 +47,13 @@ struct Config
         window_size = std::stoi(std::string(argv[2]));
         kmer_len = std::stoi(std::string(argv[3]));
         out_ext = std::string(argv[4]);
-        min_kmers_per_seq = std::stoi(std::string(argv[5]));
-        min_window_size = std::stoi(std::string(argv[6]));
+//        min_kmers_per_seq = std::stoi(std::string(argv[5]));
+//        min_window_size = std::stoi(std::string(argv[6]));
     }
 
     static void print_usage()
     {
-        LOG("need <files.list> <window size> <kmer len> <out ext> <min kmers per seq> <min window size>");
+        LOG("need <files.list> <window size> <kmer len> <out ext>");
     }
 };
 
