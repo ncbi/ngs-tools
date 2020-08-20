@@ -37,7 +37,7 @@ struct ConfigBuildIndex
 
     ConfigBuildIndex(int argc, char const *argv[])
     {
-        if (argc != 6)
+        if (argc != 5)
         {
             print_usage();
             exit(1);
