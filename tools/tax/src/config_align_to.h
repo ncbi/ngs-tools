@@ -33,15 +33,20 @@
 #include <list>
 #include <stdexcept>
 #include "log.h"
+#include "missing_cpp_features.h"
 
 struct Config
 {
-	std::string reference, db, dbs, dbsm, dbss, many, dbss_tax_list, contig_file, spot_filter_file, out;
+    std::string reference, db, dbs, dbsm, dbss, many, dbss_tax_list, spot_filter_file, out;
+    std::list <std::string> contig_files;
+
     bool unaligned_only = false;
     bool hide_counts = false, compact = false;
 
-	Config(int argc, char const *argv[])
-	{
+    Config(int argc, char const *argv[])
+    {
+        std::string contig_file;
+
         std::list<std::string> args;
         for (int i = 1; i < argc; ++i)
             args.push_back(std::string(argv[i]));
@@ -90,37 +95,69 @@ struct Config
         // tax list makes sense if and only if dbss specified
         if (dbss.empty() != dbss_tax_list.empty())
             fail("-tax_list should be used with -dbss");
-	}
 
-	static void fail(const char* reason = "invalid arguments")
-	{
-		print_usage();
+        if (ends_with(contig_file, ".list"))
+            contig_files = load_list(contig_file);
+        else
+            contig_files.push_back(contig_file);
+
+        if (contig_files.empty())
+            fail("loaded empty list of files to process");
+
+        if (contig_files.size() > 1 && out.empty())
+            fail("-out postfix required for multiple input files");
+    }
+
+    static std::list<std::string> load_list(const std::string &filename)
+    {
+        std::ifstream f(filename);
+        if (f.fail())
+            throw std::runtime_error(std::string("cannot open list file ") + filename);
+
+        std::list<std::string> items;
+
+        while (!f.eof())
+        {
+            std::string s;
+            f >> s;            
+            if (f.fail())
+                break;
+
+            items.push_back(s);
+        }
+
+        return items;
+    }
+
+    static void fail(const char* reason = "invalid arguments")
+    {
+        print_usage();
         LOG(reason);
         exit(1);
-	}
+    }
 
-	static void print_usage()
-	{
-        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-compact] [-unaligned_only] <contig fasta or accession>" << std::endl 
+    static void print_usage()
+    {
+        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-compact] [-unaligned_only] <contig fasta, accession or .list file of fasta/accessions>" << std::endl 
             << "where <database> is one of:" << std::endl
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl
             << "-dbsm <database +taxes>" << std::endl
             << "-dbss <sorted database +tax> -tax_list <tax_list file>" << std::endl;
 //            << "-many <comma-separated list of databases>" << std::endl;
-	}
+    }
 
 private:
 
     static std::string pop_arg(std::list<std::string>& args)
-	{
+    {
         if (args.empty())
             fail("need more args");
 
         std::string arg = args.front();
         args.pop_front();
         return arg;
-	}
+    }
 };
 
 #endif

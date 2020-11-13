@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.55";
+const std::string VERSION = "0.57";
 
 typedef uint64_t hash_t;
 
@@ -60,8 +60,6 @@ int main(int argc, char const *argv[])
 
     auto before = high_resolution_clock::now();
 
-    IO::Writer writer(config.out);
-
     unique_ptr<Job> job;
 
     if (!config.db.empty())
@@ -81,12 +79,13 @@ int main(int argc, char const *argv[])
     if (job->db_kmers() > 0)
         LOG("kmers " << job->db_kmers() << " (" << (job->db_kmers() / 1000 / 1000) << "m)");
 
-    if (config.contig_file.empty())
-        throw std::runtime_error("contig file(s) is empty");
+    for (auto &contig_file : config.contig_files)
+    {
+        LOG(contig_file);
 
-    LOG(config.contig_file);
-
-    job->run(config.contig_file, writer, config);
+        IO::Writer writer(config.contig_files.size() == 1 ? config.out : contig_file + config.out);
+        job->run(contig_file, writer, config);
+    }
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 
