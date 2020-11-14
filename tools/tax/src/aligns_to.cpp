@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.57";
+const std::string VERSION = "0.591";
 
 typedef uint64_t hash_t;
 
@@ -84,7 +84,16 @@ int main(int argc, char const *argv[])
         LOG(contig_file);
 
         IO::Writer writer(config.contig_files.size() == 1 ? config.out : contig_file + config.out);
-        job->run(contig_file, writer, config);
+		try 
+		{
+	        job->run(contig_file, writer, config);
+		}
+		catch (std::exception &e)
+		{
+			LOG(e.what());
+			if (config.contig_files.size() == 1)
+				throw e;
+		}
     }
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
