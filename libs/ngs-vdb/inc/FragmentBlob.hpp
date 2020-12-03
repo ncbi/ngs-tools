@@ -47,11 +47,9 @@ namespace ncbi
                 uint64_t Size() const
                     throw ();
 
-                void GetRowRange ( int64_t * first, uint64_t * count ) const
-                    throw ( :: ngs :: ErrorMsg );
+                void GetRowRange ( int64_t * first, uint64_t * count ) const;
 
-                void GetFragmentInfo ( uint64_t offset, std::string * fragId, uint64_t * startInBlob, uint64_t * lengthInBases, bool * biological ) const
-                    throw ( :: ngs :: ErrorMsg );
+                void GetFragmentInfo ( uint64_t offset, std::string * fragId, uint64_t * startInBlob, uint64_t * lengthInBases, bool * biological ) const;
 
             public:
 
@@ -60,10 +58,8 @@ namespace ncbi
                 FragmentBlob ( FragmentBlobRef ref )
                     throw ();
 
-                FragmentBlob & operator = ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
-                FragmentBlob ( const FragmentBlob & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                FragmentBlob & operator = ( const FragmentBlob & obj );
+                FragmentBlob ( const FragmentBlob & obj );
 
                 ~ FragmentBlob ()
                     throw ();

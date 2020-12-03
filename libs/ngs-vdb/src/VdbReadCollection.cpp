@@ -71,7 +71,7 @@ public:
 };
 
 FragmentBlobIterator
-VdbReadCollection :: getFragmentBlobs() const throw ( :: ngs :: ErrorMsg )
+VdbReadCollection :: getFragmentBlobs() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 

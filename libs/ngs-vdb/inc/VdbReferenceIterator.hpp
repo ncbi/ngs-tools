@@ -45,7 +45,7 @@ namespace ncbi
 
                 :: ngs :: ReferenceIterator toReferenceIterator () const { return *this; }
 
-                VdbReference nextReference () throw ( :: ngs :: ErrorMsg );
+                VdbReference nextReference ();
 
             public:
 
