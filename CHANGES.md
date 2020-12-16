@@ -1,6 +1,15 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.10.9
+**December 16, 2020**
+
+  **build**: added configure option to produce build in output directory relative to sources  
+  **build, ngs-tools**: fixed a c++11 build issue for older compilers  
+  **kns, sra-tools, vdb**: added a loop to retry failed connections when fetching SRA files  
+  **vfs**: allow to find local files when remote repository is disabled  
+
+
 ## NCBI NGS Toolkit 2.10.8
 **June 29, 2020**
 
