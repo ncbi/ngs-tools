@@ -52,7 +52,7 @@ FragmentBlob :: FragmentBlob ( FragmentBlobRef ref ) throw ()
 }
 
 FragmentBlob &
-FragmentBlob :: operator = ( const FragmentBlob & obj ) throw ( :: ngs :: ErrorMsg )
+FragmentBlob :: operator = ( const FragmentBlob & obj )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
@@ -60,7 +60,7 @@ FragmentBlob :: operator = ( const FragmentBlob & obj ) throw ( :: ngs :: ErrorM
     return *this;
 }
 
-FragmentBlob :: FragmentBlob ( const FragmentBlob & obj ) throw ( :: ngs :: ErrorMsg )
+FragmentBlob :: FragmentBlob ( const FragmentBlob & obj )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -97,7 +97,6 @@ FragmentBlob :: Size() const throw ()
 
 void
 FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string * p_fragId, uint64_t * p_startInBlob, uint64_t * p_lengthInBases, bool * p_biological ) const
-    throw ( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     // outputs
@@ -142,7 +141,7 @@ FragmentBlob :: GetFragmentInfo ( uint64_t p_offset, string * p_fragId, uint64_t
 }
 
 void
-FragmentBlob :: GetRowRange ( int64_t * first, uint64_t * count ) const throw ( :: ngs :: ErrorMsg )
+FragmentBlob :: GetRowRange ( int64_t * first, uint64_t * count ) const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_FragmentBlobRowRange ( self, ctx, first, count ) );

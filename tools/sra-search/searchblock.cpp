@@ -275,4 +275,5 @@ SmithWatermanSearch :: FirstMatch ( const char* p_bases, size_t p_size, uint64_t
         return false;
     }
     ThrowRC ( "SmithWatermanFindFirst() failed", rc );
+    return false;
 }
