@@ -71,7 +71,7 @@ public:
 };
 
 ReferenceBlobIterator
-VdbReference :: getBlobs() const NGS_THROWS( :: ngs :: ErrorMsg )
+VdbReference :: getBlobs() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 
@@ -82,7 +82,7 @@ VdbReference :: getBlobs() const NGS_THROWS( :: ngs :: ErrorMsg )
 }
 
 ReferenceBlobIterator
-VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const NGS_THROWS( :: ngs :: ErrorMsg )
+VdbReference :: getBlobs (uint64_t p_start, uint64_t p_count ) const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
 

@@ -47,11 +47,9 @@ namespace ncbi
                 uint64_t Size() const
                     NGS_NOTHROW();
 
-                void GetRowRange ( int64_t * first, uint64_t * count ) const
-                    NGS_THROWS ( :: ngs :: ErrorMsg );
+                void GetRowRange ( int64_t * first, uint64_t * count ) const;
 
-                void GetFragmentInfo ( uint64_t offset, std::string * fragId, uint64_t * startInBlob, uint64_t * lengthInBases, bool * biological ) const
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                void GetFragmentInfo ( uint64_t offset, std::string * fragId, uint64_t * startInBlob, uint64_t * lengthInBases, bool * biological ) const;
 
             public:
 
@@ -60,10 +58,8 @@ namespace ncbi
                 FragmentBlob ( FragmentBlobRef ref )
                     NGS_NOTHROW();
 
-                FragmentBlob & operator = ( const FragmentBlob & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
-                FragmentBlob ( const FragmentBlob & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                FragmentBlob & operator = ( const FragmentBlob & obj );
+                FragmentBlob ( const FragmentBlob & obj );
 
                 ~ FragmentBlob ()
                     NGS_NOTHROW();

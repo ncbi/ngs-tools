@@ -44,17 +44,13 @@ namespace ncbi
                 const char* Data() const
                     NGS_NOTHROW();
 
-                uint64_t Size() const
-                    NGS_THROWS ( :: ngs :: ErrorMsg );
+                uint64_t Size() const;
 
-                uint64_t UnpackedSize() const
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                uint64_t UnpackedSize() const;
 
-                void GetRowRange ( int64_t * first, uint64_t * count ) const
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                void GetRowRange ( int64_t * first, uint64_t * count ) const;
 
-                void ResolveOffset ( uint64_t inBlob, uint64_t * inReference, uint32_t * repeatCount, uint64_t * increment ) const
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                void ResolveOffset ( uint64_t inBlob, uint64_t * inReference, uint32_t * repeatCount, uint64_t * increment ) const;
 
             public:
 
@@ -63,10 +59,8 @@ namespace ncbi
                 ReferenceBlob ( ReferenceBlobRef ref )
                     NGS_NOTHROW();
 
-                ReferenceBlob & operator = ( const ReferenceBlob & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
-                ReferenceBlob ( const ReferenceBlob & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                ReferenceBlob & operator = ( const ReferenceBlob & obj );
+                ReferenceBlob ( const ReferenceBlob & obj );
 
                 ~ ReferenceBlob ()
                     NGS_NOTHROW();

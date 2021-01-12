@@ -29,7 +29,7 @@
 using namespace ncbi :: ngs :: vdb;
 
 VdbReadCollection
-NGS_VDB :: openVdbReadCollection ( const ncbi :: String & spec ) NGS_THROWS( :: ngs :: ErrorMsg )
+NGS_VDB :: openVdbReadCollection ( const ncbi :: String & spec )
 {
     return  VdbReadCollection ( NGS :: openReadCollection ( spec ) );
 }

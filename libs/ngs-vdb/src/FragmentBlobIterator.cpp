@@ -48,7 +48,7 @@ FragmentBlobIterator :: FragmentBlobIterator ( FragmentBlobIteratorRef ref ) NGS
 }
 
 FragmentBlobIterator &
-FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) NGS_THROWS ( :: ngs :: ErrorMsg )
+FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_FragmentBlobIteratorRelease ( self, ctx) );
@@ -56,7 +56,7 @@ FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj ) NGS_THRO
     return *this;
 }
 
-FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj ) NGS_THROWS( :: ngs :: ErrorMsg )
+FragmentBlobIterator :: FragmentBlobIterator ( const FragmentBlobIterator & obj )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -73,7 +73,7 @@ FragmentBlobIterator :: ~ FragmentBlobIterator () NGS_NOTHROW()
 }
 
 bool
-FragmentBlobIterator :: hasMore() const NGS_THROWS( :: ngs :: ErrorMsg )
+FragmentBlobIterator :: hasMore() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret;
@@ -82,7 +82,7 @@ FragmentBlobIterator :: hasMore() const NGS_THROWS( :: ngs :: ErrorMsg )
 }
 
 FragmentBlob
-FragmentBlobIterator :: nextBlob() NGS_THROWS( :: ngs :: ErrorMsg )
+FragmentBlobIterator :: nextBlob()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     NGS_FragmentBlob* blob;

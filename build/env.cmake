@@ -2,7 +2,7 @@
 
 if (UNIX)
 
-    set ( PLATFORM x86_64 )
+#    set ( PLATFORM x86_64 )
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( OS mac )

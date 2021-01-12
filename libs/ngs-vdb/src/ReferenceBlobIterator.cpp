@@ -51,7 +51,7 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) 
 }
 
 ReferenceBlobIterator &
-ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) NGS_THROWS ( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
@@ -59,7 +59,7 @@ ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj ) NGS_TH
     return *this;
 }
 
-ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & obj ) NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: ReferenceBlobIterator ( const ReferenceBlobIterator & obj )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -77,7 +77,7 @@ ReferenceBlobIterator :: ~ ReferenceBlobIterator () NGS_NOTHROW()
 }
 
 bool
-ReferenceBlobIterator :: hasMore() const NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: hasMore() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     bool ret = false;
@@ -86,7 +86,7 @@ ReferenceBlobIterator :: hasMore() const NGS_THROWS( :: ngs :: ErrorMsg )
 }
 
 ReferenceBlob
-ReferenceBlobIterator :: nextBlob() NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlobIterator :: nextBlob()
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     NGS_ReferenceBlob* blob;

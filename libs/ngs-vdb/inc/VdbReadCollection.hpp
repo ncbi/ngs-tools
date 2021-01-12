@@ -47,17 +47,17 @@ namespace ncbi
 
                 :: ngs :: ReadCollection toReadCollection () const { return *this; }
 
-                FragmentBlobIterator getFragmentBlobs() const NGS_THROWS( :: ngs :: ErrorMsg );
+                FragmentBlobIterator getFragmentBlobs() const;
 
                 /* getReferences
                 *  returns an iterator of all References used
                 *  iterator will be empty if no Reads are aligned
                 */
-                VdbReferenceIterator getReferences () const NGS_THROWS( :: ngs :: ErrorMsg );
+                VdbReferenceIterator getReferences () const;
 
                 /* getReference
                 */
-                VdbReference getReference ( const :: ngs :: String & spec ) const NGS_THROWS( :: ngs :: ErrorMsg );
+                VdbReference getReference ( const :: ngs :: String & spec ) const;
 
             public:
 

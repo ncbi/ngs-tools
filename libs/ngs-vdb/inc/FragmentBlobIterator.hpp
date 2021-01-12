@@ -42,9 +42,9 @@ namespace ncbi
             {
             public:
 
-                bool hasMore() const NGS_THROWS ( :: ngs :: ErrorMsg );
+                bool hasMore() const;
 
-                FragmentBlob nextBlob() NGS_THROWS( :: ngs :: ErrorMsg );
+                FragmentBlob nextBlob();
 
             public:
 
@@ -53,10 +53,8 @@ namespace ncbi
                 FragmentBlobIterator ( FragmentBlobIteratorRef ref )
                     NGS_NOTHROW();
 
-                FragmentBlobIterator & operator = ( const FragmentBlobIterator & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
-                FragmentBlobIterator ( const FragmentBlobIterator & obj )
-                    NGS_THROWS( :: ngs :: ErrorMsg );
+                FragmentBlobIterator & operator = ( const FragmentBlobIterator & obj );
+                FragmentBlobIterator ( const FragmentBlobIterator & obj );
 
                 ~ FragmentBlobIterator ()
                     NGS_NOTHROW();

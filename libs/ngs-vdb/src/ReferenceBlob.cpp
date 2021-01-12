@@ -48,7 +48,7 @@ ReferenceBlob :: ReferenceBlob ( ReferenceBlobRef ref ) NGS_NOTHROW ()
 }
 
 ReferenceBlob &
-ReferenceBlob :: operator = ( const ReferenceBlob & obj ) NGS_THROWS ( :: ngs :: ErrorMsg )
+ReferenceBlob :: operator = ( const ReferenceBlob & obj )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_ReferenceBlobRelease ( self, ctx ) );
@@ -56,7 +56,7 @@ ReferenceBlob :: operator = ( const ReferenceBlob & obj ) NGS_THROWS ( :: ngs ::
     return *this;
 }
 
-ReferenceBlob :: ReferenceBlob ( const ReferenceBlob & obj ) NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlob :: ReferenceBlob ( const ReferenceBlob & obj )
 : self ( 0 )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
@@ -82,7 +82,7 @@ ReferenceBlob :: Data() const NGS_NOTHROW()
 }
 
 uint64_t
-ReferenceBlob :: Size() const NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlob :: Size() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     uint64_t ret;
@@ -91,7 +91,7 @@ ReferenceBlob :: Size() const NGS_THROWS( :: ngs :: ErrorMsg )
 }
 
 uint64_t
-ReferenceBlob :: UnpackedSize() const NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlob :: UnpackedSize() const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     uint64_t ret;
@@ -100,7 +100,7 @@ ReferenceBlob :: UnpackedSize() const NGS_THROWS( :: ngs :: ErrorMsg )
 }
 
 void
-ReferenceBlob :: GetRowRange ( int64_t * p_first, uint64_t * p_count ) const NGS_THROWS( :: ngs :: ErrorMsg )
+ReferenceBlob :: GetRowRange ( int64_t * p_first, uint64_t * p_count ) const
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_ReferenceBlobRowRange ( self, ctx,  p_first, p_count ) );
@@ -108,7 +108,6 @@ ReferenceBlob :: GetRowRange ( int64_t * p_first, uint64_t * p_count ) const NGS
 
 void
 ReferenceBlob :: ResolveOffset ( uint64_t p_inBlob, uint64_t * p_inReference, uint32_t * p_repeatCount, uint64_t * p_increment ) const
-    NGS_THROWS( :: ngs :: ErrorMsg )
 {
     HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
     THROW_ON_FAIL ( NGS_ReferenceBlobResolveOffset ( self, ctx, p_inBlob, p_inReference, p_repeatCount, p_increment ) );
