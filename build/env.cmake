@@ -1,5 +1,14 @@
 #/////////////////////// Cache variables, may be overridden at config time:
 
+# by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
+if (NOT DEFINED OUTDIR)
+    if (DEFINED ENV{OUTDIR})
+        set ( OUTDIR "$ENV{OUTDIR}" )
+    else ()
+        set ( OUTDIR "$ENV{HOME}/ncbi-outdir" )
+    endif ()
+endif()
+
 if (UNIX)
 
 #    set ( PLATFORM x86_64 )
@@ -17,13 +26,6 @@ if (UNIX)
         set ( BUILD dbg )
     else ()
         set ( BUILD rel )
-    endif ()
-
-    # by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
-    if (DEFINED ENV{OUTDIR})
-        set ( OUTDIR "$ENV{OUTDIR}" )
-    else ()
-        set ( OUTDIR "$ENV{HOME}/ncbi-outdir" )
     endif ()
 
     set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
@@ -49,13 +51,6 @@ elseif (WIN32)
     else()
         message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )
     endif()
-
-    # by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
-    if (DEFINED ENV{OUTDIR})
-        set ( OUTDIR "$ENV{OUTDIR}" )
-    else ()
-        set ( OUTDIR "$ENV{HOME}/ncbi-outdir" )
-    endif ()
 
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
     set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
