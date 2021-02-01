@@ -12,3 +12,5 @@ CMakeFiles/*
 CMakeCache.txt
 Makefile.bak 
 cmake_install.cmake
+src/tests/CMakeFiles/*
+src/tests/Makefile
