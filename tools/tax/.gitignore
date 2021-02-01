@@ -6,3 +6,9 @@ bin/*
 # temporary files
 **.pyc
 **~
+src/tmp/*
+examples/tmp/*
+CMakeFiles/*
+CMakeCache.txt
+Makefile.bak 
+cmake_install.cmake
