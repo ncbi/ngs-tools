@@ -41,84 +41,72 @@
 template <class Kmers>
 struct CheckIndex
 {
-    static void check_hash(hash_t kmer, int kmer_len, Kmers &kmers, tax_id_t tax_id, std::list<hash_t> &result_hashes)
-    {
-	    if (kmers.has_kmer_but_not_tax(kmer, tax_id))
-		    result_hashes.push_back(kmer);
-    }
-
     static void check_clean_string(Kmers &kmers, p_string p_str, tax_id_t tax_id, int kmer_len)
     {
-	    const char *s = p_str.s;
-	    int len = p_str.len;
+        const char *s = p_str.s;
+        int len = p_str.len;
 
-	    if (len < kmer_len)
-		    return;
+        if (len < kmer_len)
+            return;
 
-	    const int THREADS = 32;
-	    struct ThreadFinding
-	    {
-		    std::list<hash_t> hashes;
-	    };
+        const int THREADS = 96;
+        std::vector<hash_t> min_variants(len - kmer_len + 1);
 
-	    std::array<ThreadFinding, THREADS> thread_findings;
+        #pragma omp parallel num_threads(THREADS)
+        for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
+        {
+            auto thread_id = omp_get_thread_num();
+            auto kmer = Hash<hash_t>::hash_of(s + i, kmer_len);
+            kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
+            min_variants[i] = kmer;            
+        }
 
-	    #pragma omp parallel num_threads(THREADS)
-	    for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
-	    {
-		    auto thread_id = omp_get_thread_num();
-
-		    auto kmer = Hash<hash_t>::hash_of(s + i, kmer_len);
-	    	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
-		    check_hash(kmer, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
-
-    #if 0 // ~ x100 times slower!
-		    seq_transform<hash_t>::for_all_1_char_variations_do(kmer, kmer_len, [&](hash_t hash)
-		    {
-			    check_hash(hash, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
-			    return true;
-		    });
-    #endif
-	    }
-
-	    // todo: multithreaded too ?
-	    for (int i=0; i<THREADS; i++)
-		    for (auto hash : thread_findings[i].hashes)
-			    kmers.add_kmer(hash, tax_id);
+        #pragma omp parallel num_threads(THREADS)
+        for (int i = 0; i <= len - kmer_len; i ++)
+//        for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
+        {
+            auto thread_id = omp_get_thread_num();
+//            auto kmer = Hash<hash_t>::hash_of(s + i, kmer_len);
+//            kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
+            auto kmer = min_variants[i];
+            if (thread_id == (kmer % THREADS))
+                kmers.update_kmer(kmer, tax_id);
+//            check_hash(kmer, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
+        }
     }
 
     static size_t check_kmers(Kmers &kmers, const std::string &filename, tax_id_t tax_id, int kmer_len) // todo: make generic function
     {
-	    Fasta fasta(filename);
+        Fasta fasta(filename);
 
-	    size_t seq_index = 0;
-	    size_t total_size = 0;
-	    const int DOT_INTERVAL = 128;
+        size_t seq_index = 0;
+        size_t total_size = 0;
+        const int DOT_INTERVAL = 128;
 
-	    ReadySeq loading_seq, processing_seq;
-	    load_sequence(&fasta, &processing_seq);
+        ReadySeq loading_seq, processing_seq;
+        load_sequence(&fasta, &processing_seq);
 
-	    while (!processing_seq.seq.empty())
-	    {
-		    std::thread loading_thread(load_sequence, &fasta, &loading_seq);
+        while (!processing_seq.seq.empty())
+        {
+            std::thread loading_thread(load_sequence, &fasta, &loading_seq);
 
-		    total_size += processing_seq.seq.size();
+            total_size += processing_seq.seq.size();
 
-		    for (auto &clean_string : processing_seq.clean_strings)
-			    check_clean_string(kmers, clean_string, tax_id, kmer_len);
+            for (auto &clean_string : processing_seq.clean_strings)
+                check_clean_string(kmers, clean_string, tax_id, kmer_len);
 
-		    seq_index++;
-		    if (seq_index % DOT_INTERVAL == 0)
-			    std::cerr << ".";
+            seq_index++;
+            if (seq_index % DOT_INTERVAL == 0)
+                std::cerr << ".";
 
-		    loading_thread.join();
-		    swap(processing_seq, loading_seq); // todo: move?
-	    }
+            loading_thread.join();
+            swap(processing_seq, loading_seq); // todo: move?
+        }
 
-	    if (seq_index >= DOT_INTERVAL)
-		    std::cerr << std::endl;
+        if (seq_index >= DOT_INTERVAL)
+            std::cerr << std::endl;
 
-	    return total_size;
+        return total_size;
     }
 
 };
