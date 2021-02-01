@@ -23,6 +23,7 @@
 * ===========================================================================
 *
 */
+#define SINGLETHREADED_BUILD_INDEX 0
 
 #include <iostream>
 #include <chrono>
@@ -37,7 +38,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.16";
+const string VERSION = "0.18";
 
 int main(int argc, char const *argv[])
 {
@@ -50,8 +51,19 @@ int main(int argc, char const *argv[])
 
     FileListLoader file_list(config.file_list);
 
+#if SINGLETHREADED_BUILD_INDEX
+    const int THREADS = 96;
+
+    #pragma omp parallel num_threads(THREADS) 
+    for (int i = omp_get_thread_num(); i < file_list.files.size(); i += omp_get_num_threads())
+    {
+        auto file_list_element = file_list.files[i];
+
+#else
     for (auto &file_list_element : file_list.files)
     {
+#endif
+
         string out_file = file_list_element.filename + config.out_ext;
         if (IO::file_exists(out_file))
         {

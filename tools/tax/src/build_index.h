@@ -59,7 +59,12 @@ struct BuildIndex
         if (len < kmer_len)
             return;
 
+#if SINGLETHREADED_BUILD_INDEX
+        const int THREADS = 1;
+#else
         const int THREADS = 32;
+#endif
+
         struct ThreadFinding
         {
             KmerHash::hash_of_hash_t min_hash;
@@ -70,13 +75,18 @@ struct BuildIndex
         std::array<ThreadFinding, THREADS> thread_findings;
         bool has_kmer_found = false;
 
+#if SINGLETHREADED_BUILD_INDEX
+        for (int i = 0; !has_kmer_found && i <= len - kmer_len; i++)
+        {
+            auto thread_id = 0;
+#else
         #pragma omp parallel num_threads(THREADS)
         for (int i = omp_get_thread_num(); !has_kmer_found && i <= len - kmer_len; i += omp_get_num_threads())
         {
+            auto thread_id = omp_get_thread_num();
+#endif
             hash_t kmer = KmerIO::kmer_from(s, i, kmer_len);
             kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
-
-            auto thread_id = omp_get_thread_num();
 
             auto h = KmerHash::hash_of(kmer); // todo: can be optimized
 
@@ -93,7 +103,7 @@ struct BuildIndex
             auto min_hash = thread_findings[0].min_hash;
             int min_hash_pos = thread_findings[0].min_hash_pos;
 
-            for (int i=1; i<THREADS; i++)
+            for (int i = 1; i < THREADS; i++)
                 if (thread_findings[i].min_hash < min_hash)
                 {
                     min_hash = thread_findings[i].min_hash;
@@ -106,7 +116,6 @@ struct BuildIndex
                 throw std::runtime_error("cannot find min hash");
         }
 
-    //  kmers.add_kmer(KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len), tax_id);
         hash_t kmer = KmerIO::kmer_from(s, chosen_kmer_pos, kmer_len);
         kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
         add_kmer(kmer, chosen_kmer_pos);
