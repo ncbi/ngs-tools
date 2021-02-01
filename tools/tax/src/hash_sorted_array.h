@@ -32,17 +32,18 @@ typedef uint64_t hash_t;
 
 struct KmerTax : public DBS::KmerTax
 {
-	KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
+    KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
 
-	bool operator < (const KmerTax &x) const // for binary search by hash
-	{
-		return kmer < x.kmer;
-	}
+    bool operator < (const KmerTax &x) const // for binary search by hash
+    {
+        return kmer < x.kmer;
+    }
 };
 
 typedef int tax_t;
 typedef std::vector<KmerTax> HashSortedArray;
 
+// todo: remove duplicates
 static tax_t find_hash(hash_t hash, tax_t default_value, HashSortedArray &hash_array)
 {
     auto first = hash_array.begin();

@@ -32,118 +32,151 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 struct DBS
 {
-	#pragma pack(push)
-	#pragma pack(4)
+    #pragma pack(push)
+    #pragma pack(4)
 
-	struct KmerTax
-	{
-		hash_t kmer = 0;
-		int tax_id = 0;
-		KmerTax() = default;
+    struct KmerTax
+    {
+        hash_t kmer = 0;
+        int tax_id = 0;
+        KmerTax() = default;
 
-		KmerTax(hash_t kmer, int tax_id) : kmer(kmer), tax_id(tax_id){}
-	};
+        KmerTax(hash_t kmer, int tax_id) : kmer(kmer), tax_id(tax_id){}
+    };
 
-	struct KmerTaxMulti
-	{
-		hash_t kmer = 0;
-		std::vector<int> tax_ids;
+    struct KmerTaxMulti
+    {
+        hash_t kmer = 0;
+        std::vector<int> tax_ids;
 
         KmerTaxMulti() = default;
-		KmerTaxMulti(hash_t kmer, const std::vector<int> &tax_ids) : kmer(kmer), tax_ids(tax_ids){}
-	};
+        KmerTaxMulti(hash_t kmer, const std::vector<int> &tax_ids) : kmer(kmer), tax_ids(tax_ids){}
+    };
 
-	#pragma pack(pop)
+    #pragma pack(pop)
 
-	typedef std::vector<KmerTax> Kmers;
+    typedef std::vector<KmerTax> Kmers;
+};
+
+// todo: remove duplicate from the job
+struct DBSS
+{
+    typedef int tax_id_t;
+
+    struct DBSAnnot
+    {
+        tax_id_t tax_id;
+        size_t count, offset;
+
+        DBSAnnot(int tax_id, size_t count, size_t offset) : tax_id(tax_id), count(count), offset(offset){}
+
+        bool operator < (const DBSAnnot &x) const
+        {
+            return tax_id < x.tax_id;
+        }
+    };
+
+    typedef std::vector<DBSAnnot> DBSAnnotation;
 };
 
 struct DBSIO
 {
-	static const int VERSION = 1;
+    static const int VERSION = 1;
 
-	struct DBSHeader
-	{
-		size_t version, kmer_len;
-		DBSHeader(size_t kmer_len = 0) : version(VERSION), kmer_len(kmer_len){}
-	};
+    struct DBSHeader // has to packed without spaces at the end, otherwise dbss offsets will be wrong
+    {
+        size_t version, kmer_len;
+        DBSHeader(size_t kmer_len = 0) : version(VERSION), kmer_len(kmer_len){}
+    };
 
-	template <class C>
-	static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len, size_t offset = 0)
-	{
-		std::ofstream f(out_file);
-		DBSHeader header(kmer_len);
+    static DBSIO::DBSHeader load_header(const std::string &filename)
+    {
+        DBSIO::DBSHeader header;
+        std::ifstream f(filename, std::ios::binary | std::ios::in);
+        if (f.fail() || f.eof())
+            throw std::runtime_error(std::string("cannot open file ") + filename);
+
+        IO::read(f, header);
+        return header;
+    }
+
+    template <class C>
+    static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len, size_t offset = 0)
+    {
+        std::ofstream f(out_file);
+        DBSHeader header(kmer_len);
         IO::write(f, header);
         IO::save_vector(f, kmers, offset);
-	}
+    }
 
-	template <class C>
-	static void save_centroid(const std::string &out_file, const C &centroid, size_t kmer_len)
-	{
-		std::ofstream f(out_file);
-		DBSHeader header(kmer_len);
+    template <class C>
+    static void save_centroid(const std::string &out_file, const C &centroid, size_t kmer_len)
+    {
+        std::ofstream f(out_file);
+        DBSHeader header(kmer_len);
         IO::write(f, header);
-		IO::write(f, centroid.seq_count);
+        IO::write(f, centroid.seq_count);
         IO::save_vector(f, centroid.kmers);
-	}
+    }
 
-	template <class C>
-	static size_t load_centroid(const std::string &filename, C &centroid)
-	{
-    	std::ifstream f(filename, std::ios::binary | std::ios::in);
-	    if (f.fail() || f.eof())
-		    throw std::runtime_error(std::string("cannot load centroid ") + filename);
+    template <class C>
+    static size_t load_centroid(const std::string &filename, C &centroid)
+    {
+        std::ifstream f(filename, std::ios::binary | std::ios::in);
+        if (f.fail() || f.eof())
+            throw std::runtime_error(std::string("cannot load centroid ") + filename);
 
         DBSHeader header;
         IO::read(f, header);
-		if (header.version != VERSION)
-			throw std::runtime_error("unsupported dbs file version");
+        if (header.version != VERSION)
+            throw std::runtime_error("unsupported dbs file version");
 
-		IO::read(f, centroid.seq_count);
+        IO::read(f, centroid.seq_count);
         IO::load_vector(f, centroid.kmers);
 
-		if (header.kmer_len < 1 || header.kmer_len > 64)
-			throw std::runtime_error("load_centroid:: invalid kmer_len");
+        if (header.kmer_len < 1 || header.kmer_len > 64)
+            throw std::runtime_error("load_centroid:: invalid kmer_len");
 
-		return header.kmer_len;
-	}
+        return header.kmer_len;
+    }
 
-	template <class C>
-	static void save(const std::string &out_file, const std::set<C> &kmers, size_t kmer_len)
-	{
-		std::ofstream f(out_file);
-		DBSHeader header(kmer_len);
+    template <class C>
+    static void save(const std::string &out_file, const std::set<C> &kmers, size_t kmer_len)
+    {
+        std::ofstream f(out_file);
+        DBSHeader header(kmer_len);
         IO::write(f, header);
         IO::save(f, kmers);
-	}
+    }
 
-	template <class C>
-	static size_t load_dbs(const std::string &filename, std::vector<C> &kmers)
-	{
-    	std::ifstream f(filename, std::ios::binary | std::ios::in);
-	    if (f.fail() || f.eof())
-		    throw std::runtime_error(std::string("cannot load dbs ") + filename);
+    template <class C>
+    static size_t load_dbs(const std::string &filename, std::vector<C> &kmers)
+    {
+        std::ifstream f(filename, std::ios::binary | std::ios::in);
+        if (f.fail() || f.eof())
+            throw std::runtime_error(std::string("cannot load dbs ") + filename);
 
         DBSHeader header;
         IO::read(f, header);
-		if (header.version != VERSION)
-			throw std::runtime_error("unsupported dbs file version");
+        if (header.version != VERSION)
+            throw std::runtime_error("unsupported dbs file version");
 
         IO::load_vector(f, kmers);
 
-		if (header.kmer_len < 1 || header.kmer_len > 64)
-			throw std::runtime_error("load_dbs:: invalid kmer_len");
+        if (header.kmer_len < 1 || header.kmer_len > 64)
+            throw std::runtime_error("load_dbs:: invalid kmer_len");
 
-		return header.kmer_len;
-	}
+        return header.kmer_len;
+    }
 
-	static void save_dbsm(const std::string &out_file, const std::vector<DBS::KmerTaxMulti> &kmers, size_t kmer_len)
-	{
-		std::ofstream f(out_file);
-		DBSHeader header(kmer_len);
+    static void save_dbsm(const std::string &out_file, const std::vector<DBS::KmerTaxMulti> &kmers, size_t kmer_len)
+    {
+        std::ofstream f(out_file);
+        DBSHeader header(kmer_len);
         IO::write(f, header);
         IO::write(f, kmers.size());
 
@@ -154,22 +187,22 @@ struct DBSIO
             for (auto &tax : x.tax_ids)
                 IO::write(f, tax);
         }
-	}
+    }
 
     template <class KmerTax>
-	static size_t load_dbsm(const std::string &filename, std::vector<KmerTax> &kmers) // DBS::KmerTaxMulti
-	{
-    	std::ifstream f(filename, std::ios::binary | std::ios::in);
-	    if (f.fail() || f.eof())
-		    throw std::runtime_error(std::string("cannot load dbsm ") + filename);
+    static size_t load_dbsm(const std::string &filename, std::vector<KmerTax> &kmers) // DBS::KmerTaxMulti
+    {
+        std::ifstream f(filename, std::ios::binary | std::ios::in);
+        if (f.fail() || f.eof())
+            throw std::runtime_error(std::string("cannot load dbsm ") + filename);
 
         DBSHeader header;
         IO::read(f, header);
-		if (header.version != VERSION)
-			throw std::runtime_error("unsupported dbsm file version");
+        if (header.version != VERSION)
+            throw std::runtime_error("unsupported dbsm file version");
 
-		if (header.kmer_len < 1 || header.kmer_len > 64)
-			throw std::runtime_error("load_dbsm:: invalid kmer_len");
+        if (header.kmer_len < 1 || header.kmer_len > 64)
+            throw std::runtime_error("load_dbsm:: invalid kmer_len");
 
         size_t count = 0;
         IO::read(f, count);
@@ -185,9 +218,48 @@ struct DBSIO
                 IO::read(f, kmers[i].tax_ids[t]);
         }
 
-		return header.kmer_len;
-	}
+        return header.kmer_len;
+    }
 
+};
+
+struct DBSSIO
+{
+    static size_t load_dbs_annotation(const std::string &filename, DBSS::DBSAnnotation &annotation)
+    {
+        std::ifstream f(filename);
+        if (f.fail())
+            throw std::runtime_error("cannot open annotation file");
+
+        size_t offset = sizeof(DBSIO::DBSHeader) + sizeof(size_t); 
+        DBSS::tax_id_t prev_tax = 0;
+
+        while (!f.eof())
+        {
+            DBSS::DBSAnnot a(0, 0, 0);
+            f >> a.tax_id >> a.count;
+            if (f.fail())
+                break;
+
+            if (!a.count)
+                throw std::runtime_error("bad annotation format - bad count");
+
+            if (prev_tax >= a.tax_id)
+                throw std::runtime_error("bad annotation format - tax less");
+
+            a.offset = offset;
+            annotation.push_back(a);
+            offset += sizeof(hash_t) *a.count;
+            prev_tax = a.tax_id;
+        }
+
+        return offset;
+    }
+
+    static DBSIO::DBSHeader load_header(const std::string &filename)
+    {
+        return DBSIO::load_header(filename); // the same
+    }
 };
 
 #endif
