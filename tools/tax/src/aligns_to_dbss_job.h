@@ -29,108 +29,109 @@
 
 #include "aligns_to_dbs_job.h"
 #include <set>
+#include <map>
 
 struct DBSSJob : public DBSJob
 {
-	DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
-	{
-		DBSIO::DBSHeader header;
+    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
+    {
+        DBSIO::DBSHeader header;
 
-	    std::ifstream f(dbss, std::ios::binary | std::ios::in);
-	    if (f.fail() || f.eof())
-		    throw std::runtime_error(std::string("cannot open dbss ") + dbss);
+        std::ifstream f(dbss, std::ios::binary | std::ios::in);
+        if (f.fail() || f.eof())
+            throw std::runtime_error(std::string("cannot open dbss ") + dbss);
 
-		IO::read(f, header);
-		kmer_len = header.kmer_len;
+        IO::read(f, header);
+        kmer_len = header.kmer_len;
 
-		DBSAnnotation annotation;
-		auto sum_offset = load_dbs_annotation(dbss + ".annotation", annotation);
-		if (sum_offset != IO::filesize(dbss))
-			throw std::runtime_error("inconsistent dbss annotation file");
+        DBSAnnotation annotation;
+        auto sum_offset = load_dbs_annotation(dbss + ".annotation", annotation);
+        if (sum_offset != IO::filesize(dbss))
+            throw std::runtime_error("inconsistent dbss annotation file");
 
-		auto tax_list = load_tax_list(dbss_tax_list);
-//		if (tax_list.empty())
-//			throw std::runtime_error("empty tax list");
+        auto tax_list = load_tax_list(dbss_tax_list);
+//      if (tax_list.empty())
+//          throw std::runtime_error("empty tax list");
 
-		load_dbss(dbss, tax_list, annotation);
-	}
+        load_dbss(dbss, tax_list, annotation);
+    }
 
-	typedef int tax_id_t;
+    typedef int tax_id_t;
 
-	struct DBSAnnot
-	{
-		tax_id_t tax_id;
-		size_t count, offset;
+    struct DBSAnnot
+    {
+        tax_id_t tax_id;
+        size_t count, offset;
 
-		DBSAnnot(int tax_id, size_t count, size_t offset) : tax_id(tax_id), count(count), offset(offset){}
+        DBSAnnot(int tax_id, size_t count, size_t offset) : tax_id(tax_id), count(count), offset(offset){}
 
-		bool operator < (const DBSAnnot &x) const
-		{
-			return tax_id < x.tax_id;
-		}
-	};
+        bool operator < (const DBSAnnot &x) const
+        {
+            return tax_id < x.tax_id;
+        }
+    };
 
-	typedef std::vector<DBSAnnot> DBSAnnotation;
-	typedef std::vector<tax_id_t> TaxList;
+    typedef std::vector<DBSAnnot> DBSAnnotation;
+    typedef std::vector<tax_id_t> TaxList;
 
-	static size_t load_dbs_annotation(const std::string &filename, DBSAnnotation &annotation)
-	{
-		std::ifstream f(filename);
-		if (f.fail())
-			throw std::runtime_error("cannot open annotation file");
+    static size_t load_dbs_annotation(const std::string &filename, DBSAnnotation &annotation)
+    {
+        std::ifstream f(filename);
+        if (f.fail())
+            throw std::runtime_error("cannot open annotation file");
 
-		size_t offset = sizeof(DBSIO::DBSHeader) + sizeof(size_t);
-		tax_id_t prev_tax = 0;
+        size_t offset = sizeof(DBSIO::DBSHeader) + sizeof(size_t);
+        tax_id_t prev_tax = 0;
 
-		while (!f.eof())
-		{
-			DBSAnnot a(0, 0, 0);
-			f >> a.tax_id >> a.count;
-			if (f.fail())
-				break;
+        while (!f.eof())
+        {
+            DBSAnnot a(0, 0, 0);
+            f >> a.tax_id >> a.count;
+            if (f.fail())
+                break;
 
-			if (!a.count)
-				throw std::runtime_error("bad annotation format - bad count");
+            if (!a.count)
+                throw std::runtime_error("bad annotation format - bad count");
 
-			if (prev_tax >= a.tax_id)
-				throw std::runtime_error("bad annotation format - tax less");
+            if (prev_tax >= a.tax_id)
+                throw std::runtime_error("bad annotation format - tax less");
 
-			a.offset = offset;
-			annotation.push_back(a);
-			offset += sizeof(hash_t) *a.count;
-			prev_tax = a.tax_id;
-		}
+            a.offset = offset;
+            annotation.push_back(a);
+            offset += sizeof(hash_t) *a.count;
+            prev_tax = a.tax_id;
+        }
 
-		return offset;
-	}
+        return offset;
+    }
 
-	static TaxList load_tax_list(const std::string &filename)
-	{
-		std::ifstream f(filename);
-		if (f.fail())
-			throw std::runtime_error("cannot open tax list file");
+    static TaxList load_tax_list(const std::string &filename)
+    {
+        std::ifstream f(filename);
+        if (f.fail())
+            throw std::runtime_error("cannot open tax list file");
 
-		TaxList taxes;
+        TaxList taxes;
 
-		while (!f.eof())
-		{
-			tax_id_t t = 0;
-			f >> t;
-			if (f.fail())
-				break;
+        while (!f.eof())
+        {
+            tax_id_t t = 0;
+            f >> t;
+            if (f.fail())
+                break;
 
-			taxes.push_back(t);
-		}
+            taxes.push_back(t);
+        }
 
         if (!f.eof())
             throw std::runtime_error("bad tax list file format");
 
-		sort(taxes.begin(), taxes.end());
-		return taxes;
-	}
+        sort(taxes.begin(), taxes.end());
+        return taxes;
+    }
 
     void load_dbss(const std::string &filename, const TaxList &tax_list, const DBSAnnotation &annotation)
-	{
+    {
         assert(hash_array.empty());
 
         std::ifstream f(filename);
@@ -170,7 +171,7 @@ struct DBSSJob : public DBSJob
 //        assert(!hash_array.empty());
         std::sort(hash_array.begin(), hash_array.end());
         LOG("dbss parts merged");
-	}
+    }
 };
 
 #endif
