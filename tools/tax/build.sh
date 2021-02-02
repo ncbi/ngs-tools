@@ -8,12 +8,16 @@ git clone https://github.com/ncbi/ngs.git
 ./ngs/configure --build-prefix=~/ncbi-outdir --without-debug
 cd ./ngs/
 make
+cd ..
 
 ./ncbi-vdb/configure --build-prefix=~/ncbi-outdir --without-debug --with-ngs-sdk-prefix=~/ncbi-outdir
 cd ./ncbi-vdb/
 make
+cd ..
+
 ./ngs-tools/configure '--without-debug' '--with-ngs-sdk-prefix=~/ncbi-outdir' '--with-ncbi-vdb-build=~/ncbi-outdir'
 cd ./ngs-tools/tools/tax
 make 
+cd ..
 
 cp ~/ncbi-outdir/ngs-tools/linux/gcc/x86_64/rel/bin/* ./ngs-tools/tools/tax/bin
