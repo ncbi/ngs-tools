@@ -14,3 +14,7 @@ Makefile.bak
 cmake_install.cmake
 src/tests/CMakeFiles/*
 src/tests/Makefile
+examples/sequence_tree/*
+examples/*.log
+
+
