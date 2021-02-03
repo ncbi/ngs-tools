@@ -110,7 +110,7 @@ add_jar( ngs_test_lib_load
 )
 
 add_test ( NAME Test_Ngs_Java_lib_load
-    COMMAND java -cp ${PROJECT_BINARY_DIR}/ngs_test_lib_load.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
+    COMMAND ${Java_JAVA_EXECUTABLE} -cp ${PROJECT_BINARY_DIR}/ngs_test_lib_load.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
 )
 
 add_jar( ngs_test_CSRA1
@@ -120,7 +120,7 @@ add_jar( ngs_test_CSRA1
 )
 
 add_test ( NAME SlowTest_Ngs_Java_CSRA1
-    COMMAND java -cp ${PROJECT_BINARY_DIR}/ngs_test_CSRA1.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore ngs_test_CSRA1
+    COMMAND ${Java_JAVA_EXECUTABLE} -cp ${PROJECT_BINARY_DIR}/ngs_test_CSRA1.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore ngs_test_CSRA1
 )
 
 #-------------------------------------------------------------------------------
