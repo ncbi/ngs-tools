@@ -15,6 +15,16 @@ endif ()
 #-------------------------------------------------------------------------------
 # tests for the underlying C APIs
 
+# ngs-makedb is a fixture that creates test databases
+add_executable ( ngs-makedb ngstest_makedb.cpp )
+target_link_libraries ( ngs-makedb
+    ${CMAKE_STATIC_LIBRARY_PREFIX}ktst${CMAKE_STATIC_LIBRARY_SUFFIX}
+    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    ${SYS_WLIBRARIES}
+)
+add_test ( NAME Ngs_MakeDB COMMAND ngs-makedb WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data )
+set_property(TEST Ngs_MakeDB PROPERTY FIXTURES_SETUP MakeDB)
+
 add_definitions(-D__mod__="NGS_TEST")
 add_definitions(-D__file__="__FILE__")
 add_definitions(-D__fext__="cpp")
@@ -51,9 +61,12 @@ add_executable ( test-ngs_reference ngstest_reference.cpp )
 target_link_libraries ( test-ngs_reference ${TEST_LIBS})
 add_test ( NAME SlowTest_Ngs_Reference COMMAND test-ngs_reference WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
+
 add_executable ( test-fragmentblob ngstest_fragmentblob.cpp )
 target_link_libraries ( test-fragmentblob ${TEST_LIBS})
 add_test ( NAME SlowTest_Ngs_FragmentBlob COMMAND test-fragmentblob WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+# SlowTest_Ngs_FragmentBlob requires MakeDB to be run first
+set_property(TEST SlowTest_Ngs_FragmentBlob PROPERTY FIXTURES_REQUIRED MakeDB)
 
 add_executable ( test-referenceblob ngstest_referenceblob.cpp )
 target_link_libraries ( test-referenceblob ${TEST_LIBS})
