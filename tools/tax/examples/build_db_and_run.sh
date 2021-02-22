@@ -44,7 +44,7 @@ $bin_dir/aligns_to -dbs ./example.dense.dbs ./example_data/SRR4841604.fasta > ./
 # cat ./example_data/SRR4841604.fasta | $bin_dir/aligns_to -dbs ./example.dense.dbs stdin > ./SRR4841604.fasta.hits
 
 # Create a xml report and display it in some human readable format:
-$bin_dir/hits_to_report.sh ./SRR4841604.fasta.hits > ./tax_list
+$bin_dir/hits_to_report.sh ./SRR4841604.fasta.hits
 
 # Or we can do 2 step processing, using sparse database first to identify tax id diversity
 # then use only parts of the dense database to do the rest. 
