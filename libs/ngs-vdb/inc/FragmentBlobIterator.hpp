@@ -42,24 +42,22 @@ namespace ncbi
             {
             public:
 
-                bool hasMore() const throw ( :: ngs :: ErrorMsg );
+                bool hasMore() const;
 
-                FragmentBlob nextBlob() throw ( :: ngs :: ErrorMsg );
+                FragmentBlob nextBlob();
 
             public:
 
                 // C++ support
 
                 FragmentBlobIterator ( FragmentBlobIteratorRef ref )
-                    throw ();
+                    NGS_NOTHROW();
 
-                FragmentBlobIterator & operator = ( const FragmentBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
-                FragmentBlobIterator ( const FragmentBlobIterator & obj )
-                    throw ( :: ngs :: ErrorMsg );
+                FragmentBlobIterator & operator = ( const FragmentBlobIterator & obj );
+                FragmentBlobIterator ( const FragmentBlobIterator & obj );
 
                 ~ FragmentBlobIterator ()
-                    throw ();
+                    NGS_NOTHROW();
 
             private:
                 FragmentBlobIterator () throw ();

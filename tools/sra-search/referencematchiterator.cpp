@@ -385,7 +385,7 @@ public:
                     // cout << (void*)this << " Resolving " << m_offsetInBlob + hitStart << endl;
                     m_curBlob . ResolveOffset ( m_offsetInBlob + hitStart, & inReference, & repeatCount, & increment );
                     // cout << (void*)this << " Resolved to  " << inReference << " repeat=" << repeatCount << " inc=" << increment << endl;
-                    if ( repeatCount == 1 )
+                    if ( repeatCount > 1 )
                     {
                         PLOGMSG (klogWarn, (klogWarn, "Match against a repeated reference row detected; some matching fragments may be missed. Reference=$(r) pos=$(p) repeat=$(t)",
                                                       "r=%s,p=%d,t=%d",

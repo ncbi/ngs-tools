@@ -54,8 +54,7 @@ namespace ncbi
                 *  or may be an id, accession, or URL
                 */
                 static
-                VdbReadCollection openVdbReadCollection ( const ncbi :: String & spec )
-                    throw ( :: ngs :: ErrorMsg );
+                VdbReadCollection openVdbReadCollection ( const ncbi :: String & spec );
             };
         };
     }

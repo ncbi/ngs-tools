@@ -1,8 +1,17 @@
 #/////////////////////// Cache variables, may be overridden at config time:
 
+# by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
+if (NOT DEFINED OUTDIR)
+    if (DEFINED ENV{OUTDIR})
+        set ( OUTDIR "$ENV{OUTDIR}" )
+    else ()
+        set ( OUTDIR "$ENV{HOME}/ncbi-outdir" )
+    endif ()
+endif()
+
 if (UNIX)
 
-    set ( PLATFORM x86_64 )
+#    set ( PLATFORM x86_64 )
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
         set ( OS mac )
@@ -19,16 +28,14 @@ if (UNIX)
         set ( BUILD rel )
     endif ()
 
-    # by default, look for sister repositories sources side by side with ngs-tools, binaries under $HOME/ncbi-outdir
-    set ( HOME "$ENV{HOME}" )
-
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                              CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${HOME}/ncbi-outdir/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
-    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                     CACHE PATH "ncbi-vdb include directory" )
-    set ( VDB_LIBDIR  ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
-    set ( VDB_ILIBDIR ${HOME}/ncbi-outdir/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
-    set ( SRATOOLS_BINDIR ${HOME}/ncbi-outdir/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
-    set ( NGSTOOLS_OUTDIR ${HOME}/ncbi-outdir/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}        CACHE PATH "ngs-tools output directory" )
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${OUTDIR}/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${OUTDIR}/ngs-java/                                                  CACHE PATH "ngs Java directory" )
+    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
+    set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
+    set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+    set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
+    set ( NGSTOOLS_OUTDIR ${OUTDIR}/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}        CACHE PATH "ngs-tools output directory" )
 
 elseif (WIN32)
 
@@ -39,20 +46,21 @@ elseif (WIN32)
         set ( PLATFORM_TOOLSET "v100" )
     elseif (CMAKE_GENERATOR MATCHES "2013" )
         set ( PLATFORM_TOOLSET "v120" )
+    elseif (CMAKE_GENERATOR MATCHES "2017" )
+        set ( PLATFORM_TOOLSET "v141" )
     else()
         message( FATAL_ERROR "Unsupported generator for Windows: ${CMAKE_GENERATOR}." )
     endif()
 
-
-
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                                       CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                                               CACHE PATH "ncbi-vdb include directory" )
-    set ( VDB_LIBDIR  ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
-    set ( VDB_ILIBDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
-    set ( SRATOOLS_BINDIR ${CMAKE_SOURCE_DIR}/../OUTDIR/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
-    set ( NGSTOOLS_OUTDIR ${CMAKE_BINARY_DIR}                                                                                   CACHE PATH "ngs-tools output directory")
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${OUTDIR}/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${OUTDIR}/ngs-java/                                                                  CACHE PATH "ngs Java directory" )
+    set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
+    set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
+    set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+    set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
+    set ( NGSTOOLS_OUTDIR ${OUTDIR}/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}                        CACHE PATH "ngs-tools output directory")
 
 endif()
 
@@ -79,8 +87,16 @@ if (UNIX)
 
     set ( SYS_LIBRARIES
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            pthread
+            dl
+    )
+
+    set ( SYS_WLIBRARIES
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-wvdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
     )
@@ -111,7 +127,7 @@ elseif (WIN32)
 
     # use Unicode
     add_definitions(-DUNICODE -D_UNICODE)
-    
+
     # static run time libraries
     set ( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT" )
     set ( CMAKE_CXX_FLAGS_DEBUG   "${CMAKE_CXX_FLAGS_DEBUG}   /MTd" )
@@ -126,11 +142,12 @@ elseif (WIN32)
     set ( SYS_LIBRARIES
         ${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
-        ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
+        ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs${CMAKE_STATIC_LIBRARY_SUFFIX}
         libngs-bind-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
         libngs-disp${CMAKE_STATIC_LIBRARY_SUFFIX}
         ws2_32
+        Crypt32
     )
 
     set ( CPACK_GENERATOR "ZIP" )
@@ -148,7 +165,7 @@ endif()
 if ( NOT DEFINED ENV{JAVA_HOME} )
     message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
 endif ()
-set ( NGSJAR "${OLD_OUTDIR}/ngs-java/jar/ngs-java.jar" )
+set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
 set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # look for dependencies
