@@ -1,6 +1,16 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.11.0
+**March 10, 2021**
+
+  **build, ncbi-vdb, ngs, ngs-tools**: introduced an additional external library, libncbi-ngs  
+  **kfg, sra-tools, vfs, ngs-tools**: dropped support of protected repositories  
+  **kns, sra-tools, ngs-tools**: fixed formatting of HTTP requests for proxy  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools, vdb**: added support for 64-bit ARM (AArch64, Apple Silicon)  
+  **sra-search**: no longer issues unneeded warnings in reference mode  
+
+
 ## NCBI NGS Toolkit 2.10.9
 **December 16, 2020**
 
