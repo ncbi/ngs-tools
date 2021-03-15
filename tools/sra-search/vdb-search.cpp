@@ -225,7 +225,6 @@ CheckArguments ( const VdbSearch :: Settings& p_settings )
 }
 
 VdbSearch :: VdbSearch ( const Settings& p_settings )
-    throw ( invalid_argument )
 :   m_settings ( p_settings ),
     m_sbFactory ( m_settings ),
     m_buf ( 0 ),

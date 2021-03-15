@@ -47,32 +47,32 @@ namespace ncbi
 
                 :: ngs :: ReadCollection toReadCollection () const { return *this; }
 
-                FragmentBlobIterator getFragmentBlobs() const throw ( :: ngs :: ErrorMsg );
+                FragmentBlobIterator getFragmentBlobs() const;
 
                 /* getReferences
                 *  returns an iterator of all References used
                 *  iterator will be empty if no Reads are aligned
                 */
-                VdbReferenceIterator getReferences () const throw ( :: ngs :: ErrorMsg );
+                VdbReferenceIterator getReferences () const;
 
                 /* getReference
                 */
-                VdbReference getReference ( const :: ngs :: String & spec ) const throw ( :: ngs :: ErrorMsg );
+                VdbReference getReference ( const :: ngs :: String & spec ) const;
 
             public:
 
                 // C++ support
 
                 VdbReadCollection ( const :: ngs :: ReadCollection & dad )
-                    throw ();
+                    NGS_NOTHROW();
 
                 VdbReadCollection & operator = ( const VdbReadCollection & obj )
-                    throw ();
+                    NGS_NOTHROW();
                 VdbReadCollection ( const VdbReadCollection & obj )
-                    throw ();
+                    NGS_NOTHROW();
 
                 ~ VdbReadCollection ()
-                    throw ();
+                    NGS_NOTHROW();
 
             };
         };

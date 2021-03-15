@@ -46,24 +46,24 @@ namespace ncbi
 
                 :: ngs :: Reference toReference () const { return *this; }
 
-                ReferenceBlobIterator getBlobs() const throw ( :: ngs :: ErrorMsg );
+                ReferenceBlobIterator getBlobs() const;
                 // subset of blobs covering a slice, coordinates in bases
-                ReferenceBlobIterator getBlobs( uint64_t p_start, uint64_t p_count ) const throw ( :: ngs :: ErrorMsg );
+                ReferenceBlobIterator getBlobs( uint64_t p_start, uint64_t p_count ) const;
 
             public:
 
                 // C++ support
 
                 VdbReference ( const :: ngs :: Reference & dad )
-                    throw ();
+                    NGS_NOTHROW ();
 
                 VdbReference & operator = ( const VdbReference & obj )
-                    throw ();
+                    NGS_NOTHROW();
                 VdbReference ( const VdbReference & obj )
-                    throw ();
+                    NGS_NOTHROW();
 
                 ~ VdbReference ()
-                    throw ();
+                    NGS_NOTHROW();
 
             };
         };

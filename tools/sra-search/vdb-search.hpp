@@ -96,7 +96,7 @@ public:
     };
 
 public:
-    VdbSearch ( const Settings& settings ) throw ( std :: invalid_argument );
+    VdbSearch ( const Settings& settings );
     ~VdbSearch ();
 
     bool NextMatch ( Match & ); // false when no more matches

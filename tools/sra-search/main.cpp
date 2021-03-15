@@ -197,7 +197,7 @@ run( int argc, const char *argv [] )
         VdbSearch :: Settings settings;
         bool sortOutput = false;
 
-        unsigned int i = 1;
+        int i = 1;
         while ( i < argc )
         {
             string arg = argv [ i ];
