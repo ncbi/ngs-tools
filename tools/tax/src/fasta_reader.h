@@ -81,7 +81,11 @@ public:
             f->seekg(0, std::ios::beg);
         }
         else
+        {
             f = &std::cin;
+            std::ios_base::sync_with_stdio(false);
+            std::cin.tie(nullptr);
+        }
         
         std::string line;
         read_line(line);
