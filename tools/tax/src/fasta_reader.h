@@ -125,7 +125,12 @@ public:
             auto end_pos = last_desc.find('/');
             if (end_pos == std::string::npos)
                 end_pos = last_desc.size();
-            output->spotid.assign(last_desc, 1, end_pos - 1);
+
+            int start_pos = end_pos - 1;
+            while (start_pos > 0 && isdigit(last_desc[start_pos]))
+                start_pos--;
+
+            output->spotid.assign(last_desc, start_pos + 1, end_pos - 1 - start_pos);
             output->bases.clear();
             output->bases.reserve(300); // todo: tune
         }
