@@ -81,7 +81,11 @@ ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) 
 #else
         if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
             return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities);
-        } else {
+        }
+        else if (!params.read_qualities) {
+            return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.unaligned_only);
+        }
+        else {
             return create_threaded<VdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities, params.unaligned_only);
         }
 #endif

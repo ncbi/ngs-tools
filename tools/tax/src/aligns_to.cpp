@@ -50,7 +50,7 @@ using namespace std::chrono;
 
 int main(int argc, char const *argv[])
 {
-    #ifdef __GNUC__
+    #ifdef __GLIBCXX__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
     
