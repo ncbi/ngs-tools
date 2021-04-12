@@ -28,7 +28,6 @@
 #define ALIGNS_TO_DBS_JOB_H_INCLUDED
 
 #include "aligns_to_job.h"
-<<<<<<< HEAD
 #include <set>
 #include <map>
 #include "hash.h"
@@ -42,14 +41,6 @@ struct DBSJob : public Job
     struct KmerTax : public DBS::KmerTax
     {
         KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id) { } // todo: remove constructor from KmerTax for faster loading ?
-=======
-
-struct DBSJob : public Job
-{
-	struct KmerTax : public DBS::KmerTax
-	{
-		KmerTax(hash_t kmer = 0, int tax_id = 0) : DBS::KmerTax(kmer, tax_id){} // todo: remove constructor from KmerTax for faster loading ?
->>>>>>> engineering
 
         bool operator < (const KmerTax &x) const // for binary search by hash
         {
@@ -57,26 +48,11 @@ struct DBSJob : public Job
         }
     };
 
-<<<<<<< HEAD
     typedef std::vector<KmerTax> HashSortedArray;
 
     HashSortedArray hash_array;
     typedef unsigned int tax_t;
     size_t kmer_len = 0;
-=======
-	const Config &config;
-	typedef std::vector<KmerTax> HashSortedArray;
-
-	HashSortedArray hash_array;
-    static const int DEFAULT_KMER_LEN = 32;
-	typedef unsigned int tax_t;
-	size_t kmer_len;
-
-protected:
-	DBSJob(const Config &config) : kmer_len(0), config(config)
-	{
-	}
->>>>>>> engineering
 
 public:
 
@@ -93,29 +69,19 @@ public:
 
     virtual size_t db_kmers() const { return hash_array.size();}
 
-<<<<<<< HEAD
     struct Matcher
     {
 #if LOOKUP_TABLE
-=======
-	struct Matcher
-	{
->>>>>>> engineering
         typedef std::vector< std::pair<size_t, size_t> > HashLookupTable;
-		const HashSortedArray &hash_array;
         HashLookupTable hash_lookup_table;
         int hash_lookup_shift;
-<<<<<<< HEAD
 #endif
 
         const HashSortedArray &hash_array;
         int kmer_len;
         Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len)
-=======
-		int kmer_len;
-		Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len)
->>>>>>> engineering
         {
+#if LOOKUP_TABLE
             // determining size of lookup key
             int lookup_key_bits = 1;
             while ((hash_array.size() >> lookup_key_bits) > 5)
@@ -149,21 +115,25 @@ public:
                     last_hash = hash;
                 }
                 bucket.second = hash_idx;
-                //LOG("bucket " << bucket_idx << " " << (bucket.second - bucket.first) << " members, range " << bucket.first << " - " << bucket.second);
             }
+#endif
         }
 
         int find_hash(hash_t hash, int default_value) const
         {
+#if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
             auto &bucket = hash_lookup_table[bucket_idx];
             auto first = hash_array.begin() + bucket.first;
             auto last = hash_array.begin() + bucket.second;
+#else
+            auto first = hash_array.begin();
+            auto last = hash_array.end();
+#endif
             first = std::lower_bound(first, last, KmerTax(hash, 0));
             return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
         }
 
-<<<<<<< HEAD
         Hits operator() (const std::string &seq) const 
         {
             Hits hits;
@@ -171,18 +141,6 @@ public:
                 {
                     if (auto tax_id = get_db_tax(hash))
                         hits[tax_id] ++;
-=======
-		Hits operator() (const std::string &seq) const 
-		{
-			Hits hits;
-			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
-				{
-					if (auto tax_id = get_db_tax(hash))
-					{
-						hits[tax_id] ++;
-//						LOG(tax_id << " " << Hash<hash_t>::str_from_hash(hash, KMER_LEN));
-					}
->>>>>>> engineering
 
                     return true;
                 });
@@ -243,7 +201,6 @@ public:
         bool operator < (const TaxMatchId &b) const { return seq_id < b.seq_id; }
     };
 
-<<<<<<< HEAD
     struct TaxPrinter
     {
         IO::Writer &writer;
@@ -374,55 +331,14 @@ public:
         TaxPrinter print(!hide_counts, compact, writer);
         Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
-=======
-	struct TaxPrinter
-	{
-		std::ostream &out_f;
-        const bool print_counts;
-		TaxPrinter(std::ostream &out_f, bool print_counts) : out_f(out_f), print_counts(print_counts) {}
-
-		void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
-		{
-			for (auto seq_id : ids)
-			{
-                for (auto c : processing_sequences[seq_id.seq_id].spotid) {
-                    if (c == '\t' || c == '\n') {
-                        c = ' ';
-                    }
-                    out_f << c;
-                }
-                for (auto &hit : seq_id.hits) {
-                    out_f << '\t' << hit.first;
-                    if (print_counts && hit.second > 1)
-                        out_f << 'x' << hit.second;
-                }
-                out_f << std::endl;
-			}
-        }
-	};
-
-	virtual void run(const std::string &filename, std::ostream &out_f)
-	{
-		Matcher m(hash_array, kmer_len);
-		TaxPrinter print(out_f, !config.hide_counts);
-		Job::run<Matcher, TaxPrinter, TaxMatchId>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
-	}
->>>>>>> engineering
 };
 
 struct DBSBasicJob : public DBSJob
 {
-<<<<<<< HEAD
     DBSBasicJob(const std::string &dbs)
     {
         kmer_len = DBSIO::load_dbs(dbs, hash_array);
     }
-=======
-	DBSBasicJob(const Config &config) : DBSJob(config)
-	{
-		kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
-	}
->>>>>>> engineering
 };
 
 #endif

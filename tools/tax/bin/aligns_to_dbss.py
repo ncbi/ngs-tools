@@ -57,13 +57,16 @@ def extract_tax_list(input_file, output_file):
             last_spot_id = spot_id
             spot_count += 1
         tax_ids = parts[1:]
-        tax_set.update(tax_ids)
+        for tax in tax_ids:
+            tax = tax.rstrip().split('x')[0]
+            tax_set[tax] += 1
 
     only_one_hit = 0
     for tax_id in sorted(tax_set):
         output_file.write('%s\n' % tax_id)
         if tax_set[tax_id] == 1:
             only_one_hit += 1
+
     output_file.flush()
     logger.info('Extracted %s tax ids from %s identified spots (%s tax ids with only 1 hit)', len(tax_set), spot_count, only_one_hit)
     
@@ -139,6 +142,7 @@ def process(path, dbs, dbss, unaligned_only, first_step_output, tax_list):
 
     logger.info('Starting second pass')
     cmdline = [aligns_to, '-dbss', dbss, '-tax_list', tax_list.name, path]
+
     if unaligned_only:
         cmdline.append('-unaligned_only')
     logger.debug('Cmdline: %s', ' '.join(cmdline))
