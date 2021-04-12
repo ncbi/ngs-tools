@@ -658,7 +658,6 @@ public:
                 current = nullptr;
             return read(output);
         }
-            return false;
-        }
+        return false;
     }
 };
