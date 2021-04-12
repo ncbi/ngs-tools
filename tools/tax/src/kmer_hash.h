@@ -25,10 +25,13 @@
 */
 #pragma once
 
+<<<<<<< HEAD
 #include <cstdint>
 
 typedef uint64_t hash_t;
 
+=======
+>>>>>>> engineering
 struct KmerHash
 {
     typedef uint64_t hash_of_hash_t;

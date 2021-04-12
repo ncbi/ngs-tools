@@ -32,9 +32,8 @@
 #include <map>
 #include <unordered_map>
 #include "tax_id_tree.h"
-#include "kmer_hash.h"
 
-//typedef uint64_t hash_t;
+typedef uint64_t hash_t;
 
 struct Kmers
 {
@@ -44,7 +43,7 @@ struct Kmers
 
 	Kmers(const TaxIdTree &tax_id_tree) : tax_id_tree(tax_id_tree)
 	{
-//		storage.reserve(4L*1024*1024*1024); // todo: tune
+		storage.reserve(128*1024*1024); // todo: tune
 	}
 
 	bool has_kmer(hash_t kmer) const

@@ -1,28 +1,3 @@
-/*===========================================================================
-*
-*                            PUBLIC DOMAIN NOTICE
-*               National Center for Biotechnology Information
-*
-*  This software/database is a "United States Government Work" under the
-*  terms of the United States Copyright Act.  It was written as part of
-*  the author's official duties as a United States Government employee and
-*  thus cannot be copyrighted.  This software/database is freely available
-*  to the public for use. The National Library of Medicine and the U.S.
-*  Government have not placed any restriction on its use or reproduction.
-*
-*  Although all reasonable efforts have been taken to ensure the accuracy
-*  and reliability of the software and data, the NLM and the U.S.
-*  Government do not and cannot warrant the performance or results that
-*  may be obtained by using this software or data. The NLM and the U.S.
-*  Government disclaim all warranties, express or implied, including
-*  warranties of performance, merchantability or fitness for any particular
-*  purpose.
-*
-*  Please cite the author in any work or product based on this material.
-*
-* ===========================================================================
-*
-*/
 #include <string>
 #include <fstream>
 #include <vector>
@@ -56,7 +31,7 @@ struct KmerTax : public DBS::KmerTax
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.11";
+const string VERSION = "0.10";
 
 typedef int tax_t;
 typedef vector<KmerTax> HashSortedArray;
@@ -151,8 +126,6 @@ void print(const Contamination &r)
     }
 }
 
-#define SORTED 0
-
 int main(int argc, char const *argv[])
 {
 	Config config(argc, argv);
@@ -163,12 +136,9 @@ int main(int argc, char const *argv[])
 
 	HashSortedArray hash_array;
 	int kmer_len = DBSIO::load_dbs(config.dbs, hash_array);
-	cerr << "dbs loaded" << endl;
 
-    const int THREADS = 16;
-#if SORTED
+    const int THREADS = 48;
     list<Contamination> contaminations; // todo: list ?
-#endif
 
 	#pragma omp parallel num_threads(THREADS) 
 	for (int i = omp_get_thread_num(); i < file_list.files.size(); i += omp_get_num_threads())
@@ -178,24 +148,20 @@ int main(int argc, char const *argv[])
 
         #pragma omp critical (read)
         {
-		    cerr << contamination.total_hits << "\thits\t" << file_list_element.filename << endl; // must be stderr - stdout for output only
+		    LOG(contamination.total_hits << "\thits\t" << file_list_element.filename);
             if (contamination.total_hits > 0)
-            {
-#if SORTED
                 contaminations.push_back(contamination);
-#else
-                print(contamination);
-#endif
-            }
+//            if (contamination.total_hits > 0)
+//                print(contamination);
         }
 	}
 
-#if SORTED
+//    std::sort(contaminations.begin(), contaminations.end());
+//    cout << "sorted:" << endl;
     contaminations.sort();
 
     for (auto &r : contaminations)
         print(r);
-#endif
 
-	cerr << "total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count() << endl;
+	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }

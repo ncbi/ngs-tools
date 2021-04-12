@@ -27,41 +27,38 @@
 #ifndef ALIGNS_TO_JOB_H_INCLUDED
 #define ALIGNS_TO_JOB_H_INCLUDED
 
-#include "config_align_to.h"
 #include <time.h>
 #include <thread>
 #include "log.h"
 #include "reader.h"
 #include "fasta_reader.h"
-#include "io.h"
+
+struct BasicMatchId
+{
+	int seq_id;
+
+	BasicMatchId(int seq_id, int matches) : seq_id(seq_id){}
+	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
+};
+
+struct BasicPrinter
+{
+	std::ostream &out_f;
+	BasicPrinter(std::ostream &out_f) : out_f(out_f){}
+
+	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
+	{
+		for (auto seq_id : ids)
+			out_f << processing_sequences[seq_id.seq_id].spotid << std::endl;
+	}
+};
 
 struct Job
 {
-	virtual void run(const std::string &contig_filename, IO::Writer &writer, const Config &config) = 0;
-//    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer);
+	virtual void run(const std::string &contig_filename, std::ostream &out_f) = 0;
 
-	template <class Matcher, class Printer, class MatchId>
-    static void match_and_print(const std::vector<Reader::Fragment> &chunk, Printer &print, Matcher &matcher)
-    {
-        std::vector<MatchId> matched_ids;
-        matched_ids.reserve(chunk.size()); // todo: tune
-
-        for (size_t seq_id = 0; seq_id < chunk.size(); ++seq_id) 
-        {
-            auto& spotid = chunk[seq_id].spotid;
-            auto& bases = chunk[seq_id].bases;
-            if (auto m = matcher(bases))
-                matched_ids.push_back(MatchId(seq_id, m));
-        }
-
-        #pragma omp critical (output)
-        {
-            print(chunk, matched_ids);
-        }
-    }     
-
-    template <class MatchAndPrint>
-	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, MatchAndPrint &&match_and_print)
+	template <class Matcher, class Printer, class MatchId = BasicMatchId>
+	static void run(const std::string &contig_filename, Printer &print, Matcher &matcher, size_t min_sequence_len, const std::string &spot_filter_file, bool unaligned_only)
 	{
 		Progress progress;
         Reader::Params params;
@@ -72,6 +69,7 @@ struct Job
 
         #pragma omp parallel
         {
+            std::vector<MatchId> matched_ids;
             std::vector<Reader::Fragment> chunk;
             bool done = false;
             while (!done) {
@@ -81,7 +79,23 @@ struct Job
                     progress.report(reader->progress());
                 }
 
-                match_and_print(chunk);
+                matched_ids.clear();
+                for (size_t seq_id = 0; seq_id < chunk.size(); ++seq_id) {
+                    auto& spotid = chunk[seq_id].spotid;
+                    auto& bases = chunk[seq_id].bases;
+                    //processed_spots.insert(spotid);
+                    if (bases.size() >= min_sequence_len) {
+                        if (auto m = matcher(bases)) {
+                            //identified_spots.insert(spotid);
+                            matched_ids.push_back(MatchId(seq_id, m));
+                        }
+                    }
+                }
+
+                #pragma omp critical (output)
+                {
+                    print(chunk, matched_ids);
+                }
             }
 
         }
@@ -109,7 +123,7 @@ struct Job
         LOG("total read count: " << total_stats.frag_count());
 	}
 
-	virtual size_t db_kmers() const { return 0; }
+	virtual size_t db_kmers() const { return 0;}
 
 private:
 	struct Progress

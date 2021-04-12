@@ -27,7 +27,6 @@
 #ifndef DBS_H_INCLUDED
 #define DBS_H_INCLUDED
 
-#include "kmer_hash.h"
 #include "io.h"
 #include <string>
 #include <fstream>
@@ -39,6 +38,7 @@ struct DBS
     #pragma pack(push)
     #pragma pack(4)
 
+<<<<<<< HEAD
     struct KmerTax
     {
         hash_t kmer = 0;
@@ -56,6 +56,15 @@ struct DBS
         KmerTaxMulti() = default;
         KmerTaxMulti(hash_t kmer, const std::vector<int> &tax_ids) : kmer(kmer), tax_ids(tax_ids){}
     };
+=======
+	struct KmerTax
+	{
+		hash_t kmer;
+		int tax_id;
+
+		KmerTax(hash_t kmer = 0, int tax_id = 0) : kmer(kmer), tax_id(tax_id){}
+	};
+>>>>>>> engineering
 
     #pragma pack(pop)
 
@@ -85,6 +94,7 @@ struct DBSS
 
 struct DBSIO
 {
+<<<<<<< HEAD
     static const int VERSION = 1;
 
     struct DBSHeader // has to packed without spaces at the end, otherwise dbss offsets will be wrong
@@ -152,6 +162,24 @@ struct DBSIO
         IO::write(f, header);
         IO::save(f, kmers);
     }
+=======
+	static const int VERSION = 1;
+
+	struct DBSHeader
+	{
+		size_t version, kmer_len;
+		DBSHeader(size_t kmer_len = 0) : version(VERSION), kmer_len(kmer_len){}
+	};
+
+	template <class C>
+	static void save_dbs(const std::string &out_file, const std::vector<C> &kmers, size_t kmer_len)
+	{
+		std::ofstream f(out_file);
+		DBSHeader header(kmer_len);
+        IO::write(f, header);
+        IO::save_vector(f, kmers);
+	}
+>>>>>>> engineering
 
     template <class C>
     static size_t load_dbs(const std::string &filename, std::vector<C> &kmers)
@@ -170,6 +198,7 @@ struct DBSIO
         if (header.kmer_len < 1 || header.kmer_len > 64)
             throw std::runtime_error("load_dbs:: invalid kmer_len");
 
+<<<<<<< HEAD
         return header.kmer_len;
     }
 
@@ -260,6 +289,10 @@ struct DBSSIO
     {
         return DBSIO::load_header(filename); // the same
     }
+=======
+		return header.kmer_len;
+	}
+>>>>>>> engineering
 };
 
 #endif

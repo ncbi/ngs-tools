@@ -29,14 +29,15 @@
 #include <thread>
 #include <array>
 #include "omp_adapter.h"
-#include "check_index.h"
 #include "kmers.h"
 #include "kmer_io.h"
+#include "kmer_hash.h"
 #include "ready_seq.h"
 #include "filename_meta.h"
 #include "file_list_loader.h"
 
 #include "ready_seq.h"
+#include "config_check_index.h"
 #include <sstream>
 
 #include "tax_id_tree.h"
@@ -46,6 +47,86 @@
 using namespace std;
 using namespace std::chrono;
 
+void check_hash(hash_t kmer, int kmer_len, Kmers &kmers, tax_id_t tax_id, list<hash_t> &result_hashes)
+{
+	kmer = seq_transform<hash_t>::min_hash_variant(kmer, kmer_len);
+
+	if (kmers.has_kmer_but_not_tax(kmer, tax_id))
+		result_hashes.push_back(kmer);
+}
+
+void check_clean_string(Kmers &kmers, p_string p_str, tax_id_t tax_id, int kmer_len)
+{
+	const char *s = p_str.s;
+	int len = p_str.len;
+
+	if (len < kmer_len)
+		return;
+
+	const int THREADS = 16;
+	struct ThreadFinding
+	{
+		list<hash_t> hashes;
+	};
+
+	array<ThreadFinding, THREADS> thread_findings;
+
+	#pragma omp parallel num_threads(THREADS)
+	for (int i = omp_get_thread_num(); i <= len - kmer_len; i += omp_get_num_threads())
+	{
+		auto thread_id = omp_get_thread_num();
+
+		auto kmer = Hash<hash_t>::hash_of(s + i, kmer_len);
+		check_hash(kmer, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
+
+#if 0 // ~ x100 times slower!
+		seq_transform<hash_t>::for_all_1_char_variations_do(kmer, kmer_len, [&](hash_t hash)
+		{
+			check_hash(hash, kmer_len, kmers, tax_id, thread_findings[thread_id].hashes);
+			return true;
+		});
+#endif
+	}
+
+	// todo: multithreaded too ?
+	for (int i=0; i<THREADS; i++)
+		for (auto hash : thread_findings[i].hashes)
+			kmers.add_kmer(hash, tax_id);
+}
+
+size_t check_kmers(Kmers &kmers, const string &filename, tax_id_t tax_id, int kmer_len) // todo: make generic function
+{
+	Fasta fasta(filename);
+
+	size_t seq_index = 0;
+	size_t total_size = 0;
+	const int DOT_INTERVAL = 128;
+
+	ReadySeq loading_seq, processing_seq;
+	load_sequence(&fasta, &processing_seq);
+
+	while (!processing_seq.seq.empty())
+	{
+		std::thread loading_thread(load_sequence, &fasta, &loading_seq);
+
+		total_size += processing_seq.seq.size();
+
+		for (auto &clean_string : processing_seq.clean_strings)
+			check_clean_string(kmers, clean_string, tax_id, kmer_len);
+
+		seq_index++;
+		if (seq_index % DOT_INTERVAL == 0)
+			cerr << ".";
+
+		loading_thread.join();
+		swap(processing_seq, loading_seq); // todo: move?
+	}
+
+	if (seq_index >= DOT_INTERVAL)
+		cerr << endl;
+
+	return total_size;
+}
 
 void fail(const std::string &message)
 {
@@ -66,11 +147,7 @@ int load_kmers(Kmers &kmers, const string &filename)
 	{
 		f >> kmer;
 		if (kmer.empty())
-        {
-            if (!f.eof())
-               fail(string("error reading ") + filename);
 			break;
-        }                
 
 		if (!kmer_len)
 			kmer_len = kmer.length(); // len of first kmer
@@ -115,7 +192,7 @@ int main(int argc, char const *argv[])
 	{
 		auto tax_id = FilenameMeta::tax_id_from(file_list_element.filename);
 		LOG(file_list_element.filesize << "\t" << tax_id << "\t" << file_list_element.filename);
-		total_size += CheckIndex<Kmers>::check_kmers(kmers, file_list_element.filename, tax_id, kmer_len);
+		total_size += check_kmers(kmers, file_list_element.filename, tax_id, kmer_len);
 		{
 			auto seconds_past = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
 			if (seconds_past < 1)
@@ -130,4 +207,3 @@ int main(int argc, char const *argv[])
 
 	LOG("total time (min) " << std::chrono::duration_cast<std::chrono::minutes>( high_resolution_clock::now() - before ).count());
 }
-
