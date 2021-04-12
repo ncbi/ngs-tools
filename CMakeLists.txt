@@ -1,6 +1,20 @@
 cmake_minimum_required (VERSION 2.8.12)
 
+message(CMAKE_VERSION = ${CMAKE_VERSION})
+
 set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
+
+set ( CMAKE_CXX_EXTENSIONS OFF )
+if (CMAKE_VERSION VERSION_LESS "3.1")
+   set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+   message(CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS})
+else ()
+   set (CMAKE_CXX_STANDARD 11)
+   message(CMAKE_CXX_STANDARD = ${CMAKE_CXX_STANDARD})
+endif ()
+
+
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # best to use at the top
 project ( ngs-tools )
@@ -8,11 +22,11 @@ project ( ngs-tools )
 # this has to follow the project() command!
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
-    "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake"
+    "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
 include ( env )
 
-add_subdirectory(ngs-vdb)
+add_subdirectory(libs)
 add_subdirectory(tools)
 
 set ( CPACK_PACKAGE_NAME ngs-tools )

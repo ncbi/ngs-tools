@@ -34,3 +34,5 @@ core
 xcuserdata/
 .gdb_history
 *.diff
+.vscode
+.vs

@@ -32,6 +32,9 @@
 
 #include <strtol.h>
 
+#include <kapp/main.h>
+#include <kfg/config.h> /* KConfigSetNgcFile */
+
 #include "vdb-search.hpp"
 
 using namespace std;
@@ -179,10 +182,12 @@ static void handle_help ( const char * appName )
          ;
 
     cout << endl;
+
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
 int
-main( int argc, char *argv [] )
+run( int argc, const char *argv [] )
 {
     int rc = -1;
     bool found;
@@ -192,7 +197,7 @@ main( int argc, char *argv [] )
         VdbSearch :: Settings settings;
         bool sortOutput = false;
 
-        unsigned int i = 1;
+        int i = 1;
         while ( i < argc )
         {
             string arg = argv [ i ];
@@ -210,6 +215,11 @@ main( int argc, char *argv [] )
             else if ( arg == "-h" || arg == "--help" )
             {
                 handle_help ( argv [ 0 ]  );
+                return 0;
+            }
+            else if ( arg == "-V"  || arg == "--version" )
+            {
+                HelpVersion ( UsageDefaultName, KAppVersion () );
                 return 0;
             }
             else if ( arg == "-a" || arg == "--algorithm" )
@@ -317,6 +327,16 @@ main( int argc, char *argv [] )
                 }
                 settings . m_fasta = true;
             }
+            else if ( arg == "--ngc" )
+            {
+                ++i;
+                if (i >= argc)
+                {
+                    throw invalid_argument (
+                        string ( "Missing argument for ") + arg );
+                }
+                KConfigSetNgcFile ( argv [ i ] );
+            }
             else
             {
                 throw invalid_argument ( string ( "Invalid option " ) + arg );
@@ -361,4 +381,25 @@ main( int argc, char *argv [] )
     }
 
     return rc;
+}
+
+
+extern "C"
+{
+    const char UsageDefaultName[] = "sra-search";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see handle_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        return run ( argc, (const char**)argv );
+    }
 }

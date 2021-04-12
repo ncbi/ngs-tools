@@ -1,3 +1,7 @@
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+endif ()
+
 add_executable ( sra-search
     main.cpp
     searchblock.cpp
@@ -7,16 +11,17 @@ add_executable ( sra-search
     vdb-search.cpp
 )
 
-include_directories ( ${CMAKE_SOURCE_DIR} )
+include_directories ( ${CMAKE_SOURCE_DIR}/libs )
 
 add_dependencies ( sra-search ngs-vdb )
 
 target_link_libraries ( sra-search
     ngs-vdb
+    tk-version
+    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
 	${SYS_LIBRARIES}
 )
 
-ncbi_copy_exec_to_old_outdir ( sra-search )
-install ( TARGETS sra-search RUNTIME DESTINATION bin )
+links_and_install ( sra-search )
 
 add_subdirectory ( test )

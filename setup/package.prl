@@ -4,11 +4,14 @@ sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { 'NGS-TOOLS' }
 sub PACKAGE_NAMW { 'NGSTOOLS' }
 sub CONFIG_OUT   { 'build' }
-sub PKG { ( LNG   => 'C',
+sub PKG { my @REQ = qw ( cmake ant );
+          ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             LOCOUT=> '../../OUTDIR',
-            PATH  => '/usr/local/ncbi/sra-tools',
-            UPATH =>      '$HOME/ncbi/sra-tools', ) }
+            PATH  => '/usr/local/ncbi/ngs-tools',
+            UPATH =>      '$HOME/ncbi/ngs-tools',
+            REQ   => \@REQ,
+        ) }
 sub DEPENDS {()}
 sub REQ { (
             { name    => 'ngs-sdk',
@@ -38,6 +41,17 @@ sub REQ { (
               include => 'klib/rc.h',
               lib     => 'libncbi-vdb.a',
               ilib    => 'libkapp.a',
+            },
+            { name    => 'sra-tools',
+              aname   => 'SRATOOLS',
+              boption => 'with-sra-tools-build',
+              origin  => 'I',
+              type    => 'EO',
+              pkgpath => '/usr/local/ncbi/sra-tools',
+              usrpath =>      '$HOME/ncbi/sra-tools',
+              bldpath => '$HOME/ncbi-outdir/sra-tools',
+              locbldpath=>'$Bin/../../OUTDIR/sra-tools',
+              bin     => 'vdb-config',
             },
         ) }
 1

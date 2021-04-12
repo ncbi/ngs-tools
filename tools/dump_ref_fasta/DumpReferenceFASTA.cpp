@@ -30,6 +30,8 @@
 #include <ngs/ReadIterator.hpp>
 #include <ngs/Read.hpp>
 
+#include <kapp/main.h>
+
 
 #include <math.h>
 #include <iostream>
@@ -50,7 +52,7 @@ class Range
         uint64_t len;
 
         Range() : offset( 0 ), len( 0 ) {}
-        
+
         Range( const String & spec )
         {
             const string::size_type dash_pos = spec.find( DASH );
@@ -79,11 +81,11 @@ class Range
                 len = offset <= end ? end - offset : offset - end;
                 if ( offset > end ) { offset = end; }
             }
-            
+
             /* we expect the coordinates 1-based, but we are using internally 0-based offsets */
             if ( offset > 0 ) { offset--; }
         }
-        
+
         static uint64_t to_uint64_t( const String & num )
         {
             uint64_t res = 0;
@@ -101,7 +103,7 @@ class Range
             else
             {
                 if ( offset >= reflen ) { offset = reflen - 1; }
-                
+
                 if ( len == 0 )
                 {
                     len = reflen - offset;
@@ -119,9 +121,9 @@ class Slice
     public :
         String name;
         Range range;
-    
+
         Slice() {}
-        
+
         // spec = 'name[:from[-to]]' or 'name[:from[.count]]'
         Slice( const String & spec )
         {
@@ -147,14 +149,14 @@ class DumpReferenceFASTA
     public :
         static void process ( const Reference & ref, const Range & range )
         {
-            cout << '>' << ref.getCanonicalName () << ':' << range.offset + 1 << '.' << range.len << '\n';
+            cout << '>' << ref.getCanonicalName () << endl; // VDB-3665: do not need the slice // << ':' << range.offset + 1 << '.' << range.len << '\n';
             try
             {
                 size_t line = 0;
                 uint64_t count = 0;
                 uint64_t offset = range.offset;
                 uint64_t left = range.len;
-                
+
                 while ( left > 0 )
                 {
                     StringRef chunk = ref.getReferenceChunk( offset, left > CHUNK_SIZE ? CHUNK_SIZE : left );
@@ -172,7 +174,7 @@ class DumpReferenceFASTA
                             line = 0;
                         }
                     }
-                    offset += chunk_len;                    
+                    offset += chunk_len;
                     count += chunk_len;
                     left -= chunk_len;
                 }
@@ -181,11 +183,11 @@ class DumpReferenceFASTA
             }
             catch ( ErrorMsg x )
             {
-                cerr <<  x.toString() << '\n';            
+                cerr <<  x.toString() << '\n';
             }
         }
-    
-    static void run( const String & acc, Slice * slices, int n )
+
+    static void run( const String & acc, Slice * slices, int n, bool local_only )
     {
         // open requested accession using SRA implementation of the API
         ReadCollection run = ncbi::NGS::openReadCollection( acc );
@@ -196,12 +198,15 @@ class DumpReferenceFASTA
             {
                 ref = run.getReference( slices[ i ].name );
             }
-            slices[ i ].range.adjust_by_reflen( ref.getLength() );
-            process( ref, slices[ i ].range );
+            if ( ! local_only || ref.getIsLocal() )
+            {
+                slices[ i ].range.adjust_by_reflen( ref.getLength() );
+                process( ref, slices[ i ].range );
+            }
         }
     }
 
-    static void run( const String & acc )
+    static void run( const String & acc, bool local_only )
     {
 
         // open requested accession using SRA implementation of the API
@@ -209,9 +214,12 @@ class DumpReferenceFASTA
         ReferenceIterator refs = run.getReferences();
         while ( refs.nextReference () )
         {
-            Slice slice( refs.getCanonicalName() );
-            slice.range.adjust_by_reflen( refs.getLength() );
-            process( refs, slice.range );
+            if ( ! local_only || refs.getIsLocal() )
+            {
+                Slice slice( refs.getCanonicalName() );
+                slice.range.adjust_by_reflen( refs.getLength() );
+                process( refs, slice.range );
+            }
         }
     }
 };
@@ -219,48 +227,88 @@ class DumpReferenceFASTA
 static void print_help ( void )
 {
     cout << "Usage: dump-ref-fasta accession [ reference[ slice ] ] ... " << endl;
+
+    cout
+        << '\n'
+        << "Usage:\n"
+        << "  " << UsageDefaultName << " [options] accession [ reference[ slice ] ] ... "
+        << "\n\n"
+        << "Options:\n"
+        << "  -l|--localref                    Skip non-local references. \n"
+        << "  -h|--help                        Output brief explanation for the program. \n"
+        << "  -v|-V|--version                  Display the version of the program then\n"
+        << "                                   quit.\n"
+        ;
+
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
 static void print_version ( void )
 {
-    cout << "dump-ref-fata : 2.8.0" << endl;
+    HelpVersion ( UsageDefaultName, KAppVersion () );
 }
 
-
-int main ( int argc, char const *argv[] )
+int run ( int argc, char const *argv[] )
 {
     if ( argc < 2 )
     {
         print_help ();
+        return 1;
     }
     else try
     {
         ncbi::NGS::setAppVersionString ( "DumpReferenceFASTA.1.0.0" );
-        const String arg1( argv[ 1 ] );
-        if ( arg1 == "-h" || arg1 == "--help" )
+
+        String acc;
+        Slice * slices = 0;
+        int n = 0;
+        bool local_only = false;
+
+        unsigned int i = 1;
+        while ( i < argc )
         {
-            print_help ();
-        }
-        else if ( arg1 == "-v" || arg1 == "--version" )
-        {
-            print_version ();
-        }
-        else
-        {
-            if ( argc > 2 )
+            const String arg = argv [ i ];
+
+            if ( arg == "-h" || arg == "--help" )
             {
-                int n = ( argc - 2 );
-                Slice * slices = new Slice[ n ];
-                for ( int i = 0; i < n; ++i )
-                    slices[ i ] = Slice( argv[ 2 + i ] );
-                DumpReferenceFASTA::run( arg1, slices, n );
-                delete [] slices;
+                print_help ();
+                return 0;
+            }
+            else if ( arg == "-v" || arg == "-V" || arg == "--version" )
+            {
+                print_version ();
+                return 0;
+            }
+            else if ( arg == "-l" || arg == "--localref" )
+            {
+                local_only = true;
             }
             else
             {
-                DumpReferenceFASTA::run( arg1 );
+                acc = arg;
+                if ( argc > i + 1 )
+                {
+                    n = ( argc - i - 1 );
+                    slices = new Slice[ n ];
+                    for ( int j = 0; j < n; ++j )
+                        slices[ j ] = Slice( argv[ i + j + 1] );
+                    i += n;
+                }
             }
+
+            ++i;
         }
+
+        if ( n != 0 )
+        {
+            DumpReferenceFASTA::run( acc, slices, n, local_only );
+        }
+        else
+        {
+            DumpReferenceFASTA::run( acc, local_only );
+        }
+
+        delete [] slices;
         return 0;
     }
     catch ( ErrorMsg &x )
@@ -278,3 +326,49 @@ int main ( int argc, char const *argv[] )
 
     return 10;
 }
+
+extern "C"
+{
+    const char UsageDefaultName[] = "dump-ref-fasta";
+
+    rc_t CC UsageSummary (const char * progname)
+    {   // this is not used at this point, see print_help()
+        return 0;
+    }
+
+    rc_t CC Usage ( struct Args const * args )
+    {   // this is not used at this point, see print_help()
+        return 0;
+    }
+
+    rc_t CC KMain ( int argc, char *argv [] )
+    {
+        try
+        {
+            return run ( argc, (const char**)argv );
+        }
+        catch ( ErrorMsg & x )
+        {
+            std :: cerr <<  x.toString () << '\n';
+            return -1;
+        }
+        catch ( std :: exception & x )
+        {
+            std :: cerr <<  x.what () << '\n';
+            return -1;
+        }
+        catch ( const char x [] )
+        {
+            std :: cerr <<  x << '\n';
+            return -1;
+        }
+        catch ( ... )
+        {
+            std :: cerr <<  "unknown exception\n";
+            return -1;
+        }
+
+        return 0;
+    }
+}
+

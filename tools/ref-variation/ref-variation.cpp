@@ -26,8 +26,6 @@
 
 #define SECRET_OPTION 0
 
-#include "ref-variation.vers.h"
-
 #include <iostream>
 #include <string.h>
 #include <stdio.h>
@@ -406,25 +404,25 @@ namespace NSRefVariation
         {
             LOCK_GUARD l(*lock_cout);
 
-            OUTMSG (( "%s", acc ));
+            std::cout << acc;
 
             std::vector <count_pair>::const_iterator cit = counts.counts_matched.begin();
             std::vector <count_pair>::const_iterator cend = counts.counts_matched.end();
             for (; cit != cend; ++cit)
             {
                 count_pair const& c = *cit;
-                OUTMSG (( "\t%zu", c.count ));
+                std::cout << "\t" << c.count;
 
                 if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                    OUTMSG (( ",%zu", c.count_posititve ));
+                    std::cout << "," << c.count_posititve;
             }
 
-            OUTMSG (( "\t%zu", counts.count_total.count ));
+            std::cout << "\t" << counts.count_total.count;
 
             if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                OUTMSG (( ",%zu", counts.count_total.count_posititve ));
+                std::cout << "," << counts.count_total.count_posititve;
 
-            OUTMSG (("\n"));
+            std::cout << std::endl;
         }
         else
         {
@@ -437,7 +435,7 @@ namespace NSRefVariation
                 if ( c.count > 0 )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    OUTMSG (( "%s\n", acc ));
+                    std::cout << acc << std::endl;
                     break;
                 }
             }
@@ -1162,8 +1160,8 @@ BREAK_ALIGNMENT_ITER:
 
         if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
-            PLOGMSG ( klogWarn,
-                ( klogWarn,
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
                 "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
                 "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%.*s",
                 g_Params.ref_acc, g_Params.ref_pos_var,
@@ -1172,8 +1170,8 @@ BREAK_ALIGNMENT_ITER:
 
             size_t allele_size = obj.GetAlleleSize();
             char const* allele = obj.GetAllele();
-            PLOGMSG ( klogWarn,
-                ( klogWarn,
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
                 "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(ALLELE)",
                 "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,ALLELE=%.*s",
                 g_Params.ref_acc, obj.GetAlleleStartAbsolute(),
@@ -1966,10 +1964,6 @@ BREAK_ALIGNMENT_ITER:
 extern "C"
 {
     const char UsageDefaultName[] = "ref-variation";
-    ver_t CC KAppVersion ()
-    {
-        return REF_VARIATION_VERS;
-    }
 
     rc_t CC UsageSummary (const char * progname)
     {
@@ -1995,7 +1989,6 @@ extern "C"
             rc = ArgsProgram(args, &fullpath, &progname);
 
         UsageSummary (progname);
-
 
         OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n"));
 

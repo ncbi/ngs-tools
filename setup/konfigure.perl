@@ -86,6 +86,7 @@ my @options = ( 'build-prefix=s',
                 'help',
                 'prefix=s',
                 'reconfigure',
+                'relative-build-out-dir',
                 'status',
                 'with-debug',
                 'without-debug', );
@@ -136,11 +137,12 @@ EndText
 }
 
 $OPT{'local-build-out'} = $LOCAL_BUILD_OUT;
+unless ($OPT{'local-build-out'})
+{   $OPT{'local-build-out'} = $OPT{'relative-build-out-dir'} }
 my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
-if ($OPT{'local-build-out'}) {
-    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
-    $OUTDIR = $o if ($o);
-}
+my $REL_OUTDIR = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+if ($OPT{'local-build-out'})
+{   $OUTDIR = $REL_OUTDIR if ($REL_OUTDIR) }
 
 if ($OPT{'help'}) {
     help();
@@ -211,14 +213,20 @@ my $OS_DISTRIBUTOR = '';
 if ($OS eq 'linux') {
     print "checking OS distributor... " unless ($AUTORUN);
     $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
+    if ( $? != 0 ) {
+        $_ = `cat /etc/redhat-release 2> /dev/null`;
+        @_ = split ( / /  );
+        $OS_DISTRIBUTOR = $_[0] if ( $_[0] );
+    }
+    $OS_DISTRIBUTOR = '' unless ( $OS_DISTRIBUTOR );
     chomp $OS_DISTRIBUTOR;
     println $OS_DISTRIBUTOR unless ($AUTORUN);
 }
 
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
-unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
-    println "configure: error: unsupported architecture '$OSTYPE'";
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i || $MARCH =~ /aarch64/) {
+    println "configure: error: unsupported architecture '$OSTYPE':'$MARCH'";
     exit 1;
 }
 
@@ -308,13 +316,15 @@ if ($MARCH =~ /x86_64/i) {
     $BITS = '32_64';
 } elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
+} elsif ($MARCH =~ /aarch64/) {
+    $BITS = 64;
 } else {
     die "unrecognized Architecture '$ARCH'";
 }
 println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
 
 # determine OS and related norms
-my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC);
+my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC, $PYTHON);
 
 print "checking for supported OS... " unless ($AUTORUN);
 if ($OSTYPE =~ /linux/i) {
@@ -326,6 +336,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'gcc' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE =~ /darwin/i) {
     $LPFX = 'lib';
     $OBJX = 'o';
@@ -335,6 +346,7 @@ if ($OSTYPE =~ /linux/i) {
     $EXEX = '';
     $OSINC = 'unix';
     $TOOLS = 'clang' unless ($TOOLS);
+    $PYTHON = 'python';
 } elsif ($OSTYPE eq 'win') {
     $TOOLS = 'vc++';
 } else {
@@ -371,7 +383,7 @@ if ($TOOLS =~ /gcc$/) {
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++' unless ($CPP);
     $CC   = 'clang -c';
-    my $versionMin = '-mmacosx-version-min=10.6';
+    my $versionMin = '-mmacosx-version-min=10.10';
     $CP   = "$CPP -c $versionMin";
     if ($BITS ne '32_64') {
         $ARCH_FL = '-arch i386' if ($BITS == 32);
@@ -414,6 +426,18 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
 }
 
 if ($CPP) {
+    print "checking for $TOOLS... ";
+    my $cmd = "$TOOLS --version | head -1";
+    print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
+    my $out = `$cmd 2>&1`;
+    if ($? == 0) {
+        print "$out";
+    } else {
+        println "no";
+        println "configure: error: '$TOOLS' cannot be found";
+        exit 1;
+    }
+    
     unless (check_tool__h($CPP)) {
         println "configure: error: '$CPP' cannot be found";
         exit 1;
@@ -427,6 +451,34 @@ if ($JAVAC) {
     }
 }
 
+print 'checking for Python 3... ' unless $AUTORUN;
+if ($PYTHON) {
+    my $p3;
+    for my $dir (File::Spec->path()) {
+        $p3 = File::Spec->join($dir, 'python3');
+        my $pX = substr($p3, 0, -1);
+        if (-x $pX && `$pX --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            $p3 = $pX;
+            last;
+        }
+        if (-x $p3 && `$p3 --version 2>&1` =~ /^\s*Python\s+(\d+)/i && $1 == 3) {
+            last;
+        }
+        undef $p3;
+    }
+    if ($p3) {
+        $PYTHON = $p3;
+        println $PYTHON unless $AUTORUN;
+    }
+    else {
+        undef $PYTHON;
+        println 'no' unless $AUTORUN;
+    }
+}
+else {
+    println 'skipped' unless $AUTORUN;
+}
+
 my $NO_ARRAY_BOUNDS_WARNING = '';
 if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
     $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
@@ -437,7 +489,25 @@ if ($TOOLS =~ /gcc$/) {
     $STATIC_LIBSTDCPP = check_static_libstdcpp();
 }
 
+if ( $PKG{REQ} ) {
+    foreach ( @{ $PKG{REQ} } ) {
+        unless (check_tool__h($_)) {
+            println "configure: error: '$_' cannot be found";
+            exit 1;
+        }
+    }
+}
+
 my @dependencies;
+
+if ( $PKG{OPT} ) {
+    foreach ( @{ $PKG{OPT} } ) {
+        if ( /^qmake$/ ) {
+            my $qmake = check_qmake();
+            push @dependencies, "QMAKE_BIN = $qmake";
+        } else { die; }
+    }
+}
 
 my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
@@ -546,10 +616,12 @@ foreach my $href (@REQ) {
                     $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
-                    ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                    ($fi, $fl, $fil, $fs)
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 }
             } elsif ($need_bin) {
                 my (undef, $fl, $fil)
@@ -855,6 +927,7 @@ EndText
     L($F, "ARLS          = $ARLS"         ) if ($ARLS);
     L($F, "LD            = $LD"           ) if ($LD);
     L($F, "LP            = $LP"           ) if ($LP);
+    L($F, "PYTHON        = $PYTHON"       ) if ($PYTHON);
     L($F, "JAVAC         = $JAVAC"        ) if ($JAVAC);
     L($F, "JAVAH         = $JAVAH"        ) if ($JAVAH);
     L($F, "JAR           = $JAR"          ) if ($JAR);
@@ -965,9 +1038,9 @@ EndText
         T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
     }
     L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(CFLAGS)');
     L($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
-    T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
+    T($F, '$(CP) -std=c++11 -o $@ $< $(PIC) $(CFLAGS)');
     L($F);
 
     # this is part of Makefile
@@ -1452,6 +1525,86 @@ sub check_tool {
     }
 }
 
+sub check_qmake {
+    print "checking for QMake... ";
+
+    my $tool = 'qmake';
+    print "\n\t\trunning $tool... " if ($OPT{'debug'});
+    my $out = `$tool -v 2>&1`;
+    if ($? == 0) {
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+
+        println "wrong qmake" if ($OPT{'debug'});
+
+        print "\t\tchecking $ENV{PATH}...\n" if ($OPT{'debug'});
+        foreach ( split(/:/, $ENV{PATH})) {
+            my $cmd = "$_/$tool";
+            print "\t\trunning $cmd... " if ($OPT{'debug'});
+            my $out = `( $cmd -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                if ( $out =~ /QMake/ ) {
+                    println $cmd;
+                    return $cmd;
+                }
+            }
+
+            println "no" if ($OPT{'debug'});
+        }
+    }
+
+    if ( $OS eq 'linux' ) {
+        if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '/usr/lib64/qt5/bin/qmake';
+
+        } elsif ( $OS_DISTRIBUTOR eq 'Ubuntu' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '';
+        }
+    } elsif ( $OS eq 'mac' ) {
+        $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
+    }
+
+    if ( $tool ) {
+        print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+    }
+
+    println "no";
+    return '';
+}
+
 sub check_static_libstdcpp {
     my $option = '-static-libstdc++';
 
@@ -1513,7 +1666,7 @@ sub check_compiler {
             $flags = $n;
             $log = '                      int main() {                     }\n'
         } elsif ($n eq 'hdf5') {
-            $library = '-lhdf5';
+            $library = '-Wl,-Bstatic -lhdf5 -Wl,-Bdynamic -ldl -lm -lz';
             $log = '#include <hdf5.h>  \n int main() { H5close         (); }\n'
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
@@ -1556,7 +1709,14 @@ sub check_compiler {
         push ( @l, '' ) unless ( @l );
         for my $i ( 0 .. $#l ) {
             my $l = $l [ $i ];
-            next if ( $l && ! -d $l );
+            if ( $l && ! -d $l ) {
+                if ( $i == $#l ) {
+                    println 'no';
+                    return;
+                } else {
+                    next;
+                }
+            }
             my $gcc = "| $tool -xc $flags " . ($I ? "-I$I " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
             $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
@@ -1781,22 +1941,24 @@ EndText
         }
 
         print <<EndText;
-  --build-prefix=DIR      generate build output into DIR directory
-                          [$OUTDIR]
+  --relative-build-out-dir generate build output into directory
+                           relative to sources [$OUTDIR]
+  --build-prefix=DIR       generate build output into DIR directory
+                           [$OUTDIR]
 
 EndText
     }
 
     println 'Miscellaneous:';
-    println '  --reconfigure           rerun `configure\'';
-    println '                          using the same command-line arguments';
+    println '  --reconfigure            rerun `configure\'';
+    println '                           using the same command-line arguments';
     if ($^O ne 'MSWin32') {
         println
-            '  --status                print current configuration information'
+            '  --status                 print current configuration information'
     }
     print <<EndText;
-  --clean                 remove all configuration results
-  --debug                 print lots of debugging information
+  --clean                  remove all configuration results
+  --debug                  print lots of debugging information
 
 If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.

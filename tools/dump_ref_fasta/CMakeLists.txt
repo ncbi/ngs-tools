@@ -1,9 +1,15 @@
-add_executable ( dump-ref-fasta DumpReferenceFASTA.cpp )
+if (WIN32)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SUBSYSTEM:WINDOWS /ENTRY:wmainCRTStartup")
+endif ()
+
+add_executable ( dump-ref-fasta DumpReferenceFASTA.cpp)
 
 target_link_libraries ( dump-ref-fasta
-	${SYS_LIBRARIES}
+    tk-version
+    ${CMAKE_STATIC_LIBRARY_PREFIX}kapp${CMAKE_STATIC_LIBRARY_SUFFIX}
+    ${SYS_LIBRARIES}
 )
 
-ncbi_copy_exec_to_old_outdir ( dump-ref-fasta )
-install ( TARGETS dump-ref-fasta RUNTIME DESTINATION bin )
+links_and_install (dump-ref-fasta)
 
+add_subdirectory ( test )

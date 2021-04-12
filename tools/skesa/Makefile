@@ -38,7 +38,7 @@ ALL_TOOLS = \
 #include $(builddir)/Makefile.mk
 
 
-CC = c++ -std=c++11  
+CC = c++ -std=c++11
 CFLAGS = -Wall -Wno-format-y2k  -pthread -fPIC -O3 -finline-functions -fstrict-aliasing \
          -fomit-frame-pointer -msse4.2 \
          $(INCDIRS) $(BOOST_INCLUDE)
@@ -62,7 +62,7 @@ LIBS = \
 all: skesa wgmlst dbgtester guidedassembler
 
 skesa.o: readsgetter.hpp counter.hpp graphdigger.hpp assembler.hpp KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
-skesa: skesa.o 
+skesa: skesa.o
 	$(CC) -o $@ $^ $(LIBS)
 
 wgmlst.o: KmerInit.hpp DBGraph.hpp Integer.hpp LargeInt.hpp LargeInt1.hpp LargeInt2.hpp Model.hpp config.hpp
