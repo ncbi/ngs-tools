@@ -696,10 +696,8 @@ public:
         if (rc == 0) {
             VDBManagerRelease(mgr);
 
-            if (!unaligned_only) {
-                /* it is okay for this to fail */
-                (void)VDatabaseOpenTableRead(db, &algtbl, "PRIMARY_ALIGNMENT");
-            }
+            /* it is okay for this to fail */
+            (void)VDatabaseOpenTableRead(db, &algtbl, "PRIMARY_ALIGNMENT");
 
             /* it is not okay for this to fail */
             rc = VDatabaseOpenTableRead(db, &seqtbl, "SEQUENCE");
@@ -717,14 +715,11 @@ public:
                 throw std::runtime_error(std::string("Can't open ") + acc);
         }
         seq = new SeqReader(seqtbl, algtbl != NULL);
-        if (algtbl) {
+        if (algtbl && !unaligned_only)
             alg = new AlignReader(algtbl);
-            current = seq;
-        }
-        else {
+        else
             alg = nullptr;
-            current = seq;
-        }
+        current = seq;
     }
     ~FastVdbReader() {
         delete seq;
