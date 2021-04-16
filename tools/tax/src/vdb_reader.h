@@ -479,6 +479,7 @@ class FastVdbReader final: public Reader {
 
         uint64_t spotCount;
         uint64_t readCount;
+        uint64_t alignedReadCount;
 
         unsigned readNo;
         unsigned numreads;
@@ -590,6 +591,7 @@ class FastVdbReader final: public Reader {
                     ++reads;
                 }
                 readCount += reads;
+                alignedReadCount += alignedReads;
                 if (reads > 0) {
                     if (!foundFirstUnaligned && alignedReads < reads) {
                         firstUnaligned = row;
@@ -626,9 +628,9 @@ class FastVdbReader final: public Reader {
             return SourceStats(spotCount, int(double(readCount) / spotCount + 0.5));
         }
 
-        float progress(uint64_t const processed) const
+        float progress(uint64_t const processed, bool const excludeAligned) const
         {
-            auto const total = readCount;
+            auto const total = readCount - (excludeAligned ? alignedReadCount : 0);
             return total ? double(processed) / total : 1.0;
         }
 
@@ -734,7 +736,7 @@ public:
 
     float progress() const override
     {
-        return seq->progress(readsProcessed);
+        return seq->progress(readsProcessed, alg == nullptr);
     }
 
     bool read(Fragment* output) override
