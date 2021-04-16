@@ -27,6 +27,7 @@
 #pragma once
 
 #include "reader.h"
+#include "log.h"
 
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ErrorMsg.hpp>
@@ -266,86 +267,151 @@ public:
 class FastVdbReader final: public Reader {
     class VdbBaseReader {
     protected:
+        using RowId = int64_t;
+        using RowCount = uint64_t;
+        using RowRange = std::pair<RowId, RowCount>;
+
+        template <typename T>
+        class Column {
+            static constexpr uint32_t nilColumnId() { return ~(uint32_t(0)); }
+            static uint32_t add(VCursor const *curs, char const *const expr, std::string const &sourceName)
+            {
+                auto cid = nilColumnId();
+                auto const rc = VCursorAddColumn(curs, &cid, expr);
+                if (rc == 0)
+                    return cid;
+
+                throw std::runtime_error(  std::string("Can't add column '")
+                                         + std::string(expr)
+                                         + std::string("' to cursor on ")
+                                         + sourceName);
+            }
+            std::string expr;
+            uint32_t cid;
+
+            [[noreturn]] void throwReadError(int64_t const row, std::string const &sourceName) const noexcept(false)
+            {
+                throw std::runtime_error(  std::string("Can't read row ")
+                                         + std::to_string(row)
+                                         + " of " + sourceName + "." + expr);
+            }
+        public:
+            Column(VCursor const *const curs, char const *const expr, std::string const &sourceName)
+            : expr(expr)
+            , cid(add(curs, expr, sourceName))
+            {}
+            Column()
+            : expr("no value")
+            , cid(nilColumnId())
+            {}
+
+            using Value = T;
+            using Ptr = Value const *;
+            using Count = uint32_t;
+            using Data = std::pair<Ptr, Count>;
+
+            Data dataNoThrow(VCursor const *const curs, RowId const row) const noexcept(true)
+            {
+                void const *data = nullptr;
+                uint32_t bits = 0;
+                uint32_t boff = 0;
+                uint32_t count = 0;
+                assert(cid != nilColumnId());
+                if (0 == VCursorCellDataDirect(curs, row, cid, &bits, &data, &boff, &count)) {
+                    assert(boff == 0);
+                    assert(bits == 8 * sizeof(T));
+                    return {reinterpret_cast<T const *>(data), count};
+                }
+                return {nullptr, 0};
+            }
+            Data data(VCursor const *const curs, RowId const row, std::string const &sourceName) const noexcept(false)
+            {
+                void const *data = nullptr;
+                uint32_t bits = 0;
+                uint32_t boff = 0;
+                uint32_t count = 0;
+                assert(cid != nilColumnId());
+                if (0 == VCursorCellDataDirect(curs, row, cid, &bits, &data, &boff, &count)) {
+                    assert(boff == 0);
+                    assert(bits == 8 * sizeof(T));
+                    return {reinterpret_cast<T const *>(data), count};
+                }
+                throwReadError(row, sourceName);
+            }
+            Ptr data(Count const requiredCount, VCursor const *curs, RowId const row, std::string const &sourceName) const noexcept(false)
+            {
+                auto const result = data(curs, row, sourceName);
+                if (result.second == requiredCount)
+                    return result.first;
+                throwReadError(row, sourceName);
+            }
+            Value value(VCursor const *const curs, RowId const row, std::string const &sourceName) const noexcept(false)
+            {
+                return *(data(1, curs, row, sourceName));
+            }
+
+            RowRange rowRange(VCursor const *const curs, std::string const &sourceName) const {
+                auto first = RowId(0);
+                auto count = RowCount(0);
+                assert(cid != nilColumnId());
+                if (0 == VCursorIdRange(curs, cid, &first, &count))
+                    return {first, count};
+                throw std::runtime_error(std::string("Can't get row range of ") + sourceName);
+            }
+        };
+        std::string const sourceName;
         VCursor const *curs;
-        uint64_t row;
-        uint64_t rowCount;
-        int64_t firstRow;
+        RowId row;
+        RowRange rowRange;
 
         /* boilerplate code for accessing VDB */
-        template <typename T>
-        std::pair<T const *, uint32_t> columnDataNoThrow(uint32_t const cid)
+        template <typename Col, typename Data = typename Col::Data>
+        Data columnDataNoThrow(Col const &col) const noexcept(true)
         {
-            void const *data = nullptr;
-            uint32_t bits = 0;
-            uint32_t boff = 0;
-            uint32_t count = 0;
-            if (0 != VCursorCellDataDirect(curs, row + firstRow, cid, &bits, &data, &boff, &count))
-                return {nullptr, 0};
-            assert(boff == 0);
-            assert(bits == 8 * sizeof(T));
-            return {reinterpret_cast<T const *>(data), count};
+            return col.dataNoThrow(curs, row + rowRange.first);
         }
 
-        template <typename T>
-        std::pair<T const *, uint32_t> columnData(uint32_t const cid)
+        template <typename Col, typename Data = typename Col::Data>
+        Data dataOf(Col const &col) const noexcept(false)
         {
-            void const *data = nullptr;
-            uint32_t bits = 0;
-            uint32_t boff = 0;
-            uint32_t count = 0;
-            if (0 != VCursorCellDataDirect(curs, row + firstRow, cid, &bits, &data, &boff, &count))
-                throw std::runtime_error("Can't read row");
-            assert(boff == 0);
-            assert(bits == 8 * sizeof(T));
-            return {reinterpret_cast<T const *>(data), count};
+            return col.data(curs, row + rowRange.first, sourceName);
         }
 
-
-        template <typename T>
-        T const *columnData(uint32_t const cid, uint32_t const requiredCount)
+        template <typename Col, typename Ptr = typename Col::Ptr, typename Count = typename Col::Count>
+        Ptr dataOf(Col const &col, Count const requiredCount) const noexcept(false)
         {
-            void const *data = nullptr;
-            uint32_t bits = 0;
-            uint32_t boff = 0;
-            uint32_t count = 0;
-            if (0 != VCursorCellDataDirect(curs, row + firstRow, cid, &bits, &data, &boff, &count))
-                throw std::runtime_error("Can't read row");
-            assert(boff == 0);
-            assert(bits == 8 * sizeof(T));
-            assert(requiredCount == count);
-            return reinterpret_cast<T const *>(data);
+            return col.data(requiredCount, curs, row + rowRange.first, sourceName);
+        }
+
+        template <typename Col, typename Value = typename Col::Value>
+        Value valueOf(Col const &col)
+        {
+            return col.value(curs, row + rowRange.first, sourceName);
         }
 
         template <typename T>
-        T readValue(uint32_t const cid) {
-            return *columnData<T>(cid, 1);
-        }
-
-        uint32_t addColumn(char const *const col_expr) {
-            auto cid = ~(uint32_t(0));
-            if (0 != VCursorAddColumn(curs, &cid, col_expr))
-                throw std::runtime_error("Can't add columns to cursor!");
-            return cid;
+        T addColumn(char const *const col_expr) {
+            return T(curs, col_expr, sourceName);
         }
 
         void open() {
             if (0 != VCursorOpen(curs))
-                throw std::runtime_error("Can't open cursor!");
+                throw std::runtime_error(std::string("Can't open cursor on ") + sourceName);
         }
 
-        void getRowRange(uint32_t const cid) {
-            if (0 != VCursorIdRange(curs, cid, &firstRow, &rowCount))
-                throw std::runtime_error("Can't cursor row range!");
+        template <typename T>
+        void getRowRangeFrom(T const &col) {
+            rowRange = col.rowRange(curs, sourceName);
         }
 
-        VdbBaseReader(VTable const *tbl)
-        : curs(nullptr)
+        VdbBaseReader(VTable const *tbl, char const *name)
+        : sourceName(name)
+        , curs(nullptr)
         , row(0)
-        , rowCount(0)
-        , firstRow(0)
+        , rowRange({0, 0})
         {
             if (0 != VTableCreateCursorRead(tbl, &curs))
-                throw std::runtime_error("Can't make a cursor!");
+                throw std::runtime_error(std::string("Can't make a cursor on ") + sourceName);
         }
         virtual ~VdbBaseReader() {
             VCursorRelease(curs);
@@ -354,24 +420,27 @@ class FastVdbReader final: public Reader {
         virtual bool read(Fragment *) = 0;
     };
     class AlignReader final : public VdbBaseReader {
-        uint32_t cid_read;
-        uint32_t cid_spotId;
+        using ReadCol = VdbBaseReader::Column<char>;
+        using SpotIdCol = VdbBaseReader::Column<int64_t>;
+
+        ReadCol readCol;
+        SpotIdCol spotIdCol;
     public:
         AlignReader(VTable const *tbl)
-        : VdbBaseReader(tbl)
-        , cid_read(addColumn("RAW_READ"))
-        , cid_spotId(addColumn("SEQ_SPOT_ID"))
+        : VdbBaseReader(tbl, "PRIMARY_ALIGNMENT")
+        , readCol(addColumn<ReadCol>("RAW_READ"))
+        , spotIdCol(addColumn<SpotIdCol>("SEQ_SPOT_ID"))
         {
             open();
-            getRowRange(cid_read);
+            getRowRangeFrom(readCol);
         }
         bool read(Fragment *output) {
-            auto const ps = columnDataNoThrow<char>(cid_read);
-            if (ps.first) {
-                auto const spotId = readValue<int64_t>(cid_spotId);
+            auto const pc = columnDataNoThrow(readCol);
+            if (pc.first) {
+                auto const spotId = valueOf(spotIdCol);
 
                 ++row;
-                output->bases = std::string(ps.first, ps.second);
+                output->bases = std::string(pc.first, pc.second);
                 output->spotid = std::to_string(spotId);
                 return true;
             }
@@ -385,25 +454,31 @@ class FastVdbReader final: public Reader {
      * aligned run.
      */
     class SeqReader final : public VdbBaseReader {
-        uint8_t const *readType;
-        uint8_t const *readFilter;
-        uint32_t const *readLen;
-        char const *bases;
-        uint32_t const *readStart;
-        int64_t const *alignId;
-        uint32_t sReadStart[2];
-        uint32_t *hReadStart;
+        using AlignIdCol = VdbBaseReader::Column<int64_t>;
+        using ReadCol = VdbBaseReader::Column<char>;
+        using ReadStartCol = VdbBaseReader::Column<uint32_t>;
+        using ReadLenCol = VdbBaseReader::Column<uint32_t>;
+        using ReadTypeCol = VdbBaseReader::Column<uint8_t>;
+        using ReadFilterCol = VdbBaseReader::Column<uint8_t>;
+
+        AlignIdCol alignIdCol;
+        ReadCol readCol;
+        ReadStartCol readStartCol;
+        ReadLenCol readLenCol;
+        ReadTypeCol readTypeCol;
+        ReadFilterCol readFilterCol;
+
+        ReadTypeCol::Ptr readType;
+        ReadFilterCol::Ptr readFilter;
+        ReadLenCol::Ptr readLen;
+        ReadCol::Ptr bases;
+        AlignIdCol::Ptr alignId;
+        ReadStartCol::Ptr readStart;
+        ReadStartCol::Value sReadStart[2];
+        ReadStartCol::Value *hReadStart;
 
         uint64_t spotCount;
         uint64_t readCount;
-        int64_t firstUnaligned;
-
-        uint32_t cid_alignId;
-        uint32_t cid_read;
-        uint32_t cid_start;
-        uint32_t cid_length;
-        uint32_t cid_type;
-        uint32_t cid_filter;
 
         unsigned readNo;
         unsigned numreads;
@@ -424,26 +499,12 @@ class FastVdbReader final: public Reader {
              * if we can't read it, we won't be able to read the
              * rest of the columns.
              */
-            auto const &ptr_count = columnDataNoThrow<uint8_t>(cid_type);
-            readType = ptr_count.first;
-            numreads = ptr_count.second;
+            auto const pc = columnDataNoThrow(readTypeCol);
+            readType = pc.first;
+            numreads = pc.second;
             return readType != nullptr;
         }
-        void loadBases() {
-            auto const ps = columnData<char>(cid_read);
-            bases = ps.first;
-        }
-        void loadFilters(bool loadAlignId) {
-            if (useReadFilter)
-                readFilter = columnData<uint8_t>(cid_filter, numreads);
-            if (loadAlignId)
-                alignId = columnData<int64_t>(cid_alignId, numreads);
-        }
-        void loadAligned() {
-            loadFilters(true);
-            readLen = columnData<uint32_t>(cid_start, numreads);
-            loadBases();
-
+        void computeReadStart() {
             // Using CMP_READ instead of READ
             // READ_START is about READ
             // Need to compute own version of READ_START
@@ -466,55 +527,60 @@ class FastVdbReader final: public Reader {
             }
             readStart = rs;
         }
-        void loadUnaligned() {
-            loadFilters(false);
-            readStart = columnData<uint32_t>(cid_start, numreads);
-            readLen = columnData<uint32_t>(cid_start, numreads);
-            loadBases();
+        void loadBases() {
+            auto const pc = dataOf(readCol);
+            bases = pc.first;
+        }
+        void loadFilters() {
+            if (useReadFilter)
+                readFilter = dataOf(readFilterCol, numreads);
+            if (aligned)
+                alignId = dataOf(alignIdCol, numreads);
+        }
+        bool someNotFiltered() const {
+            for (unsigned i = 0; i < numreads; ++i) {
+                if (isFiltered(i) || isAligned(i))
+                    continue;
+                return true;
+            }
+            return false;
+        }
+        bool allFiltered() const {
+            return !someNotFiltered();
+        }
+        void addCommonColumns() {
+            readTypeCol = addColumn<ReadTypeCol>("READ_TYPE");
+            readLenCol = addColumn<ReadLenCol>("READ_LEN");
+            if (useReadFilter)
+                readFilterCol = addColumn<ReadFilterCol>("READ_FILTER");
         }
         void addAlignedColumns() {
-            cid_type = addColumn("READ_TYPE");
-            if (useReadFilter)
-                cid_filter = addColumn("READ_FILTER");
-            cid_alignId = addColumn("PRIMARY_ALIGNMENT_ID");
-            cid_length = addColumn("READ_LEN");
-            cid_read = addColumn("CMP_READ");
+            readCol = addColumn<ReadCol>("CMP_READ"); // notice, it is not the same name as the unaligned case
+            alignIdCol = addColumn<AlignIdCol>("PRIMARY_ALIGNMENT_ID");
         }
         void addUnalignedColumns() {
-            cid_type = addColumn("READ_TYPE");
-            if (useReadFilter)
-                cid_filter = addColumn("READ_FILTER");
-            cid_start = addColumn("READ_START");
-            cid_length = addColumn("READ_LEN");
-            cid_read = addColumn("READ");
+            readCol = addColumn<ReadCol>("READ"); // notice, it is not the same name as the aligned case
+            readStartCol = addColumn<ReadStartCol>("READ_START");
         }
-    public:
-        SeqReader(VTable const *tbl, bool is_Aligned, bool filtered = false)
-        : VdbBaseReader(tbl)
-        , hReadStart(nullptr)
-        , spotCount(0)
-        , readCount(0)
-        , firstUnaligned(0)
-        , max_numreads(2)
-        , aligned(is_Aligned)
-        , useReadFilter(filtered)
-        {
+        void addColumns() {
+            addCommonColumns();
             if (aligned)
                 addAlignedColumns();
             else
                 addUnalignedColumns();
-            open();
-            getRowRange(aligned ? cid_alignId : cid_read);
-
+        }
+        /* get counts and find first row for unaligned reads */
+        void examineTable() {
             auto foundFirstUnaligned = false;
-            for (row = 0; row < rowCount; ++row) {
+            int64_t firstUnaligned = 0;
+            for (row = 0; row < rowRange.second; ++row) {
                 if (!loadReadType())
                     continue;
-                loadFilters(aligned);
+                loadFilters();
 
                 unsigned reads = 0;
                 unsigned alignedReads = 0;
-                for (unsigned readNo = 0; readNo < numreads; ++readNo) {
+                for (readNo = 0; readNo < numreads; ++readNo) {
                     if ((readType[readNo] & 1) != 1)
                         continue;
                     if (isFiltered(readNo))
@@ -534,12 +600,30 @@ class FastVdbReader final: public Reader {
             }
             row = firstUnaligned;
         }
+    public:
+        SeqReader(VTable const *tbl, bool is_Aligned, bool filtered = false)
+        : VdbBaseReader(tbl, "SEQUENCE")
+        , hReadStart(nullptr)
+        , spotCount(0)
+        , readCount(0)
+        , max_numreads(2)
+        , aligned(is_Aligned)
+        , useReadFilter(filtered)
+        {
+            addColumns();
+            open();
+            getRowRangeFrom(readCol);
+            examineTable();
+
+            readNo = 0;
+            LOG("FastVdbReader:SeqReader; Reads: " << readCount << ", Spots: " << spotCount << ", unaligned starting at row " << row);
+        }
         ~SeqReader() {
             if (hReadStart)
                 delete [] hReadStart;
         }
         SourceStats stats() const {
-            return SourceStats(spotCount, readCount);
+            return SourceStats(spotCount, int(double(readCount) / spotCount + 0.5));
         }
 
         float progress(uint64_t const processed) const
@@ -549,29 +633,42 @@ class FastVdbReader final: public Reader {
         }
 
         bool read(Fragment *output) {
-            if (readNo >= numreads) {
-                if (row >= rowCount)
-                    return false;
-                if (!loadReadType())
-                    return false;
-                if (aligned)
-                    loadAligned();
-                else
-                    loadUnaligned();
-                readNo = 0;
-                ++row;
+            while (row < rowRange.second) {
+                if (readNo == 0) {
+                    if (!loadReadType()) {
+                        ++row;
+                        continue;
+                    }
+                    loadFilters();
+                    if (allFiltered()) {
+                        ++row;
+                        continue;
+                    }
+
+                    readLen = dataOf(readLenCol, numreads);
+                    if (aligned)
+                        computeReadStart();
+                    else
+                        readStart = dataOf(readStartCol, numreads);
+                    loadBases();
+                }
+                auto const thisRead = readNo;
+                auto const thisRow = row + rowRange.first;
+
+                if (++readNo == numreads) {
+                    readNo = 0;
+                    ++row;
+                }
+                if ((readType[thisRead] & 1) != 1)
+                    continue; // it's not biological
+                if (isFiltered(thisRead) || isAligned(thisRead))
+                    continue;
+
+                output->bases = std::string(bases + readStart[thisRead], readLen[thisRead]);
+                output->spotid = std::to_string(thisRow);
+                return true;
             }
-            auto const thisRead = readNo++;
-
-            if ((readType[thisRead] & 1) != 1)
-                return read(output); // it's not biological
-
-            if (isFiltered(thisRead) || isAligned(thisRead))
-                return read(output);
-
-            output->bases = std::string(bases + readStart[thisRead], readLen[thisRead]);
-            output->spotid = std::to_string(row + firstRow - 1);
-            return true;
+            return false;
         }
     };
     AlignReader *alg;
@@ -622,7 +719,7 @@ public:
         seq = new SeqReader(seqtbl, algtbl != NULL);
         if (algtbl) {
             alg = new AlignReader(algtbl);
-            current = alg;
+            current = seq;
         }
         else {
             alg = nullptr;
@@ -652,11 +749,15 @@ public:
                 readsProcessed += 1;
                 return true;
             }
-            if (current == alg)
-                current = seq;
-            else
+            if (current == seq) {
+                LOG("Done with unaligned reads")
+                current = alg;
+                return read(output);
+            }
+            else {
                 current = nullptr;
-            return read(output);
+                return false;
+            }
         }
         return false;
     }
