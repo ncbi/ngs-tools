@@ -32,6 +32,7 @@
 #include "mt_reader.h"
 #include "aux_reader.h"
 #include "omp_adapter.h"
+#include "log.h"
 
 template <typename ReaderImpl, typename... ReaderArgs>
 static ReaderPtr create_wrapped(bool split_non_atgc, ReaderArgs... args) {
@@ -74,18 +75,22 @@ static ReaderPtr create_threaded(const std::string& filter_file, bool exclude_fi
 
 ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) {
     if (FastaReader::is_fasta(path)) {
+        LOG("FastaReader");
         return create_threaded<FastaReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path);
     } else {
 #ifdef NO_NGS_SUPPORT
 		throw std::runtime_error("Please rebuild the software with NGS library support to read runs directly or use pipes to stdin instead.");
 #else
-        if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
-            return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities);
-        }
-        else if (!params.read_qualities) {
+        if (!params.read_qualities) {
+            LOG("FastVdbReader");
             return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.unaligned_only);
         }
+        else if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
+            LOG("AlignedVdbReader");
+            return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities);
+        }
         else {
+            LOG("VdbReader");
             return create_threaded<VdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities, params.unaligned_only);
         }
 #endif
