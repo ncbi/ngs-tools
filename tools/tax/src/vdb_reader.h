@@ -624,8 +624,13 @@ class FastVdbReader final: public Reader {
             if (hReadStart)
                 delete [] hReadStart;
         }
-        SourceStats stats() const {
-            return SourceStats(spotCount, int(double(readCount) / spotCount + 0.5));
+        SourceStats stats(bool unalignedOnly) const {
+            auto const rps = double(readCount) / spotCount;
+            if (unalignedOnly) {
+                return SourceStats(size_t(double(readCount - alignedReadCount) / rps + 0.5), int(rps + 0.5));
+            }
+            else
+                return SourceStats(spotCount, int(rps + 0.5));
         }
 
         float progress(uint64_t const processed, bool const excludeAligned) const
@@ -677,11 +682,13 @@ class FastVdbReader final: public Reader {
     SeqReader *seq;
     VdbBaseReader *current;
     uint64_t readsProcessed;
+    bool unalignedOnly;
 public:
     /* Gets aligned and unaligned reads
      * Never accesses quality scores
      */
     FastVdbReader(std::string const &acc, bool unaligned_only)
+    : unalignedOnly(unaligned_only)
     {
         VDBManager const *mgr = nullptr;
         VDatabase const *db = nullptr;
@@ -731,7 +738,7 @@ public:
 
     SourceStats stats() const override
     {
-        return seq->stats();
+        return seq->stats(unalignedOnly);
     }
 
     float progress() const override
