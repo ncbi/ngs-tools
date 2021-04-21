@@ -259,10 +259,28 @@ public:
     }
 };
 
+#include "kdb/meta.h"
 #include "vdb/cursor.h"
 #include "vdb/table.h"
 #include "vdb/database.h"
 #include "vdb/manager.h"
+
+#include <map>
+
+struct FastVdbReader_Counts {
+    uint64_t spots;
+    uint64_t reads;
+    uint64_t aligned;
+
+    std::ostream &debugPrint(std::ostream &os) const {
+        return os << "Spots: " << spots
+                << ", Reads: " << reads
+                << ", Aligned Reads: " << aligned;
+    }
+    friend std::ostream &operator <<(std::ostream &os, FastVdbReader_Counts const &counts) {
+        return counts.debugPrint(os);
+    }
+};
 
 class FastVdbReader final: public Reader {
     class VdbBaseReader {
@@ -417,7 +435,7 @@ class FastVdbReader final: public Reader {
             VCursorRelease(curs);
         }
     public:
-        virtual bool read(Fragment *) = 0;
+        virtual bool read(Fragment *, VdbBaseReader *other) = 0;
     };
     class AlignReader final : public VdbBaseReader {
         using ReadCol = VdbBaseReader::Column<char>;
@@ -434,7 +452,7 @@ class FastVdbReader final: public Reader {
             open();
             getRowRangeFrom(readCol);
         }
-        bool read(Fragment *output) {
+        bool read(Fragment *output, VdbBaseReader *other) {
             auto const pc = columnDataNoThrow(readCol);
             if (pc.first) {
                 auto const spotId = valueOf(spotIdCol);
@@ -538,17 +556,6 @@ class FastVdbReader final: public Reader {
             if (aligned)
                 alignId = dataOf(alignIdCol, numreads);
         }
-        bool someNotFiltered() const {
-            for (unsigned i = 0; i < numreads; ++i) {
-                if (isFiltered(i) || isAligned(i))
-                    continue;
-                return true;
-            }
-            return false;
-        }
-        bool allFiltered() const {
-            return !someNotFiltered();
-        }
         void addCommonColumns() {
             readTypeCol = addColumn<ReadTypeCol>("READ_TYPE");
             readLenCol = addColumn<ReadLenCol>("READ_LEN");
@@ -570,44 +577,49 @@ class FastVdbReader final: public Reader {
             else
                 addUnalignedColumns();
         }
-        /* get counts and find first row for unaligned reads */
-        void examineTable() {
-            auto foundFirstUnaligned = false;
-            int64_t firstUnaligned = 0;
-            for (row = 0; row < rowRange.second; ++row) {
-                if (!loadReadType())
-                    continue;
-                loadFilters();
+        int64_t firstRowWithUnalignedRead(VTable const *tbl) const {
+            // NB. best effort using metadata, i.e. no table scan
+            KMetadata const *meta;
+            auto rc = VTableOpenMetadataRead(tbl, &meta);
+            if (rc == 0) {
+                int64_t h = 0;
+                int64_t u = 0;
 
-                unsigned reads = 0;
-                unsigned alignedReads = 0;
-                for (readNo = 0; readNo < numreads; ++readNo) {
-                    if ((readType[readNo] & 1) != 1)
-                        continue;
-                    if (isFiltered(readNo))
-                        continue;
-                    if (isAligned(readNo))
-                        ++alignedReads;
-                    ++reads;
-                }
-                readCount += reads;
-                alignedReadCount += alignedReads;
-                if (reads > 0) {
-                    if (!foundFirstUnaligned && alignedReads < reads) {
-                        firstUnaligned = row;
-                        foundFirstUnaligned = true;
-                    }
-                    spotCount += 1;
-                }
+                KMDataNode const *nodeH = nullptr;
+                KMetadataOpenNodeRead(meta, &nodeH, "unaligned/first-half-aligned");
+                KMDataNodeReadAsI64(nodeH, &h);
+                KMDataNodeRelease(nodeH);
+
+                KMDataNode const *nodeU = nullptr;
+                KMetadataOpenNodeRead(meta, &nodeH, "unaligned/first-unaligned");
+                KMDataNodeReadAsI64(nodeU, &u);
+                KMDataNodeRelease(nodeU);
+
+                KMetadataRelease(meta);
+
+                if (nodeH && nodeU)
+                    return std::min(h, u) - rowRange.first;
+                if (nodeH)
+                    return h - rowRange.first;
+                if (nodeU)
+                    return h - rowRange.first;
             }
-            row = firstUnaligned;
+            return 0;
         }
     public:
-        SeqReader(VTable const *tbl, bool is_Aligned, bool filtered = false)
+        FastVdbReader_Counts getCounts() const {
+            auto result = FastVdbReader_Counts();
+            result.spots = spotCount;
+            result.reads = readCount;
+            result.aligned = alignedReadCount;
+            return result;
+        }
+        SeqReader(VTable const *tbl, bool is_Aligned, bool unalignedOnly, bool filtered = false)
         : VdbBaseReader(tbl, "SEQUENCE")
         , hReadStart(nullptr)
         , spotCount(0)
         , readCount(0)
+        , alignedReadCount(0)
         , max_numreads(2)
         , aligned(is_Aligned)
         , useReadFilter(filtered)
@@ -615,49 +627,36 @@ class FastVdbReader final: public Reader {
             addColumns();
             open();
             getRowRangeFrom(readCol);
-            examineTable();
+            if (aligned && unalignedOnly)
+                row = firstRowWithUnalignedRead(tbl);
 
             readNo = 0;
-            LOG("FastVdbReader:SeqReader; Reads: " << readCount << ", Spots: " << spotCount << ", unaligned starting at row " << row);
         }
         ~SeqReader() {
             if (hReadStart)
                 delete [] hReadStart;
         }
-        SourceStats stats(bool unalignedOnly) const {
-            auto const rps = double(readCount) / spotCount;
-            if (unalignedOnly) {
-                return SourceStats(size_t(double(readCount - alignedReadCount) / rps + 0.5), int(rps + 0.5));
-            }
-            else
-                return SourceStats(spotCount, int(rps + 0.5));
+        float progress() const {
+            auto const total = rowRange.second;
+            return total ? double(row) / total : 1.0;
         }
 
-        float progress(uint64_t const processed, bool const excludeAligned) const
-        {
-            auto const total = readCount - (excludeAligned ? alignedReadCount : 0);
-            return total ? double(processed) / total : 1.0;
-        }
-
-        bool read(Fragment *output) {
+        bool read(Fragment *output, VdbBaseReader *other) {
             while (row < rowRange.second) {
                 if (readNo == 0) {
                     if (!loadReadType()) {
-                        ++row;
-                        continue;
-                    }
-                    loadFilters();
-                    if (allFiltered()) {
-                        ++row;
-                        continue;
+                        LOG("SeqReader stopped early at row " << row);
+                        return false;
                     }
 
+                    loadFilters();
                     readLen = dataOf(readLenCol, numreads);
                     if (aligned)
                         computeReadStart();
                     else
                         readStart = dataOf(readStartCol, numreads);
                     loadBases();
+                    ++spotCount;
                 }
                 auto const thisRead = readNo;
                 auto const thisRow = row + rowRange.first;
@@ -666,9 +665,14 @@ class FastVdbReader final: public Reader {
                     readNo = 0;
                     ++row;
                 }
-                if ((readType[thisRead] & 1) != 1)
-                    continue; // it's not biological
-                if (isFiltered(thisRead) || isAligned(thisRead))
+                ++readCount;
+                if (isAligned(thisRead)) {
+                    ++alignedReadCount;
+                    if (other)
+                        return other->read(output, nullptr);
+                    continue;
+                }
+                if ((readType[thisRead] & 1) != 1 || isFiltered(thisRead))
                     continue;
 
                 output->bases = std::string(bases + readStart[thisRead], readLen[thisRead]);
@@ -678,17 +682,29 @@ class FastVdbReader final: public Reader {
             return false;
         }
     };
+    using Cache = std::map<std::string, FastVdbReader_Counts>;
+    static std::pair<bool, Cache::const_iterator> statsFor(std::string const &accession, SeqReader const &seq) {
+        static auto cache = Cache();
+        auto const fnd = cache.find(accession);
+        if (fnd != cache.end())
+            return {false, fnd};
+
+        auto const inserted = cache.insert({accession, seq.getCounts()});
+        return {true, inserted.first};
+    }
+    std::string accession;
     AlignReader *alg;
     SeqReader *seq;
-    VdbBaseReader *current;
-    uint64_t readsProcessed;
     bool unalignedOnly;
 public:
     /* Gets aligned and unaligned reads
      * Never accesses quality scores
      */
     FastVdbReader(std::string const &acc, bool unaligned_only)
-    : unalignedOnly(unaligned_only)
+    : accession(acc)
+    , alg(nullptr)
+    , seq(nullptr)
+    , unalignedOnly(unaligned_only)
     {
         VDBManager const *mgr = nullptr;
         VDatabase const *db = nullptr;
@@ -723,12 +739,12 @@ public:
             if (rc != 0)
                 throw std::runtime_error(std::string("Can't open ") + acc);
         }
-        seq = new SeqReader(seqtbl, algtbl != NULL);
+        seq = new SeqReader(seqtbl, algtbl != NULL, unaligned_only);
         if (algtbl && !unaligned_only)
             alg = new AlignReader(algtbl);
-        else
-            alg = nullptr;
-        current = seq;
+
+        VTableRelease(algtbl);
+        VTableRelease(seqtbl);
     }
     ~FastVdbReader() {
         delete seq;
@@ -738,31 +754,26 @@ public:
 
     SourceStats stats() const override
     {
-        return seq->stats(unalignedOnly);
+        auto const inserted = statsFor(accession, *seq);
+        auto const &counts = inserted.second->second;
+        auto const rps = counts.reads / counts.spots;
+
+        if (unalignedOnly) {
+            auto unaligned = counts.reads - counts.aligned;
+            return SourceStats(size_t(0.5 + unaligned / rps), int(0.5 + rps));
+        }
+        else {
+            return SourceStats(counts.spots, int(0.5 + rps));
+        }
     }
 
     float progress() const override
     {
-        return seq->progress(readsProcessed, alg == nullptr);
+        return seq->progress();
     }
 
     bool read(Fragment* output) override
     {
-        if (current) {
-            if (current->read(output)) {
-                readsProcessed += 1;
-                return true;
-            }
-            if (current == seq) {
-                LOG("Done with unaligned reads")
-                current = alg;
-                return read(output);
-            }
-            else {
-                current = nullptr;
-                return false;
-            }
-        }
-        return false;
+        return seq->read(output, alg);
     }
 };
