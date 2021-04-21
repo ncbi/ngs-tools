@@ -3,7 +3,7 @@ RUN apk add build-base util-linux linux-headers g++ bash perl make cmake git bis
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk
 ENV PATH="${PATH}:${JAVA_HOME}/bin"
 
-FROM build-base AS build0
+FROM build-base AS build
 ARG VDB_BRANCH=engineering
 ARG NGS_BRANCH=engineering
 ARG NGT_BRANCH=tax
@@ -19,11 +19,8 @@ RUN sed -e '/\#if _DEBUGGING && LINUX/ s/$/ \&\& 0/' -i interfaces/kfc/defs.h
 RUN ./configure ${BUILD_STYLE} && make -s
 WORKDIR /ngs
 RUN make -s
-
-FROM build0 as build
 WORKDIR /ngs-tools
 RUN ./configure ${BUILD_STYLE} && make -s
-WORKDIR /
 
 FROM alpine:latest
 RUN apk add --no-cache libstdc++ libgomp libgcc
