@@ -81,11 +81,7 @@ ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) 
 #ifdef NO_NGS_SUPPORT
 		throw std::runtime_error("Please rebuild the software with NGS library support to read runs directly or use pipes to stdin instead.");
 #else
-        if (!params.read_qualities) {
-            LOG("FastVdbReader");
-            return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.unaligned_only);
-        }
-        else if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
+        if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
             LOG("AlignedVdbReader");
             return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.split_non_atgc, params.thread_count, params.chunk_size, path, params.read_qualities);
         }
