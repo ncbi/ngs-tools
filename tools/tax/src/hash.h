@@ -168,7 +168,7 @@ struct Hash
 
 };
 
-#if defined ( __GNUC__ ) && __GNUC__ <= 4
+#if __GLIBCXX__
 
 namespace std
 {

@@ -55,7 +55,7 @@ public:
 
     typedef DBSJob::Hits Hits;
 
-	virtual size_t db_kmers() const { return hash_array.size();}
+	virtual size_t db_kmers() const override { return hash_array.size();}
 
 	struct Matcher
 	{
@@ -108,7 +108,7 @@ public:
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer)
     {
-		Matcher m(hash_array, kmer_len);
+		Matcher m(hash_array, (int)kmer_len);
 		TaxPrinter print(!hide_counts, false, writer);
 		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }

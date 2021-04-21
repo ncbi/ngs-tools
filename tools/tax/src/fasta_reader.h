@@ -126,7 +126,7 @@ public:
             if (end_pos == std::string::npos)
                 end_pos = last_desc.size();
 
-            int start_pos = end_pos - 1;
+            auto start_pos = end_pos - 1;
             while (start_pos > 0 && isdigit(last_desc[start_pos]))
                 start_pos--;
 

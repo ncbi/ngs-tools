@@ -48,7 +48,7 @@ void split(const std::string &s, char delim, Out result)
         *(result++) = item;
 }
 
-static std::vector<std::string> split(const std::string &s, char delim) 
+static std::vector<std::string> split(std::string const &s, char delim)
 {
     std::vector<std::string> elems;
     split(s, delim, std::back_inserter(elems));

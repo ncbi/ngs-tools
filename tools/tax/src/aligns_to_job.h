@@ -48,10 +48,11 @@ struct Job
 
         for (size_t seq_id = 0; seq_id < chunk.size(); ++seq_id) 
         {
-            auto& spotid = chunk[seq_id].spotid;
-            auto& bases = chunk[seq_id].bases;
-            if (auto m = matcher(bases))
-                matched_ids.push_back(MatchId(seq_id, m));
+            // auto const &spotid = chunk[seq_id].spotid;
+            auto const &bases = chunk[seq_id].bases;
+            if (auto const m = matcher(bases)) {
+                matched_ids.push_back(MatchId((int)seq_id, m));
+            }
         }
 
         #pragma omp critical (output)
@@ -110,6 +111,7 @@ struct Job
 	}
 
 	virtual size_t db_kmers() const { return 0; }
+    virtual ~Job() {}
 
 private:
 	struct Progress

@@ -67,7 +67,7 @@ public:
         }
     };
 
-    virtual size_t db_kmers() const { return hash_array.size();}
+    virtual size_t db_kmers() const override { return hash_array.size();}
 
     struct Matcher
     {
@@ -252,7 +252,7 @@ public:
         {
             int from = 0, to = 0;
             for (from = 0; from < ids.size() && processing_sequences.begin()->spotid == processing_sequences[ids[from].seq_id].spotid; from++);
-            for (to = ids.size() - 1; to >= 0 && processing_sequences.rbegin()->spotid == processing_sequences[ids[to].seq_id].spotid; to--);
+            for (to = (int)ids.size() - 1; to >= 0 && processing_sequences.rbegin()->spotid == processing_sequences[ids[to].seq_id].spotid; to--);
 
             print_first_and_last(processing_sequences, ids, from, to); // to merge them later correctly
 
@@ -321,7 +321,7 @@ public:
     {
         hide_counts = config.hide_counts;
         compact = config.compact;
-        Matcher m(hash_array, kmer_len); // todo: move to constructor
+        Matcher m(hash_array, (int)kmer_len); // todo: move to constructor
         Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
     }
 

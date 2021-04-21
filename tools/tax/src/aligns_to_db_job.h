@@ -37,7 +37,7 @@ struct BasicMatchId
 {
 	int seq_id;
 
-	BasicMatchId(int seq_id, int matches) : seq_id(seq_id){}
+	BasicMatchId(int seq_id, int matches) : seq_id((int)seq_id){}
 	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
 };
 
@@ -80,7 +80,7 @@ struct DBJob : public Job
 		int operator() (const std::string &seq) const 
 		{
 			int found = 0;
-			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
+			Hash<hash_t>::for_all_hashes_do(seq, (int)kmer_len, [&](hash_t hash)
 				{
 					if (in_db(hash) > 0)
 						found++;
@@ -93,7 +93,7 @@ struct DBJob : public Job
 
 		bool in_db(hash_t hash) const
 		{
-			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
+			hash = seq_transform<hash_t>::min_hash_variant(hash, (int)kmer_len);
 			return std::binary_search(hash_array.begin(), hash_array.end(), hash);
 		}
 	};
