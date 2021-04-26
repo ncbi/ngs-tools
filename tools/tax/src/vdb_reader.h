@@ -282,6 +282,8 @@ struct FastVdbReader_Counts {
     }
 };
 
+#define NO_BASES 0
+
 class FastVdbReader final: public Reader {
     class VdbBaseReader {
     protected:
@@ -774,6 +776,12 @@ public:
 
     bool read(Fragment* output) override
     {
-        return seq->read(output, alg);
+        if (seq->read(output, alg)) {
+#if NO_BASES
+            output->bases = std::string();
+#endif
+            return true;
+        }
+        return false;
     }
 };
