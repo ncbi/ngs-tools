@@ -22,10 +22,7 @@ cd ..
 
 cd ./ngs-tools/
 ./configure --without-debug
-cd ./tools/tax
-./configure --without-debug
 make
-make
-cd ../../../
+cd ../
 
 cp ~/ncbi-outdir/ngs-tools/linux/gcc/x86_64/rel/bin/* ./ngs-tools/tools/tax/bin
