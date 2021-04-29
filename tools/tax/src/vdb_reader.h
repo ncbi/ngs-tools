@@ -266,6 +266,9 @@ public:
 #include "vdb/manager.h"
 
 #include <map>
+#include <algorithm>
+#include <cstdlib>
+#include <cinttypes>
 
 struct FastVdbReader_Counts {
     uint64_t spots;
@@ -282,15 +285,21 @@ struct FastVdbReader_Counts {
     }
 };
 
-#define NO_BASES 0
+#define NO_BASES 1
 
 class FastVdbReader final: public Reader {
+    /**
+     * Contains mosly boilerplate code for accessing VDB
+     */
     class VdbBaseReader {
     protected:
         using RowId = int64_t;
         using RowCount = uint64_t;
         using RowRange = std::pair<RowId, RowCount>;
 
+        /**
+         * Useful for binding data type to a column
+         */
         template <typename T>
         class Column {
             static constexpr uint32_t nilColumnId() { return ~(uint32_t(0)); }
@@ -327,9 +336,18 @@ class FastVdbReader final: public Reader {
 
             using Value = T;
             using Ptr = Value const *;
+
+            /** a single cell can not contain more than 2^32 elements */
             using Count = uint32_t;
+
+            /** pointer + length */
             using Data = std::pair<Ptr, Count>;
 
+            /**
+             * Get the data for a row, does not throw if there is a problem.
+             *
+             * @return pointer + length or nullptr + 0
+             */
             Data dataNoThrow(VCursor const *const curs, RowId const row) const noexcept(true)
             {
                 void const *data = nullptr;
@@ -344,6 +362,14 @@ class FastVdbReader final: public Reader {
                 }
                 return {nullptr, 0};
             }
+
+            /**
+             * Get the data for a row.
+             *
+             * @return pointer + length
+             *
+             * @throw std::runtime_error
+             */
             Data data(VCursor const *const curs, RowId const row, std::string const &sourceName) const noexcept(false)
             {
                 void const *data = nullptr;
@@ -358,6 +384,14 @@ class FastVdbReader final: public Reader {
                 }
                 throwReadError(row, sourceName);
             }
+
+            /**
+             * Get the data for a row.
+             *
+             * @return pointer to data
+             *
+             * @throw std::runtime_error
+             */
             Ptr data(Count const requiredCount, VCursor const *curs, RowId const row, std::string const &sourceName) const noexcept(false)
             {
                 auto const result = data(curs, row, sourceName);
@@ -365,11 +399,37 @@ class FastVdbReader final: public Reader {
                     return result.first;
                 throwReadError(row, sourceName);
             }
+
+            /**
+             * Get the data for a row.
+             *
+             * @return value for the row.
+             *
+             * @throw std::runtime_error
+             */
             Value value(VCursor const *const curs, RowId const row, std::string const &sourceName) const noexcept(false)
             {
+                if (sizeof(Value) > 1) {
+                    union {
+                        Value value;
+                        uint8_t raw[sizeof(T)];
+                    } u;
+                    auto const p = reinterpret_cast<uint8_t const *>(data(1, curs, row, sourceName));
+                    std::copy(p, p + sizeof(T), u.raw);
+                    return u.value;
+                }
                 return *(data(1, curs, row, sourceName));
             }
 
+            /**
+             * Get the row range for the column.
+             *
+             * @Note VDB tables are not necessarily square, i.e. columns are not all required to be the same number of rows.
+             *
+             * @return row range for the column (start + count)
+             *
+             * @throw std::runtime_error (but very unlikely, probably programmer error)
+             */
             RowRange rowRange(VCursor const *const curs, std::string const &sourceName) const {
                 auto first = RowId(0);
                 auto count = RowCount(0);
@@ -379,51 +439,100 @@ class FastVdbReader final: public Reader {
                 throw std::runtime_error(std::string("Can't get row range of ") + sourceName);
             }
         };
-        std::string const sourceName;
+        std::string const sourceName; ///< Table name
         VCursor const *curs;
-        RowId row;
         RowRange rowRange;
+        RowId row; ///< current row number
 
-        /* boilerplate code for accessing VDB */
+        /**
+         * Get the data (from the current row) for a column, does not throw if there is a problem.
+         *
+         * @return pointer + length or nullptr + 0
+         */
         template <typename Col, typename Data = typename Col::Data>
         Data columnDataNoThrow(Col const &col) const noexcept(true)
         {
             return col.dataNoThrow(curs, row + rowRange.first);
         }
 
+        /**
+         * Get the data (from the current row) for a column.
+         *
+         * @return pointer + length
+         *
+         * @throw std::runtime_error
+         */
         template <typename Col, typename Data = typename Col::Data>
         Data dataOf(Col const &col) const noexcept(false)
         {
             return col.data(curs, row + rowRange.first, sourceName);
         }
 
+        /**
+         * Get the data (from the current row) for a column.
+         *
+         * @return pointer to data
+         *
+         * @throw std::runtime_error
+         */
         template <typename Col, typename Ptr = typename Col::Ptr, typename Count = typename Col::Count>
         Ptr dataOf(Col const &col, Count const requiredCount) const noexcept(false)
         {
             return col.data(requiredCount, curs, row + rowRange.first, sourceName);
         }
 
+        /**
+         * Get the value (from the current row) for a column.
+         *
+         * @return the value
+         *
+         * @throw std::runtime_error
+         */
         template <typename Col, typename Value = typename Col::Value>
         Value valueOf(Col const &col)
         {
             return col.value(curs, row + rowRange.first, sourceName);
         }
 
+        /**
+         * Add a column (expression) to the cursor.
+         *
+         * @return object representing the new column.
+         *
+         * @throw std::runtime_error (probably programmer error)
+         */
         template <typename T>
         T addColumn(char const *const col_expr) {
             return T(curs, col_expr, sourceName);
         }
 
+        /**
+         * Open the cursor (after adding all the columns)
+         *
+         * @throw std::runtime_error (probably programmer error)
+         */
         void open() {
             if (0 != VCursorOpen(curs))
                 throw std::runtime_error(std::string("Can't open cursor on ") + sourceName);
         }
 
+        /**
+         * Set the row range from a column.
+         *
+         * @Note VDB tables are not necessarily square, i.e. columns are not all required to be the same number of rows.
+         * Pick a column that logically must have data for every row.
+         *
+         * @throw std::runtime_error (but very unlikely, probably programmer error)
+         */
         template <typename T>
         void getRowRangeFrom(T const &col) {
             rowRange = col.rowRange(curs, sourceName);
         }
 
+        /**
+         * @param tbl the table to create the cursor on.
+         * @param name informative.
+         */
         VdbBaseReader(VTable const *tbl, char const *name)
         : sourceName(name)
         , curs(nullptr)
@@ -433,44 +542,229 @@ class FastVdbReader final: public Reader {
             if (0 != VTableCreateCursorRead(tbl, &curs))
                 throw std::runtime_error(std::string("Can't make a cursor on ") + sourceName);
         }
+
+        /**
+         * @param db the database to create the cursor in.
+         * @param name the table name to create the cursor on.
+         */
+        VdbBaseReader(VDatabase const *const db, char const *const name)
+        : sourceName(name)
+        , curs(nullptr)
+        , row(0)
+        , rowRange({0, 0})
+        {
+            VTable const *tbl = nullptr;
+
+            if (0 != VDatabaseOpenTableRead(db, &tbl, "%s", name))
+                throw std::runtime_error(std::string("Can't open table ") + sourceName);
+
+            if (0 != VTableCreateCursorRead(tbl, &curs))
+                throw std::runtime_error(std::string("Can't make a cursor on ") + sourceName);
+
+            VTableRelease(tbl);
+        }
+
+        /**
+         * close the cursor
+         */
         virtual ~VdbBaseReader() {
             VCursorRelease(curs);
         }
-    public:
-        virtual bool read(Fragment *, VdbBaseReader *other) = 0;
+
+        /**
+         * What table was the cursor created on.
+         *
+         * @Note this pointer needs to be released by the caller.
+         */
+        VTable const *table() const {
+            VTable const *tbl = nullptr;
+
+            VCursorOpenParentRead(curs, &tbl);
+
+            return tbl;
+        }
+
+        /**
+         * The metadata object for the table this cursor was created on.
+         *
+         * @Note this pointer needs to be released by the caller.
+         */
+        KMetadata const *metadata() const {
+            KMetadata const *md = nullptr;
+            VTable const *const tbl = table();
+
+            VTableOpenMetadataRead(tbl, &md);
+            VTableRelease(tbl);
+
+            return md;
+        }
     };
-    class AlignReader final : public VdbBaseReader {
+
+    /**
+     * A cursor on the database's Reference table.
+     *
+     * @see ncbi-vdb/libs/axf/align-restore-read.c
+     */
+    class ReferenceReader final : public VdbBaseReader {
         using ReadCol = VdbBaseReader::Column<char>;
+
+        unsigned maxSeqLen; ///< this is the chunking size of the reference table
+        ReadCol readCol;
+        ReadCol::Data read;
+
+        /**
+         * Load the row if it isn't the current row
+         */
+        void loadRow(int64_t wantRow) {
+            if (row != wantRow) {
+                row = wantRow;
+                read = dataOf(readCol);
+            }
+        }
+    public:
+        using HasRefOffsetColData = VdbBaseReader::Column<uint8_t>::Data;
+        using RefOffsetColData = VdbBaseReader::Column<int32_t>::Data;
+        using HasMismatchColData = VdbBaseReader::Column<uint8_t>::Data;
+        using MismatchColData = VdbBaseReader::Column<uint8_t>::Data;
+        using GlobalRefStartColData = VdbBaseReader::Column<uint64_t>::Data;
+
+        ReferenceReader(VDatabase const *const db)
+        : VdbBaseReader(db, "REFERENCE")
+        , readCol(addColumn<ReadCol>("(INSDC:dna:text)READ"))
+        {
+            auto const mslCol = addColumn<VdbBaseReader::Column<uint32_t>>("MAX_SEQ_LEN");
+
+            open();
+            row = 1;
+            maxSeqLen = valueOf(mslCol);
+            row = 0;
+        }
+
+        std::string restoreRead(  HasMismatchColData const &hasMismatchColData
+                                , MismatchColData const &mismatchColData
+                                , HasRefOffsetColData const &hasRefOffsetColData
+                                , RefOffsetColData const &refOffsetColData
+                                , bool const reversed
+                                , uint64_t const globalStart
+                                )
+        {
+            auto const readLen = hasMismatchColData.second;
+            auto mi = decltype(mismatchColData.second)(0);
+            auto roi = decltype(refOffsetColData.second)(0);
+            auto const hasMismatch = hasMismatchColData.first;
+            auto const hasRefOffset = hasRefOffsetColData.first;
+            auto bi = decltype(refOffsetColData.first[0])(0);
+            auto ri = decltype(bi)(0);
+            auto result = std::string(readLen, 'N');
+            auto f = result.begin();
+            auto r = result.rbegin();
+
+            for (auto i = decltype(readLen)(0); i < readLen; ++i, ++ri, ++bi) {
+                if (hasRefOffset[i] != '0' && bi >= 0) {
+                    assert(roi < refOffsetColData.second);
+                    bi = refOffsetColData.first[roi++];
+                    ri += bi;
+                }
+                auto base = 'N';
+                if (hasMismatch[i] == '0') {
+                    auto const wantRow = (globalStart + ri) / maxSeqLen;
+                    auto const offset = (globalStart + ri) % maxSeqLen;
+
+                    loadRow(wantRow + 1);
+                    if (offset < read.second)
+                        base = read.first[offset];
+                }
+                else {
+                    assert(mi < mismatchColData.second);
+                    base = mismatchColData.first[mi++];
+                }
+                if (reversed) {
+                    assert(r != result.rend());
+                    switch (base) {
+                    case 'A': *r++ = 'T'; break;
+                    case 'C': *r++ = 'G'; break;
+                    case 'G': *r++ = 'C'; break;
+                    case 'T': *r++ = 'A'; break;
+                    default:
+                        *r++ = 'N';
+                        break;
+                    }
+                }
+                else {
+                    assert(f != result.end());
+                    *f++ = base;
+                }
+            }
+            return result;
+        }
+    };
+
+    /**
+     * A cursor on the database's Primary Alignment table.
+     *
+     * @see ncbi-vdb/libs/axf/align-restore-read.c
+     *
+     * @Note The data here is also available from the table's
+     * `RAW_READ` column, but that was causing heavy memory use.
+     * So I switched to reconstructing the value here from the base columns.
+     */
+    class AlignReader final : public VdbBaseReader {
+        using HasRefOffsetCol = VdbBaseReader::Column<uint8_t>;
+        using RefOffsetCol = VdbBaseReader::Column<int32_t>;
+        using HasMismatchCol = VdbBaseReader::Column<uint8_t>;
+        using MismatchCol = VdbBaseReader::Column<uint8_t>;
+        using GlobalRefStartCol = VdbBaseReader::Column<uint64_t>;
+        using ReverseStrandCol = VdbBaseReader::Column<bool>;
         using SpotIdCol = VdbBaseReader::Column<int64_t>;
 
-        ReadCol readCol;
+        ReferenceReader ref;
+        HasRefOffsetCol hasRefOffsetCol;
+        RefOffsetCol refOffsetCol;
+        HasMismatchCol hasMismatchCol;
+        MismatchCol mismatchCol;
+        GlobalRefStartCol globalRefStartCol;
+        ReverseStrandCol reverseStrandCol;
         SpotIdCol spotIdCol;
     public:
-        AlignReader(VTable const *tbl)
-        : VdbBaseReader(tbl, "PRIMARY_ALIGNMENT")
-        , readCol(addColumn<ReadCol>("RAW_READ"))
+        AlignReader(VDatabase const *const db)
+        : VdbBaseReader(db, "PRIMARY_ALIGNMENT")
+        , ref(db)
+        , hasRefOffsetCol(addColumn<HasRefOffsetCol>("HAS_REF_OFFSET"))
+        , refOffsetCol(addColumn<RefOffsetCol>("REF_OFFSET"))
+        , hasMismatchCol(addColumn<HasMismatchCol>("HAS_MISMATCH"))
+        , mismatchCol(addColumn<MismatchCol>("MISMATCH"))
+        , globalRefStartCol(addColumn<GlobalRefStartCol>("GLOBAL_REF_START"))
+        , reverseStrandCol(addColumn<ReverseStrandCol>("REF_ORIENTATION"))
         , spotIdCol(addColumn<SpotIdCol>("SEQ_SPOT_ID"))
         {
             open();
-            getRowRangeFrom(readCol);
+            getRowRangeFrom(hasMismatchCol);
         }
-        bool read(Fragment *output, VdbBaseReader *other) {
-            auto const pc = columnDataNoThrow(readCol);
-            if (pc.first) {
+        bool read(Fragment *output) {
+            auto const hasMismatch = columnDataNoThrow(hasMismatchCol);
+            if (hasMismatch.first) {
                 auto const spotId = valueOf(spotIdCol);
+                auto const hasRefOffset = dataOf(hasRefOffsetCol);
+                auto const mismatch = dataOf(mismatchCol);
+                auto const refOffset = dataOf(refOffsetCol);
+                auto const globalRefStart = valueOf(globalRefStartCol);
+                auto const reversed = valueOf(reverseStrandCol);
 
-                ++row;
-                output->bases = std::string(pc.first, pc.second);
+                output->bases = ref.restoreRead(hasMismatch, mismatch, hasRefOffset, refOffset, reversed, globalRefStart);
                 output->spotid = std::to_string(spotId);
+                ++row;
                 return true;
             }
             return false;
         }
     };
 
-    /* This is for getting the reads of
-     * *either* an unaligned run
-     * *or* the unaligned reads of an
+    /**
+     * A cursor on the Sequence table.
+     *
+     * This is for getting the reads of
+     * either an unaligned run
+     * or the unaligned reads of an
      * aligned run.
      */
     class SeqReader final : public VdbBaseReader {
@@ -515,23 +809,32 @@ class FastVdbReader final: public Reader {
             return aligned && (alignId[read] != 0);
         }
 
+        /**
+         * This is the first column we will load in any row,
+         * If we can't read it, it is probably because we are
+         * at the end of the table.
+         */
         bool loadReadType() {
-            /* this is the first column we will load in any row,
-             * if we can't read it, we won't be able to read the
-             * rest of the columns.
-             */
             auto const pc = columnDataNoThrow(readTypeCol);
             readType = pc.first;
             numreads = pc.second;
             return readType != nullptr;
         }
+
+        /**
+         * Create a usable `READ_START`
+         *
+         * Since we are using `CMP_READ` instead of `READ`,
+         * and `READ_START` is about `READ`,
+         * we need to create a `READ_START`
+         * that divides up `CMP_READ`,
+         * which contains the unaligned bases.
+         */
         void computeReadStart() {
-            // Using CMP_READ instead of READ
-            // READ_START is about READ
-            // Need to compute own version of READ_START
-            // that works for CMP_READ, which contains
-            // only unaligned bases
             if (max_numreads < numreads) {
+                /* Generally there are no more than 2 reads and
+                 * this code will never get triggered
+                 */
                 max_numreads = numreads;
                 if (hReadStart)
                     delete [] hReadStart;
@@ -579,11 +882,10 @@ class FastVdbReader final: public Reader {
             else
                 addUnalignedColumns();
         }
-        int64_t firstRowWithUnalignedRead(VTable const *tbl) const {
+        int64_t firstRowWithUnalignedRead() const {
             // NB. best effort using metadata, i.e. no table scan
-            KMetadata const *meta;
-            auto rc = VTableOpenMetadataRead(tbl, &meta);
-            if (rc == 0) {
+            KMetadata const *meta = metadata();
+            if (meta) {
                 int64_t h = 0;
                 int64_t u = 0;
 
@@ -616,8 +918,12 @@ class FastVdbReader final: public Reader {
             result.aligned = alignedReadCount;
             return result;
         }
-        SeqReader(VTable const *tbl, bool is_Aligned, bool unalignedOnly, bool filtered = false)
-        : VdbBaseReader(tbl, "SEQUENCE")
+
+        /**
+         * Opens a cursor on the Sequence table of an aligned database.
+         */
+        SeqReader(VDatabase const *const db, bool is_Aligned, bool unalignedOnly, bool filtered = false)
+        : VdbBaseReader(db, "SEQUENCE")
         , hReadStart(nullptr)
         , spotCount(0)
         , readCount(0)
@@ -630,8 +936,27 @@ class FastVdbReader final: public Reader {
             open();
             getRowRangeFrom(readCol);
             if (aligned && unalignedOnly)
-                row = firstRowWithUnalignedRead(tbl);
+                row = firstRowWithUnalignedRead();
 
+            readNo = 0;
+        }
+
+        /**
+         * Opens a cursor on an unaligned table.
+         */
+        SeqReader(VTable const *const tbl, bool filtered = false)
+        : VdbBaseReader(tbl, "<implied>")
+        , hReadStart(nullptr)
+        , spotCount(0)
+        , readCount(0)
+        , alignedReadCount(0)
+        , max_numreads(2)
+        , aligned(false)
+        , useReadFilter(filtered)
+        {
+            addColumns();
+            open();
+            getRowRangeFrom(readCol);
             readNo = 0;
         }
         ~SeqReader() {
@@ -643,7 +968,7 @@ class FastVdbReader final: public Reader {
             return total ? double(row) / total : 1.0;
         }
 
-        bool read(Fragment *output, VdbBaseReader *other) {
+        bool read(Fragment *output, AlignReader *other) {
             while (row < rowRange.second) {
                 if (readNo == 0) {
                     if (!loadReadType()) {
@@ -671,7 +996,7 @@ class FastVdbReader final: public Reader {
                 if (isAligned(thisRead)) {
                     ++alignedReadCount;
                     if (other)
-                        return other->read(output, nullptr);
+                        return other->read(output);
                     continue;
                 }
                 if ((readType[thisRead] & 1) != 1 || isFiltered(thisRead))
@@ -699,8 +1024,9 @@ class FastVdbReader final: public Reader {
     SeqReader *seq;
     bool unalignedOnly;
 public:
-    /* Gets aligned and unaligned reads
-     * Never accesses quality scores
+    /**
+     * Gets aligned and unaligned reads;
+     * never accesses quality scores
      */
     FastVdbReader(std::string const &acc, bool unaligned_only)
     : accession(acc)
@@ -710,8 +1036,6 @@ public:
     {
         VDBManager const *mgr = nullptr;
         VDatabase const *db = nullptr;
-        VTable const *seqtbl = nullptr;
-        VTable const *algtbl = nullptr;
         rc_t rc = 0;
 
         rc = VDBManagerMakeRead(&mgr, nullptr);
@@ -723,30 +1047,33 @@ public:
         if (rc == 0) {
             VDBManagerRelease(mgr);
 
-            /* it is okay for this to fail */
-            (void)VDatabaseOpenTableRead(db, &algtbl, "PRIMARY_ALIGNMENT");
+            try {
+                /* it is okay for this to fail */
+                alg = new AlignReader(db);
+            }
+            catch (std::exception const &e) {
+                alg = nullptr;
+            }
 
-            /* it is not okay for this to fail */
-            rc = VDatabaseOpenTableRead(db, &seqtbl, "SEQUENCE");
-            VDatabaseRelease(db);
-            if (rc != 0) {
-                VTableRelease(algtbl);
-
+            try {
+                /* it is not okay for this to fail */
+                seq = new SeqReader(db, alg != nullptr, unalignedOnly);
+            }
+            catch (...) {
                 throw std::runtime_error(std::string("Can't read sequences from ") + acc);
             }
+            VDatabaseRelease(db);
         }
         else {
+            VTable const *seqtbl = nullptr;
+
             rc = VDBManagerOpenTableRead(mgr, &seqtbl, nullptr, "%s", acc.c_str());
             VDBManagerRelease(mgr);
             if (rc != 0)
                 throw std::runtime_error(std::string("Can't open ") + acc);
+            seq = new SeqReader(seqtbl);
+            VTableRelease(seqtbl);
         }
-        seq = new SeqReader(seqtbl, algtbl != NULL, unaligned_only);
-        if (algtbl && !unaligned_only)
-            alg = new AlignReader(algtbl);
-
-        VTableRelease(algtbl);
-        VTableRelease(seqtbl);
     }
     ~FastVdbReader() {
         delete seq;
