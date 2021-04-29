@@ -285,7 +285,7 @@ struct FastVdbReader_Counts {
     }
 };
 
-#define NO_BASES 1
+#define NO_BASES 0
 
 class FastVdbReader final: public Reader {
     /**
