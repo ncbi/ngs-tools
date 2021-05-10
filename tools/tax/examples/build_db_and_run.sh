@@ -49,7 +49,7 @@ $bin_dir/hits_to_report.sh ./SRR4841604.fasta.hits
 # Or we can do 2 step processing, using sparse database first to identify tax id diversity
 # then use only parts of the dense database to do the rest. 
 $bin_dir/aligns_to -dbs ./example.sparse.dbs ./example_data/SRR4841604.fasta > ./SRR4841604.fasta.1ststep.hits
-python $bin_dir/hits_to_tax_list.py ./SRR4841604.fasta.1ststep.hits > ./tax_list
+python2 $bin_dir/hits_to_tax_list.py ./SRR4841604.fasta.1ststep.hits > ./tax_list
 $bin_dir/aligns_to -dbss ./example.dense.dbss -tax_list ./tax_list ./example_data/SRR4841604.fasta > ./SRR4841604.fasta.2ndstep.hits
 
 # Create a xml report and display it in some human readable format:
