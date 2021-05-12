@@ -285,8 +285,6 @@ struct FastVdbReader_Counts {
     }
 };
 
-#define NO_BASES 0
-
 class FastVdbReader final: public Reader {
     /**
      * Contains mosly boilerplate code for accessing VDB
@@ -295,7 +293,21 @@ class FastVdbReader final: public Reader {
     protected:
         using RowId = int64_t;
         using RowCount = uint64_t;
-        using RowRange = std::pair<RowId, RowCount>;
+
+        struct RowRange : public std::pair<RowId, RowCount> {
+            using Base = std::pair<RowId, RowCount>;
+            bool contains(RowId query) const {
+                if (query < first || first + second <= query)
+                    return false;
+                return true;
+            }
+            explicit RowRange(Base const &b)
+            : Base(b)
+            {}
+            explicit RowRange(Base &&b)
+            : Base(std::move(b))
+            {}
+        };
 
         /**
          * Useful for binding data type to a column
@@ -435,7 +447,7 @@ class FastVdbReader final: public Reader {
                 auto count = RowCount(0);
                 assert(cid != nilColumnId());
                 if (0 == VCursorIdRange(curs, cid, &first, &count))
-                    return {first, count};
+                    return RowRange({first, count});
                 throw std::runtime_error(std::string("Can't get row range of ") + sourceName);
             }
         };
@@ -492,6 +504,12 @@ class FastVdbReader final: public Reader {
         Value valueOf(Col const &col)
         {
             return col.value(curs, row + rowRange.first, sourceName);
+        }
+
+        std::string stringValueOf(Column<char> const &col)
+        {
+            auto const &&data = dataOf(col);
+            return std::string(data.first, data.second);
         }
 
         /**
@@ -598,6 +616,10 @@ class FastVdbReader final: public Reader {
 
             return md;
         }
+    public:
+        double progress() const {
+            return rowRange.second ? double(row) / rowRange.second : -1.0;
+        }
     };
 
     /**
@@ -606,20 +628,66 @@ class FastVdbReader final: public Reader {
      * @see ncbi-vdb/libs/axf/align-restore-read.c
      */
     class ReferenceReader final : public VdbBaseReader {
+        struct ReferenceInfo {
+            using RowRange = VdbBaseReader::RowRange;
+            using RowId = VdbBaseReader::RowId;
+            std::string id;
+            RowRange rowRange;
+            uint32_t length;
+            bool circular;
+
+            bool operator <(ReferenceInfo const &rhs) const {
+                return rowRange < rhs.rowRange;
+            }
+
+            ReferenceInfo(std::string id, RowId first, uint32_t length, bool circular)
+            : id(id)
+            , rowRange({first, 1})
+            , length(length)
+            , circular(circular)
+            {}
+
+            void addRow(uint32_t inc) {
+                length += inc;
+                rowRange.second += 1;
+            }
+        };
+        using References = std::vector<ReferenceInfo>;
         using ReadCol = VdbBaseReader::Column<char>;
 
-        unsigned maxSeqLen; ///< this is the chunking size of the reference table
         ReadCol readCol;
         ReadCol::Data read;
+        References references;
+        References::const_iterator current;
+        unsigned maxSeqLen; ///< this is the chunking size of the reference table; each row has logically this many bases (actual length may be less).
 
         /**
-         * Load the row if it isn't the current row
+         * Use the absolute position to set the current row.
+         *
+         * @param start the absolute position (from GLOBAL_REF_START column)
+         *
+         * @return the offset of the absolute position in the current row.
          */
-        void loadRow(int64_t wantRow) {
+        unsigned loadAbsolute(uint64_t start) {
+            auto const wantRow = start / maxSeqLen;
+            auto const offset = start % maxSeqLen;
+
             if (row != wantRow) {
                 row = wantRow;
                 read = dataOf(readCol);
+
+                if (!current->rowRange.contains(row)) {
+                    auto next = current + 1;
+                    if (next == references.end() || !next->rowRange.contains(row)) {
+                        next = std::lower_bound(references.begin(), references.end(), *current, [&](ReferenceInfo const &a, ReferenceInfo const &b) { return a.rowRange.first <= row; });
+                        assert(next != references.end());
+                        assert(next != current);
+                        assert(next->rowRange.contains(row));
+                    }
+                    current = next;
+                }
             }
+            return (unsigned)offset;
         }
     public:
         using HasRefOffsetColData = VdbBaseReader::Column<uint8_t>::Data;
@@ -633,10 +701,27 @@ class FastVdbReader final: public Reader {
         , readCol(addColumn<ReadCol>("(INSDC:dna:text)READ"))
         {
             auto const mslCol = addColumn<VdbBaseReader::Column<uint32_t>>("MAX_SEQ_LEN");
+            auto const idCol = addColumn<VdbBaseReader::Column<char>>("SEQ_ID");
+            auto const lenCol = addColumn<VdbBaseReader::Column<uint32_t>>("READ_LEN");
+            auto const circCol = addColumn<VdbBaseReader::Column<uint8_t>>("CIRCULAR");
 
             open();
-            row = 1;
+            getRowRangeFrom(idCol);
             maxSeqLen = valueOf(mslCol);
+            for (row = 0; row < rowRange.second; ++row) {
+                auto const id = stringValueOf(idCol);
+                auto const len = valueOf(lenCol);
+
+                if (references.empty() || id != references.back().id) {
+                    auto const &&info = ReferenceInfo(id, row, len, valueOf(circCol));
+
+                    references.emplace_back(info);
+                }
+                else {
+                    references.back().addRow(len);
+                }
+            }
+            current = references.begin();
             row = 0;
         }
 
@@ -644,8 +729,8 @@ class FastVdbReader final: public Reader {
                                 , MismatchColData const &mismatchColData
                                 , HasRefOffsetColData const &hasRefOffsetColData
                                 , RefOffsetColData const &refOffsetColData
-                                , bool const reversed
                                 , uint64_t const globalStart
+                                , bool const reversed
                                 )
         {
             auto const readLen = hasMismatchColData.second;
@@ -660,24 +745,30 @@ class FastVdbReader final: public Reader {
             auto r = result.rbegin();
 
             for (auto i = decltype(readLen)(0); i < readLen; ++i, ++ri, ++bi) {
-                if (hasRefOffset[i] != '0' && bi >= 0) {
+                if (hasRefOffset[i] && bi >= 0) {
                     assert(roi < refOffsetColData.second);
                     bi = refOffsetColData.first[roi++];
                     ri += bi;
                 }
                 auto base = 'N';
-                if (hasMismatch[i] == '0') {
-                    auto const wantRow = (globalStart + ri) / maxSeqLen;
-                    auto const offset = (globalStart + ri) % maxSeqLen;
-
-                    loadRow(wantRow + 1);
+                if (!hasMismatch[i]) {
+                    auto const offset = loadAbsolute(globalStart + ri);
                     if (offset < read.second)
                         base = read.first[offset];
+                    else if (current->circular) {
+                        auto const zero = current->rowRange.first * maxSeqLen;
+                        auto const wrapped = (globalStart + ri - zero) % current->length;
+                        auto const offset = loadAbsolute(wrapped + zero);
+                        assert(offset < read.second);
+                        base = read.first[offset];
+                    }
                 }
                 else {
                     assert(mi < mismatchColData.second);
                     base = mismatchColData.first[mi++];
                 }
+
+                // Reference is always 5', but read may be either strand
                 if (reversed) {
                     assert(r != result.rend());
                     switch (base) {
@@ -709,14 +800,20 @@ class FastVdbReader final: public Reader {
      * So I switched to reconstructing the value here from the base columns.
      */
     class AlignReader final : public VdbBaseReader {
+#define FULL_IMPLEMENTATION 1
+#if FULL_IMPLEMENTATION
         using HasRefOffsetCol = VdbBaseReader::Column<uint8_t>;
         using RefOffsetCol = VdbBaseReader::Column<int32_t>;
         using HasMismatchCol = VdbBaseReader::Column<uint8_t>;
         using MismatchCol = VdbBaseReader::Column<uint8_t>;
         using GlobalRefStartCol = VdbBaseReader::Column<uint64_t>;
         using ReverseStrandCol = VdbBaseReader::Column<bool>;
+#else
+        using ReadCol = VdbBaseReader::Column<char>;
+#endif
         using SpotIdCol = VdbBaseReader::Column<int64_t>;
 
+#if FULL_IMPLEMENTATION
         ReferenceReader ref;
         HasRefOffsetCol hasRefOffsetCol;
         RefOffsetCol refOffsetCol;
@@ -724,23 +821,35 @@ class FastVdbReader final: public Reader {
         MismatchCol mismatchCol;
         GlobalRefStartCol globalRefStartCol;
         ReverseStrandCol reverseStrandCol;
+#else
+        ReadCol readCol;
+#endif
         SpotIdCol spotIdCol;
     public:
         AlignReader(VDatabase const *const db)
         : VdbBaseReader(db, "PRIMARY_ALIGNMENT")
+#if FULL_IMPLEMENTATION
         , ref(db)
-        , hasRefOffsetCol(addColumn<HasRefOffsetCol>("HAS_REF_OFFSET"))
+        , hasRefOffsetCol(addColumn<HasRefOffsetCol>("(bool)HAS_REF_OFFSET"))
         , refOffsetCol(addColumn<RefOffsetCol>("REF_OFFSET"))
-        , hasMismatchCol(addColumn<HasMismatchCol>("HAS_MISMATCH"))
+        , hasMismatchCol(addColumn<HasMismatchCol>("(bool)HAS_MISMATCH"))
         , mismatchCol(addColumn<MismatchCol>("MISMATCH"))
         , globalRefStartCol(addColumn<GlobalRefStartCol>("GLOBAL_REF_START"))
         , reverseStrandCol(addColumn<ReverseStrandCol>("REF_ORIENTATION"))
+#else
+        , readCol(addColumn<ReadCol>("RAW_READ"))
+#endif
         , spotIdCol(addColumn<SpotIdCol>("SEQ_SPOT_ID"))
         {
             open();
+#if FULL_IMPLEMENTATION
             getRowRangeFrom(hasMismatchCol);
+#else
+            getRowRangeFrom(readCol);
+#endif
         }
         bool read(Fragment *output) {
+#if FULL_IMPLEMENTATION
             auto const hasMismatch = columnDataNoThrow(hasMismatchCol);
             if (hasMismatch.first) {
                 auto const spotId = valueOf(spotIdCol);
@@ -750,7 +859,16 @@ class FastVdbReader final: public Reader {
                 auto const globalRefStart = valueOf(globalRefStartCol);
                 auto const reversed = valueOf(reverseStrandCol);
 
-                output->bases = ref.restoreRead(hasMismatch, mismatch, hasRefOffset, refOffset, reversed, globalRefStart);
+                output->bases = ref.restoreRead(hasMismatch, mismatch
+                                                , hasRefOffset, refOffset
+                                                , globalRefStart, reversed);
+#else
+            auto const read = columnDataNoThrow(readCol);
+            if (read.first) {
+                auto const spotId = valueOf(spotIdCol);
+
+                output->bases = std::string(read.first, read.second);
+#endif
                 output->spotid = std::to_string(spotId);
                 ++row;
                 return true;
@@ -906,7 +1024,7 @@ class FastVdbReader final: public Reader {
                 if (nodeH)
                     return h - rowRange.first;
                 if (nodeU)
-                    return h - rowRange.first;
+                    return u - rowRange.first;
             }
             return 0;
         }
@@ -963,9 +1081,16 @@ class FastVdbReader final: public Reader {
             if (hReadStart)
                 delete [] hReadStart;
         }
-        float progress() const {
-            auto const total = rowRange.second;
-            return total ? double(row) / total : 1.0;
+        float progress(AlignReader *other) const {
+            auto const pctRows = VdbBaseReader::progress();
+            if (pctRows < 0)
+                return 1.0;
+
+            if (!aligned || readCount == 0 || alignedReadCount == 0)
+                return pctRows;
+
+            auto const pctAligned = double(alignedReadCount) / readCount;
+            return pctRows * (1.0 - pctAligned) + other->progress() * pctAligned;
         }
 
         bool read(Fragment *output, AlignReader *other) {
@@ -995,8 +1120,6 @@ class FastVdbReader final: public Reader {
                 ++readCount;
                 if (isAligned(thisRead)) {
                     ++alignedReadCount;
-                    if (other)
-                        return other->read(output);
                     continue;
                 }
                 if ((readType[thisRead] & 1) != 1 || isFiltered(thisRead))
@@ -1006,6 +1129,8 @@ class FastVdbReader final: public Reader {
                 output->spotid = std::to_string(thisRow);
                 return true;
             }
+            if (other)
+                return other->read(output);
             return false;
         }
     };
@@ -1098,17 +1223,11 @@ public:
 
     float progress() const override
     {
-        return seq->progress();
+        return seq->progress(alg);
     }
 
     bool read(Fragment* output) override
     {
-        if (seq->read(output, alg)) {
-#if NO_BASES
-            output->bases = std::string();
-#endif
-            return true;
-        }
-        return false;
+        return seq->read(output, alg);
     }
 };
