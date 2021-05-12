@@ -31,7 +31,7 @@
 #include <iostream>
 #include <unordered_set>
 
-#define AUX_READER_NO_BASES 1
+#define AUX_READER_NO_BASES 0
 #define AUX_READER_LOG_CHECKSUM 1
 
 static bool is_actg(char const ch) { return ch == 'A' || ch == 'C' || ch == 'T' || ch == 'G'; }
