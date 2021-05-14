@@ -32,6 +32,7 @@
 #include <map>
 #include "hash.h"
 #include "seq_transform.h"
+#include "p_string.h"
 
 // incompatible with multiple intput files option todo: fix by moving table creation to constructor and enable
 #define LOOKUP_TABLE 0
@@ -284,7 +285,13 @@ public:
             }
         }
 
+#define INTEGER_SPOTID 0
+
+#if INTEGER_SPOTID
         typedef long long spot_id_t;
+#else
+        typedef p_string spot_id_t;
+#endif
         typedef int tax_id_t;
         typedef std::map<spot_id_t, std::set<tax_id_t> > SpotTaxIds; // todo: unordered map ?
 
@@ -293,7 +300,13 @@ public:
             SpotTaxIds spots;
             for (int i = from; i <= to; i++)
             {
-                auto &spot = spots[std::stoll(processing_sequences[ids[i].seq_id].spotid)];
+#if INTEGER_SPOTID
+                auto spotid = std::stoll(processing_sequences[ids[i].seq_id].spotid);
+#else
+                auto spotid = p_string(processing_sequences[ids[i].seq_id].spotid);
+#endif
+                auto &spot = spots[spotid];
+
                 for (auto &hit : ids[i].hits)
                     spot.insert(hit.first);
             }
@@ -301,7 +314,7 @@ public:
             return spots;
         }
         
-        typedef std::map< std::set<tax_id_t>, spot_id_t> TaxSpotIds;
+        typedef std::map< std::set<tax_id_t>, size_t> TaxSpotIds;
 
         TaxSpotIds spot_tax_reverse_index(const SpotTaxIds &spots)
         {

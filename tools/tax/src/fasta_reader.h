@@ -126,9 +126,13 @@ public:
             if (end_pos == std::string::npos)
                 end_pos = last_desc.size();
 
+#if 0
             auto start_pos = end_pos - 1;
             while (start_pos > 0 && isdigit(last_desc[start_pos]))
                 start_pos--;
+#else
+            int start_pos = 0;
+#endif
 
             output->spotid.assign(last_desc, start_pos + 1, end_pos - 1 - start_pos);
             output->bases.clear();
