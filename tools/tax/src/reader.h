@@ -44,7 +44,7 @@ public:
     {
         std::string spotid; // unique spot identifier, multiple fragments can have the same spotid
         std::string bases; // must not be empty
-        bool operator == (const Fragment& other) const { return spotid == other.spotid && bases == other.bases; }
+        bool operator == (const Fragment& other) const { return spotid == other.spotid && bases == other.bases; } // todo: change comparing order?
     };
 
     struct SourceStats {
