@@ -45,6 +45,7 @@ struct Config
 
     int optimization_ultrafast_skip_reader = 0;
     int optimization_dbs_max_lookups_per_seq_fragment = 0;
+    int num_threads = 0;
 
     Config(int argc, char const *argv[])
     {
@@ -82,6 +83,8 @@ struct Config
                 optimization_ultrafast_skip_reader = std::stoi(pop_arg(args));
             else if (arg == "-optimization_dbs_max_lookups_per_seq_fragment")
                 optimization_dbs_max_lookups_per_seq_fragment = std::stoi(pop_arg(args));
+            else if (arg == "-num_threads")
+                num_threads = std::stoi(pop_arg(args));
             else if (arg.empty() || arg[0] == '-' || !contig_file.empty()) 
             {
                 std::string reason = "unexpected argument: " + arg;
@@ -145,7 +148,7 @@ struct Config
 
     static void print_usage()
     {
-        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-compact] [-unaligned_only] <contig fasta, accession or .list file of fasta/accessions>" << std::endl 
+        std::cerr << "need <database> [-spot_filter <spot or read file>] [-out <filename>] [-hide_counts] [-compact] [-unaligned_only] [-num_threads <number>] <contig fasta, accession or .list file of fasta/accessions>" << std::endl 
             << "where <database> is one of:" << std::endl
             << "-db <database>" << std::endl
             << "-dbs <database +tax>" << std::endl
