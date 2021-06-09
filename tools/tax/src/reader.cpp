@@ -82,15 +82,15 @@ ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) 
 #else
         if (!params.read_qualities) {
             LOG("FastVdbReader");
-            return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader_step, params.thread_count, params.chunk_size, path, params.unaligned_only);
+            return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.unaligned_only);
         }
         if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
             LOG("AlignedVdbReader");
-            return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader_step, params.thread_count, params.chunk_size, path, params.read_qualities);
+            return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.read_qualities);
         }
         else {
             LOG("VdbReader");
-            return create_threaded<VdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader_step, params.thread_count, params.chunk_size, path, params.read_qualities, params.unaligned_only);
+            return create_threaded<VdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.read_qualities, params.unaligned_only);
         }
 #endif
     }
