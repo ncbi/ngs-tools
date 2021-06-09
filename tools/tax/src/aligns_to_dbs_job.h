@@ -80,8 +80,13 @@ public:
 
         const HashSortedArray &hash_array;
         int kmer_len;
-        Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len)
+        int max_lookups_per_seq = 0;
+
+        Matcher(const HashSortedArray &hash_array, int kmer_len, int max_lookups_per_seq) : hash_array(hash_array), kmer_len(kmer_len), max_lookups_per_seq(max_lookups_per_seq)
         {
+            if (max_lookups_per_seq != 0)
+                LOG("max lookups per seq fragment " << max_lookups_per_seq);
+        
 #if LOOKUP_TABLE
             // determining size of lookup key
             int lookup_key_bits = 1;
@@ -135,20 +140,28 @@ public:
             return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
         }
 
+        int calculate_lookup_window(int seq_kmers) const
+        {
+            if ((max_lookups_per_seq == 0) || seq_kmers <= max_lookups_per_seq)
+                return 1;
+
+            return (seq_kmers + max_lookups_per_seq - 1) / max_lookups_per_seq;
+        }
+
         Hits operator() (const std::string &seq) const 
         {
             Hits hits;
             int index = 0;
-            int window = 1;
             hash_t min_hash = 0;
             uint64_t min_fnv_hash = 0;
 
             int seq_kmers = seq.length() - kmer_len + 1;
+            const int lookup_window = calculate_lookup_window(seq_kmers);
 
             Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
                 {
                     hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
-                    auto fnv_hash = window == 1 ? 0 : KmerHash::hash_of(hash); 
+                    auto fnv_hash = lookup_window == 1 ? 0 : KmerHash::hash_of(hash); 
 
                     if (index == 0 || fnv_hash < min_fnv_hash)
                     {
@@ -158,7 +171,7 @@ public:
 
                     index++;
 
-                    if ((index % window) == 0 || index == seq_kmers)
+                    if ((index % lookup_window) == 0 || index == seq_kmers)
                     {
                         if (auto tax_id = find_hash(min_hash, 0))
                             hits[tax_id] ++;
@@ -315,8 +328,8 @@ public:
     {
         hide_counts = config.hide_counts;
         compact = config.compact;
-        Matcher m(hash_array, (int)kmer_len); // todo: move to constructor
-        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
+        Matcher m(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
+        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
     }
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, Matcher &m) // override

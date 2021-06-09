@@ -65,7 +65,7 @@ struct ManyJobs : public Job
         if (writer.out_f.size() != jobs.size())
             throw std::runtime_error("you need as many output files as jobs");
 
-		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &_writer)
