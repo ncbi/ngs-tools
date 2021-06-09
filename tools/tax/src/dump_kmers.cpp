@@ -55,8 +55,6 @@ template <class Lambda>
 void do_for_run(const string &filename, Lambda &&lambda)
 {
     Reader::Params params;
-    params.split_non_atgc = true;
-    params.unaligned_only = false; //unaligned_only;
     auto reader = Reader::create(filename, params);
 
     std::vector<Reader::Fragment> chunk;

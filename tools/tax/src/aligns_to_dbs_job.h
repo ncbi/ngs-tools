@@ -35,7 +35,7 @@
 #include "p_string.h"
 
 // incompatible with multiple intput files option todo: fix by moving table creation to constructor and enable
-#define LOOKUP_TABLE 0
+#define LOOKUP_TABLE 1
 
 struct DBSJob : public Job
 {
@@ -138,59 +138,40 @@ public:
         Hits operator() (const std::string &seq) const 
         {
             Hits hits;
+            int index = 0;
+            int window = 1;
+            hash_t min_hash = 0;
+            uint64_t min_fnv_hash = 0;
+
+            int seq_kmers = seq.length() - kmer_len + 1;
+
             Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
                 {
-                    if (auto tax_id = get_db_tax(hash))
-                        hits[tax_id] ++;
+                    hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
+                    auto fnv_hash = window == 1 ? 0 : KmerHash::hash_of(hash); 
+
+                    if (index == 0 || fnv_hash < min_fnv_hash)
+                    {
+                        min_hash = hash;
+                        min_fnv_hash = fnv_hash;
+                    }
+
+                    index++;
+
+                    if ((index % window) == 0 || index == seq_kmers)
+                    {
+                        if (auto tax_id = find_hash(min_hash, 0))
+                            hits[tax_id] ++;
+                        index = 0;
+                    }
 
                     return true;
                 });
 
+
             return hits;
         }
 
-        tax_t get_db_tax(hash_t hash) const
-        {
-            auto tax_id = get_db_tax_0_variations(hash);
-#if 0
-            if (tax_id)
-                return tax_id;
-            
-            seq_transform<hash_t>::for_all_1_char_variations_do(hash, KMER_LEN, [&](hash_t hash)
-                {
-                    hash = seq_transform<hash_t>::min_hash_variant(hash, KMER_LEN);
-                    tax_id = find_hash(hash, 0);
-                    return !tax_id;
-                });
-
-            if (tax_id)
-                return tax_id;
-
-            seq_transform<hash_t>::for_all_2_char_variations_do(hash, KMER_LEN, [&](hash_t hash)
-                {
-                    hash = seq_transform<hash_t>::min_hash_variant(hash, KMER_LEN);
-                    tax_id = find_hash(hash, 0);
-                    return !tax_id;
-                });
-
-            if (tax_id)
-                return tax_id;
-
-            seq_transform<hash_t>::for_all_3_char_variations_do(hash, KMER_LEN, [&](hash_t hash)
-                {
-                    hash = seq_transform<hash_t>::min_hash_variant(hash, KMER_LEN);
-                    tax_id = find_hash(hash, 0);
-                    return !tax_id;
-                });
-#endif
-            return tax_id;
-        }
-
-        tax_t get_db_tax_0_variations(hash_t hash) const
-        {
-            hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
-            return find_hash(hash, 0);
-        }
     };
 
     struct TaxMatchId
@@ -335,7 +316,7 @@ public:
         hide_counts = config.hide_counts;
         compact = config.compact;
         Matcher m(hash_array, (int)kmer_len); // todo: move to constructor
-        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
+        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
     }
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, Matcher &m) // override

@@ -62,12 +62,12 @@ struct Job
     }     
 
     template <class MatchAndPrint>
-	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, MatchAndPrint &&match_and_print)
+	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, int ultrafast_skip_reader, MatchAndPrint &&match_and_print)
 	{
 		Progress progress;
         Reader::Params params;
         params.filter_file = spot_filter_file;
-        params.split_non_atgc = true;
+        params.ultrafast_skip_reader = ultrafast_skip_reader;
         params.unaligned_only = unaligned_only;
         auto reader = Reader::create(contig_filename, params);
 

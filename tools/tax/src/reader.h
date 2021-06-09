@@ -100,14 +100,14 @@ public:
     // factory params aux struct
     struct Params {
         std::string filter_file;
-        bool exclude_filter; // if true, inverse filtering, i.e. exclude spots listed in filter file
-        bool read_qualities; // if true, low quality bases replaced with N
-        bool split_non_atgc; // if true, splits reads by non-atgc characters, otherwise cuts reads at first non-atgc character
-        bool unaligned_only; // if true, skips aligned reads
-        int thread_count; // default means auto
-        size_t chunk_size; ; // default means auto
-        Params() : exclude_filter(false), read_qualities(false), split_non_atgc(false), unaligned_only(false), thread_count(-1), chunk_size(0) {}
+        bool exclude_filter = false; // if true, inverse filtering, i.e. exclude spots listed in filter file
+        bool read_qualities = false; // if true, low quality bases replaced with N
+        int ultrafast_skip_reader = 0;
+        bool unaligned_only = false; // if true, skips aligned reads
+        int thread_count = -1; // default means auto
+        size_t chunk_size = 0; ; // default means auto
+        Params() = default;
     };
     // factory method, creates corresponding reader depending on file type
-    static ReaderPtr create(const std::string& path, const Params& params = Params());
+    static ReaderPtr create(const std::string& path, const Params& params);
 };

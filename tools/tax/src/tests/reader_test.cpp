@@ -359,7 +359,6 @@ TEST(reader_factory) {
     { // split
         Reader::Params params;
         auto cut = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
-        params.split_non_atgc = true;
         auto split = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         ASSERT(cut.size() < split.size());
     }

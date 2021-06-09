@@ -42,6 +42,7 @@ struct Config
 
     bool unaligned_only = false;
     bool hide_counts = false, compact = false;
+    int ultrafast_skip_reader = 0;
 
     Config(int argc, char const *argv[])
     {
@@ -75,6 +76,8 @@ struct Config
                 out = pop_arg(args);
             else if (arg == "-spot_filter")
                 spot_filter_file = pop_arg(args);
+            else if (arg == "-optimization_ultrafast_skip_reader")
+                ultrafast_skip_reader = std::stoi(pop_arg(args));
             else if (arg.empty() || arg[0] == '-' || !contig_file.empty()) 
             {
                 std::string reason = "unexpected argument: " + arg;

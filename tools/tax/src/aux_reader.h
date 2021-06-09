@@ -31,6 +31,8 @@
 #include <iostream>
 #include <unordered_set>
 #include "checksum.h"
+#include "log.h"
+
 
 static bool is_actg(char const ch) { return (ch == 'A') | (ch == 'C') | (ch == 'T') | (ch == 'G'); }
 static bool non_actg(char const ch) { return !is_actg(ch); }
@@ -210,5 +212,31 @@ public:
             }
             return res;
         }
+    }
+};
+
+// cuts reads at first non-atgc value, consumes empty reads
+template <typename ReaderType>
+class UltraFastSkipReader final: public Reader {
+private:
+    ReaderType reader;
+    int skip_step = 1;
+
+public:
+    template <typename... ReaderArgs>
+    UltraFastSkipReader(int skip_step, ReaderArgs... reader_args) : reader(reader_args...), skip_step(skip_step) 
+    {
+        LOG("UltraFastSkipReader " << skip_step);
+    }
+
+    SourceStats stats() const override { return reader.stats(); }
+    float progress() const override { return reader.progress(); }
+
+    bool read(Fragment* output) override {
+        for (int i = 0; i < skip_step; i++)
+            if (!reader.read(output))
+                return false;
+            
+        return reader.read(output);
     }
 };
