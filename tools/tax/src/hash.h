@@ -149,7 +149,7 @@ struct Hash
     }
 
     template <class Lambda>
-    static void for_all_hashes_do(const p_string &s, int kmer_len, Lambda &&lambda)
+    static void for_all_hashes_do(const p_string &s, int kmer_len, Lambda &&lambda) // todo: pass s by value ?
     {
         for_all_hashes_do(s.s, s.len, kmer_len, lambda);
     }

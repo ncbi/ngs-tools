@@ -33,9 +33,10 @@
 // todo: update to string_view
 struct p_string
 {
-	const char *s;
-	int len;
+	const char *s = nullptr;
+	int len = 0;
 
+	explicit p_string() = default;
 	p_string(const char *s, int len) : s(s), len(len) {}
     p_string(const std::string &x) : s(x.c_str()), len(x.length()){}
 
