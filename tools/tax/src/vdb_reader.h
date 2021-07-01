@@ -862,17 +862,21 @@ class FastVdbReader final: public Reader {
                 output->bases = ref.restoreRead(hasMismatch, mismatch
                                                 , hasRefOffset, refOffset
                                                 , globalRefStart, reversed);
+                output->spotid = std::to_string(spotId);
+                ++row;
+                return true;
+            }
 #else
             auto const read = columnDataNoThrow(readCol);
             if (read.first) {
                 auto const spotId = valueOf(spotIdCol);
 
                 output->bases = std::string(read.first, read.second);
-#endif
                 output->spotid = std::to_string(spotId);
                 ++row;
                 return true;
             }
+#endif
             return false;
         }
     };
