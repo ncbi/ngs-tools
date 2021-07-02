@@ -40,7 +40,7 @@ typedef uint64_t hash_t;
 #include "p_string.h"
 
 
-const std::string VERSION = "0.11";
+const std::string VERSION = "0.12";
 
 using namespace std;
 using namespace std::chrono;
@@ -128,6 +128,21 @@ p_string find_sam_nucleotide_seq(const std::string &sam_line)
     return p_string(&sam_line[begin_pos], end_pos - begin_pos);
 }
 
+bool look_like_sam_header(const string &line)
+{
+    return line.length() > 0 && line[0] == '@';
+}
+
+bool is_nucl_string_char(char ch)
+{
+    return ch == 'A' || ch == 'C' || ch == 'T' || ch == 'G' || ch == 'N';
+}
+
+bool seems_line_nucl_string(p_string seq)
+{
+    return seq.len > 32 && is_nucl_string_char(seq.s[0]);
+}
+
 // limitations: accepts ACTG only, upper case, no N or other charachters
 int main(int argc, char const *argv[])
 {
@@ -151,17 +166,29 @@ int main(int argc, char const *argv[])
     struct Stat
     {
         size_t total = 0;
-        size_t has_nucl = 0;
         size_t rejected = 0;
+        size_t nucl_empty = 0;
+        size_t nucl_one_char = 0;
+        size_t nucl_valid = 0;
     } stat;
 
     string sam_line, local_copy_sam_line;
     while (reader.readline(sam_line))
     {
+        if (look_like_sam_header(sam_line))
+        {
+            cout << sam_line << endl;
+            continue;
+        }
+
         local_copy_sam_line = sam_line; // overall can be optimized and removed
         auto nucl_seq = seq_transform_actg::to_upper_inplace(find_sam_nucleotide_seq(local_copy_sam_line));
-        if (nucl_seq.len > 1) // not a *
-            stat.has_nucl++;
+        if (nucl_seq.len == 0)
+            stat.nucl_empty++;
+        else if (nucl_seq.len == 1) // usually (*)
+            stat.nucl_one_char++;
+        else if (seems_line_nucl_string(nucl_seq))
+            stat.nucl_valid++;
 
         if (filter.fine_seq(nucl_seq))
             cout << sam_line << endl;
@@ -177,6 +204,8 @@ int main(int argc, char const *argv[])
 
     cerr << "total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
     std::cerr << "total sam lines processed: " << stat.total << endl;
-    std::cerr << "sam lines having sequence strings: " << stat.has_nucl << endl;
     std::cerr << "sam lines rejected by filter: " << stat.rejected << endl;
+    std::cerr << "sam lines having no sequence strings: " << stat.nucl_empty << endl;
+    std::cerr << "sam lines having 1 char sequence strings: " << stat.nucl_one_char << endl;
+    std::cerr << "sam lines having valid sequence strings: " << stat.nucl_valid << endl;
 }
