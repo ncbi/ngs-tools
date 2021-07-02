@@ -106,7 +106,6 @@ int find_nth(const string &line, int from, int n, char ch)
             if (n == 0)
                 return i;
         }
-            
      
     return int(line.length());
 }
@@ -137,11 +136,14 @@ int main(int argc, char const *argv[])
     if (!config.filtered_file.empty())
         filtered_file.open(config.filtered_file);
 
-    string sam_line;
+    string sam_line, local_copy_sam_line;
     while (reader.readline(sam_line))
-        if (filter.fine_seq(find_sam_nucleotide_seq(sam_line)))
+    {
+        local_copy_sam_line = sam_line; // overall can be optimized and removed
+        if (filter.fine_seq(seq_transform_actg::to_upper_inplace(find_sam_nucleotide_seq(local_copy_sam_line))))
             cout << sam_line << endl;
         else
             if (filtered_file.good())
                 filtered_file << sam_line << endl;
+    }
 }
