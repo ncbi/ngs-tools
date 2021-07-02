@@ -33,23 +33,29 @@
 
 struct Config
 {
-	std::string db;
-    bool report_filtered = true;
+	std::string db, filtered_file;
 
 	int argc;
 	char const **argv;
 
 	std::string arg(int index) const
 	{
-		if (index >= argc)
+		if (!arg_exists(index))
 			fail();
 
 		return std::string(argv[index]);
 	}
 
-	Config(int argc, char const *argv[]) : argc(argc), argv(argv) // todo: make it right
+	bool arg_exists(int index) const
+	{
+		return index > 0 && index < argc;
+	}
+
+	Config(int argc, char const *argv[]) : argc(argc), argv(argv)
 	{
 		db = arg(1);
+        if (arg_exists(2))
+            filtered_file = arg(2);
 	}
 
 	void fail() const
@@ -60,7 +66,7 @@ struct Config
 
 	static void print_usage()
 	{
-		std::cerr << "accepts sam file as stdin, prints clean data to stdout, rejected data to stderr" << std::endl;
-		std::cerr << "need <.db file>" << std::endl;
+		std::cerr << "accepts sam file as stdin, prints clean data to stdout" << std::endl;
+		std::cerr << "need <.db file> [rejected data file]" << std::endl;
 	}
 };

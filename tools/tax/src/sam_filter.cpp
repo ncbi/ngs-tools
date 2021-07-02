@@ -133,11 +133,15 @@ int main(int argc, char const *argv[])
 
     SamReader reader;
 
+    std::ofstream filtered_file;
+    if (!config.filtered_file.empty())
+        filtered_file.open(config.filtered_file);
+
     string sam_line;
     while (reader.readline(sam_line))
         if (filter.fine_seq(find_sam_nucleotide_seq(sam_line)))
             cout << sam_line << endl;
         else
-            if (config.report_filtered)
-                cerr << sam_line << endl;
+            if (filtered_file.good())
+                filtered_file << sam_line << endl;
 }
