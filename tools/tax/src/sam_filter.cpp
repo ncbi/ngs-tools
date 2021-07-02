@@ -28,6 +28,7 @@
 #include <vector>
 #include <stdexcept>
 #include <iostream>
+#include <chrono>
 #include "omp_adapter.h"
 
 typedef uint64_t hash_t;
@@ -38,7 +39,11 @@ typedef uint64_t hash_t;
 #include "seq_transform.h"
 #include "p_string.h"
 
+
+const std::string VERSION = "0.11";
+
 using namespace std;
+using namespace std::chrono;
 
 struct SamReader
 {
@@ -126,6 +131,13 @@ p_string find_sam_nucleotide_seq(const std::string &sam_line)
 // limitations: accepts ACTG only, upper case, no N or other charachters
 int main(int argc, char const *argv[])
 {
+    #ifdef __GLIBCXX__
+    std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+    #endif
+    
+    std::cerr << "sam_filter version " << VERSION << endl;
+    auto before = high_resolution_clock::now();
+
 	Config config(argc, argv);
 
     Filter filter(config.db);
@@ -136,14 +148,35 @@ int main(int argc, char const *argv[])
     if (!config.filtered_file.empty())
         filtered_file.open(config.filtered_file);
 
+    struct Stat
+    {
+        size_t total = 0;
+        size_t has_nucl = 0;
+        size_t rejected = 0;
+    } stat;
+
     string sam_line, local_copy_sam_line;
     while (reader.readline(sam_line))
     {
         local_copy_sam_line = sam_line; // overall can be optimized and removed
-        if (filter.fine_seq(seq_transform_actg::to_upper_inplace(find_sam_nucleotide_seq(local_copy_sam_line))))
+        auto nucl_seq = seq_transform_actg::to_upper_inplace(find_sam_nucleotide_seq(local_copy_sam_line));
+        if (nucl_seq.len > 1) // not a *
+            stat.has_nucl++;
+
+        if (filter.fine_seq(nucl_seq))
             cout << sam_line << endl;
         else
+        {
             if (filtered_file.good())
                 filtered_file << sam_line << endl;
+            stat.rejected++;
+        }
+
+        stat.total++;
     }
+
+    cerr << "total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
+    std::cerr << "total sam lines processed: " << stat.total << endl;
+    std::cerr << "sam lines having sequence strings: " << stat.has_nucl << endl;
+    std::cerr << "sam lines rejected by filter: " << stat.rejected << endl;
 }
