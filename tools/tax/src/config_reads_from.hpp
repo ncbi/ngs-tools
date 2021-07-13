@@ -137,16 +137,4 @@ USAGE_ERROR:
             "    reads_from SRR000001 # not one of the above\n"
             << std::endl;
     }
-
-private:
-
-    static std::string const &pop_arg(std::list<std::string>& args)
-    {
-        if (args.empty())
-            fail("need more args");
-
-        std::string const &arg = args.front();
-        args.pop_front();
-        return arg;
-    }
 };
