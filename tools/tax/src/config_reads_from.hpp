@@ -34,9 +34,10 @@
 #include "log.h"
 #include "missing_cpp_features.h"
 
-struct Config
+struct Args
 {
-    std::list <std::string> contig_files;
+    using FileList = std::list <std::string>;
+    FileList files;
     std::string spot_filter_file;
 
     bool unaligned_only = false;
@@ -44,42 +45,57 @@ struct Config
 
     int optimization_ultrafast_skip_reader = 0;
 
-    Config(int argc, char const *argv[])
+    Args(int argc, char const *argv[])
     {
-        std::string contig_file;
+        int arg = 1;
+        auto have_arg = [&]() -> bool { return arg < argc; };
+        auto pop_arg = [&]() -> std::string {
+            if (have_arg()) {
+                auto const result = argv[arg];
+                ++arg;
+                return std::string(result);
+            }
+            fail("need more args");
+        };
+        std::string file;
+        auto have_file = false;
 
-        std::list<std::string> args;
-        for (int i = 1; i < argc; ++i)
-            args.push_back(std::string(argv[i]));
+        while (have_arg()) {
+            auto const &arg = pop_arg();
 
-        while (!args.empty()) {
-            auto arg = pop_arg(args);
-
-            if (arg == "-unaligned_only")
-                unaligned_only = true;
-            else if (arg == "-spot_filter")
-                spot_filter_file = pop_arg(args);
-            else if (arg == "-optimization_ultrafast_skip_reader")
-                optimization_ultrafast_skip_reader = std::stoi(pop_arg(args));
-            else if (arg.empty() || arg[0] == '-' || !contig_file.empty())
-            {
-                std::string reason = "unexpected argument: " + arg;
+            if (arg.empty()) {
+USAGE_ERROR:
+                std::string reason = "unexpected argument: \"" + arg + "\"";
                 fail(reason.c_str());
             }
-            else
-                contig_file = arg;
+            if (arg.front() == '-') {
+                if (arg == "-unaligned_only")
+                    unaligned_only = true;
+                else if (arg == "-spot_filter")
+                    spot_filter_file = pop_arg();
+                else if (arg == "-optimization_ultrafast_skip_reader")
+                    optimization_ultrafast_skip_reader = std::stoi(pop_arg());
+                else
+                    goto USAGE_ERROR;
+            }
+            else if (have_file)
+                goto USAGE_ERROR;
+            else {
+                file = arg;
+                have_file = true;
+            }
         }
 
         // exactly one should exist
-        if (contig_file.empty()) // == contig_files.empty())
-            fail("please provide either contig file or list");
+        if (!have_file)
+            fail("nothing to process");
 
-        if (ends_with(contig_file, ".list"))
-            contig_files = load_list(contig_file);
+        if (ends_with(file, ".list"))
+            files = load_list(file);
         else
-            contig_files.push_back(contig_file);
+            files.push_back(file);
 
-        if (contig_files.empty())
+        if (files.empty())
             fail("loaded empty list of files to process");
     }
 
@@ -104,26 +120,32 @@ struct Config
         return items;
     }
 
-    static void fail(const char* reason = "invalid arguments")
+    static void fail [[noreturn]] (const char* reason = "invalid arguments")
     {
-        print_usage();
         LOG(reason);
+        print_usage();
         exit(1);
     }
 
     static void print_usage()
     {
-        std::cerr << "need <contig fasta, accession or .list file of fasta/accessions>" << std::endl;
+        std::cerr <<
+            "need fasta/accession or file containing list of fasta/accession\n"
+            "examples:\n"
+            "    reads_from inputs.list # NB. extension is .list\n"
+            "    reads_from chr1.fasta # NB. extension is .fasta, .fa, or .fna\n"
+            "    reads_from SRR000001 # not one of the above\n"
+            << std::endl;
     }
 
 private:
 
-    static std::string pop_arg(std::list<std::string>& args)
+    static std::string const &pop_arg(std::list<std::string>& args)
     {
         if (args.empty())
             fail("need more args");
 
-        std::string arg = args.front();
+        std::string const &arg = args.front();
         args.pop_front();
         return arg;
     }

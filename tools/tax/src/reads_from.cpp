@@ -41,26 +41,20 @@ typedef uint64_t hash_t;
 using namespace std;
 using namespace std::chrono;
 
-int main(int argc, char const *argv[])
+static int process(Args::FileList const &files, Reader::Params const &params)
 {
-#ifdef __GLIBCXX__
-    std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
-#endif
-
-    LOG("reads_from version " << VERSION);
-    Config config(argc, argv);
-
     auto const before = high_resolution_clock::now();
+    auto const multifile = files.size() > 1;
 
-    for (auto &contig_file : config.contig_files)
+    for (auto &file : files)
     {
-        LOG(contig_file);
+        LOG(file);
 
         try {
-            auto reader = Reader::create(contig_file, config);
+            auto reader = Reader::create(file, params);
             Reader::Fragment frag;
 
-            while (reader->read(chunk)) {
+            while (reader->read(&frag)) {
                 cout << '>' << frag.spotid << '\n' <<
                                frag.bases << '\n';
             }
@@ -68,7 +62,7 @@ int main(int argc, char const *argv[])
         catch (std::exception const &e)
         {
             LOG(e.what());
-            if (config.contig_files.size() == 1)
+            if (!multifile)
                 throw e;
         }
     }
@@ -76,5 +70,27 @@ int main(int argc, char const *argv[])
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 
     return 0;
+}
+
+static int process(Args const &args)
+{
+    Reader::Params params;
+
+    params.filter_file = args.spot_filter_file;
+    params.ultrafast_skip_reader = args.optimization_ultrafast_skip_reader;
+    params.unaligned_only = args.unaligned_only;
+
+    return process(args.files, params);
+}
+
+int main(int argc, char const *argv[])
+{
+#ifdef __GLIBCXX__
+    std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
+#endif
+
+    LOG("reads_from version " << VERSION);
+
+    return process(Args(argc, argv));
 }
 
