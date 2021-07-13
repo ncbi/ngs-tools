@@ -7,7 +7,7 @@
         "inheritEnvironments": [
             "msvc_x64_x64"
         ],
-        "buildRoot": "..\\OUTDIR\\ngs-tools\\win\\v141\\x64\\${name}\obj",
+        "buildRoot": "..\\OUTDIR\\ngs-tools\\win\\v141\\x64\\${name}\\obj",
         "installRoot": "..\\OUTDIR\\ngs-tools\\win\\v141\\x64\\${name}",
         "cmakeCommandArgs": "",
         "buildCommandArgs": "",
