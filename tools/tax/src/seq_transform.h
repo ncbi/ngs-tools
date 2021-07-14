@@ -32,7 +32,7 @@
 #include <string>
 #include <algorithm>
 #include <assert.h>
-//#include "hash.h"
+#include "p_string.h"
 
 class byte_map 
 {
@@ -180,6 +180,18 @@ struct seq_transform_actg
     static void to_rev_complement(std::string &s)
     {
         apply_transformation(s, true, true);
+    }
+
+    static p_string to_upper_inplace(p_string s)
+    {
+        for (int i = 0; i < s.len; i++)
+        {
+            char *p = const_cast<char*>(&s.s[i]);
+            if (*p >= 'a')
+                *p -= 32;
+        }
+
+        return s;
     }
 
 private:

@@ -33,17 +33,42 @@
 #include <map>
 #include "omp_adapter.h"
 
+struct BasicMatchId
+{
+	int seq_id;
+
+	BasicMatchId(int seq_id, int matches) : seq_id((int)seq_id){}
+	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
+};
+
+struct BasicPrinter
+{
+    IO::Writer &writer;
+    BasicPrinter(IO::Writer &writer) : writer(writer){}
+
+	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
+	{
+		for (auto seq_id : ids)
+        {
+//            if (writer.stream_id >= 0)
+//                writer.f() << writer.stream_id  << '\t';
+			writer.f() << processing_sequences[seq_id.seq_id].spotid << std::endl;
+        }
+
+        writer.check();
+	}
+};
+
 struct DBJob : public Job
 {
 	typedef std::vector<hash_t> HashSortedArray;
 
 	HashSortedArray hash_array;
 	size_t kmer_len;
-	const Config &config;
 
-	DBJob(const Config &config) : config(config)
+	DBJob(const std::string &db)
 	{
-		kmer_len = DBSIO::load_dbs(config.db, hash_array);
+		kmer_len = DBSIO::load_dbs(db, hash_array);
 	}
 
 	struct Matcher
@@ -55,7 +80,7 @@ struct DBJob : public Job
 		int operator() (const std::string &seq) const 
 		{
 			int found = 0;
-			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
+			Hash<hash_t>::for_all_hashes_do(seq, (int)kmer_len, [&](hash_t hash)
 				{
 					if (in_db(hash) > 0)
 						found++;
@@ -68,17 +93,22 @@ struct DBJob : public Job
 
 		bool in_db(hash_t hash) const
 		{
-			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
+			hash = seq_transform<hash_t>::min_hash_variant(hash, (int)kmer_len);
 			return std::binary_search(hash_array.begin(), hash_array.end(), hash);
 		}
 	};
 
-	virtual void run(const std::string &filename, std::ostream &out_f)
+	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
-		Matcher m(hash_array, kmer_len);
-		BasicPrinter print(out_f);
-		Job::run<Matcher, BasicPrinter>(filename, print, m, kmer_len, config.spot_filter_file, config.unaligned_only);
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
+
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer)
+    {
+		Matcher matcher(hash_array, kmer_len);
+		BasicPrinter print(writer);
+        Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
+    }
 };
 
 #endif

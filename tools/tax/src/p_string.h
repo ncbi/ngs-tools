@@ -27,17 +27,23 @@
 #ifndef P_STRING_H_INCLUDED
 #define P_STRING_H_INCLUDED
 
+#include <ostream>
+#include <string>
+
+// todo: update to string_view
 struct p_string
 {
-	const char *s;
-	int len;
+	const char *s = nullptr;
+	int len = 0;
 
+	explicit p_string() = default;
 	p_string(const char *s, int len) : s(s), len(len) {}
+    p_string(const std::string &x) : s(x.c_str()), len(x.length()){}
 
 	bool operator < (const p_string &x) const
 	{
-		if (x.len != len)
-			throw std::runtime_error("p_string operator < x.len != len");
+		if (len != x.len)
+			return len < x.len; //throw std::runtime_error("p_string operator < x.len != len");
 
 		return string_compare(s, x.s, len) < 0;
 	}
@@ -55,4 +61,11 @@ struct p_string
 	}
 };
 
+
+std::ostream& operator << (std::ostream &os, const p_string &ps)
+{
+    for (int i = 0; i < ps.len; i++)
+        os << ps.s[i];
+    return os;
+}
 #endif

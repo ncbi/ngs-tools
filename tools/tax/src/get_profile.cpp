@@ -20,6 +20,44 @@ using namespace std::chrono;
 
 #define DO_PARALLEL_PER_FILE 0
 
+#define CACHED_RANDOM 1
+
+#if CACHED_RANDOM
+
+#include "random_table.inc"
+struct Random
+{
+    size_t i = 0;
+
+    unsigned int operator()()
+    {
+        if (i >= RANDOM_TABLE.size())
+            throw std::runtime_error("out of random numbers from random table");
+
+        return RANDOM_TABLE[i++];
+    }
+};
+
+#else
+
+struct Random
+{
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::mt19937::result_type> dist;
+
+    Random() : dist(0, UINT32_MAX)
+    {
+        rng.seed(0);
+    }
+
+    unsigned int operator()()
+    {
+        return dist(rng);
+    }
+};
+
+#endif
+
 struct MinHash
 {
     struct Best
@@ -38,11 +76,13 @@ struct MinHash
 
     MinHash(size_t count) : best(count), xors(count)
     {
-        std::mt19937 rng;
-        rng.seed(0);
-        std::uniform_int_distribution<std::mt19937::result_type> dist(0, UINT32_MAX);
+        Random random;
         for (int i = 0; i < count; i++)
-            xors[i] = (uint64_t(dist(rng)) << 32) | dist(rng);
+        {
+            auto hi = random();
+            auto lo = random();
+            xors[i] = (uint64_t(hi) << 32) | lo;
+        }
 
         storage_hash.reserve(10000000); // todo: think. filesize ?
         storage_kmer.reserve(10000000); // todo: think. filesize ?

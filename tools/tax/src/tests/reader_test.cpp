@@ -334,8 +334,9 @@ TEST(splitting_cutting_reader) {
 
 TEST(reader_factory) {
     { // simple
-        auto vdb = read_all_bases(Reader::create("./tests/data/SRR1068106"));
-        auto fasta = read_all_bases(Reader::create("./tests/data/SRR1068106.fasta"));
+        Reader::Params params;
+        auto vdb = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
+        auto fasta = read_all_bases(Reader::create("./tests/data/SRR1068106.fasta", params));
         std::sort(vdb.begin(), vdb.end());
         std::sort(fasta.begin(), fasta.end());
         ASSERT(fasta == vdb);
@@ -359,7 +360,6 @@ TEST(reader_factory) {
     { // split
         Reader::Params params;
         auto cut = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
-        params.split_non_atgc = true;
         auto split = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         ASSERT(cut.size() < split.size());
     }
@@ -368,7 +368,7 @@ TEST(reader_factory) {
         auto full = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
         params.unaligned_only = true;
         auto unaligned = read_all_bases(Reader::create("./tests/data/SRR1068106", params));
-        auto unaligned2 = read_all_bases(Reader::create("./tests/data/SRR1068106.unaligned.fasta"));
+        auto unaligned2 = read_all_bases(Reader::create("./tests/data/SRR1068106.unaligned.fasta", Reader::Params()));
         ASSERT(full != unaligned);
         ASSERT(unaligned == unaligned2);
     }
@@ -400,7 +400,7 @@ void print_stats(const char* path) {
 
 void test_read(const char* path) {
     std::cerr << "Test reading: " << path << std::endl;
-    auto reader = Reader::create(path);
+    auto reader = Reader::create(path, Reader::Params());
     std::vector<Reader::Fragment> chunk;
     int percent = -1;
     while (reader->read_many(chunk)) {
