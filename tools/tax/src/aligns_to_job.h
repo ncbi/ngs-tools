@@ -93,7 +93,7 @@ struct Job
         if (unaligned_only) {
             auto unaligned_stats = reader->stats();
             LOG("unaligned spot count: " << unaligned_stats.spot_count);
-            LOG("unaligned read count: " << unaligned_stats.frag_count());
+            LOG("unaligned read count: " << unaligned_stats.read_count);
         
             Reader::Params total_params;
             total_params.thread_count = 0;
@@ -107,7 +107,7 @@ struct Job
         }
         
         LOG("total spot count: " << total_stats.spot_count);
-        LOG("total read count: " << total_stats.frag_count());
+        LOG("total read count: " << total_stats.read_count);
 	}
 
 	virtual size_t db_kmers() const { return 0; }

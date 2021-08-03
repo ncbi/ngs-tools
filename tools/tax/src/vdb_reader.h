@@ -103,9 +103,9 @@ protected:
 
         auto it = run.getReads(ngs::Read::all);
         if (it.nextRead()) {
-            res.frags_per_spot = it.getNumFragments();
+            res.read_count = res.spot_count * 2; // paired reads. todo: fix it for variable reads per spot (though this is an extremely rare and obsolete case)
         } else {
-            res.frags_per_spot = 0;
+            res.read_count = res.spot_count;
         }
 
         return res;
@@ -1218,10 +1218,12 @@ public:
 
         if (unalignedOnly) {
             auto unaligned = counts.reads - counts.aligned;
-            return SourceStats(size_t(0.5 + unaligned / rps), int(0.5 + rps));
+            auto spot_count = size_t(0.5 + unaligned / rps);
+            auto read_count = unaligned;
+            return SourceStats(spot_count, unaligned);
         }
         else {
-            return SourceStats(counts.spots, int(0.5 + rps));
+            return SourceStats(counts.spots, counts.reads);
         }
     }
 

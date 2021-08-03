@@ -48,24 +48,20 @@ public:
     };
 
     struct SourceStats {
-        size_t spot_count;
-        size_t expected_spot_count; // hint, tries to account for filtering
-        int frags_per_spot;
+        size_t spot_count = 0, read_count = 0;
+        size_t expected_spot_count = 0; // hint, tries to account for filtering
 
-        SourceStats(size_t spot_count, int frags_per_spot = 1)
+        SourceStats(size_t spot_count, size_t read_count)
             : spot_count(spot_count)
+            , read_count(read_count)
             , expected_spot_count(spot_count)
-            , frags_per_spot(frags_per_spot)
         {}
-        SourceStats() : SourceStats(0) {}
-
-        size_t frag_count() const { return spot_count * frags_per_spot; }
-        size_t expected_frag_count() const { return expected_spot_count * frags_per_spot; }
+        SourceStats() = default;
 
         bool operator== (const SourceStats& other) const {
             return spot_count == other.spot_count
                 && expected_spot_count == other.expected_spot_count
-                && frags_per_spot == other.frags_per_spot;
+                && read_count == other.read_count;
         };
     };
 
