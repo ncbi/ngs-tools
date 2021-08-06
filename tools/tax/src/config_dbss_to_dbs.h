@@ -26,21 +26,40 @@
 
 #pragma once
 
-#include "aligns_to_dbs_job.h"
-#include "dbss.h"
+#include <string>
+#include <iostream>
 
-struct DBSSJob : public DBSJob
+struct ConfigDBSSToDBS
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
-    {
-        auto dbss_reader = DBSS::make_reader(dbss);
-        kmer_len = dbss_reader->header.kmer_len;
+	std::string dbss, tax_list, out_dbs_file;
 
-        DBSS::DBSAnnotation annotation;
-        auto sum_offset = DBSS::load_dbs_annotation(DBSS::DBSAnnot::annotation_filename(dbss), annotation);
-        dbss_reader->check_consistency(sum_offset);
+	int argc;
+	char const **argv;
 
-        auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
-    }
+	std::string arg(int index) const
+	{
+		if (index >= argc)
+			fail();
+
+		return std::string(argv[index]);
+	}
+
+	ConfigDBSSToDBS(int argc, char const *argv[]) : argc(argc), argv(argv)
+	{
+		dbss = arg(1);
+		tax_list = arg(2);
+        out_dbs_file = arg(3);
+	}
+
+	void fail() const
+	{
+		print_usage();
+        exit(1);
+	}
+
+	static void print_usage()
+	{
+		std::cerr << "need <dbss file> <tax_list file> <out dbs file>" << std::endl;
+	}
+
 };

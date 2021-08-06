@@ -24,23 +24,38 @@
 *
 */
 
-#pragma once
-
-#include "aligns_to_dbs_job.h"
+#include "config_split_dbss.h"
 #include "dbss.h"
+#include "io.h"
 
-struct DBSSJob : public DBSJob
+using namespace std;
+
+void write_header(string split_folder, int kmer_len)
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
+    ofstream f(split_folder + "/header");
+    f << kmer_len;
+}
+
+int main(int argc, char const *argv[])
+{
+	Config config(argc, argv);
+    DBSS::DBSSFileReader dbss_reader(config.dbss);
+
+    DBSS::DBSAnnotation annotation;
+    auto annotation_filename = DBSS::DBSAnnot::annotation_filename(config.dbss);
+    auto sum_offset = DBSS::load_dbs_annotation(annotation_filename, annotation);
+    dbss_reader.check_consistency(sum_offset);
+
+    string split_folder = config.dbss + ".split";
+    if (!IO::create_folder(split_folder))
+        throw std::runtime_error("failed to create " + split_folder);
+
+    write_header(split_folder, dbss_reader.header.kmer_len);
+
+    std::vector<hash_t> hashes;
+    for (auto& annot : annotation) 
     {
-        auto dbss_reader = DBSS::make_reader(dbss);
-        kmer_len = dbss_reader->header.kmer_len;
-
-        DBSS::DBSAnnotation annotation;
-        auto sum_offset = DBSS::load_dbs_annotation(DBSS::DBSAnnot::annotation_filename(dbss), annotation);
-        dbss_reader->check_consistency(sum_offset);
-
-        auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
+        dbss_reader.load_kmers(hashes, annot.tax_id, annot);
+        DBSIO::save_dbs(DBSS::DBSSFolderReader::tax_id_to_filename(split_folder, annot.tax_id), hashes, dbss_reader.header.kmer_len);
     }
-};
+}

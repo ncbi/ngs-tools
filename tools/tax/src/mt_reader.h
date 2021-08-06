@@ -24,6 +24,8 @@
 *
 */
 
+#if 0 // not in use anymore due to some issues
+
 #pragma once
 
 #include "reader.h"
@@ -240,3 +242,5 @@ public:
         return true;
     }
 };
+
+#endif
