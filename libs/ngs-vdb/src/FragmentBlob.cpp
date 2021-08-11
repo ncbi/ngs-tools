@@ -54,9 +54,12 @@ FragmentBlob :: FragmentBlob ( FragmentBlobRef ref ) NGS_NOTHROW ()
 FragmentBlob &
 FragmentBlob :: operator = ( const FragmentBlob & obj )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
-    self = NGS_FragmentBlobDuplicate ( obj . self, ctx);
+    if ( &obj != this )
+    {
+        HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+        THROW_ON_FAIL ( NGS_FragmentBlobRelease ( self, ctx) )
+        THROW_ON_FAIL ( self = NGS_FragmentBlobDuplicate ( obj . self, ctx) );
+    }
     return *this;
 }
 
