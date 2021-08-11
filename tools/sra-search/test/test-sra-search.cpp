@@ -641,4 +641,3 @@ main( int argc, char *argv [] )
 {
     return SraSearchTestSuite(argc, argv);
 }
-

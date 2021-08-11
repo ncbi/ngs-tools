@@ -269,9 +269,8 @@ VdbSearch :: ~VdbSearch ()
         m_searchBlock -> m_quitting = true;
         for ( ThreadPool :: iterator i = m_threadPool . begin (); i != m_threadPool. end (); ++i )
         {
-            //KThreadCancel ( *i ); does not work too well, instead using m_searchBlock -> m_quitting to command threads to exit orderly
-            KThreadWait  ( *i, 0 );
-            KThreadRelease ( *i );
+            (*i)->join();
+            delete *i;
         }
         delete m_searchBlock;
     }
@@ -297,7 +296,7 @@ VdbSearch :: GetSupportedAlgorithms ()
     return ret;
 }
 
-rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *self, void *data )
+rc_t CC VdbSearch :: ThreadPerIterator ( void *data )
 {
     assert ( data );
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
@@ -388,13 +387,7 @@ VdbSearch :: NextMatch ( Match & p_match )
         m_searchBlock = new SearchThreadBlock ( m_searches, *m_output );
         for ( unsigned  int i = 0 ; i != threadNum; ++i )
         {
-            KThread* t;
-            rc_t rc = KThreadMake ( & t, ThreadPerIterator, m_searchBlock );
-            if ( rc != 0 )
-            {
-                throw ( ErrorMsg ( "KThreadMake failed" ) );
-            }
-            m_threadPool . push_back ( t );
+            m_threadPool . push_back ( new std::thread( ThreadPerIterator, m_searchBlock ) );
         }
     }
 
