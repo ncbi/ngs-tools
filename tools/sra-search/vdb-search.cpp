@@ -389,7 +389,7 @@ VdbSearch :: NextMatch ( Match & p_match )
         for ( unsigned  int i = 0 ; i != threadNum; ++i )
         {
             KThread* t;
-            rc_t rc = KThreadMake ( & t, ThreadPerIterator, m_searchBlock );
+            rc_t rc = KThreadMakeStackSize ( & t, ThreadPerIterator, m_searchBlock, 16*1024*1024 );
             if ( rc != 0 )
             {
                 throw ( ErrorMsg ( "KThreadMake failed" ) );
