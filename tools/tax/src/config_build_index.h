@@ -32,28 +32,29 @@
 
 struct ConfigBuildIndex
 {
-	std::string file_list, tax_parents_file;
-	unsigned int window_divider, kmer_len, min_window_size;
+    std::string file_list, tax_parents_file;
+    unsigned int window_divider, kmer_len, min_window_size = 0, min_kmers_per_seq = 0;
 
-	ConfigBuildIndex(int argc, char const *argv[])
-	{
-		if (argc != 6)
-		{
-			print_usage();
-			exit(1);
-		}
+    ConfigBuildIndex(int argc, char const *argv[])
+    {
+        if (argc != 5)
+        {
+            print_usage();
+            exit(1);
+        }
 
-		file_list = std::string(argv[1]);
-		tax_parents_file = std::string(argv[2]);
-		window_divider = std::stoi(std::string(argv[3]));
-		kmer_len = std::stoi(std::string(argv[4]));
-        min_window_size = std::stoi(std::string(argv[5]));
-	}
+        file_list = std::string(argv[1]);
+        tax_parents_file = std::string(argv[2]);
+        window_divider = std::stoi(std::string(argv[3]));
+        kmer_len = std::stoi(std::string(argv[4]));
+//        min_window_size = std::stoi(std::string(argv[5]));
+//        min_kmers_per_seq = std::stoi(std::string(argv[6]));
+    }
 
-	static void print_usage()
-	{
-        LOG("need <files.list> <tax.parents> <window divider> <kmer len> <min window size>");
-	}
+    static void print_usage()
+    {
+        LOG("need <files.list> <tax.parents> <window divider> <kmer len>");
+    }
 };
 
 #endif

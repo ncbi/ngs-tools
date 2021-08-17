@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.40";
+const std::string VERSION = "0.662";
 
 typedef uint64_t hash_t;
 
@@ -40,31 +40,40 @@ typedef uint64_t hash_t;
 #include "aligns_to_job.h"
 #include "aligns_to_db_job.h"
 #include "aligns_to_dbs_job.h"
+#include "aligns_to_dbsm_job.h"
 #include "aligns_to_dbss_job.h"
+//#include "aligns_to_many_jobs.h"
+#include "missing_cpp_features.h"
 
 using namespace std;
 using namespace std::chrono;
 
 int main(int argc, char const *argv[])
 {
-    #ifdef __GNUC__
+    #ifdef __GLIBCXX__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
     
     LOG("aligns_to version " << VERSION);
     LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads());
     Config config(argc, argv);
+    if (config.num_threads > 0)
+        omp_set_num_threads(config.num_threads);
 
     auto before = high_resolution_clock::now();
 
-    Job *job = nullptr;
+    unique_ptr<Job> job;
 
     if (!config.db.empty())
-        job = new DBJob(config);
+        job = unique_ptr<DBJob>(new DBJob(config.db));
     else if (!config.dbs.empty())
-        job = new DBSBasicJob(config);
+        job = unique_ptr<DBSBasicJob>(new DBSBasicJob(config.dbs));
+    else if (!config.dbsm.empty())
+        job = unique_ptr<DBSMJob>(new DBSMJob(config.dbsm));
     else if (!config.dbss.empty())
-        job = new DBSSJob(config);
+        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list));
+//    else if (!config.many.empty())
+//        job = make_unique<ManyJobs>(config.many);
     else
         Config::fail();
 
@@ -72,34 +81,26 @@ int main(int argc, char const *argv[])
     if (job->db_kmers() > 0)
         LOG("kmers " << job->db_kmers() << " (" << (job->db_kmers() / 1000 / 1000) << "m)");
 
-    if (!config.contig_files.empty())
-	{
-        for (auto &filename : config.contig_files)
-            {
-                LOG(filename);
-                before = high_resolution_clock::now();
-                {
-                    ofstream out_f(filename + ".matches");
-                    out_f.flush(); // ?
-                    job->run(filename, out_f);
-                }
+    for (auto &contig_file : config.contig_files)
+    {
+        LOG(contig_file);
 
-                auto processing_time = std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count();
-                LOG("processing time (sec) " << processing_time);
-            }
-    }
-    else
-	{
-        if (config.contig_file.empty())
-            throw std::runtime_error("contig file(s) is empty");
-
-        LOG(config.contig_file);
-        job->run(config.contig_file, cout);
+        IO::Writer writer(config.contig_files.size() == 1 ? config.out : contig_file + config.out);
+		try 
+		{
+	        job->run(contig_file, writer, config);
+		}
+		catch (std::exception &e)
+		{
+			LOG(e.what());
+			if (config.contig_files.size() == 1)
+				throw e;
+		}
     }
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 
-//    std::exit(0); // dont want to wait for destructors
+//    std::exit(0); // dont want to wait for destructors. commented because of some issues with stream flushing
     return 0;
 }
 

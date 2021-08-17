@@ -27,31 +27,87 @@
 
 #include "fasta.h"
 #include "seq_cleaner.h"
+#include <vector>
 
 struct ReadySeq
 {
-	std::string seq;
-	SeqCleaner::p_strings clean_strings;
+    std::string seq;
+    std::string desc;
+    SeqCleaner::p_strings clean_strings;
 };
+
+struct ReadySeqOps
+{
+    static size_t total_len(const SeqCleaner::p_strings &clean_strings)
+    {
+        size_t sum = 0;
+        for (auto &s : clean_strings)
+            sum += s.len;
+
+        return sum;
+    }
+
+    static size_t total_len(const std::vector<ReadySeq> &v)
+    {
+        size_t sum = 0;
+        for (auto &s : v)
+            sum += total_len(s.clean_strings);
+
+        return sum;
+    }
+};
+
 
 static void swap(ReadySeq &a, ReadySeq &b)
 {
-	swap(a.seq, b.seq);
-	swap(a.clean_strings, b.clean_strings);
+    swap(a.seq, b.seq);
+    swap(a.desc, b.desc);
+    swap(a.clean_strings, b.clean_strings);
 }
 
+// todo: move to ReadySeqOps
 static void load_sequence(Fasta *_fasta, ReadySeq *_seq)
 {
-	Fasta &fasta = *_fasta;
-	ReadySeq &seq = *_seq;
+    Fasta &fasta = *_fasta;
+    ReadySeq &seq = *_seq;
 
-	seq.seq.clear(); // for better performance clear instad of constructor
-	seq.clean_strings.clear();
+    seq.seq.clear(); // for better performance clear instad of constructor
+    seq.desc.clear();
+    seq.clean_strings.clear();
 
-	if (!fasta.get_next_sequence(seq.seq))
-		return;
+    if (!fasta.get_next_sequence(seq.seq))
+        return;
 
-	SeqCleaner cleaner(seq.seq);
-	seq.clean_strings = move(cleaner.clean_strings);
+    seq.desc = fasta.sequence_description();
+
+    SeqCleaner cleaner(seq.seq);
+    seq.clean_strings = move(cleaner.clean_strings);
+}
+
+static std::vector<ReadySeq> load_clean_sequences(const std::string &filename)
+{
+    Fasta fasta(filename);
+
+    std::vector<ReadySeq> seqs;
+    seqs.reserve(100); // todo: tune
+
+    {
+        std::string loaded_seq;
+
+        while (fasta.get_next_sequence(loaded_seq))
+        {
+            ReadySeq seq;
+            seq.seq = loaded_seq;
+            seqs.push_back(seq);
+        }
+    }
+
+    for (auto &seq : seqs)
+    {
+        SeqCleaner cleaner(seq.seq);
+        seq.clean_strings = move(cleaner.clean_strings);
+    }
+
+    return seqs;
 }
 

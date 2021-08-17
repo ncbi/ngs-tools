@@ -14,7 +14,7 @@
 using namespace std;
 using namespace std::chrono;
 
-const string VERSION = "0.19";
+const string VERSION = "0.20";
 
 typedef std::list<string> Strings;
 

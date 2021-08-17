@@ -1,6 +1,5 @@
 add_subdirectory(ref-variation)
 add_subdirectory(sra-search)
-add_subdirectory(sra_dnld_mgr)
 add_subdirectory(dump_ref_fasta)
 add_subdirectory(compute-coverage)
 
