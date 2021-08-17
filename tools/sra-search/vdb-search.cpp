@@ -387,7 +387,13 @@ VdbSearch :: NextMatch ( Match & p_match )
         m_searchBlock = new SearchThreadBlock ( m_searches, *m_output );
         for ( unsigned  int i = 0 ; i != threadNum; ++i )
         {
-            m_threadPool . push_back ( new std::thread( ThreadPerIterator, m_searchBlock ) );
+            KThread* t;
+            rc_t rc = KThreadMakeStackSize ( & t, ThreadPerIterator, m_searchBlock, 16*1024*1024 );
+            if ( rc != 0 )
+            {
+                throw ( ErrorMsg ( "KThreadMake failed" ) );
+            }
+            m_threadPool . push_back ( t );
         }
     }
 

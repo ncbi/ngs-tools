@@ -1,6 +1,13 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.11.1
+**August 17, 2021**
+
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: configure prints the version of compiler  
+  **sra-download**: sra-download-manager tool has been removed  
+
+
 ## NCBI NGS Toolkit 2.11.0
 **March 15, 2021**
 
