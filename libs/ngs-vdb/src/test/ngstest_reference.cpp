@@ -39,12 +39,12 @@
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
-#include "NGS_Pileup.h"
-#include "NGS_ReferenceSequence.h"
-#include "NGS_String.h"
-#include "CSRA1_Reference.h"
-#include "NGS_ReferenceBlobIterator.h"
-#include "NGS_ReferenceBlob.h"
+#include "../ncbi/ngs/NGS_Pileup.h"
+#include "../ncbi/ngs/NGS_ReferenceSequence.h"
+#include "../ncbi/ngs/NGS_String.h"
+#include "../ncbi/ngs/CSRA1_Reference.h"
+#include "../ncbi/ngs/NGS_ReferenceBlobIterator.h"
+#include "../ncbi/ngs/NGS_ReferenceBlob.h"
 
 using namespace std;
 using namespace ncbi::NK;

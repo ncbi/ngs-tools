@@ -30,8 +30,8 @@
 
 #include "ngs_c_fixture.hpp"
 
-#include "NGS_Pileup.h"
-#include "NGS_PileupEvent.h"
+#include "../ncbi/ngs/NGS_Pileup.h"
+#include "../ncbi/ngs/NGS_PileupEvent.h"
 
 #include <kdb/manager.h>
 

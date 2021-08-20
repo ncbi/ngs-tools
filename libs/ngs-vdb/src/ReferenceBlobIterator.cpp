@@ -35,9 +35,9 @@
 
 #include <klib/log.h>
 
-#include <../libs/ngs/NGS_ReferenceBlobIterator.h>
-#include <../libs/ngs/NGS_ReferenceBlob.h>
-#include <../libs/ngs/NGS_ErrBlock.h>
+#include <../ncbi/ngs/NGS_ReferenceBlobIterator.h>
+#include <../ncbi/ngs/NGS_ReferenceBlob.h>
+#include <../ncbi/ngs/NGS_ErrBlock.h>
 
 #include "Error.hpp"
 

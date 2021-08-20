@@ -41,8 +41,8 @@
 #include <vdb/manager.h>
 #include <vdb/vdb-priv.h>
 
-#include "NGS_FragmentBlobIterator.h"
-#include "NGS_FragmentBlob.h"
+#include "../ncbi/ngs/NGS_FragmentBlobIterator.h"
+#include "../ncbi/ngs/NGS_FragmentBlob.h"
 
 using namespace std;
 using namespace ncbi::NK;

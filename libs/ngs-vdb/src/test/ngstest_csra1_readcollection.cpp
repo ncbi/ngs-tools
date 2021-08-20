@@ -30,9 +30,9 @@
 
 #include "ngs_c_fixture.hpp"
 
-#include <CSRA1_ReadCollection.h>
+#include <../ncbi/ngs/CSRA1_ReadCollection.h>
 
-#include <NGS_Cursor.h>
+#include <../ncbi/ngs/NGS_Cursor.h>
 
 #include <kdb/manager.h>
 
