@@ -1,13 +1,11 @@
 # General Writer to drive VDB General Loader
 
-import sys
-import os
-import struct
-import array
+from sys import stdout, stderr
+from struct import Struct, calcsize, pack
 
-_headerFmt = struct.Struct("8s 4I")
-_simpleEventFmt = struct.Struct("I")
-_dataEventFmt = struct.Struct("2I")
+_headerFmt = Struct("8s 4I")
+_simpleEventFmt = Struct("I")
+_dataEventFmt = Struct("2I")
 
 
 def _padding(length: int) -> str:
@@ -15,7 +13,7 @@ def _padding(length: int) -> str:
 
 
 def _paddedFormat(fmt):
-    return fmt + _padding(struct.calcsize(fmt))
+    return fmt + _padding(calcsize(fmt))
 
 
 def _makeHeader():
@@ -30,20 +28,24 @@ def _makeSimpleEvent(eid):
 
 def _make1StringEvent(eid, str1):
     """ used for { evt_errmsg, evt_remote_path, evt_new_table, evt_software_name } """
-    fmt = _paddedFormat(f"I 1I {len(str1)}s")
-    return struct.pack(fmt, eid, len(str1), str1)
+    len1 = len(str1)
+    fmt = _paddedFormat(f"I 1I {len1}s")
+    return pack(fmt, eid, len1, str1)
 
 
 def _make2StringEvent(eid, str1, str2):
     """ used for { evt_use_schema, evt_metadata_node } """
-    fmt = _paddedFormat(f"I 2I {len(str1)}s {len(str2)}s")
-    return struct.pack(fmt, eid, len(str1), len(str2), str1, str2)
+    len1 = len(str1)
+    len2 = len(str2)
+    fmt = _paddedFormat(f"I 2I {len1}s {len2}s")
+    return pack(fmt, eid, len1, len2, str1, str2)
 
 
 def _makeColumnEvent(colid, tblid, bits, name):
     """ used for { evt_new_column } """
-    fmt = _paddedFormat(f"I 3I {len(name)}s")
-    return struct.pack(fmt, colid, tblid, bits, len(name), name)
+    lenn = len(name)
+    fmt = _paddedFormat(f"I 3I {lenn}s")
+    return pack(fmt, colid, tblid, bits, lenn, name)
 
 
 def _makeDataEvent(colid, count):
@@ -52,17 +54,17 @@ def _makeDataEvent(colid, count):
 
 
 def _writeStdOut(data):
-    return sys.stdout.buffer.write(data)  # os.write(sys.stdout.fileno(), data)
+    return stdout.buffer.write(data)
 
 
 class GeneralWriter:
     # pylint: disable=too-few-public-methods
-    
+
     evt_bad_event       = 0
-    
+
     evt_errmsg          = (1 << 24) + evt_bad_event
     evt_end_stream      = (1 << 24) + evt_errmsg
-    
+
     evt_remote_path     = (1 << 24) + evt_end_stream
     evt_use_schema      = (1 << 24) + evt_remote_path
     evt_new_table       = (1 << 24) + evt_use_schema
@@ -81,7 +83,7 @@ class GeneralWriter:
     evt_cell_default2   = (1 << 24) + evt_new_table2    # this one is not used here
     evt_cell_data2      = (1 << 24) + evt_cell_default2 # this one is not used here
     evt_empty_default   = (1 << 24) + evt_cell_data2    # this one is not used here
-    
+
     # BEGIN VERSION 2 MESSAGES
     evt_software_name      = (1 << 24) + evt_empty_default
     evt_db_metadata_node   = (1 << 24) + evt_software_name
@@ -118,7 +120,7 @@ class GeneralWriter:
                 try:
                     self._writeColumnData(c['_columnId'], len(data), data)
                 except Exception as e:
-                    sys.stderr.write(f"failed to write column #{c['_columnId']} {k}: {e}\n")
+                    stderr.write(f"failed to write column #{c['_columnId']} {k}: {e}\n")
                     raise e
         self._writeNextRow(tableId)
 
@@ -152,7 +154,7 @@ class GeneralWriter:
     def _writeColumnDefault(cls, colId, count, data):
         l = _writeStdOut(_makeDataEvent(cls.evt_cell_default + colId, count))
         l += _writeStdOut(data)
-        _writeStdOut(struct.pack(_padding(l)))
+        _writeStdOut(pack(_padding(l)))
 
     @classmethod
     def _writeDbMetadata(cls, dbId, nodeName, nodeValue):
@@ -171,7 +173,7 @@ class GeneralWriter:
         # hottest point; called rows*columns times
         l = _writeStdOut(_makeDataEvent(cls.evt_cell_data + colId, count))
         l += _writeStdOut(data)
-        _writeStdOut(struct.pack(_padding(l)))
+        _writeStdOut(pack(_padding(l)))
 
     @classmethod
     def _writeNextRow(cls, tableId):
@@ -190,25 +192,25 @@ class GeneralWriter:
 
     def __init__(self, fileName, schemaFileName, schemaDbSpec, softwareName, versionString, tbl):
         """ Construct a General Writer object
-    
+
             writer may be None if no actual output is desired
                 else writer is expected to have a callable write attribute
-            
+
             fileName is a string with name of the database that will be created
 
             schemaFileName is a string with the path to the file containing the schema
 
             schemaDbSpec is a string with the schema name of the database that will be created
-            
+
             softwareName is a string
-            
+
             versionString is a three-part number like "2.1.5"
         """
-        
+
         GeneralWriter._writeHeader(fileName.encode('utf-8')
             , schemaFileName.encode('utf-8')
             , schemaDbSpec.encode('ascii'))
-        
+
         GeneralWriter._writeSoftwareName(softwareName.encode('utf-8'), versionString.encode('ascii'))
 
         tableId = 0
@@ -233,7 +235,7 @@ class GeneralWriter:
                         try:
                             GeneralWriter._writeColumnDefault(c['_columnId'], len(c['default']), c['default'])
                         except:
-                            sys.stderr.write("failed to set default for %s\n" % c)
+                            stderr.write("failed to set default for %s\n" % c)
                             raise
                 except TypeError:
                     pass
@@ -247,6 +249,7 @@ if __name__ == "__main__":
     row = 0
 
     def performance():
+        from array import array
         import random
 
         def gen_phred_range():
@@ -294,14 +297,16 @@ if __name__ == "__main__":
         }
         gw = GeneralWriter('file name', 'test/bogus.vschema', 'Test:BOGUS:tbl', 'GeneralWriter-test', '1.0.0', spec)
 
-        spec['SEQUENCE']['READ_LENGTH']['data'] = array.array('I', [150, 150])
-        for _ in range(1_000_000):
+        spec['SEQUENCE']['READ_LENGTH']['data'] = array('I', [150, 150])
+        for _ in range(5_000_000):
             gw.write(spec['SEQUENCE'])
 
         gw = None
 
 
     def sanity():
+        from array import array
+
         readData = [ "ACGT", "GTAACGT" ]
 
         def getRead():
@@ -353,17 +358,17 @@ if __name__ == "__main__":
                 },
                 'LABEL_START': {
                     'elem_bits': 32,
-                    'default': array.array('I', [ 0 ])
+                    'default': array('I', [ 0 ])
                 },
                 'LABEL_LENGTH': {
                     'elem_bits': 32,
-                    'default': array.array('I', [ 2 ])
+                    'default': array('I', [ 2 ])
                 }
             },
         }
         gw = GeneralWriter('file name', 'test/bogus.vschema', 'Test:BOGUS:tbl', 'GeneralWriter-test', '1.0.0', spec)
 
-        spec['SEQUENCE']['READ_LENGTH']['data'] = array.array('I', [ 1, 2 ])
+        spec['SEQUENCE']['READ_LENGTH']['data'] = array('I', [ 1, 2 ])
         gw.write(spec['SEQUENCE'])
         gw.write(spec['SEQUENCE'])
 
@@ -372,4 +377,4 @@ if __name__ == "__main__":
 
         gw = None
 
-    sanity()
+    performance()
