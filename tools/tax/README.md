@@ -27,7 +27,7 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
         * #### `./stat_accuracy accuracy_1.hits excluded_taxids`
     * #### Output 
         * #### Sent to stdout
-        * #### Ten lines that usmmarizes each category total for the file
+        * #### Ten lines reporting each category total for the file
             * ##### 
                     ...
                     Virus:species: 2032
