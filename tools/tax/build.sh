@@ -7,7 +7,7 @@ sudo apt install cmake
 sudo apt install default-jdk
 sudo apt install ant
 
-git clone https://github.com/ncbi/ngs-tools.git --branch tax
+#git clone https://github.com/ncbi/ngs-tools.git --branch tax
 git clone https://github.com/ncbi/ncbi-vdb.git
 git clone https://github.com/ncbi/ngs.git
 cd ./ngs/
