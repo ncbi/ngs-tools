@@ -10,7 +10,7 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 * ### Read build_db_and_run.sh: it is richly annotated with comments about each step performed.
 * ### If you need NGS library support, or want all the tools you can run ./build.sh from any folder. 
 
-### For Reproducing results found in `STAT: A fast, scalable, MinHash-based k-mer tool to assess Sequence Read Archive next generation sequence submission`
+### For Reproducing results found in `STAT: A fast, scalable, MinHash-based k-mer tool to assess Sequence Read Archive next generation sequence submissions.`
 * ### Run build.sh 
 * ### Genereate results for each of the files (`accuracy_1.fasta, accuracy_2.fasta`)
     * #### NOTE: This test will require approximately 120GB available memory
