@@ -25,19 +25,9 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
         * #### `pip install -r requirements.txt`
     * #### For each result file execute stat_accuracy.py
         * #### `./stat_accuracy accuracy_1.hits excluded_taxids`
-    * #### Output to stdout is 
-        * #### First three columns for each read: its excluded taxid, read name,  resolved taxid
-            * #####
-                    ...
-                    10804 taxid_10804.62 4098
-                    10804 taxid_10804.324 4098
-                    10804 taxid_10804.589 9528
-                    10804 taxid_10804.699 9528
-                    10804 taxid_10804.805 239935
-                    11801 taxid_11801.10 10090
-                    11801 taxid_11801.17 91061
-                    ...
-        * #### Last ten lines summarizes each category total for the file
+    * #### Output 
+        * #### Sent to stdout
+        * #### Ten lines that usmmarizes each category total for the file
             * ##### 
                     ...
                     Virus:species: 2032

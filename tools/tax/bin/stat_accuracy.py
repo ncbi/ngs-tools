@@ -61,7 +61,6 @@ def process_hits(hits_file, id_file):
                     score = "false negative"
                 else:
                     score = "false positive"
-                    print(test_id, spot, hit_id, file=sys.stderr)
 
             if is_virus:
                 scores[spot] = ["Virus", score]
