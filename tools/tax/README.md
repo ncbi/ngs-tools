@@ -18,7 +18,7 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 * ### To see the accuracy counts
     * #### Go to `{path}/ngs-tools/tools/tax/bin/`
     * #### Create python virtual environment, e.g.
-        * ####`python3 -m ./venv`
+        * ####`python3 -m venv ./venv`
     * #### Activate python virtual environment
         * #### `source v./venv/bin/activate`
     * #### Add requirements to the environment `pip install -r requirements.txt`
