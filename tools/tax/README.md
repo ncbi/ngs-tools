@@ -12,7 +12,7 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 
 ### Reproducing results found in `STAT: A fast, scalable, MinHash-based k-mer tool to assess Sequence Read Archive next generation sequence submissions.`
 * ### This requires data package 
-* ### Run build.sh or quickbuild.sh to build `aligns_to` binary
+* ### Run `build.sh` or `quickbuild.sh` to create `aligns_to` binary
 * ### Genereate results for each of the files (`accuracy_1.fasta, accuracy_2.fasta`)
     * #### NOTE: This test will require approximately 120GB available memory
     * #### The data package contains the files
@@ -33,11 +33,9 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
         * #### `pip install -r requirements.txt`
     * #### For each result file execute stat_accuracy.py
         * #### `./stat_accuracy accuracy_1.hits excluded_taxids`
-    * #### Output 
-        * #### Sent to stdout
+    * #### Output is streamed to `stdout`:
         * #### Ten lines reporting each category total for the file
             * ##### 
-                    ...
                     Virus:species: 2032
                     Virus:genus: 3347
                     Virus:ancestor: 700
