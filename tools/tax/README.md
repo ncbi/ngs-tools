@@ -10,17 +10,25 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 * ### Read build_db_and_run.sh: it is richly annotated with comments about each step performed.
 * ### If you need NGS library support, or want all the tools you can run ./build.sh from any folder. 
 
-### For Reproducing results found in `STAT: A fast, scalable, MinHash-based k-mer tool to assess Sequence Read Archive next generation sequence submissions.`
-* ### Run build.sh 
+### Reproducing results found in `STAT: A fast, scalable, MinHash-based k-mer tool to assess Sequence Read Archive next generation sequence submissions.`
+* ### This requires data package 
+* ### Run build.sh or quickbuild.sh to build `aligns_to` binary
 * ### Genereate results for each of the files (`accuracy_1.fasta, accuracy_2.fasta`)
     * #### NOTE: This test will require approximately 120GB available memory
-    * #### `{path}/ngs-tools/tools/tax/bin/aligns_to -dbss 20200518_tree_filter.dbss -tax_list TaxID_file -out accuracy_1.hits accuracy_1.fasta`
+    * #### The data package contains the files
+        * #### `20200518_tree_filter.dbss`
+        * #### `accuracy_1.fasta, accuracy_2.fasta`
+        * #### `TaxID_file`
+        * #### `20200518.gettax.sqlite` symbolically linked to `gettax.sqlite`
+    * #### `{path}/ngs-tools/tools/tax/bin/aligns_to -dbss {path}20200518_tree_filter.dbss -tax_list {path}TaxID_file -out accuracy_1.hits accuracy_1.fasta`
 * ### To see the accuracy counts
     * #### Go to `{path}/ngs-tools/tools/tax/bin/`
+    * #### From data package copy `gettax.sqlite` and `20200518.gettax.sqlite`
+        * #### For example: `cp {path-to-data}/bin/* {path}/ngs-tools/tools/tax/bin/`
     * #### Create python virtual environment, e.g.
         * ####`python3 -m venv ./venv`
     * #### Activate python virtual environment
-        * #### `source v./venv/bin/activate`
+        * #### `source  ./venv/bin/activate`
     * #### Add requirements to the environment `pip install -r requirements.txt`
         * #### `pip install -r requirements.txt`
     * #### For each result file execute stat_accuracy.py
