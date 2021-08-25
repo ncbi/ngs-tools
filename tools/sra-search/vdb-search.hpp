@@ -38,6 +38,7 @@
 #include "threadablesearch.hpp"
 
 struct KThread;
+
 class MatchIterator;
 class SearchBuffer;
 
@@ -104,7 +105,7 @@ public:
 private:
 
     typedef std :: vector < ThreadableSearch* > SearchQueue;
-    typedef std :: vector < KThread* > ThreadPool;
+    typedef std :: vector < KThread * > ThreadPool;
 
     struct SearchThreadBlock;
     class OutputQueue;
@@ -121,8 +122,7 @@ private:
         const Settings& m_settings; // not a copy, since the settings may be changed post-creation
     };
 
-    static rc_t CC ThreadPerIterator ( const struct KThread *self, void *data );
-    static rc_t CC SearchBlobPerThread ( const struct KThread *self, void *data );
+    static rc_t CC ThreadPerIterator ( const struct KThread *, void *data );
 
     void FormatMatch ( const SearchBuffer  :: Match & p_source, Match & p_result );
 
