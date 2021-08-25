@@ -26,7 +26,7 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
     * #### From data package copy `gettax.sqlite` and `20200518.gettax.sqlite`
         * #### For example: `cp {path-to-data}/bin/* {path}/ngs-tools/tools/tax/bin/`
     * #### Create python virtual environment, e.g.
-        * ####`python3 -m venv ./venv`
+        * #### `python3 -m venv ./venv`
     * #### Activate python virtual environment
         * #### `source  ./venv/bin/activate`
     * #### Add requirements to the environment `pip install -r requirements.txt`
