@@ -28,6 +28,7 @@
 
 #include <iostream>
 #include <queue>
+#include <atomic>
 
 #include <atomic32.h>
 
