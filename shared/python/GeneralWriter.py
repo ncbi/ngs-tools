@@ -6,6 +6,8 @@ from struct import Struct, calcsize, pack
 _headerFmt = Struct("8s 4I")
 _simpleEventFmt = Struct("I")
 _dataEventFmt = Struct("2I")
+_writeStdOut = stdout.buffer.write
+_makeDataEvent = _dataEventFmt.pack
 
 
 def _padding(length: int) -> str:
@@ -46,15 +48,6 @@ def _makeColumnEvent(colid, tblid, bits, name):
     lenn = len(name)
     fmt = _paddedFormat(f"I 3I {lenn}s")
     return pack(fmt, colid, tblid, bits, lenn, name)
-
-
-def _makeDataEvent(colid, count):
-    """ used for { evt_cell_default, evt_cell_data } """
-    return _dataEventFmt.pack(colid, count)
-
-
-def _writeStdOut(data):
-    return stdout.buffer.write(data)
 
 
 class GeneralWriter:
@@ -108,15 +101,15 @@ class GeneralWriter:
     def write(self, spec):
         tableId = spec['_tableId']
         for k in spec:
-            if k.startswith('_'):
+            if k[0] == '_':
                 continue
+
             c = spec[k]
             if 'data' in c:
                 data = c['data']
-                try:
+                if callable(data):
                     data = data()
-                except:
-                    pass
+
                 try:
                     self._writeColumnData(c['_columnId'], len(data), data)
                 except Exception as e:
