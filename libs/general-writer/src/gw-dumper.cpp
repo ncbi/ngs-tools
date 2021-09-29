@@ -414,20 +414,29 @@ namespace gw_dump
         check_move_ahead ( eh );
 
         // advance row-id
-        tbl_entry & te = tbl_entries [ id ( eh . dad ) - 1 ];
-        te . row_id += get_nrows ( eh );
+        auto const tableId = id(eh.dad);
+        auto const nrows = get_nrows(eh);
+        tbl_entry & te = tbl_entries [ tableId - 1 ];
+        auto const &tbl_name = te.tbl_name;
 
-        // TODO: convert
-        if ( display )
-        {
-            const std :: string & tbl_name = te . tbl_name;
+        te . row_id += nrows;
 
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": move-ahead\n"
-                << "  table_id = " << id ( eh . dad ) << " ( \"" << tbl_name << "\" )\n"
-                << "  nrows = " << get_nrows ( eh ) << '\n'
+                << "  table_id = " << tableId << " ( \"" << tbl_name << "\" )\n"
+                << "  nrows = " << nrows << '\n'
                 << "  row_id = " << te . row_id << '\n'
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"move-ahead\""
+                   ", \"table-id\": " << tableId
+                << ", \"rows\": " << nrows
+                << " }\n";
+            break;
         }
     }
 
@@ -467,8 +476,8 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"next-row\""
-                << ", " "\"table-id\": " << tableId
+                << "{ \"event\": \"next-row\""
+                   ", \"table-id\": " << tableId
                 << " }\n";
             break;
         }
@@ -492,18 +501,26 @@ namespace gw_dump
     {
         check_empty_default ( eh );
 
-        // TODO: convert
-        if ( display )
-        {
-            const col_entry & entry = col_entries [ id ( eh ) - 1 ];
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
+        auto const columnId = id(eh);
+        auto const &entry = col_entries[columnId - 1];
+        auto const &tbl_name = tbl_entries[entry.table_id - 1].tbl_name;
 
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": cell-default\n"
-                << "  stream_id = " << id ( eh ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
-                << "  elem_count = 0 ( empty )\n"
+                   "  stream_id = " << columnId << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << "\n"
+                   "  elem_count = 0 ( empty )\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"default\""
+                   ", \"column-id\": " << columnId
+                << ", \"data\": []"
+                   " }\n";
+            break;
         }
     }
 
@@ -626,9 +643,9 @@ namespace gw_dump
         switch (display) {
         case 1:
             std :: cout
-                << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << columnId << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
+                << event_num << ": cell-" << type << "\n"
+                   "  stream_id = " << columnId << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << '\n'
                 ;
             if ( packed_int )
             {
@@ -646,12 +663,11 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"" << type << '"'
-                << ", " "\"column-id\": " << columnId
-                << ", " "\"elements\": " << data_size
-                << ", " "\"data\": \"0x" << "tbd"
-                << '"'
-                << " }\n";
+                << "{ \"event\": \"" << type << "\""
+                   ", \"column-id\": " << columnId
+                << ", \"elements\": " << data_size
+                << ", \"data\": \"<packed data>\""
+                   " }\n";
             break;
         }
     }
@@ -828,16 +844,16 @@ namespace gw_dump
         switch (display) {
         case 1:
             std :: cout
-                << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << id ( eh . dad ) << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
-                << "  elem_count = " << elem_count ( eh ) << '\n'
+                << event_num << ": cell-" << type << "\n"
+                   "  stream_id = " << id ( eh . dad ) << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << "\n"
+                   "  elem_count = " << elem_count ( eh ) << '\n'
                 ;
         case 2:
             std::cout
-                << "{ " "\"event\": \"" << type << '"'
-                << ", " "\"column-id\": " << columnId
-                << ", " "\"data\": ";
+                << "{ \"event\": \"" << type << "\""
+                   ", \"column-id\": " << columnId
+                << ", \"data\": ";
             switch (elem_bits) {
             case 8:
                 dump_cell_data<8>(data_buffer, elements);
@@ -887,7 +903,7 @@ namespace gw_dump
                 ;
             break;
         case 2:
-            std::cout << "{ " "\"event\": \"begin\" }\n";
+            std::cout << "{ \"event\": \"begin\" }\n";
             break;
         }
     }
@@ -960,17 +976,18 @@ namespace gw_dump
         case 1:
             std :: cout
                 << event_num << ": new-column\n"
-                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_entries[tableId - 1].tbl_name << "\" )\n"
+                << "  table_id = " << tableId << " ( \"" << tbl_entries[tableId - 1].tbl_name << "\" )\n"
                 << "  column_name [ " << name_size ( eh ) << " ] = \"" << name << "\"\n"
                 ;
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"column\""
-                << ", " "\"expression\": \"" << name << '"'
-                << ", " "\"column-id\": " << col_entries.size()
-                << ", " "\"elem-bits\": " << elem_bits(eh)
-                << ", " "\"flags\": " << (int)flag_bits(eh)
+                << "{ \"event\": \"column\""
+                   ", \"table-id\": " << tableId
+                << ", \"column-id\": " << col_entries.size()
+                << ", \"expression\": \"" << name << "\""
+                   ", \"elem-bits\": " << elem_bits(eh)
+                << ", \"flags\": " << (int)flag_bits(eh)
                 << " }\n";
             break;
         }
@@ -1020,9 +1037,9 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"table\""
-                << ", " "\"name\": \"" << name << '"'
-                << ", " "\"table-id\": " << tbl_entries.size()
+                << "{ \"event\": \"table\""
+                   ", \"name\": \"" << name << "\""
+                   ", \"table-id\": " << tbl_entries.size()
                 << " }\n";
             break;
         }
@@ -1081,10 +1098,10 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"use-schema\""
-                << ", " "\"file_name\": \"" << strings.first << '"'
-                << ", " "\"db_spec\": \"" << strings.second << '"'
-                << " }\n";
+                << "{ \"event\": \"use-schema\""
+                   ", \"file_name\": \"" << strings.first << "\""
+                   ", \"db_spec\": \"" << strings.second << "\""
+                   " }\n";
             break;
         }
     }
@@ -1169,16 +1186,16 @@ namespace gw_dump
         case 1:
             std :: cout
                 << event_num << ": software-name\n"
-                << "  software_name [ " << size1 ( eh ) << " ] = \"" << software_name << "\"\n"
-                << "  version [ " << size2 ( eh ) << " ] = \"" << version << "\"\n"
+                   "  software_name [ " << size1 ( eh ) << " ] = \"" << software_name << "\"\n"
+                   "  version [ " << size2 ( eh ) << " ] = \"" << version << "\"\n"
                 ;
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"software\""
-                << ", " "\"name\": \"" << software_name << '"'
-                << ", " "\"version\": \"" << version << '"'
-                << " }\n";
+                << "{ \"event\": \"software\""
+                   ", \"name\": \"" << software_name << "\""
+                   ", \"version\": \"" << version << "\""
+                   " }\n";
             break;
         }
     }
@@ -1209,7 +1226,7 @@ namespace gw_dump
         mnr_table,
         mnr_column,
     };
-    std::string metadata_node_root_name(metadata_node_root mnr) {
+    char const *metadata_node_root_name(metadata_node_root mnr) {
         switch (mnr) {
         case mnr_database:
             return "db-id";
@@ -1241,16 +1258,16 @@ namespace gw_dump
         case 1:
             std :: cout 
                 << event_num << ": metadata-node\n"
-                << "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
-                << "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
+                   "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
+                   "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"metadata\""
-                << ", \"" << metadata_node_root_name(mnr) << "\": " << objectId
-                << ", " "\"node\": \"" << node_path << '"'
-                << ", " "\"value\": \"" << value << '"'
-                << " }\n";
+                << "{ \"event\": \"metadata\""
+                   ", \"" << metadata_node_root_name(mnr) << "\": " << objectId
+                << ", \"node\": \"" << node_path << "\""
+                   ", \"value\": \"" << value << "\""
+                   " }\n";
             break;
         }
     }
@@ -1371,12 +1388,12 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"add-member\""
-                << ", " "\"db-id\": \"" << dbid << '"'
-                << ", " "\"member-name\": \"" << member_name << '"'
-                << ", " "\"db-or-table-name\": \"" << db_tbl_name << '"'
-                << ", " "\"mode\": \"[" << mode_string << "]\""
-                << " }\n";
+                << "{ \"event\": \"add-member\""
+                   ", \"db-id\": \"" << dbid << "\""
+                   ", \"member-name\": \"" << member_name << "\""
+                   ", \"db-or-table-name\": \"" << db_tbl_name << "\""
+                   ", \"mode\": \"[" << mode_string << "]\""
+                   " }\n";
             break;
         }
     }
@@ -1428,9 +1445,9 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"remote-path\""
-                << ", " "\"value\": \"" << path << '"'
-                << " }\n";
+                << "{ \"event\": \"remote-path\""
+                   ", \"value\": \"" << path << "\""
+                   " }\n";
             break;
         }
     }
@@ -1465,7 +1482,7 @@ namespace gw_dump
                 ;
             break;
         case 2:
-            std::cout << "{ " "\"event\": \"end\" }\n";
+            std::cout << "{ \"event\": \"end\" }\n";
             break;
         }
         return false;
@@ -1518,9 +1535,9 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"error\""
-                << ", " "\"message\": \"" << msg << '"'
-                << " }\n";
+                << "{ \"event\": \"error\""
+                   ", \"message\": \"" << msg << "\""
+                   " }\n";
             break;
         }
     }
@@ -1572,9 +1589,9 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"log\""
-                << ", " "\"message\": \"" << msg << '"'
-                << " }\n";
+                << "{ \"event\": \"log\""
+                   ", \"message\": \"" << msg << "\""
+                   " }\n";
             break;
         }
     }
@@ -1667,12 +1684,12 @@ namespace gw_dump
             break;
         case 2:
             std::cout
-                << "{ " "\"event\": \"progress\""
-                << ", " "\"timestamp\": \"" << time_str << '"'
-                << ", " "\"app\": \"" << app_name << '"'
-                << ", " "\"version\": \"" << ( _version >> 24 ) << '.' << ( ( _version >> 16 ) & 0xFF ) << '.' << ( _version & 0xFFFF ) << '"'
-                << ", " "\"pid\": " << _pid
-                << ", " "\"percent\": " << _percent
+                << "{ \"event\": \"progress\""
+                   ", \"timestamp\": \"" << time_str << "\""
+                   ", \"app\": \"" << app_name << "\""
+                   ", \"version\": \"" << ( _version >> 24 ) << '.' << ( ( _version >> 16 ) & 0xFF ) << '.' << ( _version & 0xFFFF ) << "\""
+                   ", \"pid\": " << _pid
+                << ", \"percent\": " << _percent
                 << " }\n";
             break;
         }
@@ -1940,10 +1957,10 @@ namespace gw_dump
 
         case 2:
             std::cout
-                << "{ " "\"event\": \"header\""
-                << ", " "\"version\": \"" << hdr.dad.version << '"'
-                << ", " "\"size\": " << hdr . dad . hdr_size
-                << ", " "\"packing\": " << (hdr . packing ? "true" : "false")
+                << "{ \"event\": \"header\""
+                   ", \"version\": \"" << hdr.dad.version << "\""
+                   ", \"size\": " << hdr . dad . hdr_size
+                << ", \"packing\": " << (hdr . packing ? "true" : "false")
                 << " }\n";
             break;
         }
