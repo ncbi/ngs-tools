@@ -700,7 +700,7 @@ namespace gw_dump
                 static auto machineByteOrder = ByteOrder::machine();
                 return uv.u8[machineByteOrder[i]];
             }
-            u8_4(uint32_t const &u32) : uv({.u32 = u32}) {}
+            u8_4(uint32_t const &u32) { uv.u32 = u32; }
         };
         char buffer[32];
 
@@ -1178,7 +1178,9 @@ namespace gw_dump
 
         check_software_name ( eh );
 
-        auto const &[software_name, version] = read2Strings(eh, in);
+        auto const &strings = read2Strings(eh, in);
+        auto const &software_name = strings.first;
+        auto const &version = strings.second;
 
         check_vers ( version . c_str () );
 
@@ -1252,7 +1254,9 @@ namespace gw_dump
         check_metadata_node ( eh );
 
         auto const objectId = id(eh.dad);
-        auto const &[node_path, value] = read2Strings(eh, in);
+        auto const &strings = read2Strings(eh, in);
+        auto const &node_path = strings.first;
+        auto const &value = strings.second;
 
         switch (display) {
         case 1:
@@ -1341,7 +1345,9 @@ namespace gw_dump
 
         auto const dbid = db_id ( eh );
         auto const cmode = create_mode ( eh );
-        auto const &[member_name, db_tbl_name] = read2Strings(eh, in);
+        auto const &r2s = read2Strings(eh, in);
+        auto const &member_name = r2s.first;
+        auto const &db_tbl_name = r2s.second;
         auto mode_string = std::string("???");
 
         switch ( cmode & kcmValueMask )
