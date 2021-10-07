@@ -28,6 +28,7 @@
 
 #include <iostream>
 #include <queue>
+#include <atomic>
 
 #include <atomic32.h>
 
@@ -65,11 +66,13 @@ public:
     }
     ~OutputQueue()
     {
+        KLockAcquire ( m_outputQueueLock );
         while ( m_queue . size () > 0 )
         {
             delete m_queue . front ();
             m_queue . pop ();
         }
+        KLockUnlock ( m_outputQueueLock );
 
         KLockRelease ( m_outputQueueLock );
     }
@@ -90,20 +93,22 @@ public:
     // called by the consumer; will block until items become available or the last producer goes away
     SearchBuffer :: Match * Pop ()
     {
-        while ( m_queue . size () == 0 && atomic32_read ( & m_producers ) > 0 )
-        {
-            KSleepMs(1);
-        }
-
-        assert ( m_queue . size () > 0 || atomic32_read ( & m_producers ) == 0 );
-
-        if ( m_queue . size () > 0 )
+        while ( true )
         {
             KLockAcquire ( m_outputQueueLock );
-            SearchBuffer :: Match * ret = m_queue . front ();
-            m_queue.pop();
+            if ( m_queue . size () > 0 )
+            {
+               SearchBuffer :: Match * ret = m_queue . front ();
+               m_queue.pop();
+               KLockUnlock ( m_outputQueueLock );
+               return ret;
+            }
             KLockUnlock ( m_outputQueueLock );
-            return ret;
+            if ( atomic32_read ( & m_producers ) == 0 )
+            {
+               break;
+            }
+            KSleepMs(1);
         }
 
         assert ( atomic32_read ( & m_producers ) == 0 );
@@ -128,7 +133,7 @@ struct VdbSearch :: SearchThreadBlock
     KLock *                                     m_searchQueueLock;
     VdbSearch :: SearchQueue :: const_iterator  m_nextSearch;
 
-    bool m_quitting;
+    atomic_bool m_quitting;
 
     SearchThreadBlock ( SearchQueue& p_search, OutputQueue& p_output )
     :   m_output ( p_output ),
@@ -266,11 +271,11 @@ VdbSearch :: ~VdbSearch ()
     // make sure all threads are gone before we release shared objects
     if ( m_searchBlock != 0 )
     {
-        m_searchBlock -> m_quitting = true;
+        m_searchBlock -> m_quitting . store ( true );
         for ( ThreadPool :: iterator i = m_threadPool . begin (); i != m_threadPool. end (); ++i )
         {
             //KThreadCancel ( *i ); does not work too well, instead using m_searchBlock -> m_quitting to command threads to exit orderly
-            KThreadWait  ( *i, 0 );
+            KThreadWait ( *i, 0 );
             KThreadRelease ( *i );
         }
         delete m_searchBlock;
@@ -297,17 +302,17 @@ VdbSearch :: GetSupportedAlgorithms ()
     return ret;
 }
 
-rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *self, void *data )
+rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *, void *data )
 {
     assert ( data );
     SearchThreadBlock& sb = * reinterpret_cast < SearchThreadBlock* > ( data );
     assert ( sb . m_searchQueueLock );
     // cout << "Thread " << (void*)self << " started " << endl;
-    while ( ! sb . m_quitting )
+    while ( ! sb . m_quitting . load() )
     {
         KLockAcquire ( sb . m_searchQueueLock );
         MatchIterator* it = 0;
-        while ( ! sb . m_quitting && sb . m_nextSearch != sb . m_search . end () )
+        while ( ! sb . m_quitting . load() && sb . m_nextSearch != sb . m_search . end () )
         {
             it = ( * sb . m_nextSearch ) -> NextIterator ();
             if ( it == 0 )
@@ -327,7 +332,7 @@ rc_t CC VdbSearch :: ThreadPerIterator ( const KThread *self, void *data )
         }
 
         // cout << "Thread " << (void*)self << " next iterator " << endl;
-        while ( ! sb . m_quitting )
+        while ( ! sb . m_quitting . load() )
         {
             SearchBuffer :: Match * m = it -> NextMatch ();
             if ( m == 0 )

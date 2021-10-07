@@ -53,9 +53,12 @@ ReferenceBlobIterator :: ReferenceBlobIterator ( ReferenceBlobIteratorRef ref ) 
 ReferenceBlobIterator &
 ReferenceBlobIterator :: operator = ( const ReferenceBlobIterator & obj )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
-    THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
+    if ( &obj != this)
+    {
+        HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+        THROW_ON_FAIL ( NGS_ReferenceBlobIteratorRelease ( self, ctx) );
+        THROW_ON_FAIL ( self = NGS_ReferenceBlobIteratorDuplicate ( obj . self, ctx) );
+    }
     return *this;
 }
 
@@ -100,4 +103,3 @@ ReferenceBlobIterator :: nextBlob()
     return ret;
 
 }
-

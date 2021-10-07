@@ -1,6 +1,15 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 2.11.2
+**October 7, 2021**
+
+  **klib, ngs-tools, sra-tools**: status messages (-v) are printed to stderr rather than stdout  
+  **kns, ngs-tools, sra-tools**: old verbose messages now happen at verbosity > 1  
+  **ncbi-vdb, ngs-tools, sra-tools, vdb, vfs**: added  support of SRA Lite files with simplified base quality scores  
+  **sra-search**: fixed a data race in reference-driven mode  
+
+
 ## NCBI NGS Toolkit 2.11.1
 **August 17, 2021**
 
