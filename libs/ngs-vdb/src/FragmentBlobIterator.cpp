@@ -33,8 +33,8 @@
 
 #include <kfc/except.h>
 
-#include <../libs/ngs/NGS_FragmentBlobIterator.h>
-#include <../libs/ngs/NGS_FragmentBlob.h>
+#include <../ncbi/ngs/NGS_FragmentBlobIterator.h>
+#include <../ncbi/ngs/NGS_FragmentBlob.h>
 
 #include "Error.hpp"
 

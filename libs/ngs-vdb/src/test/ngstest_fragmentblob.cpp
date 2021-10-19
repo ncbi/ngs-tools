@@ -33,10 +33,10 @@
 
 #include "ngs_c_fixture.hpp"
 
-#include <NGS_Cursor.h>
-#include <SRA_Read.h>
-#include <NGS_FragmentBlob.h>
-#include <NGS_FragmentBlobIterator.h>
+#include <../ncbi/ngs/NGS_Cursor.h>
+#include <../ncbi/ngs/SRA_Read.h>
+#include <../ncbi/ngs/NGS_FragmentBlob.h>
+#include <../ncbi/ngs/NGS_FragmentBlobIterator.h>
 
 #include <kfg/config.h> /* KConfigDisableUserSettings */
 
