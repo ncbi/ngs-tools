@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SPARKJAR="/usr/local/spark/1.2.0/lib/spark-assembly-1.2.0-hadoop2.5.0-cdh5.3.0.jar"
-NGSJAR="$HOME/ncbi-outdir/ngs-java/jar/ngs-java.jar"
+NGSJAR="$HOME/ncbi-outdir/sra-tools/ngs-java/jar/ngs-java.jar"
 DEPENDS="$SPARKJAR:$NGSJAR"
 GOVCLASS="$HOME/ncbi-outdir/ngs-java/cls/gov/*"
 NGSCLASS="$HOME/ncbi-outdir/ngs-java/cls/ngs/*"
