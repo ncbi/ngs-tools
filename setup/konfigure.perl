@@ -959,7 +959,7 @@ EndText
     if ($PIC) {
         if (PACKAGE_NAMW() eq 'NGS') {
             L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
-                .        "$INC\$(TOP)/ngs/\$(OSINC)/\$(ARCH)")
+                .        "$INC\$(TOP)/sra-tools/ngs/\$(OSINC)/\$(ARCH)")
         } elsif (PACKAGE_NAMW() eq 'NGS_BAM') {
             L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
                 . "$INC\$(NGS_INCDIR)/ngs/\$(OSINC)/\$(ARCH)")

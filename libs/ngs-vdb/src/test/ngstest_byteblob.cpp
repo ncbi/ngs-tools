@@ -35,10 +35,10 @@
 #include <vdb/database.h>
 #include <vdb/blob.h>
 
-#include <NGS_Cursor.h>
+#include <../ncbi/ngs/NGS_Cursor.h>
 
-#include <../libs/ngs/CSRA1_Reference.h>
-#include <../libs/ngs/VByteBlob.h>
+#include <../ncbi/ngs/CSRA1_Reference.h>
+#include <../ncbi/ngs/VByteBlob.h>
 
 #include <stdexcept>
 

@@ -52,14 +52,14 @@
 #include <vdb/database.h>
 #include <vdb/table.h>
 
-#include "NGS_ReadCollection.h"
-#include "NGS_Read.h"
-#include "NGS_ReadGroup.h"
-#include "NGS_Reference.h"
-#include "NGS_Alignment.h"
-#include "NGS_Statistics.h"
+#include "../ncbi/ngs/NGS_ReadCollection.h"
+#include "../ncbi/ngs/NGS_Read.h"
+#include "../ncbi/ngs/NGS_ReadGroup.h"
+#include "../ncbi/ngs/NGS_Reference.h"
+#include "../ncbi/ngs/NGS_Alignment.h"
+#include "../ncbi/ngs/NGS_Statistics.h"
 
-#include <NGS_String.h>
+#include <../ncbi/ngs/NGS_String.h>
 
 #define SHOW_UNIMPLEMENTED 0
 

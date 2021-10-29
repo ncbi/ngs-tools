@@ -33,9 +33,9 @@
 #include "ngs_c_fixture.hpp"
 #include <ktst/unit_test.hpp>
 
-#include "NGS_ReadCollection.h"
-#include "NGS_FragmentBlobIterator.h"
-#include "NGS_FragmentBlob.h"
+#include "../ncbi/ngs/NGS_ReadCollection.h"
+#include "../ncbi/ngs/NGS_FragmentBlobIterator.h"
+#include "../ncbi/ngs/NGS_FragmentBlob.h"
 
 #include <kdb/manager.h>
 
