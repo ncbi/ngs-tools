@@ -24,13 +24,16 @@
 # ===========================================================================
 #echo "$0 $*"
 
+#
+# Run 2 loaders on the same input file, vdb-dump the loaded objects and diff the outputs
+#
+
 # $1 - path to the tools (loaders and vdb-dump)
-# $2 - path to the schema (e.g. ncbi-vdb/interfaces)
-# $3 - work directory for temporary files (removed if successful)
-# $4 - command line for loader-1
-# $5 - output archive of loader-1
-# $6 - command line for loader-2
-# $7 - output archive of loader-2
+# $2 - work directory for temporary files (removed if successful)
+# $3 - command line for loader-1
+# $4 - output archive of loader-1
+# $5 - command line for loader-2
+# $6 - output archive of loader-2
 #
 # return codes:
 # 0 - passed
@@ -42,12 +45,11 @@
 # 6 - outputs differ
 
 SRA_BINDIR=$1
-VDB_INCDIR=$2
-TEMPDIR=$3
-CMDLINE1=$4
-OUTPUT1=$5
-CMDLINE2=$6
-OUTPUT2=$7
+TEMPDIR=$2
+CMDLINE1=$3
+OUTPUT1=$4
+CMDLINE2=$5
+OUTPUT2=$6
 
 DUMP="$SRA_BINDIR/vdb-dump"
 LOAD1="$SRA_BINDIR/$CMDLINE1"
@@ -65,11 +67,7 @@ if [ "$?" != "0" ] ; then
     exit 1
 fi
 
-echo "/vdb/schema/paths=\"${VDB_INCDIR}\"" >$TEMPDIR/tmp.kfg
-export VDB_CONFIG=$TEMPDIR
-#${SRA_BINDIR}/vdb-config --no-user-settings  /vdb/schema/paths
-
-#CMD="$LOAD $CMDLINE -o $TEMPDIR/obj --no-user-settings 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+# Load 1
 CMD="$LOAD1 1>$TEMPDIR/load1.stdout 2>$TEMPDIR/load1.stderr"
 echo $CMD
 eval $CMD
@@ -82,6 +80,7 @@ if [ "$rc" != "0" ] ; then
     exit 2
 fi
 
+# Dump 1
 CMD="$DUMP $OUTPUT1 >$TEMPDIR/dump1.stdout 2>$TEMPDIR/dump1.stderr"
 eval $CMD
 rc="$?"
@@ -92,6 +91,7 @@ if [ "$rc" != "0" ] ; then
     exit 3
 fi
 
+# Load 2
 CMD="$LOAD2 1>$TEMPDIR/load2.stdout 2>$TEMPDIR/load2.stderr"
 echo $CMD
 eval $CMD
@@ -104,6 +104,7 @@ if [ "$rc" != "0" ] ; then
     exit 4
 fi
 
+# Dump 2
 CMD="$DUMP $OUTPUT2 1>$TEMPDIR/dump2.stdout 2>$TEMPDIR/dump2.stderr"
 eval $CMD
 rc="$?"
@@ -114,12 +115,14 @@ if [ "$rc" != "0" ] ; then
     exit 5
 fi
 
+# Diff
 $DIFF $TEMPDIR/dump1.stdout $TEMPDIR/dump2.stdout >$TEMPDIR/diff
 rc="$?"
 if [ "$rc" != "0" ] ; then
     echo "outputs differ:"
+    echo "$DIFF $TEMPDIR/dump1.stdout $TEMPDIR/dump2.stdout"
     cat $TEMPDIR/diff
-    exit 5
+    exit 6
 fi
 
 rm -rf $TEMPDIR/* $OUTPUT1 $OUTPUT2

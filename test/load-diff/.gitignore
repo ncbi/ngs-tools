@@ -1,4 +1,4 @@
 log
 temp
-sharq
-latf
+*.sharq
+*.latf
