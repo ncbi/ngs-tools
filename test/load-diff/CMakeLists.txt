@@ -3,13 +3,27 @@ if( NOT WIN32 )
     macro( LoadDiffTest TestCase )
         add_test( NAME Test_LoadDiff_latf_sharq_${TestCase}
             COMMAND load-diff.sh ${SRATOOLS_BINDIR} ./temp
-                "latf-load --quality PHRED_33 ./input/1.fastq -o ${TestCase}.latf" ${TestCase}.latf
-                "sharq ./input/${TestCase}.fastq | ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}.sharq" ${TestCase}.sharq
+                "latf-load --quality PHRED_33 ./input/${TestCase} -o ${TestCase}.latf" ${TestCase}.latf
+                "sharq ./input/${TestCase} | ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}.sharq" ${TestCase}.sharq
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endmacro()
 
-    LoadDiffTest( 1 )
-    LoadDiffTest( 2 )
+    macro( LoadDiffTestPair TestCase File1 File2 latf-params)
+        add_test( NAME Test_LoadDiff_latf_sharq_${TestCase}
+            COMMAND load-diff.sh ${SRATOOLS_BINDIR} ./temp
+                "latf-load ${latf-params}  -1 ./input/${File1} -2 ./input/${File2} -o ${TestCase}.latf" ${TestCase}.latf
+                "sharq ./input/${File1} ./input/${File2} | ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}.sharq" ${TestCase}.sharq
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endmacro()
+
+    LoadDiffTest( 1.fastq )
+    LoadDiffTest( 2.fastq )
+    LoadDiffTest( BRA_AJ155.fastq)
+    LoadDiffTestPair( SRR12060554_IR SRR12060554_I1.fastq SRR12060554_R2.fastq "--quality PHRED_33")
+    LoadDiffTestPair( stLFR2_split_read stLFR2_split_read.1.fq stLFR2_split_read.2.fq "--quality PHRED_33")
+    LoadDiffTestPair( skin_S1_L001 skin_S1_L001_I1_001.fastq skin_S1_L001_R2_001.fastq "--quality PHRED_33")
+    LoadDiffTestPair( S1_3 S1_3_1.fq S1_3_2.fq "--quality PHRED_64")
 
 endif()

@@ -51,7 +51,7 @@ OUTPUT1=$4
 CMDLINE2=$5
 OUTPUT2=$6
 
-DUMP="$SRA_BINDIR/vdb-dump"
+DUMP="$SRA_BINDIR/vdb-dump -f json"
 LOAD1="$SRA_BINDIR/$CMDLINE1"
 LOAD2="$SRA_BINDIR/$CMDLINE2"
 
@@ -60,6 +60,8 @@ if [ "$(uname)" == "Darwin" ]; then
 else
     DIFF="diff -Z"
 fi
+
+DIFF="python sharq-diff.py"
 
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
