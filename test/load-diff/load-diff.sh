@@ -61,7 +61,7 @@ else
     DIFF="diff -Z"
 fi
 
-DIFF="python sharq-diff.py"
+DIFF="python3 sharq-diff.py"
 
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
