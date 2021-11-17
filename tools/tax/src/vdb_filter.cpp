@@ -116,7 +116,7 @@ int main(int argc, char const *argv[])
     Reader::Fragment fragment;
     while (reader.read(&fragment))
     {
-        auto nucl_seq = seq_transform_actg::to_upper_inplace(fragment.bases));
+        auto nucl_seq = seq_transform_actg::to_upper_inplace(fragment.bases);
         if (nucl_seq.len == 0)
             stat.nucl_empty++;
         else if (nucl_seq.len == 1) // usually (*)
