@@ -78,6 +78,16 @@ struct Filter
     }
 };
 
+bool is_nucl_string_char(char ch)
+{
+    return ch == 'A' || ch == 'C' || ch == 'T' || ch == 'G' || ch == 'N';
+}
+
+bool seems_like_nucl_string(p_string seq)
+{
+    return seq.len > 32 && is_nucl_string_char(seq.s[0]);
+}
+
 // limitations: accepts ACTG only, upper case, no N or other charachters
 int main(int argc, char const *argv[])
 {
@@ -92,7 +102,7 @@ int main(int argc, char const *argv[])
 
     Filter filter(config.db);
 
-    FastVdbReader reader(config.input);
+    FastVdbReader reader(config.input, false);
 
     struct Stat
     {
@@ -104,14 +114,14 @@ int main(int argc, char const *argv[])
     } stat;
 
     Reader::Fragment fragment;
-    while (reader.read(&fragment)))
+    while (reader.read(&fragment))
     {
         auto nucl_seq = seq_transform_actg::to_upper_inplace(fragment.bases));
         if (nucl_seq.len == 0)
             stat.nucl_empty++;
         else if (nucl_seq.len == 1) // usually (*)
             stat.nucl_one_char++;
-        else if (seems_line_nucl_string(nucl_seq))
+        else if (seems_like_nucl_string(nucl_seq))
             stat.nucl_valid++;
 
         if (!filter.fine_seq(nucl_seq)) {
