@@ -800,7 +800,7 @@ class FastVdbReader final: public Reader {
      * So I switched to reconstructing the value here from the base columns.
      */
     class AlignReader final : public VdbBaseReader {
-#define FULL_IMPLEMENTATION 1
+#define FULL_IMPLEMENTATION 0
 #if FULL_IMPLEMENTATION
         using HasRefOffsetCol = VdbBaseReader::Column<uint8_t>;
         using RefOffsetCol = VdbBaseReader::Column<int32_t>;
