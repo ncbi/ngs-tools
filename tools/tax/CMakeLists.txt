@@ -112,11 +112,15 @@ add_executable(print_dbs src/print_dbs.cpp)
 target_link_libraries(print_dbs PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(print_dbs tax)
 
+add_executable(seq_filter src/seq_filter.cpp)
+target_link_libraries(seq_filter PRIVATE ${SYS_LIBRARIES})
+links_and_install_subdir(seq_filter tax)
+
 include_directories(${CMAKE_SOURCE_DIR})
 
 install(TARGETS aligns_to dump_kmers build_index build_index_of_each_file merge_db merge_tax_ids merge_kingdoms build_index_multi db_to_dbs db_tax_id_to_dbs identify_tax_ids db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_dbs filter_db_multi
                   fasta_contamination fasta_contamination_multi find_closest_profile_linear
-                  contig_connectivity print_dbs sort_dbs
+                  contig_connectivity print_dbs sort_dbs seq_filter
           RUNTIME DESTINATION bin/tax)
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
