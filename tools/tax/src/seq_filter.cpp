@@ -136,7 +136,7 @@ int main(int argc, char const *argv[])
     string line;
     while (reader.readline(line))
     {
-        auto const nucl_seq = seq_transform_actg::to_upper_inplace(line));
+        auto const nucl_seq = seq_transform_actg::to_upper_inplace(line);
         if (nucl_seq.len == 0)
             stat.nucl_empty++;
         else if (nucl_seq.len == 1) // usually (*)
@@ -156,9 +156,9 @@ int main(int argc, char const *argv[])
     }
 
     cerr << "total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count() << endl;
-    std::cerr << "total sam lines processed: " << stat.total << endl;
-    std::cerr << "sam lines rejected by filter: " << stat.rejected << endl;
-    std::cerr << "sam lines having no sequence strings: " << stat.nucl_empty << endl;
-    std::cerr << "sam lines having 1 char sequence strings: " << stat.nucl_one_char << endl;
-    std::cerr << "sam lines having valid sequence strings: " << stat.nucl_valid << endl;
+    std::cerr << "total sequences processed: " << stat.total << endl;
+    std::cerr << "sequences rejected by filter: " << stat.rejected << endl;
+    std::cerr << "sequences having no sequence strings: " << stat.nucl_empty << endl;
+    std::cerr << "sequences having 1 char sequence strings: " << stat.nucl_one_char << endl;
+    std::cerr << "sequences having valid sequence strings: " << stat.nucl_valid << endl;
 }
