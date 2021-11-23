@@ -123,9 +123,15 @@ public:
 
         if (output) 
         {
-            auto end_pos = last_desc.find('/');
-            if (end_pos == std::string::npos)
-                end_pos = last_desc.size();
+            auto end_pos_sp = last_desc.find(' ');
+            if (end_pos_sp == std::string::npos)
+                end_pos_sp = last_desc.size();
+
+            auto end_pos_div = last_desc.find('/');
+            if (end_pos_div == std::string::npos)
+                end_pos_div = last_desc.size();
+
+            auto end_pos = std::min(end_pos_sp, end_pos_div);
 
 #if 0
             auto start_pos = end_pos - 1;
