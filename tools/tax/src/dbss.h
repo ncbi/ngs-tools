@@ -32,6 +32,8 @@
 #include "log.h"
 #include "missing_cpp_features.h"
 #include <algorithm>
+#include "taskflow/taskflow.hpp"
+#include <taskflow/algorithm/sort.hpp>
 
 
 struct DBSS
@@ -188,7 +190,7 @@ struct DBSS
     }
 
     template <class C>
-    static void load_dbss(std::vector<C> &hash_array, std::unique_ptr<DBSSReader> &dbss_reader, const TaxList &tax_list, const DBSAnnotation &annotation)
+    static void load_dbss(std::vector<C> &hash_array, std::unique_ptr<DBSSReader> &dbss_reader, const TaxList &tax_list, const DBSAnnotation &annotation, int num_threads)
     {
         hash_array.clear();
 
@@ -219,7 +221,14 @@ struct DBSS
         }
         
         LOG("dbss parts loaded (" << (total_hashes_count / 1000 / 1000) << "m kmers)");
-        std::sort(hash_array.begin(), hash_array.end()); // todo: parallel sort in new C++
+        if (num_threads > 0) {
+            tf::Executor executor(num_threads);
+            tf::Taskflow taskflow;
+            taskflow.sort(hash_array.begin(), hash_array.end());
+            executor.run(taskflow).wait();
+        } else {    
+            std::sort(hash_array.begin(), hash_array.end()); // todo: parallel sort in new C++
+        }
         LOG("dbss parts merged");
     }
 };

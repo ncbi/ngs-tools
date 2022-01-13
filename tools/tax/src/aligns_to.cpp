@@ -82,7 +82,7 @@ int main(int argc, char const *argv[])
     else if (!config.dbsm.empty())
         job = unique_ptr<DBSMJob>(new DBSMJob(config.dbsm));
     else if (!config.dbss.empty())
-        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list));
+        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list, config.num_threads));
 //    else if (!config.many.empty())
 //        job = make_unique<ManyJobs>(config.many);
     else
