@@ -51,11 +51,11 @@ void run_collator(tf::Executor& executor, bool compact, ostream& os, const strin
 
     //tax_hits_opt::is_compact()
     if (compact) {
-        auto tax_hits = std::make_unique<tc::Tax_hits<tc::tax_hits_options<true, false>>>(executor, true);
+        auto tax_hits = std::make_unique<tc::Tax_hits<tc::tax_hits_options<true, false>>>(true);
         tax_hits->init(file);
-        auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>();   
+        auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>(executor);   
         tax_hits.reset(0);
-        collated_tax_hits->group(os);
+        collated_tax_hits->group(executor, os);
         collated_tax_hits.reset(0);
         /*
         auto tax_hits = std::make_unique<tc::Tax_hits<Options>>(executor, true);
@@ -67,11 +67,11 @@ void run_collator(tf::Executor& executor, bool compact, ostream& os, const strin
         collated_tax_hits.reset(0);
         */
     } else {
-        auto tax_hits = std::make_unique<tc::Tax_hits<Options>>(executor, true);
+        auto tax_hits = std::make_unique<tc::Tax_hits<Options>>(true);
         tax_hits->init(file);
-        auto collated_tax_hits = tax_hits->template collate<Options>();   
+        auto collated_tax_hits = tax_hits->template collate<Options>(executor);   
         tax_hits.reset(0);
-        collated_tax_hits->print(os); 
+        collated_tax_hits->print(executor, os); 
     }
 }
 

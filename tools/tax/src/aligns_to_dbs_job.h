@@ -75,7 +75,7 @@ public:
     struct Matcher
     {
 #if LOOKUP_TABLE
-        typedef std::vector< std::pair<size_t, size_t> > HashLookupTable;
+        typedef std::vector<size_t> HashLookupTable;
         HashLookupTable hash_lookup_table;
         int hash_lookup_shift;
 #endif
@@ -100,15 +100,14 @@ public:
 
             const size_t bucket_count = size_t(1) << lookup_key_bits;
             LOG("creating lookup table with " << bucket_count << " buckets, on average " << (float(hash_array.size()) / bucket_count) << " hashes per bucket");
-            hash_lookup_table.resize(bucket_count);
+            hash_lookup_table.resize(bucket_count + 1);
 
             // figuring out bucket ranges
             size_t hash_idx = 0;
             hash_t last_hash = 0;
             for (size_t bucket_idx = 0; bucket_idx < bucket_count; ++bucket_idx)
             {
-                auto &bucket = hash_lookup_table[bucket_idx];
-                bucket.first = hash_idx;
+                hash_lookup_table[bucket_idx] = hash_idx;
                 while (true)
                 {
                     if (hash_idx >= hash_array.size())
@@ -122,18 +121,17 @@ public:
                     ++hash_idx;
                     last_hash = hash;
                 }
-                bucket.second = hash_idx;
             }
-#endif
+            hash_lookup_table[bucket_count] = hash_array.size();
+ #endif
         }
 
         int find_hash(hash_t hash, int default_value) const
         {
 #if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
-            auto &bucket = hash_lookup_table[bucket_idx];
-            auto first = hash_array.begin() + bucket.first;
-            auto last = hash_array.begin() + bucket.second;
+            auto first = hash_array.begin() + hash_lookup_table[bucket_idx];
+            auto last = hash_array.begin() + hash_lookup_table[bucket_idx + 1];            
 #else
             auto first = hash_array.begin();
             auto last = hash_array.end();
@@ -203,7 +201,6 @@ template<class TaxHitsO>
     {
         tc::Tax_hits<TaxHitsO> &tax_hits;
         const bool print_counts, compact;
-        std::mutex m_output_mutex;                  ///< protects output
         tc::Spot<TaxHitsO> spot;
         tc::Spot<TaxHitsO> last_spot;
 
@@ -229,7 +226,7 @@ template<class TaxHitsO>
                 } else {
                     tax_hits.add_row(last_spot);
                     swap(last_spot, spot);
-                }                
+                }
             }
             tax_hits.add_row(last_spot);
         }
@@ -368,10 +365,8 @@ template<class TaxHitsO>
     void run_collator(const std::string &filename, IO::Writer &writer, const Config &config)
     {
         //spdlog::stopwatch sw; 
-       tf::Executor executor(config.num_threads);
 
-
-        auto tax_hits = make_unique<tc::Tax_hits<Options>>(executor, true);
+        auto tax_hits = make_unique<tc::Tax_hits<Options>>(true);
         {
             Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
             TaxHitsPrinter tc_print(!hide_counts, compact, *tax_hits);
@@ -389,15 +384,16 @@ template<class TaxHitsO>
         if (config.vectorize) {
             tax_hits->save(filename);
         } else {
+            tf::Executor executor(config.num_threads);
             if (config.compact) {
-                auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>();   
+                auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>(executor);   
                 tax_hits.reset(0);
-                collated_tax_hits->group(writer.f());
+                collated_tax_hits->group(executor, writer.f());
                 collated_tax_hits.reset(0);
             } else {
-                auto collated_tax_hits = tax_hits->template collate<Options>();   
+                auto collated_tax_hits = tax_hits->template collate<Options>(executor);   
                 tax_hits.reset(0);
-                collated_tax_hits->print(writer.f()); 
+                collated_tax_hits->print(executor, writer.f()); 
                 collated_tax_hits.reset(0);
             }
         }

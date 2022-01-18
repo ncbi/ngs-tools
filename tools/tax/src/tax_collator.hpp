@@ -59,7 +59,6 @@ using namespace std::chrono;
 BEGIN_TC_NAMESPACE
 
 
-bm::chrono_taker<>::duration_map_type timing_map;
 
 
 /**
@@ -251,13 +250,11 @@ struct Tax_hits
     U32_rsc_matrix counts{"Counts"};       ///< tax_id's counts matrix
      
     atomic<size_t> num_merges {0};         ///< Number of occurred merges (telemetry)
-    size_t num_threads{16};                ///< Max number of allowed threads 
+    //size_t num_threads{16};                ///< Max number of allowed threads 
 
     mutex m_output_mutex;                  ///< protects output
 
     vector<uint32_t> spot_index;           ///< temporary index used by collate (sort and merge)
-    tf::Executor& m_executor;
-    //set<uint32_t> all_taxa;
 
     /**
      * @brief Construct a new Tax_hits object
@@ -265,17 +262,8 @@ struct Tax_hits
      * @param _num_threads 
      * @param use_null - flag to indicate if spot_names cane be nullable (and thus pruned more efficiently)
      */
-    Tax_hits(tf::Executor& executor, bool use_null = false);
-    /*
-    ~Tax_hits() {
-        cerr << "Tax_hits destructor begin" << endl;
-        cerr << "Destroying bi" << endl;
-        spot_names_bi.reset(0);
-        cerr << "Destroying name" << endl;
-        spot_names.reset(0);
-        cerr << "Tax_hits destructor end" << endl;
-    }
-    */
+    Tax_hits(bool use_null = false);
+
     /**
      * @brief Adds new spot stats
      * 
@@ -332,10 +320,11 @@ struct Tax_hits
     /**
      * @brief Print Tax_hits data into a stream
      * 
+     * @param executor 
      * @param os 
      * @param count - number of rows ro print (-1 prints all)
      */
-    void print(ostream& os, size_t count = -1); 
+    void print(tf::Executor& executor, ostream& os, size_t count = -1); 
     
     /**
      * @brief Get the spot object for a given row 
@@ -383,10 +372,11 @@ struct Tax_hits
      * empties itself upon completeion 
      * 
      * @tparam CollateOptions new collated TaxHits Options
+     * @param executor
      * @return unique_ptr<Tax_hits<CollateOptions>> new collated Tax_hits
      */
     template<class CollateOptions>
-    unique_ptr<Tax_hits<CollateOptions>> collate(); 
+    unique_ptr<Tax_hits<CollateOptions>> collate(tf::Executor& executor); 
 
     /**
      * Used by group()
@@ -416,7 +406,7 @@ struct Tax_hits
      * For more details See stat-compact-compute.pdf
      * 
      */
-    void group(ostream& os); 
+    void group(tf::Executor& executor, ostream& os); 
 
     /**
      * @brief Temporary buffer structure to perform asynchronous merge
@@ -673,8 +663,7 @@ void U32_rsc_matrix::get_row(uint32_t row_index, vector<uint32_t>& cols)
  * ----------------------------------------------------- */
 
 template<class Options>
-Tax_hits<Options>::Tax_hits(tf::Executor& executor, bool use_null) 
-    : m_executor(executor)
+Tax_hits<Options>::Tax_hits(bool use_null) 
 {
     spot_names = std::make_unique<str_sv_type>(use_null ? bm::use_null : bm::no_null);
     if (Options::is_compact() == false)
@@ -684,7 +673,6 @@ Tax_hits<Options>::Tax_hits(tf::Executor& executor, bool use_null)
 template<class Options>
 void Tax_hits<Options>::set_null(tf::Executor& executor, const bvector_type& bv) 
 {
-    bm::chrono_taker tt1(cerr, "set_null", 1, &timing_map);
 
     tf::Taskflow taskflow;
     taskflow.emplace([&]() { spot_names->set_null(bv);});
@@ -735,7 +723,6 @@ void Tax_hits<Options>::finalize()
     if (Options::is_compact() == false) {
         spot_names_bi->flush();
         spot_names_bi.reset(0);
-        bm::chrono_taker tt1(cerr, "remap", 1, &timing_map);
         spot_names->remap();
         //spot_names->optimize(TB);
     }
@@ -772,7 +759,7 @@ bool Tax_hits<Options>::init(const string& file_prefix)
     string spot_name_file = file_prefix + ".names";
     if (!file_exists(spot_name_file))
         return false;
-    //tf::Executor executor{4};
+    tf::Executor executor{4};
     tf::Taskflow taskflow;
     taskflow.emplace([this, spot_name_file]() { 
         spdlog::info("Loading '{}'", spot_name_file);
@@ -817,7 +804,7 @@ bool Tax_hits<Options>::init(const string& file_prefix)
             spdlog::info("Counters memory {:L}", hits_mem);
         });
     }
-    m_executor.run(taskflow).wait();
+    executor.run(taskflow).wait();
     return true;
 }
 
@@ -856,7 +843,6 @@ void Tax_hits<Options>::add_row(const Spot<Options>& spot)
 static 
 void serialize_vec(const string& file_name, str_sv_type& vec)
 {
-    //bm::chrono_taker tt1("Serialize acc list", 1, &timing_map);
     bm::sparse_vector_serializer<str_sv_type> serializer;
     bm::sparse_vector_serial_layout<str_sv_type> sv_lay;
     vec.optimize(TB);
@@ -912,11 +898,10 @@ void Tax_hits<Options>::save(const string& file_prefix)
 }
 
 template<class Options>
-void Tax_hits<Options>::print(ostream& os, size_t count) 
+void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count) 
 {
     int num_cols = tax_ids.num_cols;//size();
 
-    //tf::Executor executor{num_threads};
     tf::Taskflow taskflow;
 
     auto sz = count == - 1 ? spot_names->size() : count;
@@ -1006,7 +991,7 @@ void Tax_hits<Options>::print(ostream& os, size_t count)
         }
 
     }); 
-    m_executor.run(taskflow).wait();
+    executor.run(taskflow).wait();
     os.flush();
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     return;
@@ -1193,7 +1178,7 @@ void Tax_hits<Options>::group_columns(const vector<uint32_t>& rows, int num_colu
 
 
 template<class Options>
-void Tax_hits<Options>::group(ostream& os) 
+void Tax_hits<Options>::group(tf::Executor& executor, ostream& os) 
 {
     spdlog::stopwatch sw; 
     tf::Taskflow taskflow;
@@ -1204,7 +1189,7 @@ void Tax_hits<Options>::group(ostream& os)
         uint32_t sz = 0;
         vector<uint32_t> val;
     } sort_cache;
-    vector<sort_cache> s_caches(m_executor.num_workers());
+    vector<sort_cache> s_caches(executor.num_workers());
     std::locale::global(std::locale("C")); // disable comma as thousand separator
 
 
@@ -1227,10 +1212,10 @@ void Tax_hits<Options>::group(ostream& os)
         print_task.name(fmt::format("Cardinality {} print", col_index + 1));
 
         if (col_index == 0) {
-            auto sort_task = taskflow.sort(index.begin(), index.end(), [this, &s_caches, cardinality = col_index + 1](uint32_t l, uint32_t r)->bool {
+            auto sort_task = taskflow.sort(index.begin(), index.end(), [this, &executor, &s_caches, cardinality = col_index + 1](uint32_t l, uint32_t r)->bool {
                 try {
                     auto& v = *tax_ids.data.front();
-                    auto& ch = s_caches[m_executor.this_worker_id()];
+                    auto& ch = s_caches[executor.this_worker_id()];
                     if (ch.val.size() != cardinality) {
                         ch.val.resize(cardinality, 0);
                         ch.r = r;
@@ -1249,13 +1234,13 @@ void Tax_hits<Options>::group(ostream& os)
             sort_task.precede(print_task);
         } else {
 
-            auto sort_task = taskflow.sort(index.begin(), index.end(), [this, &s_caches, cardinality = col_index + 1](uint32_t l, uint32_t r)->bool {
+            auto sort_task = taskflow.sort(index.begin(), index.end(), [this, &executor, &s_caches, cardinality = col_index + 1](uint32_t l, uint32_t r)->bool {
                 try {
                 uint32_t value_l;
                 uint32_t value_r;
 
                 //static thread_local sort_cache ch;//(col_index + 1);
-                auto& ch = s_caches[m_executor.this_worker_id()];
+                auto& ch = s_caches[executor.this_worker_id()];
                 if (ch.val.size() != cardinality) {
                     ch.val.resize(cardinality, 0);
                     ch.r = r;
@@ -1314,9 +1299,9 @@ void Tax_hits<Options>::group(ostream& os)
 
     };
 
-    std::shared_ptr<MyObserver> observer = m_executor.make_observer<MyObserver>();
-    m_executor.run(taskflow).wait();
-    m_executor.remove_observer(std::move(observer));
+    std::shared_ptr<MyObserver> observer = executor.make_observer<MyObserver>();
+    executor.run(taskflow).wait();
+    executor.remove_observer(std::move(observer));
     os.flush();
     std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     spdlog::info("Grouping took {:.3}", sw);       
@@ -1440,13 +1425,13 @@ void Tax_hits<Options>::merge(tf::Executor& executor, Tax_hits<CollateOptions>& 
                     swap(merge_data_curr, merge_data_batch);
                     merge_data_curr.clear();
                     if (total_null >= 10e6) {
-                        set_null(m_executor, null_spots_batch);
+                        set_null(executor, null_spots_batch);
                         null_spots_batch.clear();
                         total_null = 0;
                     } 
                     null_spots_batch.bit_or(null_spots_curr);
                     null_spots_curr.clear();
-                    merge_ft = run_merge(m_executor, merge_data_batch, tax_hits);
+                    merge_ft = run_merge(executor, merge_data_batch, tax_hits);
                 } else {
                     max_size = min<int>(batch_size, max_size + 100);
                 }
@@ -1475,18 +1460,18 @@ void Tax_hits<Options>::merge(tf::Executor& executor, Tax_hits<CollateOptions>& 
     ///set_null(executor, null_spots_batch);
     //null_spots_batch.clear(true);
 
-    run_merge(m_executor, merge_data_curr, tax_hits).wait();
+    run_merge(executor, merge_data_curr, tax_hits).wait();
     spdlog::info("Collation took {:.3}", sw);
 }
 
 
 template<class Options>
 template<class CollateOptions>
-unique_ptr<Tax_hits<CollateOptions>> Tax_hits<Options>::collate() 
+unique_ptr<Tax_hits<CollateOptions>> Tax_hits<Options>::collate(tf::Executor& executor) 
 { 
-    sort(m_executor);
-    auto merged_tax_hits = std::make_unique<Tax_hits<CollateOptions>>(m_executor, false);
-    merge(m_executor, *merged_tax_hits);
+    sort(executor);
+    auto merged_tax_hits = std::make_unique<Tax_hits<CollateOptions>>(false);
+    merge(executor, *merged_tax_hits);
     clear();
     merged_tax_hits->finalize();
     if (CollateOptions::is_compact()) {
