@@ -44,6 +44,8 @@ private:
     size_t spot_count = 0, read_count = 0;
     std::string last_desc;
     std::string last_spot_id;
+    std::string tmp_line;
+
 
     static bool is_description(const std::string &s)
 	{
@@ -120,18 +122,10 @@ public:
     {
         if (f->eof())
             return false;
-
-        if (output) 
-        {
-            auto end_pos_sp = last_desc.find(' ');
-            if (end_pos_sp == std::string::npos)
-                end_pos_sp = last_desc.size();
-
-            auto end_pos_div = last_desc.find('/');
-            if (end_pos_div == std::string::npos)
-                end_pos_div = last_desc.size();
-
-            auto end_pos = std::min(end_pos_sp, end_pos_div);
+        if (output) {    
+            auto end_pos = last_desc.find_first_of(" /");
+            if (end_pos == std::string::npos)
+                end_pos = last_desc.size();
 
 #if 0
             auto start_pos = end_pos - 1;
@@ -144,32 +138,35 @@ public:
             output->spotid.assign(last_desc, start_pos + 1, end_pos - 1 - start_pos);
             output->bases.clear();
             output->bases.reserve(300); // todo: tune
-        }
 
-		std::string line;
-		while (!f->eof()) 
-        {
-            read_line(line);
-
-            if (is_description(line)) 
+            while (!f->eof()) 
             {
-                last_desc = line;
-                break;
-            } 
-            else if (output)
-                output->bases += line;
-        }
+                read_line(tmp_line);
+                if (is_description(tmp_line)) {
+                    last_desc = tmp_line;
+                    break;
+                } 
+                output->bases += tmp_line;
+            }
 
-        if (output) 
-        {
             if (output->bases.empty())
                 throw std::runtime_error(std::string("Read is empty: ") + last_desc);
 //            output->bases.shrink_to_fit(); todo: tune
-
             read_count ++;
             if (last_spot_id != output->spotid)
                 spot_count ++;
             last_spot_id = output->spotid;
+
+        } else {
+
+            while (!f->eof()) 
+            {
+                read_line(tmp_line);
+                if (is_description(tmp_line)) {
+                    last_desc = tmp_line;
+                    break;
+                } 
+            }
         }
 
         return true;
