@@ -211,13 +211,13 @@ template<class TaxHitsO>
             for (auto seq_id : ids) {
                 spot.name = processing_sequences[seq_id.seq_id].spotid;
                 spot.tax_id.clear();
-                if (TaxHitsO::has_counts()) {
+                if constexpr (TaxHitsO::has_counts()) {
                     spot.counts.clear();
                 }
                 for_each(spot.name.begin(), spot.name.end(), [](char& c) { if (c == '\n' || c == '\t') c = ' ';});
                 for (auto &hit : seq_id.hits) {
                     spot.tax_id.push_back(hit.first);
-                    if (TaxHitsO::has_counts()) {
+                    if constexpr (TaxHitsO::has_counts()) {
                         spot.counts.push_back(hit.second);
                     }
                 }

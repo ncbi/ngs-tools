@@ -450,7 +450,7 @@ void Spot<Options>::init(vector<string>& fields)
     assert(!fields.empty());
     name = move(fields[0]);
     tax_id.clear();
-    if (Options::has_counts()) 
+    if constexpr (Options::has_counts()) 
         counts.clear();
     for (int i = 1; i < fields.size(); ++i) {
         string& str{fields[i]};
@@ -458,11 +458,11 @@ void Spot<Options>::init(vector<string>& fields)
         try {
             if (pos == string::npos) {
                 tax_id.push_back(stoi(str));
-                if (Options::has_counts())
+                if constexpr (Options::has_counts())
                     counts.push_back(1);
             } else {    
                 tax_id.push_back(stoi(str.substr(0, pos)));
-                if (Options::has_counts())
+                if constexpr (Options::has_counts())
                     counts.push_back(stoi(str.substr(pos + 1)));
             }
 
@@ -476,14 +476,14 @@ template<class Options>
 void Spot<Options>::add_taxa(const Spot<Options>& spot) 
 {
     tax_id.insert(tax_id.end(), spot.tax_id.begin(), spot.tax_id.end());
-    if (Options::has_counts())
+    if constexpr (Options::has_counts())
         counts.insert(counts.end(), spot.counts.begin(), spot.counts.end());
 }
 
 template<class Options>
 void Spot<Options>::normalize() 
 {
-    if (Options::has_counts()) {
+    if constexpr (Options::has_counts()) {
         static thread_local vector<uint32_t> new_tax_id;
         static thread_local vector<uint32_t> new_counts;
         static thread_local vector<int> index;
@@ -666,7 +666,7 @@ template<class Options>
 Tax_hits<Options>::Tax_hits(bool use_null) 
 {
     spot_names = std::make_unique<str_sv_type>(use_null ? bm::use_null : bm::no_null);
-    if (Options::is_compact() == false)
+    if constexpr (Options::is_compact() == false)
         spot_names_bi = std::make_unique<str_sv_type::back_insert_iterator>(spot_names.get());        
 }
 
@@ -686,7 +686,7 @@ void Tax_hits<Options>::set_null(tf::Executor& executor, const bvector_type& bv)
             cerr << e.what() << endl;
         }
     });
-    if (Options::has_counts()) {
+    if constexpr (Options::has_counts()) {
         taskflow.for_each(counts.data.begin(), counts.data.end(), [&](unique_ptr<U32_rsc_matrix::vector_type>& data) { 
             try {
                 data->clear(bv);
@@ -706,7 +706,7 @@ void Tax_hits<Options>::clear()
 {
     spot_names->clear_all(true);
     tax_ids.clear();
-    if (Options::has_counts()) 
+    if constexpr (Options::has_counts()) 
         counts.clear();
 }
 
@@ -720,14 +720,14 @@ bool file_exists (const std::string& name) {
 template<class Options>
 void Tax_hits<Options>::finalize() 
 {
-    if (Options::is_compact() == false) {
+    if constexpr (Options::is_compact() == false) {
         spot_names_bi->flush();
         spot_names_bi.reset(0);
         spot_names->remap();
         //spot_names->optimize(TB);
     }
     tax_ids.finalize();
-    if (Options::has_counts())
+    if constexpr (Options::has_counts())
         counts.finalize();
     optimize();    
 }
@@ -736,7 +736,7 @@ void Tax_hits<Options>::finalize()
 template<class Options>
 void Tax_hits<Options>::optimize(bool print_stats) 
 {
-    if (Options::is_compact() == false) {
+    if constexpr (Options::is_compact() == false) {
         spot_names->optimize(TB);
         str_sv_type::statistics st;    
 //        spot_names->optimize(TB, bvector_type::opt_compress, &st); // doesn't work, returns incorrect stat
@@ -748,7 +748,7 @@ void Tax_hits<Options>::optimize(bool print_stats)
         }
     }
     tax_ids.optimize(print_stats);
-    if (Options::has_counts())
+    if constexpr (Options::has_counts())
         counts.optimize(print_stats);
 }
 
@@ -786,7 +786,7 @@ bool Tax_hits<Options>::init(const string& file_prefix)
         spdlog::info("Tax_id memory {:L}", tax_id_mem);
 
     });
-    if (Options::has_counts()) {
+    if constexpr (Options::has_counts()) {
         string hits_file = file_prefix + ".counts";
         if (!file_exists(hits_file))
             return false;
@@ -811,7 +811,7 @@ bool Tax_hits<Options>::init(const string& file_prefix)
 template<class Options>
 void Tax_hits<Options>::add_row(const Spot<Options>& spot)
 {
-    if (Options::is_compact()  == false) {
+    if constexpr (Options::is_compact()  == false) {
         if (spot.name.empty())
             return;
         *spot_names_bi = spot.name;
@@ -821,14 +821,14 @@ void Tax_hits<Options>::add_row(const Spot<Options>& spot)
     if (tax_ids.num_cols < spot_sz) {
         int n = spot_sz - tax_ids.num_cols;
         tax_ids.add_column(n);
-        if (Options::has_counts())
+        if constexpr (Options::has_counts())
             counts.add_column(n);
     }
     assert(tax_ids.num_cols >= spot_sz) ;
     for (int i = 0; i < spot_sz; ++i) {
         //all_taxa.insert(spot.tax_id[i]);
         tax_ids.add_value(spot.tax_id[i]);
-        if (Options::has_counts()) {
+        if constexpr (Options::has_counts()) {
             if (spot.counts[i] > 1) 
                 counts.add_value(spot.counts[i]);
             else     
@@ -836,7 +836,7 @@ void Tax_hits<Options>::add_row(const Spot<Options>& spot)
         }
     }
     tax_ids.end_row();
-    if (Options::has_counts()) 
+    if constexpr (Options::has_counts()) 
         counts.end_row();
 }
 
@@ -856,7 +856,7 @@ void serialize_vec(const string& file_name, str_sv_type& vec)
 template<class Options>
 void Tax_hits<Options>::save(const string& file_prefix) 
 {
-    if (Options::is_compact() == false) {
+    if constexpr (Options::is_compact() == false) {
         serialize_vec(file_prefix + ".names", *spot_names);
         str_sv_type::statistics st;
         spot_names->calc_stat(&st);
@@ -864,7 +864,7 @@ void Tax_hits<Options>::save(const string& file_prefix)
     }
 
     tax_ids.save(file_prefix + ".taxa");
-    if (Options::has_counts())
+    if constexpr (Options::has_counts())
         counts.save(file_prefix + ".counts");
     /*
     ofstream os(file_prefix + ".tax.stats", ios::out);
@@ -885,7 +885,7 @@ void Tax_hits<Options>::save(const string& file_prefix)
         spdlog::info("number of tax_id {:L}, tax_id memory {:L}", tax_ids.num_values, tax_id_mem);
     }
 
-    if (Options::has_counts()) {
+    if constexpr (Options::has_counts()) {
         U32_rsc_matrix::vector_type::statistics t_st;
         size_t hits_mem = 0;
         size_t hits_num = 0;
@@ -925,7 +925,7 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
             tax_id_b.push_back(std::make_unique<U32_rsc_matrix::vector_type::const_iterator>(v.get(), start_pos));
         }
         vector<unique_ptr<U32_rsc_matrix::vector_type::const_iterator>> hits_b;
-        if (Options::has_counts()) {
+        if constexpr (Options::has_counts()) {
             for (const auto& v : counts.data) {
                 //v->sync();
                 hits_b.push_back(std::make_unique<U32_rsc_matrix::vector_type::const_iterator>(v.get(), start_pos));
@@ -936,12 +936,12 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
         std::stringstream ss;
 
         while (c < page_size && it.valid()) {
-            if (Options::is_compact() == false) {
+            if constexpr (Options::is_compact() == false) {
                 if (it.is_null()) {
                     it.advance();
                     for (int i = 0; i < num_cols; ++i) {
                         tax_id_b[i].get()->advance();
-                        if (Options::has_counts())
+                        if constexpr (Options::has_counts())
                             hits_b[i].get()->advance();
                     }
                     ++c;
@@ -958,7 +958,7 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
                 assert(t_it->value() > 0);
                 ss << t_it->value(); 
                 t_it->advance();
-                if (Options::has_counts()) {
+                if constexpr (Options::has_counts()) {
                     auto hits_it = hits_b[i].get();
                     if (hits_it->is_null() == false) {
                         ss << 'x' << hits_it->value(); 
@@ -968,7 +968,7 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
             }
             for (; i < num_cols; ++i) {
                 tax_id_b[i].get()->advance();
-                if (Options::has_counts())
+                if constexpr (Options::has_counts())
                     hits_b[i].get()->advance();
             }
             {        
@@ -1005,7 +1005,7 @@ void Tax_hits<Options>::get_spot(uint32_t index, Spot<SpotOptions>& spot, bool g
     if (get_name)
         spot_names->get(index, spot.name);
     spot.tax_id.clear();
-    if (SpotOptions::has_counts()) 
+    if constexpr (SpotOptions::has_counts()) 
         spot.counts.clear();
     auto sz = tax_ids.data.size();
     uint32_t value = 0;
@@ -1015,7 +1015,7 @@ void Tax_hits<Options>::get_spot(uint32_t index, Spot<SpotOptions>& spot, bool g
             break;
         assert(value > 0);    
         spot.tax_id.push_back(value);
-        if (SpotOptions::has_counts()) {
+        if constexpr (SpotOptions::has_counts()) {
             auto& h = *counts.data[i];
             if (!h.try_get_sync(index, value))
                 value = 1;
@@ -1474,10 +1474,10 @@ unique_ptr<Tax_hits<CollateOptions>> Tax_hits<Options>::collate(tf::Executor& ex
     merge(executor, *merged_tax_hits);
     clear();
     merged_tax_hits->finalize();
-    if (CollateOptions::is_compact()) {
+    if constexpr (CollateOptions::is_compact()) {
         merged_tax_hits->spot_names.reset(0);
         //clear_all(true);
-        if (CollateOptions::has_counts()) {
+        if constexpr (CollateOptions::has_counts()) {
             merged_tax_hits->counts.clear();
         }
     }
