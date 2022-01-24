@@ -37,7 +37,7 @@ namespace bm
 {
 
 
-inline 
+template<bool LWA=false, bool RWA=false>
 bm::id_t bit_block_calc_count_range(const bm::word_t* block,
                                     bm::word_t left,
                                     bm::word_t right) BMNOEXCEPT;
@@ -1697,18 +1697,27 @@ unsigned gap_bfind(const T* BMRESTRICT buf,
         return VECT_GAP_BFIND(buf, pos, is_set);
     #else
         *is_set = (*buf) & 1;
-
         unsigned start = 1;
         unsigned end = 1 + ((*buf) >> 3);
-
-        while ( start != end )
+        while (start != end)
         {
+            if ((end - start) < 16) // use direct scan on short span
+            {
+                do
+                {
+                    if (buf[start] >= pos)
+                        goto break2;
+                } while (++start);
+                BM_ASSERT(0); // should not get here
+                break;
+            }
             unsigned curr = (start + end) >> 1;
             if ( buf[curr] < pos )
                 start = curr + 1;
             else
                 end = curr;
-        }
+        } // while
+        break2:
         *is_set ^= ((start-1) & 1);
         return start;
     #endif
@@ -2317,9 +2326,8 @@ unsigned gap_bit_count_unr(const T* buf) BMNOEXCEPT
     
     const T* pend = buf + dsize;
     for ( ; pcurr <= pend ; pcurr+=2)
-    {
         cnt += *pcurr - *(pcurr - 1);
-    }
+
     BM_ASSERT(cnt == bm::gap_bit_count(buf));
     return cnt;
 }
@@ -2330,44 +2338,92 @@ unsigned gap_bit_count_unr(const T* buf) BMNOEXCEPT
    \brief Counts 1 bits in GAP buffer in the closed [left, right] range.
    \param buf - GAP buffer pointer.
    \param left - leftmost bit index to start from
-   \param right- rightmost bit index
+   \param right - rightmost bit index
+   \param pos - position in the
    \return Number of non-zero bits.
    @ingroup gapfunc
 */
-template<typename T>
+template<typename T, bool RIGHT_END = false>
 unsigned gap_bit_count_range(const T* const buf,
                              unsigned left, unsigned right) BMNOEXCEPT
 {
     BM_ASSERT(left <= right);
     BM_ASSERT(right < bm::gap_max_bits);
     
-    const T* pcurr = buf;
-    const T* pend = pcurr + (*pcurr >> 3);
-    
-    unsigned bits_counter = 0;
-    unsigned is_set;
+    unsigned is_set, bits_counter, prev_gap;
     unsigned start_pos = bm::gap_bfind(buf, left, &is_set);
     is_set = ~(is_set - 1u); // 0xFFF.. if true (mask for branchless code)
 
-    pcurr = buf + start_pos;
+    const T* pcurr = buf + start_pos;
     if (right <= *pcurr) // we are in the target gap right now
+        bits_counter = unsigned(right - left + 1u) & is_set;
+    else
     {
-        bits_counter = unsigned(right - left + 1u) & is_set; // & is_set == if(is_set)
-        return bits_counter;
+        bits_counter = unsigned(*pcurr - left + 1u) & is_set;
+        if constexpr (RIGHT_END) // count to the end
+        {
+            BM_ASSERT(right == bm::gap_max_bits-1);
+            for (prev_gap = *pcurr++ ;true; prev_gap = *pcurr++)
+            {
+                bits_counter += (is_set ^= ~0u) & (*pcurr - prev_gap);
+                if (*pcurr == bm::gap_max_bits-1)
+                    break;
+            } // for
+        }
+        else // true range search here
+        {
+            for (prev_gap = *pcurr++; right > *pcurr; prev_gap = *pcurr++)
+                bits_counter += (is_set ^= ~0u) & (*pcurr - prev_gap);
+            bits_counter += unsigned(right - prev_gap) & (is_set ^ ~0u);
+        }
     }
-    bits_counter += unsigned(*pcurr - left + 1u) & is_set;
+    return bits_counter;
 
-    unsigned prev_gap = *pcurr++;
-    for (is_set ^= ~0u; right > *pcurr; is_set ^= ~0u)
+}
+
+/*!
+   \brief Counts 1 bits in GAP buffer in the closed [left, right] range using position hint to avoid bfind
+   \param buf - GAP buffer pointer.
+   \param left - leftmost bit index to start from
+   \param right - rightmost bit index
+   \param pos - position in the
+   \param hint - position hint
+   \return Number of non-zero bits.
+   @ingroup gapfunc
+*/
+template<typename T>
+unsigned gap_bit_count_range_hint(const T* const buf,
+                  unsigned left, unsigned right, unsigned hint) BMNOEXCEPT
+{
+    BM_ASSERT(left <= right);
+    BM_ASSERT(right < bm::gap_max_bits);
+
+    unsigned is_set, bits_counter, prev_gap;
+
+    // process the hint instead of binary search
+    is_set = hint & 1;
+    is_set = ~(is_set - 1u); // 0xFFF.. if true (mask for branchless code)
+    unsigned start_pos = hint >> 1;
     {
-        bits_counter += (*pcurr - prev_gap) & is_set;
-        if (pcurr == pend) 
-            return bits_counter;
-        prev_gap = *pcurr++;
+        unsigned is_set_c; (void)is_set_c;
+        unsigned pos; (void)pos;
+        BM_ASSERT((pos = bm::gap_bfind(buf, left, &is_set_c))==start_pos);
+        BM_ASSERT(bool(is_set) == bool(is_set_c));
     }
-    bits_counter += unsigned(right - prev_gap) & is_set;
+
+    const T* pcurr = buf + start_pos;
+    if (right <= *pcurr) // we are in the target gap right now
+        bits_counter = unsigned(right - left + 1u) & is_set;
+    else
+    {
+        bits_counter = unsigned(*pcurr - left + 1u) & is_set;
+        for (prev_gap = *pcurr++; right > *pcurr; prev_gap = *pcurr++)
+            bits_counter += (is_set ^= ~0u) & (*pcurr - prev_gap);
+        bits_counter += unsigned(right - prev_gap) & (is_set ^ ~0u);
+    }
     return bits_counter;
 }
+
 
 /*!
    \brief Test if all bits are 1 in GAP buffer in the [left, right] range.
@@ -2600,6 +2656,7 @@ SIZE_TYPE gap_find_rank(const T* const block,
     \return Number of non-zero bits
     @ingroup gapfunc
 */
+/*
 template<typename T>
 unsigned gap_bit_count_to(const T* const buf, T right,
                           bool is_corrected=false) BMNOEXCEPT
@@ -2635,6 +2692,40 @@ unsigned gap_bit_count_to(const T* const buf, T right,
     bits_counter -= (is_set & unsigned(is_corrected));
     return bits_counter;
 }
+*/
+template<typename T, bool TCORRECT=false>
+unsigned gap_bit_count_to(const T* const buf, T right) BMNOEXCEPT
+{
+    BM_ASSERT(right < bm::gap_max_bits);
+
+    unsigned bits_counter, prev_gap;
+
+    unsigned is_set = ~((unsigned(*buf) & 1u) - 1u); // 0xFFF.. if true (mask for branchless code)
+    const T* pcurr = buf + 1;
+    if (right <= *pcurr) // we are in the target block right now
+    {
+        bits_counter = (right + 1u) & is_set; // & is_set == if (is_set)
+    }
+    else
+    {
+        bits_counter = (*pcurr + 1u) & is_set;
+        prev_gap = *pcurr++;
+        for (is_set ^= ~0u; right > *pcurr; is_set ^= ~0u, prev_gap = *pcurr++)
+        {
+            bits_counter += (*pcurr - prev_gap) & is_set;
+            if (*pcurr == bm::gap_max_bits-1)
+                goto cret;
+        }
+        bits_counter += (right - prev_gap) & is_set;
+    }
+
+    cret:
+    if constexpr (TCORRECT)
+        bits_counter -= (is_set & unsigned(TCORRECT));
+    return bits_counter;
+}
+
+
 
 /*!
     D-GAP block for_each algorithm
@@ -5189,9 +5280,11 @@ bool bit_block_is_all_one_range(const bm::word_t* const BMRESTRICT block,
     the range between left anf right bits (borders included)
     Make sure the addr is aligned.
 
+    LWA - left word aligned
+    RWA - right word aligned
     @ingroup bitfunc
 */
-inline 
+template<bool LWA, bool RWA>
 bm::id_t bit_block_calc_count_range(const bm::word_t* block,
                                     bm::word_t left,
                                     bm::word_t right) BMNOEXCEPT
@@ -5199,60 +5292,76 @@ bm::id_t bit_block_calc_count_range(const bm::word_t* block,
     BM_ASSERT(left <= right);
     BM_ASSERT(right <= bm::gap_max_bits-1);
     
-    unsigned nword, nbit, bitcount, count;
+    unsigned nword, nbit, bitcount, count, right_margin;
     nbit = left & bm::set_word_mask;
-    const bm::word_t* word = 
-        block + (nword = unsigned(left >> bm::set_word_shift));
+    block += (nword = unsigned(left >> bm::set_word_shift));
     if (left == right)  // special case (only 1 bit to check)
+        return (*block >> nbit) & 1u;
+
+    bitcount = 1u + (right_margin = (right - left));
+    if constexpr (LWA)
     {
-        return (*word >> nbit) & 1u;
+        BM_ASSERT(!nbit);
+        count = 0;
     }
-    
-    count = 0;
-    bitcount = right - left + 1u;
-    if (nbit) // starting position is not aligned
-    {
-        unsigned right_margin = nbit + right - left;
-        if (right_margin < 32)
+    else
+        if (nbit) // starting position is not aligned
         {
+            right_margin += nbit;
             unsigned mask_r = bm::mask_r_u32(nbit);
-            unsigned mask_l = bm::mask_l_u32(right_margin);
-            unsigned mask = mask_r & mask_l;
-            return bm::word_bitcount(*word & mask);
+            if (right_margin < 32)
+            {
+                unsigned mask_l = bm::mask_l_u32(right_margin);
+                return bm::word_bitcount(mask_r & mask_l & *block);
+            }
+            count = bm::word_bitcount(*block++ & mask_r);
+            bitcount -= 32 - nbit;
         }
-        unsigned mask_r = bm::mask_r_u32(nbit);
-        count = bm::word_bitcount(*word & mask_r);
-        bitcount -= 32 - nbit;
-        ++word;
-    }
-    
+        else
+            count = 0;
+
     // now when we are word aligned, we can count bits the usual way
     //
     #if defined(BM64_SSE4) || defined(BM64_AVX2) || defined(BM64_AVX512)
+        for ( ;bitcount >= 128; bitcount-=128)
+        {
+            const bm::id64_t* p64 = (bm::id64_t*) block;
+            bm::id64_t w64_0 = p64[0]; // x86 unaligned(!) read
+            bm::id64_t w64_1 = p64[1];
+            count += unsigned(_mm_popcnt_u64(w64_0));
+            count += unsigned(_mm_popcnt_u64(w64_1));
+            block += 4;
+        }
         for ( ;bitcount >= 64; bitcount-=64)
         {
-            bm::id64_t w64 = *((bm::id64_t*)word); // x86 unaligned(!) read
+            bm::id64_t w64 = *((bm::id64_t*)block); // x86 unaligned(!) read
             count += unsigned(_mm_popcnt_u64(w64));
-            word += 2;
+            block += 2;
         }
         if (bitcount >= 32)
         {
-            count += bm::word_bitcount(*word++);
+            count += bm::word_bitcount(*block++);
             bitcount-=32;
         }
     #else
-        for ( ;bitcount >= 32; bitcount-=32, ++word)
-            count += bm::word_bitcount(*word);
+        for ( ;bitcount >= 32; bitcount-=32)
+            count += bm::word_bitcount(*block++);
     #endif
     BM_ASSERT(bitcount < 32);
     
-    if (bitcount)  // we have a tail to count
+    if constexpr (RWA)
     {
-        unsigned mask_l = bm::mask_l_u32(bitcount-1);
-        count += bm::word_bitcount(*word & mask_l);
+        BM_ASSERT(!bitcount);
     }
+    else
+        if (bitcount)  // we have a tail to count
+        {
+            unsigned mask_l = bm::mask_l_u32(bitcount-1);
+            count += bm::word_bitcount(*block & mask_l);
+        }
     return count;
 }
+
 
 /*!
     Function calculates number of 1 bits in the given array of words in
@@ -9741,6 +9850,57 @@ bm::bit_representation best_representation(unsigned gc,
     if (cost_in_bits >= float(max_bits))
         return e_bit_bit;
     return e_bit_IINT;
+}
+
+// --------------------------------------------------------------
+// Nibble array functions
+// --------------------------------------------------------------
+
+/**
+    @brief set nibble in the array
+    @param arr - base array of characters
+    @param idx - nibble index
+    @param v - value to set
+
+    @internal
+ */
+inline
+void set_nibble(unsigned char* arr, unsigned idx, unsigned char v) BMNOEXCEPT
+{
+    BM_ASSERT(arr);
+    BM_ASSERT(v <= 0xF);
+
+    unsigned arr_idx = idx >> 1;
+    if (idx & 1)
+    {
+        unsigned char old_val = arr[arr_idx];
+        old_val &= 0x0F; // clear the upper bits
+        arr[arr_idx] = (unsigned char)(old_val | (v << 4));
+    }
+    else
+    {
+        unsigned char old_val = arr[arr_idx];
+        old_val &= 0xF0; // clear the lower bits
+        arr[arr_idx] = (unsigned char)(old_val | (v & 0xF));
+    }
+}
+
+/**
+    @brief get nibble from the array
+    @param arr - base array of characters
+    @param idx - nibble index
+    @return value
+
+    @internal
+ */
+inline
+unsigned char get_nibble(const unsigned char* arr, unsigned idx) BMNOEXCEPT
+{
+    BM_ASSERT(arr);
+    unsigned char v = arr[idx >> 1];
+    v >>= (idx & 1) * 4;
+    v &= 0xF;
+    return v;
 }
 
 

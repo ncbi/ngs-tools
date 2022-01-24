@@ -115,10 +115,12 @@ const unsigned bits_in_block = bm::set_block_size * unsigned((sizeof(bm::word_t)
 const unsigned bits_in_array = bm::bits_in_block * bm::set_array_size32;
 
 
-// Rank-Select parameters
+// Rank-Select parameters (linear address to split the searches
 const unsigned rs3_border0 = 21824; // 682 words by 32-bits
 const unsigned rs3_border1 = (rs3_border0 * 2); // 43648
 const unsigned rs3_half_span = rs3_border0 / 2;
+const unsigned rs3_border0_1 = rs3_border0 + rs3_half_span; // intermed pnt 1
+const unsigned rs3_border1_1 = rs3_border1 + rs3_half_span; // intermed pnt 2
 
 // misc parameters for sparse vec algorithms
 const unsigned sub_block3_size = bm::gap_max_bits / 4;
@@ -229,8 +231,8 @@ template<bool T> struct _copyright
 };
 
 template<bool T> const char _copyright<T>::_p[] = 
-    "BitMagic C++ Library. v.7.9.3 (c) 2002-2021 Anatoliy Kuznetsov.";
-template<bool T> const unsigned _copyright<T>::_v[3] = {7, 9, 3};
+    "BitMagic C++ Library. v.7.10.1 (c) 2002-2022 Anatoliy Kuznetsov.";
+template<bool T> const unsigned _copyright<T>::_v[3] = {7, 10, 1};
 
 
 
@@ -467,6 +469,7 @@ template<bool T> struct globals
     static ByteOrder byte_order() { return _bo._byte_order; }
 };
 template<bool T> typename globals<T>::bo globals<T>::_bo;
+
 
 
 } // namespace

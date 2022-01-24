@@ -713,7 +713,22 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
     tout << "size = " << svect.size() << std::endl;
 
     tout << "Bit blocks:       " << st.bit_blocks << std::endl;
-    tout << "Gap blocks:       " << st.gap_blocks << std::endl;
+    tout << "GAP blocks:       " << st.gap_blocks << std::endl;
+    tout << "GAP levels counts:";
+    for (unsigned g = 0; g < bm::gap_levels; ++g)
+    {
+        switch (g)
+        {
+        case 0: tout << "[ I:  " << st.gap_levels[g] << "] "; break;
+        case 1: tout << "[ II: " << st.gap_levels[g] << "] "; break;
+        case 2: tout << "[ III:" << st.gap_levels[g] << "] "; break;
+        case 3: tout << "[ IV: " << st.gap_levels[g] << "] "; break;
+        default:
+                tout << "[ " << g << ": " << st.gap_levels[g] << "] "; break;
+        }
+    } // for
+    tout << std::endl;
+
     tout << "Max serialize mem:" << st.max_serialize_mem << " "
               << (st.max_serialize_mem / (1024 * 1024)) << "MB" << std::endl;
     tout << "Memory used:      " << st.memory_used << " "
@@ -862,6 +877,52 @@ void print_str_svector_stat(TOut& tout, const SV& str_svect)
         }
         tout << std::endl;
     } // for i
+}
+
+// Save std::vector
+//
+template<class VECT>
+int save_vector(const VECT& vect, const std::string& fname)
+{
+    std::ofstream fout(fname.c_str(), std::ios::binary);
+    if (!fout.good())
+        return -1;
+    size_t sz = vect.size();
+    fout.write((char*)&sz, sizeof(sz));
+    if (!fout.good())
+        return -1;
+    if (sz)
+    {
+        fout.write((char*)vect.data(),
+            (std::streamsize) (sz*sizeof(typename VECT::value_type)));
+        if (!fout.good())
+            return -1;
+    }
+    fout.close();
+    return 0;
+}
+
+// Save std::vector
+//
+template<class VECT>
+int load_vector(VECT& vect, const std::string& fname)
+{
+    std::ifstream fin(fname.c_str(), std::ios::in | std::ios::binary);
+    if (!fin.good())
+        return -1;
+    size_t sz;
+    fin.read((char*) &sz, sizeof(sz));
+    if (!fin.good())
+        return -2;
+    vect.resize(sz);
+    if (sz)
+    {
+        fin.read((char*)vect.data(), sz*sizeof(typename VECT::value_type));
+        if (!fin.good())
+            return -1;
+    }
+    fin.close();
+    return 0;
 }
 
 
