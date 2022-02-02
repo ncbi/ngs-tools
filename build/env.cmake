@@ -92,10 +92,10 @@ if (UNIX)
     include_directories ("${VDB_INCDIR}/os/unix")
 
     set ( SYS_LIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
     )
