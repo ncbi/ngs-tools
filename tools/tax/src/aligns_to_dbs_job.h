@@ -384,7 +384,7 @@ template<class TaxHitsO>
         if (config.vectorize) {
             tax_hits->save(filename);
         } else {
-            tf::Executor executor(config.num_threads);
+            tf::Executor executor(config.num_threads ? config.num_threads : std::thread::hardware_concurrency());
             if (config.compact) {
                 auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>(executor);   
                 tax_hits.reset(0);
