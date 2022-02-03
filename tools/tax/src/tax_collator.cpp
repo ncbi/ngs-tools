@@ -82,7 +82,7 @@ int main(int argc, char const *argv[])
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
 
-    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
 
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
@@ -119,7 +119,8 @@ int main(int argc, char const *argv[])
         }
     }
 
-#ifdef __linux__
+//#ifdef __linux__
+#if 0
     struct rusage r_usage;
     getrusage(RUSAGE_SELF,&r_usage);
     spdlog::info("Total memory: {:L}Kb", r_usage.ru_maxrss);

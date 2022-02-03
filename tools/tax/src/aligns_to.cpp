@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.672";
+const std::string VERSION = "0.703";
 
 typedef uint64_t hash_t;
 
@@ -59,7 +59,7 @@ int main(int argc, char const *argv[])
     #ifdef __GLIBCXX__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
-    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
 
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);

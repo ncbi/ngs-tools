@@ -913,7 +913,7 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
     vector<int> page_index;
     page_index.resize(num_pages, 0);
     generate(page_index.begin(), page_index.end(), [n = 0] () mutable { return n++; });
-    std::locale::global(std::locale("C")); // disable comma as thousand separator
+//    std::locale::global(std::locale("C")); // disable comma as thousand separator
     taskflow.for_each(page_index.begin(), page_index.end(), [&](int index) { 
         
         size_t start_pos = index * page_size;
@@ -993,7 +993,7 @@ void Tax_hits<Options>::print(tf::Executor& executor, ostream& os, size_t count)
     }); 
     executor.run(taskflow).wait();
     os.flush();
-    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     return;
 }
 
@@ -1190,7 +1190,7 @@ void Tax_hits<Options>::group(tf::Executor& executor, ostream& os)
         vector<uint32_t> val;
     } sort_cache;
     vector<sort_cache> s_caches(executor.num_workers());
-    std::locale::global(std::locale("C")); // disable comma as thousand separator
+//    std::locale::global(std::locale("C")); // disable comma as thousand separator
 
 
     for (int col_index = 0; col_index < tax_ids.num_cols; ++col_index) {
@@ -1303,7 +1303,7 @@ void Tax_hits<Options>::group(tf::Executor& executor, ostream& os)
     executor.run(taskflow).wait();
     executor.remove_observer(std::move(observer));
     os.flush();
-    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
     spdlog::info("Grouping took {:.3}", sw);       
 } 
 
