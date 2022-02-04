@@ -65,11 +65,11 @@ static ReaderPtr create_threaded(const std::string& filter_file, bool exclude_fi
     if (chunk_size == 0) {
         chunk_size = Reader::DEFAULT_CHUNK_SIZE;
     }
-    if (thread_count > 1) {
-        return create_filtered<MTReader<ReaderImpl>>(filter_file, exclude_filter, ultrafast_skip_reader_step, thread_count, chunk_size, args...);
-    } else {
+//    if (thread_count > 1) {
+//        return create_filtered<MTReader<ReaderImpl>>(filter_file, exclude_filter, ultrafast_skip_reader_step, thread_count, chunk_size, args...);
+//    } else {
         return create_filtered<ReaderImpl>(filter_file, exclude_filter, ultrafast_skip_reader_step, args...);
-    }
+//    }
 }
 
 ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) {

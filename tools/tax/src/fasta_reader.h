@@ -41,8 +41,9 @@ private:
     mutable std::ifstream f_of_filename;
 
     size_t filesize = 0;
-    size_t spot_idx = 0;
+    size_t spot_count = 0, read_count = 0;
     std::string last_desc;
+    std::string last_spot_id;
 
     static bool is_description(const std::string &s)
 	{
@@ -104,7 +105,7 @@ public:
     virtual SourceStats stats() const override 
     {
         assert(f->eof());
-        return SourceStats(spot_idx);
+        return SourceStats(spot_count, read_count);
     }
     
     virtual float progress() const override 
@@ -122,9 +123,15 @@ public:
 
         if (output) 
         {
-            auto end_pos = last_desc.find('/');
-            if (end_pos == std::string::npos)
-                end_pos = last_desc.size();
+            auto end_pos_sp = last_desc.find(' ');
+            if (end_pos_sp == std::string::npos)
+                end_pos_sp = last_desc.size();
+
+            auto end_pos_div = last_desc.find('/');
+            if (end_pos_div == std::string::npos)
+                end_pos_div = last_desc.size();
+
+            auto end_pos = std::min(end_pos_sp, end_pos_div);
 
 #if 0
             auto start_pos = end_pos - 1;
@@ -158,9 +165,13 @@ public:
             if (output->bases.empty())
                 throw std::runtime_error(std::string("Read is empty: ") + last_desc);
 //            output->bases.shrink_to_fit(); todo: tune
+
+            read_count ++;
+            if (last_spot_id != output->spotid)
+                spot_count ++;
+            last_spot_id = output->spotid;
         }
 
-        spot_idx++;
         return true;
     }
 };

@@ -24,23 +24,22 @@
 *
 */
 
-#pragma once
+#include "config_print_db.h"
+#include <iostream>
+#include <fstream>
+#include "dbs.h"
+#include "hash.h"
 
-#include "aligns_to_dbs_job.h"
-#include "dbss.h"
+using namespace std;
 
-struct DBSSJob : public DBSJob
+int main(int argc, char const *argv[])
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
-    {
-        auto dbss_reader = DBSS::make_reader(dbss);
-        kmer_len = dbss_reader->header.kmer_len;
+	Config config(argc, argv);
 
-        DBSS::DBSAnnotation annotation;
-        auto sum_offset = DBSS::load_dbs_annotation(DBSS::DBSAnnot::annotation_filename(dbss), annotation);
-        dbss_reader->check_consistency(sum_offset);
+	vector<hash_t> kmers;
+	auto kmer_len = DBSIO::load_dbs(config.in_db, kmers);
+	for (auto &x : kmers)
+		cout << Hash<hash_t>::str_from_hash(x, kmer_len) << endl;
 
-        auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
-    }
-};
+    return 0;
+}

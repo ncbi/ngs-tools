@@ -24,23 +24,33 @@
 *
 */
 
-#pragma once
+#ifndef CONFIG_H_INCLUDED
+#define CONFIG_H_INCLUDED
 
-#include "aligns_to_dbs_job.h"
-#include "dbss.h"
+#include <string>
+#include <iostream>
+#include "log.h"
 
-struct DBSSJob : public DBSJob
+struct Config
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
-    {
-        auto dbss_reader = DBSS::make_reader(dbss);
-        kmer_len = dbss_reader->header.kmer_len;
+	std::string in_db;
 
-        DBSS::DBSAnnotation annotation;
-        auto sum_offset = DBSS::load_dbs_annotation(DBSS::DBSAnnot::annotation_filename(dbss), annotation);
-        dbss_reader->check_consistency(sum_offset);
+	Config(int argc, char const *argv[])
+	{
+		if (argc < 2)
+		{
+			print_usage();
+			exit(1);
+		}
 
-        auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
-    }
+		in_db = argv[1];
+	}
+
+	static void print_usage()
+	{
+        LOG("need <db file>");
+	}
+
 };
+
+#endif

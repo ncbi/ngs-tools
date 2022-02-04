@@ -39,7 +39,7 @@ class DummyReader: public Reader {
 public:
     DummyReader(const std::vector<std::string>& reads) : reads(reads), idx(0) {}
 
-    virtual SourceStats stats() const { return SourceStats(reads.size()); }
+    virtual SourceStats stats() const { return SourceStats(reads.size(), reads.size()); }
     virtual float progress() const { return reads.empty() ? 1 : float(idx) / reads.size(); }
 
     bool read(Fragment* output) override final {
@@ -125,7 +125,7 @@ TEST(vdb_reader) {
             ++got_spots;
         }
         ASSERT_EQUALS(got_spots, 226);
-        ASSERT(reader.stats() == Reader::SourceStats(got_spots));
+        ASSERT(reader.stats() == Reader::SourceStats(got_spots, got_spots));
         ASSERT_EQUALS(reader.progress(), 1);
     }
 
@@ -153,7 +153,7 @@ TEST(vdb_reader) {
         auto stats = reader.stats();
         ASSERT_EQUALS(stats.spot_count, 12);
         ASSERT_EQUALS(stats.expected_spot_count, 12);
-        ASSERT_EQUALS(stats.frags_per_spot, 1);
+        ASSERT_EQUALS(stats.read_count, 12);
         ASSERT_EQUALS(reader.progress(), 1);
     }
 }
@@ -174,7 +174,7 @@ TEST(vdb_reader_paired) {
     ASSERT_EQUALS(fragments[4].bases, "ATTAACGCAAACCGGCGACAGTTCTCGCAA");
     ASSERT_EQUALS(fragments[5].spotid, "3");
     ASSERT_EQUALS(fragments[5].bases, "ACGTCCACAGAAACCCGTTTCCCGCCGGTC");
-    ASSERT(reader.stats() == Reader::SourceStats(3, 2));
+    ASSERT(reader.stats() == Reader::SourceStats(3, 2*3));
 }
 
 TEST(fasta_reader) {
@@ -197,7 +197,7 @@ TEST(fasta_reader) {
         ++got_spots;
     }
     ASSERT_EQUALS(got_spots, 226);
-    ASSERT(reader.stats() == Reader::SourceStats(got_spots));
+    ASSERT(reader.stats() == Reader::SourceStats(got_spots, got_spots));
     ASSERT_EQUALS(reader.progress(), 1);
 
     auto _unix = Helper<FastaReader>::read_all("./tests/data/SRR1068106.fasta");
@@ -247,6 +247,7 @@ TEST(aligned_vdb_reader) {
     test_aligned_vdb_reader("./tests/data/ERR333883", true);
 }
 
+#if 0
 template <typename ReaderType>
 void test_mt_reader(const char* type, const char* path) {
     auto reference = Helper<ReaderType>::read_all(path);
@@ -265,6 +266,7 @@ TEST(mt_reader) {
     test_mt_reader<VdbReader>("vdb", "./tests/data/SRR1068106");
     test_mt_reader<AlignedVdbReader>("aligned vdb", "./tests/data/SRR1068106");
 }
+#endif
 
 TEST(filtering_reader) {
     std::vector<std::string> source = {"A", "C", "T", "G"};

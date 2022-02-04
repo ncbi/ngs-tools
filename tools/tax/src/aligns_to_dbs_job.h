@@ -33,6 +33,7 @@
 #include "hash.h"
 #include "seq_transform.h"
 #include "p_string.h"
+#include "dbs.h"
 
 // incompatible with multiple intput files option todo: fix by moving table creation to constructor and enable
 #define LOOKUP_TABLE 1
@@ -52,7 +53,7 @@ struct DBSJob : public Job
     typedef std::vector<KmerTax> HashSortedArray;
 
     HashSortedArray hash_array;
-    typedef unsigned int tax_t;
+    typedef unsigned int tax_t; // todo: remove duplicate definition of tax_t and tax_id_t
     size_t kmer_len = 0;
 
 public:

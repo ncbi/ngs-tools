@@ -33,6 +33,7 @@
 #include <string>
 #include <set>
 #include "missing_cpp_features.h"
+#include <sys/stat.h>
 
 struct IO
 {
@@ -224,6 +225,20 @@ struct IO
     {
         std::ifstream f(filename);
         return f.good();
+    }
+
+    static bool is_folder(const std::string &filename)
+    {
+        // todo: update to C++ 14 or 17
+        struct stat path_stat;
+        stat(filename.c_str(), &path_stat);
+        return S_ISDIR(path_stat.st_mode);
+    }
+
+    static bool create_folder(const std::string &folder)
+    {
+        // todo: update to C++ 14 or 17
+        return mkdir(folder.c_str(), S_IRWXU | S_IRWXG | S_IRWXO) == 0; // todo: tune mode
     }
 
 	template <class C>

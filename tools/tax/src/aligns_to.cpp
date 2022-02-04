@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.662";
+const std::string VERSION = "0.672";
 
 typedef uint64_t hash_t;
 
@@ -55,7 +55,7 @@ int main(int argc, char const *argv[])
     #endif
     
     LOG("aligns_to version " << VERSION);
-    LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_max_threads());
+    LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_num_threads());
     Config config(argc, argv);
     if (config.num_threads > 0)
         omp_set_num_threads(config.num_threads);

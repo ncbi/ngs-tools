@@ -24,23 +24,53 @@
 *
 */
 
-#pragma once
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
 
-#include "aligns_to_dbs_job.h"
-#include "dbss.h"
+#include "log.h"
+#include "filter_db.h"
+#include "config_filter_db_no_tax_id.h"
 
-struct DBSSJob : public DBSJob
+using namespace std;
+
+const string VERSION = "0.11";
+
+void dont_pass(const string &kmer)
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
-    {
-        auto dbss_reader = DBSS::make_reader(dbss);
-        kmer_len = dbss_reader->header.kmer_len;
+    cerr << kmer << endl;
+}
 
-        DBSS::DBSAnnotation annotation;
-        auto sum_offset = DBSS::load_dbs_annotation(DBSS::DBSAnnot::annotation_filename(dbss), annotation);
-        dbss_reader->check_consistency(sum_offset);
+void pass(const string &kmer)
+{
+	cout << kmer << endl;
+}
 
-        auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
-    }
-};
+int main(int argc, char const *argv[])
+{
+	Config config(argc, argv);
+
+	LOG("filter_db_no_tax_id version " << VERSION);
+		
+	ifstream f(config.input_file);
+	if (f.fail())
+		throw std::runtime_error("cannot open input file");
+
+	string kmer;
+
+	while (!f.eof())
+	{
+		f >> kmer;
+		if (!kmer.length() || f.eof())
+			break;
+
+		auto score = FilterDB::predicted(kmer);
+	    const int MIN_SCORE = FilterDB::min_score(kmer.length());
+		if (score >= MIN_SCORE)
+			dont_pass(kmer);
+		else
+            pass(kmer);
+	}
+
+    return 0;
+}
