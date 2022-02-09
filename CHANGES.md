@@ -2,7 +2,7 @@
 
 
 ## SRA Toolkit 3.0.0
-**February 7, 2022**
+**February 10, 2022**
 
   **ngs-tools**: updated for _sra-tools 3.0.0_
 
