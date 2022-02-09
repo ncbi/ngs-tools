@@ -16,6 +16,7 @@ being able to locate related projects without asking for explicit paths:
 `$ git clone https://github.com/ncbi/ngs-tools.git`
 
 3. If you have not yet installed **ncbi-vdb**, please do so now:
+
 `$ git clone https://github.com/ncbi/ncbi-vdb.git`
 
 and follow directions at
