@@ -62,7 +62,7 @@ const char UsageDefaultName[] = "test-ngs-c++";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    rc_t rc=NgsCppTestSuite(argc, argv);
+    rc_t rc=NgsCppTestSuite( argc, argv );
     return rc;
 }
 
