@@ -35,7 +35,7 @@
 
 #include <ngs/itf/AlignmentItf.hpp>
 
-#include <../libs/ngs/NGS_Alignment.h>
+#include <../ncbi/ngs/NGS_Alignment.h>
 
 #include "Error.hpp"
 

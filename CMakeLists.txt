@@ -28,6 +28,7 @@ include ( env )
 
 add_subdirectory(libs)
 add_subdirectory(tools)
+add_subdirectory(test)
 
 set ( CPACK_PACKAGE_NAME ngs-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )

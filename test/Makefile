@@ -22,5 +22,25 @@
 #
 # ===========================================================================
 
-# NGS-TOOLS and library version
-VERSION = 3.0.0
+default all std: cmake
+
+#-------------------------------------------------------------------------------
+# environment
+#
+TOP ?= $(abspath ..)
+MODULE = test
+
+include $(TOP)/build/Makefile.env
+
+test runtests: ctest
+
+.PHONY: default std all test runtests
+
+#-------------------------------------------------------------------------------
+# std
+#
+clean: stdclean
+
+.PHONY: clean
+
+

@@ -37,12 +37,12 @@
 
 #include <vdb/database.h>
 
-#include <NGS_Cursor.h>
-#include <NGS_ReferenceBlob.h>
-#include <NGS_ReferenceBlobIterator.h>
+#include <../ncbi/ngs/NGS_Cursor.h>
+#include <../ncbi/ngs/NGS_ReferenceBlob.h>
+#include <../ncbi/ngs/NGS_ReferenceBlobIterator.h>
 
-#include <../libs/ngs/CSRA1_Reference.h>
-#include <../libs/ngs/VByteBlob.h>
+#include <../ncbi/ngs/CSRA1_Reference.h>
+#include <../ncbi/ngs/VByteBlob.h>
 
 #include <stdexcept>
 

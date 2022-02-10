@@ -33,8 +33,8 @@
 
 #include <kfc/except.h>
 
-#include <../libs/ngs/NGS_Reference.h>
-#include <../libs/ngs/NGS_ReferenceBlobIterator.h>
+#include <../ncbi/ngs/NGS_Reference.h>
+#include <../ncbi/ngs/NGS_ReferenceBlobIterator.h>
 
 #include "Error.hpp"
 
