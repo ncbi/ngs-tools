@@ -31,7 +31,7 @@
 
 struct DBSSJob : public DBSJob
 {
-    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list)
+    DBSSJob(const std::string &dbss, const std::string &dbss_tax_list, int num_threads)
     {
         auto dbss_reader = DBSS::make_reader(dbss);
         kmer_len = dbss_reader->header.kmer_len;
@@ -41,6 +41,6 @@ struct DBSSJob : public DBSJob
         dbss_reader->check_consistency(sum_offset);
 
         auto tax_list = DBSS::load_tax_list(dbss_tax_list);
-        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation);
+        DBSS::load_dbss(hash_array, dbss_reader, tax_list, annotation, num_threads);
     }
 };

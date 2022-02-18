@@ -51,7 +51,7 @@ struct Job
             // auto const &spotid = chunk[seq_id].spotid;
             auto const &bases = chunk[seq_id].bases;
             if (auto const m = matcher(bases)) {
-                matched_ids.push_back(MatchId((int)seq_id, m));
+                matched_ids.emplace_back((int)seq_id, m);
             }
         }
 

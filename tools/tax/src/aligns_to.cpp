@@ -32,18 +32,24 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.672";
+const std::string VERSION = "0.703";
 
 typedef uint64_t hash_t;
 
 #include "dbs.h"
 #include "aligns_to_job.h"
-#include "aligns_to_db_job.h"
+#include "aligns_to_db_job.h" 
 #include "aligns_to_dbs_job.h"
 #include "aligns_to_dbsm_job.h"
 #include "aligns_to_dbss_job.h"
 //#include "aligns_to_many_jobs.h"
 #include "missing_cpp_features.h"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+#ifdef __linux__
+#include <sys/resource.h>
+#endif
+
 
 using namespace std;
 using namespace std::chrono;
@@ -53,6 +59,11 @@ int main(int argc, char const *argv[])
     #ifdef __GLIBCXX__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
+//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+
+    auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
+    spdlog::set_default_logger(stderr_logger);
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
     
     LOG("aligns_to version " << VERSION);
     LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_num_threads());
@@ -71,7 +82,7 @@ int main(int argc, char const *argv[])
     else if (!config.dbsm.empty())
         job = unique_ptr<DBSMJob>(new DBSMJob(config.dbsm));
     else if (!config.dbss.empty())
-        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list));
+        job = unique_ptr<DBSSJob>(new DBSSJob(config.dbss, config.dbss_tax_list, config.num_threads));
 //    else if (!config.many.empty())
 //        job = make_unique<ManyJobs>(config.many);
     else
@@ -97,6 +108,12 @@ int main(int argc, char const *argv[])
 				throw e;
 		}
     }
+
+#ifdef __linux__
+    struct rusage r_usage;
+    getrusage(RUSAGE_SELF,&r_usage);
+    spdlog::info("Total memory: {:L}Kb", r_usage.ru_maxrss);
+#endif     
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 

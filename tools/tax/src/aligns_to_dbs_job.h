@@ -34,6 +34,7 @@
 #include "seq_transform.h"
 #include "p_string.h"
 #include "dbs.h"
+#include "tax_collator.hpp"
 
 // incompatible with multiple intput files option todo: fix by moving table creation to constructor and enable
 #define LOOKUP_TABLE 1
@@ -74,7 +75,7 @@ public:
     struct Matcher
     {
 #if LOOKUP_TABLE
-        typedef std::vector< std::pair<size_t, size_t> > HashLookupTable;
+        typedef std::vector<size_t> HashLookupTable;
         HashLookupTable hash_lookup_table;
         int hash_lookup_shift;
 #endif
@@ -99,15 +100,14 @@ public:
 
             const size_t bucket_count = size_t(1) << lookup_key_bits;
             LOG("creating lookup table with " << bucket_count << " buckets, on average " << (float(hash_array.size()) / bucket_count) << " hashes per bucket");
-            hash_lookup_table.resize(bucket_count);
+            hash_lookup_table.resize(bucket_count + 1);
 
             // figuring out bucket ranges
             size_t hash_idx = 0;
             hash_t last_hash = 0;
             for (size_t bucket_idx = 0; bucket_idx < bucket_count; ++bucket_idx)
             {
-                auto &bucket = hash_lookup_table[bucket_idx];
-                bucket.first = hash_idx;
+                hash_lookup_table[bucket_idx] = hash_idx;
                 while (true)
                 {
                     if (hash_idx >= hash_array.size())
@@ -121,18 +121,17 @@ public:
                     ++hash_idx;
                     last_hash = hash;
                 }
-                bucket.second = hash_idx;
             }
-#endif
+            hash_lookup_table[bucket_count] = hash_array.size();
+ #endif
         }
 
         int find_hash(hash_t hash, int default_value) const
         {
 #if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
-            auto &bucket = hash_lookup_table[bucket_idx];
-            auto first = hash_array.begin() + bucket.first;
-            auto last = hash_array.begin() + bucket.second;
+            auto first = hash_array.begin() + hash_lookup_table[bucket_idx];
+            auto last = hash_array.begin() + hash_lookup_table[bucket_idx + 1];            
 #else
             auto first = hash_array.begin();
             auto last = hash_array.end();
@@ -196,6 +195,43 @@ public:
 
         bool operator < (const TaxMatchId &b) const { return seq_id < b.seq_id; }
     };
+
+template<class TaxHitsO>
+    struct TaxHitsPrinter
+    {
+        tc::Tax_hits<TaxHitsO> &tax_hits;
+        const bool print_counts, compact;
+        tc::Spot<TaxHitsO> spot;
+        tc::Spot<TaxHitsO> last_spot;
+
+        TaxHitsPrinter(bool print_counts, bool compact, tc::Tax_hits<TaxHitsO> &tax_hits_) : print_counts(print_counts), compact(compact), tax_hits(tax_hits_) {}
+
+        void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
+        {
+            for (auto seq_id : ids) {
+                spot.name = processing_sequences[seq_id.seq_id].spotid;
+                spot.tax_id.clear();
+                if constexpr (TaxHitsO::has_counts()) {
+                    spot.counts.clear();
+                }
+                for_each(spot.name.begin(), spot.name.end(), [](char& c) { if (c == '\n' || c == '\t') c = ' ';});
+                for (auto &hit : seq_id.hits) {
+                    spot.tax_id.push_back(hit.first);
+                    if constexpr (TaxHitsO::has_counts()) {
+                        spot.counts.push_back(hit.second);
+                    }
+                }
+                if (spot.name == last_spot.name) {
+                    last_spot.merge(spot);
+                } else {
+                    tax_hits.add_row(last_spot);
+                    swap(last_spot, spot);
+                }
+            }
+            tax_hits.add_row(last_spot);
+        }
+    };
+
 
     struct TaxPrinter
     {
@@ -325,20 +361,67 @@ public:
     bool hide_counts = false;
     bool compact = false;
 
+    template<class Options>
+    void run_collator(const std::string &filename, IO::Writer &writer, const Config &config)
+    {
+        //spdlog::stopwatch sw; 
+
+        auto tax_hits = make_unique<tc::Tax_hits<Options>>(true);
+        {
+            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
+            TaxHitsPrinter tc_print(!hide_counts, compact, *tax_hits);
+
+            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
+                [&matcher, &tc_print](const std::vector<Reader::Fragment> &chunk) { 
+                    Job::match_and_print<Matcher, TaxHitsPrinter<Options>, TaxMatchId>(chunk, tc_print, matcher);
+                    //match_and_print_chunk(chunk, tax_hits, matcher); 
+                } );
+        }
+        // We don't need DB anymore
+        hash_array.resize(0); 
+        hash_array.shrink_to_fit();
+        tax_hits->finalize(); 
+        if (config.vectorize) {
+            tax_hits->save(filename);
+        } else {
+            tf::Executor executor(config.num_threads ? config.num_threads : std::thread::hardware_concurrency());
+            if (config.compact) {
+                auto collated_tax_hits = tax_hits->template collate<tc::tax_hits_options<true, false>>(executor);   
+                tax_hits.reset(0);
+                collated_tax_hits->group(executor, writer.f());
+                collated_tax_hits.reset(0);
+            } else {
+                auto collated_tax_hits = tax_hits->template collate<Options>(executor);   
+                tax_hits.reset(0);
+                collated_tax_hits->print(executor, writer.f()); 
+                collated_tax_hits.reset(0);
+            }
+        }
+        
+    }
+
     virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
     {
         hide_counts = config.hide_counts;
         compact = config.compact;
-        Matcher m(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
-        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer, m); } );
+        if (config.collate || config.vectorize) {
+            if (hide_counts)
+                run_collator<tc::tax_hits_options<false, false>>(filename, writer, config);
+            else if (config.compact)
+                run_collator<tc::tax_hits_options<false, false>>(filename, writer, config);
+            else
+                run_collator<tc::tax_hits_options<false, true>>(filename, writer, config);
+
+        } else {
+            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
+            TaxPrinter print(!hide_counts, compact, writer);
+            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
+            [&](const std::vector<Reader::Fragment> &chunk) { 
+                Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, matcher);
+            } );
+        }
     }
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, Matcher &m) // override
-    {
-//      Matcher m(hash_array, kmer_len);
-        TaxPrinter print(!hide_counts, compact, writer);
-        Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
-    }
 };
 
 struct DBSBasicJob : public DBSJob

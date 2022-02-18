@@ -1,9 +1,9 @@
 if(CMAKE_VERSION VERSION_LESS "3.1")
    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-      set(CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
+      set(CMAKE_CXX_FLAGS "-std=gnu++17 ${CMAKE_CXX_FLAGS}")
    endif()
 else()
-   set(CMAKE_CXX_STANDARD 11)
+   set(CMAKE_CXX_STANDARD 17)
 endif()
 
 FIND_PACKAGE(OpenMP REQUIRED)
@@ -12,8 +12,25 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 
 add_library(ReaderLib STATIC src/reader.cpp src/reader.h)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+
 add_executable(aligns_to src/aligns_to.cpp)
-target_link_libraries(aligns_to PRIVATE ReaderLib ${SYS_LIBRARIES})
+target_include_directories(aligns_to PUBLIC src/)
+if (UNIX)
+target_compile_options(aligns_to PUBLIC -msse4.2 -DBMSSE42OPT)
+endif()
+target_link_libraries(aligns_to PRIVATE ReaderLib Threads::Threads ${SYS_LIBRARIES})
+
+add_executable(tax_collator src/tax_collator.cpp)
+target_include_directories(tax_collator PUBLIC src/)
+if (UNIX)
+target_compile_options(tax_collator PUBLIC -msse4.2 -DBMSSE42OPT)
+endif()
+target_link_libraries(tax_collator PRIVATE Threads::Threads ${SYS_LIBRARIES})
+
+
 links_and_install_subdir(aligns_to tax)
 
 add_executable(dump_kmers src/dump_kmers.cpp)

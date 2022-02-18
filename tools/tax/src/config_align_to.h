@@ -46,6 +46,8 @@ struct Config
     int optimization_ultrafast_skip_reader = 0;
     int optimization_dbs_max_lookups_per_seq_fragment = 0;
     int num_threads = 0;
+    bool collate = false;
+    bool vectorize = false;
 
     Config(int argc, char const *argv[])
     {
@@ -71,6 +73,10 @@ struct Config
                 dbss_tax_list = pop_arg(args);
             else if (arg == "-hide_counts")
                 hide_counts = true;
+            else if (arg == "-collate")
+                collate = true;
+            else if (arg == "-vectorize")
+                vectorize = true;
             else if (arg == "-compact")
                 compact = true;
             else if (arg == "-unaligned_only")
