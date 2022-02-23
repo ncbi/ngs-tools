@@ -18,6 +18,10 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # best to use at the top
 project ( ngs-tools )
+if( PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR )
+    message(FATAL_ERROR "In-source builds are not allowed")
+endif()
+
 
 # this has to follow the project() command!
 set(CMAKE_MODULE_PATH
