@@ -44,7 +44,7 @@
 #include <kapp/main.h>
 
 #include <algorithm>
-
+#include <iostream>
 using namespace std;
 
 ///////////// GeneralLoader::DatabaseLoader
@@ -633,9 +633,11 @@ GeneralLoader :: DatabaseLoader :: CellData ( uint32_t p_columnId, const void* p
     {
         const Column& col = curIt -> second;
         pLogMsg ( klogDebug,
-                  "database-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
-                  "i=%u,s=%u,c=%u",
-                  col . columnIdx, col . elemBits, p_elemCount );
+                  "database-loader: column = '$(n)', columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
+                  "n=%s,i=%u,s=%u,c=%u",
+                  col . name . c_str(), col . columnIdx, col . elemBits, p_elemCount );
+        if (col.name == "READ")
+        cout << (const char*)p_data << endl;
         rc = CursorWrite ( col, p_data, p_elemCount );
     }
     else
