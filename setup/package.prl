@@ -16,8 +16,7 @@ sub DEPENDS {()}
 sub REQ { (
             { name    => 'ncbi-vdb',
               aname   => 'VDB',
-              option  => 'with-ncbi-vdb-sources',
-              boption => 'with-ncbi-vdb-build',
+              option  => 'with-ncbi-vdb-prefix',
               origin  => 'I',
               type    => 'L',
               srcpath => '../ncbi-vdb',
