@@ -31,6 +31,7 @@
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
 
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +44,62 @@
 extern "C" {
 #include "utf8-like-int-codec.c"
 }
+
+// Escape more than the strict minimum of double quote and backslash
+#define JSON_STRING_UNSTRICT_ESCAPE 1
+
+/// Provides escape sequences for JSON strings
+class JSON_String : public std::string {
+public:
+    explicit JSON_String(std::string const &rhs)
+    {
+        reserve(rhs.size() * 2);
+
+        for (auto && ch : rhs) {
+            switch (ch) {
+            case '"': // must escape double quotes
+                append(1, '\\');
+                append(1, '"');
+                break;
+            case '\\': // must escape the escape character itself
+                append(1, '\\');
+                break;
+#if JSON_STRING_UNSTRICT_ESCAPE
+//            case '/':
+//                append(1, '\\');
+//                append(1, '/');
+//                break;
+            case '\b':
+                append(1, '\\');
+                append(1, 'b');
+                break;
+            case '\f':
+                append(1, '\\');
+                append(1, 'f');
+                break;
+            case '\n':
+                append(1, '\\');
+                append(1, 'n');
+                break;
+            case '\r':
+                append(1, '\\');
+                append(1, 'r');
+                break;
+            case '\t':
+                append(1, '\\');
+                append(1, 't');
+                break;
+#endif
+            case 0: // strictly, this isn't necessary
+                append("\x0000");
+                break;
+            default: // no other characters need to be escaped
+                append(1, ch);
+                break;
+            }
+        }
+    }
+};
 
 using namespace ncbi;
 
@@ -702,7 +759,7 @@ namespace gw_dump
             }
             u8_4(uint32_t const &u32) { uv.u32 = u32; }
         };
-        char buffer[32];
+        char buffer[64];
 
     private:
         virtual void format(u8_4 const &value) {
@@ -765,10 +822,28 @@ namespace gw_dump
             std::cout << '"';
             for (auto && x : data) {
                 auto const y = u8_4(x);
-                for (auto i = 0; i < 4; ++i)
-                    buffer[i] = *reinterpret_cast<int8_t const *>(&y[i]);
-                n += 4;
-                buffer[n <= elements ? 4 : (elements % 4)] = '\0';
+                int j = 0;
+                for (auto i = 0; i < 4; ++i) {
+                    auto const ch = *reinterpret_cast<int8_t const *>(&y[i]);
+                    switch (ch) {
+                    /* these are the required escapes sequences */
+                    case '"':
+                        buffer[j++] = '\\';
+                        buffer[j++] = '"';
+                        break;
+                    case '\\':
+                        buffer[j++] = '\\';
+                        buffer[j++] = '\\';
+                        break;
+                    default:
+                        buffer[j++] = ch;
+                        break;
+                    }
+                    buffer[j] = '\0';
+                    n += 1;
+                    if (n == elements)
+                        break;
+                }
                 std::cout << buffer;
             }
             std::cout << '"';
@@ -1452,7 +1527,7 @@ namespace gw_dump
         case 2:
             std::cout
                 << "{ \"event\": \"remote-path\""
-                   ", \"value\": \"" << path << "\""
+                   ", \"value\": \"" << JSON_String(path) << "\""
                    " }\n";
             break;
         }
@@ -1531,6 +1606,7 @@ namespace gw_dump
         check_errmsg ( eh );
 
         auto const &msg = read1String(eh, in);
+        auto const trim = msg.back() == '\n' && std::count(msg.cbegin(), msg.cend(), '\n') == 1;
 
         switch (display) {
         case 1:
@@ -1542,7 +1618,7 @@ namespace gw_dump
         case 2:
             std::cout
                 << "{ \"event\": \"error\""
-                   ", \"message\": \"" << msg << "\""
+                   ", \"message\": \"" << JSON_String(trim ? msg.substr(0, msg.size() - 1) : msg) << "\""
                    " }\n";
             break;
         }
@@ -1585,6 +1661,7 @@ namespace gw_dump
         check_logmsg ( eh );
 
         auto const &msg = read1String(eh, in);
+        auto const trim = msg.back() == '\n' && std::count(msg.cbegin(), msg.cend(), '\n') == 1;
 
         switch (display) {
         case 1:
@@ -1596,7 +1673,7 @@ namespace gw_dump
         case 2:
             std::cout
                 << "{ \"event\": \"log\""
-                   ", \"message\": \"" << msg << "\""
+                   ", \"message\": \"" << JSON_String(trim ? msg.substr(0, msg.size() - 1) : msg) << "\""
                    " }\n";
             break;
         }
