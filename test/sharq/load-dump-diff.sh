@@ -45,7 +45,6 @@ SRA_BINDIR=$1
 TEMPDIR=$2
 CMDLOAD=$3
 OUTPUT=$4
-EXPECTED=$5
 
 DUMP="$SRA_BINDIR/vdb-dump -f json"
 LOAD="$SRA_BINDIR/$CMDLOAD"
@@ -86,7 +85,7 @@ if [ "$rc" != "0" ] ; then
 fi
 
 # Diff
-CMD="$DIFF $EXPECTED $TEMPDIR/dump.stdout >$TEMPDIR/diff"
+CMD="$DIFF expected/$OUTPUT.dump.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff"
 eval $CMD
 rc="$?"
 if [ "$rc" != "0" ] ; then

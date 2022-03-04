@@ -34,6 +34,5 @@ if( NOT WIN32 )
     LoadDiffTestPair( stLFR2_split_read stLFR2_split_read.1.fq stLFR2_split_read.2.fq "--quality PHRED_33" "--quality 33" )
     LoadDiffTestPair( skin_S1_L001 skin_S1_L001_I1_001.fastq skin_S1_L001_R2_001.fastq "--quality PHRED_33" "--quality 33" )
     LoadDiffTestPair( S1_3 S1_3_1.fq S1_3_2.fq "--quality PHRED_64" "--quality 64" )
-    LoadDiffTest( glucose.RNA-seq.single.MinION.fastq )
 
 endif()
