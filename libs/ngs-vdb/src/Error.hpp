@@ -28,7 +28,7 @@
 #define _hpp_ngs_vdb_Error_hpp_
 
 #include <ngs/itf/ErrBlock.hpp>
-#include <../libs/ngs/NGS_ErrBlock.h>
+#include <../ncbi/ngs/NGS_ErrBlock.h>
 
 #define THROW_ON_FAIL(c)    ON_FAIL ( c ) { :: ngs :: ErrBlock err; NGS_ErrBlockThrow ( & err, ctx ); err.Throw(); }
 

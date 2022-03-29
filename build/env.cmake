@@ -28,9 +28,15 @@ if (UNIX)
         set ( BUILD rel )
     endif ()
 
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${OUTDIR}/ngs-sdk/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
-    set ( NGS_JAVADIR  ${OUTDIR}/ngs-java/                                                  CACHE PATH "ngs Java directory" )
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
+	message("NGS_INCDIR: ${NGS_INCDIR}")
+	set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk )
+	message("NGS_INCDIR: ${NGS_INCDIR}")
+    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
+	message("NGS_LIBDIR: ${NGS_LIBDIR}")
+	set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
+	message("NGS_LIBDIR: ${NGS_LIBDIR}")
+    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -53,9 +59,9 @@ elseif (WIN32)
     endif()
 
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${OUTDIR}/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( NGS_JAVADIR  ${OUTDIR}/ngs-java/                                                                  CACHE PATH "ngs Java directory" )
+    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -86,10 +92,10 @@ if (UNIX)
     include_directories ("${VDB_INCDIR}/os/unix")
 
     set ( SYS_LIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
+            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
     )
@@ -157,16 +163,19 @@ else()
 endif()
 
 # Java needs
-find_package(Java REQUIRED)
-find_program(ANT_EXECUTABLE ant PATHS $ENV{ANT_HOME} ENV PATH )
-if ( NOT ANT_EXECUTABLE )
-    message ( WARNING "Failed to locate 'ant' executable in PATH or ANT_HOME. Please specify path to 'ant' via ANT_EXECUTABLE" )
+find_package(Java)
+if ( Java_FOUND )
+    find_program(ANT_EXECUTABLE ant PATHS $ENV{ANT_HOME} ENV PATH )
+    if ( NOT ANT_EXECUTABLE )
+        message ( WARNING "Failed to locate 'ant' executable in PATH or ANT_HOME. Please specify path to 'ant' via ANT_EXECUTABLE" )
+    endif()
+    if ( NOT DEFINED ENV{JAVA_HOME} )
+        message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
+    endif ()
+    #set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
+    set ( NGSJAR "${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ngs-java.jar" )
+    set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 endif()
-if ( NOT DEFINED ENV{JAVA_HOME} )
-    message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
-endif ()
-set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
-set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 
 # look for dependencies
 
@@ -252,6 +261,7 @@ include_directories ("${VDB_INCDIR}/cc/${COMPILER}/${PLATFORM}")
 include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
 include_directories ("${VDB_INCDIR}/os/${OS}")
 include_directories ("${NGS_INCDIR}")
+include_directories ("${NGS_INCDIR}/../..")
 
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 

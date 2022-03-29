@@ -679,7 +679,7 @@ class FastVdbReader final: public Reader {
                 if (!current->rowRange.contains(row)) {
                     auto next = current + 1;
                     if (next == references.end() || !next->rowRange.contains(row)) {
-                        next = std::lower_bound(references.begin(), references.end(), *current, [&](ReferenceInfo const &a, ReferenceInfo const &b) { return a.rowRange.first <= row; });
+                        next = std::lower_bound(references.begin(), references.end(), *current, [&](ReferenceInfo const &a, ReferenceInfo const &b) { return a.rowRange.first < row; });
                         assert(next != references.end());
                         assert(next != current);
                         assert(next->rowRange.contains(row));

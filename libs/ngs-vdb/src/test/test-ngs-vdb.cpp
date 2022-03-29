@@ -36,12 +36,12 @@
 #include <kfc/rsrc.h>
 #include <kfc/except.h>
 
-#include <../libs/ngs/NGS_ReadCollection.h>
-#include <../libs/ngs/NGS_FragmentBlobIterator.h>
-#include <../libs/ngs/NGS_FragmentBlob.h>
-#include <../libs/ngs/NGS_Reference.h>
-#include <../libs/ngs/NGS_ReferenceBlobIterator.h>
-#include <../libs/ngs/NGS_ReferenceBlob.h>
+#include <../ncbi/ngs/NGS_ReadCollection.h>
+#include <../ncbi/ngs/NGS_FragmentBlobIterator.h>
+#include <../ncbi/ngs/NGS_FragmentBlob.h>
+#include <../ncbi/ngs/NGS_Reference.h>
+#include <../ncbi/ngs/NGS_ReferenceBlobIterator.h>
+#include <../ncbi/ngs/NGS_ReferenceBlob.h>
 
 using namespace std;
 using namespace ncbi::NK;

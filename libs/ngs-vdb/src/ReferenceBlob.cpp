@@ -33,8 +33,8 @@
 
 #include <kfc/except.h>
 
-#include <../libs/ngs/NGS_ReferenceBlob.h>
-#include <../libs/ngs/NGS_String.h>
+#include <../ncbi/ngs/NGS_ReferenceBlob.h>
+#include <../ncbi/ngs/NGS_String.h>
 
 #include "Error.hpp"
 
@@ -50,9 +50,12 @@ ReferenceBlob :: ReferenceBlob ( ReferenceBlobRef ref ) NGS_NOTHROW ()
 ReferenceBlob &
 ReferenceBlob :: operator = ( const ReferenceBlob & obj )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_ReferenceBlobRelease ( self, ctx ) );
-    self = NGS_ReferenceBlobDuplicate ( obj . self, ctx );
+    if ( &obj != this )
+    {
+        HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+        THROW_ON_FAIL ( NGS_ReferenceBlobRelease ( self, ctx ) );
+        THROW_ON_FAIL ( self = NGS_ReferenceBlobDuplicate ( obj . self, ctx ) );
+    }
     return *this;
 }
 

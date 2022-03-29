@@ -96,47 +96,6 @@ target_link_libraries ( test-ngs_csra1pileup++ ${TEST_LIBS})
 add_test ( NAME SlowTest_Ngs_CPP_CSRA1Pileup COMMAND test-ngs_csra1pileup++ WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 #-------------------------------------------------------------------------------
-# tests for the NGS Java APIs
-
-set( JUNIT ${CMAKE_SOURCE_DIR}/shared/java/junit-4.11.jar)
-set( CLASSPATH ${JUNIT}:${NGSJAR})
-set( LIBRARY_PATH -Djava.library.path=${NGS_LIBDIR}:${VDB_LIBDIR})
-
-# use standard java System.loadLibrary
-set ( VARS ${VARS} -Dvdb.System.loadLibrary=1 )
-
-# remove all found JNI DLL-s
-#set ( VARS ${VARS} -Dvdb.deleteLibraries=1 )
-
-# custom load library search
-#set ( VARS ${VARS} -Dvdb.loadLibraryLocations=W )
-
-set ( VARS ${VARS} -Dvdb.log=FINEST )
-
-#set(CMAKE_JAVA_COMPILE_FLAGS -verbose)
-
-include (UseJava)
-add_jar( ngs_test_lib_load
-    SOURCES ngs_test_lib_load.java
-    INCLUDE_JARS ${JUNIT} ${NGSJAR}
-    OUTPUT_DIR ${PROJECT_BINARY_DIR}
-)
-
-add_test ( NAME Test_Ngs_Java_lib_load
-    COMMAND ${Java_JAVA_EXECUTABLE} -cp ${PROJECT_BINARY_DIR}/ngs_test_lib_load.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore gov.nih.nlm.ncbi.ngs.ngs_test_lib_load
-)
-
-add_jar( ngs_test_CSRA1
-    SOURCES ngs_test_CSRA1.java
-    INCLUDE_JARS ${JUNIT} ${NGSJAR}
-    OUTPUT_DIR ${PROJECT_BINARY_DIR}
-)
-
-add_test ( NAME SlowTest_Ngs_Java_CSRA1
-    COMMAND ${Java_JAVA_EXECUTABLE} -cp ${PROJECT_BINARY_DIR}/ngs_test_CSRA1.jar:${CLASSPATH} ${VARS} ${LIBRARY_PATH} org.junit.runner.JUnitCore ngs_test_CSRA1
-)
-
-#-------------------------------------------------------------------------------
 # tests for this library, ngs-vdb
 
 add_executable ( test-ngs-vdb test-ngs-vdb.cpp )

@@ -37,17 +37,23 @@
 #include <byteswap.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <cctype>
+#include <cinttypes>
+
+extern "C" {
+#include "utf8-like-int-codec.c"
+}
 
 using namespace ncbi;
 
 namespace gw_dump
 {
-    static bool display;
-    static uint32_t verbose;
-    static uint64_t event_num;
-    static uint64_t jump_event;
-    static uint64_t end_event;
-    static uint64_t foffset;
+    int format; // 0: none; 1: traditional; 2: JSON; this is from the command line
+    int display; // 0: none; 1: traditional; 2: JSON; this is the current display setting (so it can be set to none and the set back to format
+    uint64_t event_num;
+    uint64_t jump_event;
+    uint64_t end_event;
+    uint64_t foffset;
 
     struct tbl_entry
     {
@@ -70,7 +76,7 @@ namespace gw_dump
         std :: string tbl_name;
     };
 
-    static std :: vector < tbl_entry > tbl_entries;
+    std :: vector < tbl_entry > tbl_entries;
 
     struct db_entry
     {
@@ -116,7 +122,62 @@ namespace gw_dump
         return num_read;
     }
 
+    struct IOError {
+        uint64_t pos;
+        size_t size;
+
+        IOError(size_t size) : pos(foffset), size(size) {}
+    };
+
+    static std::string readFILE(size_t const size, size_t const count, FILE *in) {
+        auto const bytes = size * count;
+        auto result = std::string(bytes, 0);
+        auto const num_read = fread(&result[0], size, count, in);
+        if (num_read == count) {
+            foffset += bytes;
+            return result;
+        }
+        throw IOError(bytes);
+    }
+
     /* read_1string
+     */
+    template < class T > static
+    std::string read1String ( const T & eh, FILE * in )
+    {
+        try {
+            return readFILE(1, size(eh), in);
+        }
+        catch (...) {
+            throw "failed to read string data";
+        }
+    }
+
+    template <>
+    std::string read1String < :: gw_1string_evt_v1 > ( const :: gw_1string_evt_v1 & eh, FILE * in )
+    {
+        auto const count = size(eh);
+        try {
+            return readFILE(4, (count + 3) >> 2, in).substr(0, count);
+        }
+        catch (...) {
+            throw "failed to read string data";
+        }
+    }
+
+    template <>
+    std::string read1String < :: gw_status_evt_v1 > ( const :: gw_status_evt_v1 & eh, FILE * in )
+    {
+        auto const count = size(eh);
+        try {
+            return readFILE(4, (count + 3) >> 2, in).substr(0, count);
+        }
+        catch (...) {
+            throw "failed to read string data";
+        }
+    }
+
+    /* read_1_cstring
      */
     template < class T > static
     char * read_1string ( const T & eh, FILE * in )
@@ -181,6 +242,34 @@ namespace gw_dump
     /* read_2string
      */
     template < class T > static
+    std::pair<std::string const, std::string const> read2Strings ( const T & eh, FILE * in )
+    {
+        auto const size = std::make_pair(size1(eh), size2(eh));
+        try {
+            auto const buffer = readFILE(1, size.first + size.second, in);
+            return {buffer.substr(0, size.first), buffer.substr(size.first)};
+        }
+        catch (...) {
+            throw "failed to read dual string data";
+        }
+    }
+
+    template <>
+    std::pair<std::string const, std::string const> read2Strings < :: gw_2string_evt_v1 > ( const :: gw_2string_evt_v1 & eh, FILE * in )
+    {
+        auto const size = std::make_pair(size1(eh), size2(eh));
+        try {
+            auto const buffer = readFILE(4, (size.first + size.second + 3) >> 2, in);
+            return {buffer.substr(0, size.first), buffer.substr(size.first, size.second)};
+        }
+        catch (...) {
+            throw "failed to read dual string data";
+        }
+    }
+
+    /* read_2_cstring
+     */
+    template < class T > static
     char * read_2string ( const T & eh, FILE * in )
     {
         size_t string_size = size1 ( eh ) + size2 ( eh );
@@ -223,6 +312,32 @@ namespace gw_dump
     {
         uint32_t * buffer = ( uint32_t * ) string_buffer;
         delete [] buffer;
+    }
+
+    /* read_colname
+     */
+    template < class T > static
+    std::string readColname ( const T & eh, FILE * in )
+    {
+        auto const count = name_size(eh);
+        try {
+            return readFILE(1, count, in);
+        }
+        catch (...) {
+            throw "failed to read column name";
+        }
+    }
+
+    template <>
+    std::string readColname < :: gw_column_evt_v1 > ( const :: gw_column_evt_v1 & eh, FILE * in )
+    {
+        auto const count = name_size(eh);
+        try {
+            return readFILE(4, (count + 3) >> 2, in).substr(0, count);
+        }
+        catch (...) {
+            throw "failed to read column name";
+        }
     }
 
     /* read_colname
@@ -299,19 +414,29 @@ namespace gw_dump
         check_move_ahead ( eh );
 
         // advance row-id
-        tbl_entry & te = tbl_entries [ id ( eh . dad ) - 1 ];
-        te . row_id += get_nrows ( eh );
+        auto const tableId = id(eh.dad);
+        auto const nrows = get_nrows(eh);
+        tbl_entry & te = tbl_entries [ tableId - 1 ];
+        auto const &tbl_name = te.tbl_name;
 
-        if ( display )
-        {
-            const std :: string & tbl_name = te . tbl_name;
+        te . row_id += nrows;
 
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": move-ahead\n"
-                << "  table_id = " << id ( eh . dad ) << " ( \"" << tbl_name << "\" )\n"
-                << "  nrows = " << get_nrows ( eh ) << '\n'
+                << "  table_id = " << tableId << " ( \"" << tbl_name << "\" )\n"
+                << "  nrows = " << nrows << '\n'
                 << "  row_id = " << te . row_id << '\n'
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"move-ahead\""
+                   ", \"table-id\": " << tableId
+                << ", \"rows\": " << nrows
+                << " }\n";
+            break;
         }
     }
 
@@ -337,18 +462,24 @@ namespace gw_dump
         check_next_row ( eh );
 
         // advance row-id
-        tbl_entry & te = tbl_entries [ id ( eh ) - 1 ];
+        auto const tableId = id(eh);
+        tbl_entry & te = tbl_entries [ tableId - 1 ];
         ++ te . row_id;
 
-        if ( display )
-        {
-            const std :: string & tbl_name = te . tbl_name;
-
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": next-row\n"
-                << "  table_id = " << id ( eh ) << " ( \"" << tbl_name << "\" )\n"
+                << "  table_id = " << id ( eh ) << " ( \"" << te . tbl_name << "\" )\n"
                 << "  row_id = " << te . row_id << '\n'
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"next-row\""
+                   ", \"table-id\": " << tableId
+                << " }\n";
+            break;
         }
     }
 
@@ -370,17 +501,26 @@ namespace gw_dump
     {
         check_empty_default ( eh );
 
-        if ( display )
-        {
-            const col_entry & entry = col_entries [ id ( eh ) - 1 ];
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
+        auto const columnId = id(eh);
+        auto const &entry = col_entries[columnId - 1];
+        auto const &tbl_name = tbl_entries[entry.table_id - 1].tbl_name;
 
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": cell-default\n"
-                << "  stream_id = " << id ( eh ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
-                << "  elem_count = 0 ( empty )\n"
+                   "  stream_id = " << columnId << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << "\n"
+                   "  elem_count = 0 ( empty )\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"default\""
+                   ", \"column-id\": " << columnId
+                << ", \"data\": []"
+                   " }\n";
+            break;
         }
     }
 
@@ -468,18 +608,15 @@ namespace gw_dump
 
         check_cell_event ( eh );
 
-        size_t data_size = size ( eh );
-        uint8_t * data_buffer = new uint8_t [ data_size ];
-        num_read = readFILE ( data_buffer, sizeof data_buffer [ 0 ], data_size, in );
-        if ( num_read != data_size )
-        {
-            delete [] data_buffer;
+        auto const data_size = size ( eh );
+        auto data_buffer = std::vector<uint8_t>(data_size);
+        if (data_size != readFILE(data_buffer.data(), 1, data_size, in))
             throw "failed to read cell data";
-        }
 
         bool packed_int = false;
         size_t unpacked_size = data_size;
-        const col_entry & entry = col_entries [ id ( eh . dad ) - 1 ];
+        auto const columnId = id(eh.dad);
+        col_entry const &entry = col_entries[columnId - 1];
 
         if ( ( entry . flag_bits & 1 ) != 0 )
         {
@@ -488,13 +625,13 @@ namespace gw_dump
             switch ( entry . elem_bits )
             {
             case 16:
-                unpacked_size = check_int_packing < uint16_t > ( data_buffer, data_size );
+                unpacked_size = check_int_packing < uint16_t > ( data_buffer.data(), data_size );
                 break;
             case 32:
-                unpacked_size = check_int_packing < uint32_t > ( data_buffer, data_size );
+                unpacked_size = check_int_packing < uint32_t > ( data_buffer.data(), data_size );
                 break;
             case 64:
-                unpacked_size = check_int_packing < uint64_t > ( data_buffer, data_size );
+                unpacked_size = check_int_packing < uint64_t > ( data_buffer.data(), data_size );
                 break;
             default:
                 throw "bad element size for packed integer";
@@ -503,14 +640,12 @@ namespace gw_dump
             packed_int = true;
         }
 
-        if ( display )
-        {
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
-
+        switch (display) {
+        case 1:
             std :: cout
-                << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << id ( eh . dad ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
+                << event_num << ": cell-" << type << "\n"
+                   "  stream_id = " << columnId << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << '\n'
                 ;
             if ( packed_int )
             {
@@ -525,9 +660,163 @@ namespace gw_dump
                     << "  elem_count = " << ( data_size * 8 ) / entry . elem_bits << " ( " << data_size << " bytes )\n"
                     ;
             }
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"" << type << "\""
+                   ", \"column-id\": " << columnId
+                << ", \"elements\": " << data_size
+                << ", \"data\": \"<packed data>\""
+                   " }\n";
+            break;
         }
+    }
 
-        delete [] data_buffer;
+    static char hex(uint8_t const x) {
+        return x < 10 ? (x + '0') : ((x - 10 + 'A'));
+    }
+
+    struct ByteOrder {
+        int order[4];
+        int operator[](int i) const { return order[i]; }
+
+        static ByteOrder const &machine() {
+            union { uint8_t u8[4]; uint32_t u32; } const one = {.u32 = 1};
+            static ByteOrder const big = {3, 2, 1, 0};
+            static ByteOrder const little = {0, 1, 2, 3};
+            return one.u8[0] == 1 ? little : big;
+        }
+    };
+
+    class BasicCellDataDumper {
+    public:
+        class u8_4 {
+            union {
+                uint8_t u8[4];
+                uint32_t u32;
+            } uv;
+        public:
+            uint8_t const &operator[](int i) const {
+                static auto machineByteOrder = ByteOrder::machine();
+                return uv.u8[machineByteOrder[i]];
+            }
+            u8_4(uint32_t const &u32) { uv.u32 = u32; }
+        };
+        char buffer[32];
+
+    private:
+        virtual void format(u8_4 const &value) {
+        }
+    public:
+        void inline dump(std::vector<uint32_t> const &data, size_t elements) {
+            size_t n = 0;
+
+            std::cout << '[';
+            for (auto && x : data) {
+                format(x);
+                for (auto i = 0; buffer[i] != '\0'; ++i) {
+                    if (buffer[i] == ',') {
+                        if (++n == elements) {
+                            buffer[i] = '\0';
+                            break;
+                        }
+                    }
+                }
+                std::cout << buffer;
+            }
+            std::cout << ']';
+        }
+    };
+
+    template <size_t elem_bits>
+    class CellDataDumper final : public BasicCellDataDumper {
+    };
+
+    template <> class CellDataDumper<8> final : public BasicCellDataDumper {
+        void format(u8_4 const &y) override {
+            snprintf(buffer, sizeof(buffer), "%" PRIi8 ", %" PRIi8 ", %" PRIi8 ", %" PRIi8 ", "
+                     , y[0], y[1]
+                     , y[2], y[3]);
+        }
+        bool is_printable(std::vector<uint32_t> const &data, size_t const elements) {
+            size_t n = 0;
+
+            for (auto && x : data) {
+                auto const y = u8_4(x);
+                for (auto i = 0; i < 4 && n < elements; ++i) {
+                    auto const ch = *reinterpret_cast<int8_t const *>(&y[i]);
+                    if (!isprint(ch))
+                        return false;
+                    n += 1;
+                    if (n == elements)
+                        return true;
+                }
+            }
+            return true;
+        }
+    public:
+        /// if the data is printable characters, print as a string
+        bool dumpString(std::vector<uint32_t> const &data, size_t const elements) {
+            size_t n = 0;
+
+            if (!is_printable(data, elements))
+                return false;
+
+            std::cout << '"';
+            for (auto && x : data) {
+                auto const y = u8_4(x);
+                for (auto i = 0; i < 4; ++i)
+                    buffer[i] = *reinterpret_cast<int8_t const *>(&y[i]);
+                n += 4;
+                buffer[n <= elements ? 4 : (elements % 4)] = '\0';
+                std::cout << buffer;
+            }
+            std::cout << '"';
+            return true;
+        }
+    };
+
+    template <> class CellDataDumper<16> final : public BasicCellDataDumper {
+        void format(u8_4 const &y) override {
+            auto const u16_1 = (uint16_t(y[0]) << 0)
+                             | (uint16_t(y[1]) << 8);
+            auto const u16_2 = (uint16_t(y[2]) << 0)
+                             | (uint16_t(y[3]) << 8);
+            snprintf(buffer, sizeof(buffer), "%" PRIi16 ", %" PRIi16 ", ", (int16_t)u16_1, (int16_t)u16_2);
+        }
+    };
+
+    template <> class CellDataDumper<32> final : public BasicCellDataDumper {
+        void format(u8_4 const &y) override {
+            auto const u32 = (uint32_t(y[0]) <<  0)
+                           | (uint32_t(y[1]) <<  8)
+                           | (uint32_t(y[2]) << 16)
+                           | (uint32_t(y[3]) << 24);
+            snprintf(buffer, sizeof(buffer), "%" PRIi32 ", ", (int32_t)u32);
+        }
+    };
+
+    template <size_t elem_bits> static
+    void dump_cell_data(std::vector<uint32_t> const &data, size_t const elements) {
+    }
+
+    template <>
+    void dump_cell_data<8>(std::vector<uint32_t> const &data, size_t const elements) {
+        static auto dumper = CellDataDumper<8>();
+        if (!dumper.dumpString(data, elements))
+            dumper.dump(data, elements);
+    }
+
+    template <>
+    void dump_cell_data<16>(std::vector<uint32_t> const &data, size_t const elements) {
+        static auto dumper = CellDataDumper<16>();
+        dumper.dump(data, elements);
+    }
+
+    template <>
+    void dump_cell_data<32>(std::vector<uint32_t> const &data, size_t const elements) {
+        static auto dumper = CellDataDumper<32>();
+        dumper.dump(data, elements);
     }
 
     template <>
@@ -542,30 +831,46 @@ namespace gw_dump
 
         check_cell_event ( eh );
 
-        const col_entry & entry = col_entries [ id ( eh . dad ) - 1 ];
-
-        size_t data_size_uint32 = ( ( uint64_t ) entry . elem_bits * elem_count ( eh ) + 31 ) / 32;
-        uint32_t * data_buffer = new uint32_t [ data_size_uint32 ];
-        num_read = readFILE ( data_buffer, sizeof data_buffer [ 0 ], data_size_uint32, in );
-        if ( num_read != data_size_uint32 )
-        {
-            delete [] data_buffer;
+        auto const columnId = id(eh.dad);
+        col_entry const &entry = col_entries[columnId - 1];
+        auto const elements = elem_count(eh);
+        auto const elem_bits = entry.elem_bits;
+        auto const data_size = size_t(elem_bits) * size_t(elements);
+        auto const data_count = (data_size + 31) >> 5;
+        auto data_buffer = std::vector<uint32_t>(data_count);
+        if (data_count != readFILE(data_buffer.data(), 4, data_count, in))
             throw "failed to read cell data";
-        }
 
-        if ( display )
-        {
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
-
+        switch (display) {
+        case 1:
             std :: cout
-                << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << id ( eh . dad ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
-                << "  elem_bits = " << entry . elem_bits << '\n'
-                << "  elem_count = " << elem_count ( eh ) << '\n'
+                << event_num << ": cell-" << type << "\n"
+                   "  stream_id = " << id ( eh . dad ) << " ( " << tbl_entries[entry.table_id - 1].tbl_name << " . " << entry . spec << " )\n"
+                   "  elem_bits = " << entry . elem_bits << "\n"
+                   "  elem_count = " << elem_count ( eh ) << '\n'
                 ;
+        case 2:
+            std::cout
+                << "{ \"event\": \"" << type << "\""
+                   ", \"column-id\": " << columnId
+                << ", \"data\": ";
+            switch (elem_bits) {
+            case 8:
+                dump_cell_data<8>(data_buffer, elements);
+                break;
+            case 16:
+                dump_cell_data<16>(data_buffer, elements);
+                break;
+            case 32:
+                dump_cell_data<32>(data_buffer, elements);
+                break;
+            default:
+                std::cout << "null";
+                break;
+            }
+            std::cout << " }\n";
+            break;
         }
-
-        delete [] data_buffer;
     }
 
 
@@ -591,11 +896,15 @@ namespace gw_dump
     {
         check_open_stream ( eh );
 
-        if ( display )
-        {
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": open-stream\n"
                 ;
+            break;
+        case 2:
+            std::cout << "{ \"event\": \"begin\" }\n";
+            break;
         }
     }
 
@@ -658,22 +967,30 @@ namespace gw_dump
 
         check_new_column ( eh );
 
-        char * string_buffer = read_colname ( eh, in );
-        std :: string name ( string_buffer, name_size ( eh ) );
-        col_entries . push_back ( col_entry ( table_id ( eh ), name, elem_bits ( eh ), flag_bits ( eh ) ) );
+        auto const name = readColname(eh, in);
+        auto const tableId = table_id(eh);
 
-        if ( display )
-        {
-            const std :: string & tbl_name = tbl_entries [ table_id ( eh ) - 1 ] . tbl_name;
+        col_entries.emplace_back(col_entry(tableId, name, elem_bits(eh), flag_bits(eh)));
 
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": new-column\n"
-                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_name << "\" )\n"
+                << "  table_id = " << tableId << " ( \"" << tbl_entries[tableId - 1].tbl_name << "\" )\n"
                 << "  column_name [ " << name_size ( eh ) << " ] = \"" << name << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"column\""
+                   ", \"table-id\": " << tableId
+                << ", \"column-id\": " << col_entries.size()
+                << ", \"expression\": \"" << name << "\""
+                   ", \"elem-bits\": " << elem_bits(eh)
+                << ", \"flags\": " << (int)flag_bits(eh)
+                << " }\n";
+            break;
         }
-
-        whack_colname ( eh, string_buffer );
     }
 
     /* check_new_table
@@ -708,19 +1025,24 @@ namespace gw_dump
 
         check_new_table ( eh );
 
-        char * string_buffer = read_1string ( eh, in );
-        std :: string name ( string_buffer, size ( eh ) );
-        tbl_entries . push_back ( tbl_entry ( name ) );
+        auto const &name = read1String(eh, in);
+        tbl_entries.emplace_back(tbl_entry(name));
 
-        if ( display )
-        {
+        switch(display) {
+        case 1:
             std :: cout
                 << event_num << ": new-table\n"
                 << "  table_name [ " << size ( eh ) << " ] = \"" << name << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"table\""
+                   ", \"name\": \"" << name << "\""
+                   ", \"table-id\": " << tbl_entries.size()
+                << " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* check_use_schema
@@ -764,20 +1086,24 @@ namespace gw_dump
 
         check_use_schema ( eh );
 
-        char * string_buffer = read_2string ( eh, in );
+        auto const strings = read2Strings(eh, in);
 
-        if ( display )
-        {
-            std :: string schema_file_name ( string_buffer, size1 ( eh ) );
-            std :: string schema_db_spec ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+        switch(display) {
+        case 1:
             std :: cout
                 << event_num << ": use-schema\n"
-                << "  schema_file_name [ " << size1 ( eh ) << " ] = \"" << schema_file_name << "\"\n"
-                << "  schema_db_spec [ " << size2 ( eh ) << " ] = \"" << schema_db_spec << "\"\n"
+                << "  schema_file_name [ " << size1 ( eh ) << " ] = \"" << strings.first << "\"\n"
+                << "  schema_db_spec [ " << size2 ( eh ) << " ] = \"" << strings.second << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"use-schema\""
+                   ", \"file_name\": \"" << strings.first << "\""
+                   ", \"db_spec\": \"" << strings.second << "\""
+                   " }\n";
+            break;
         }
-
-        whack_2string ( eh, string_buffer );
     }
 
     /* check_software_name
@@ -787,7 +1113,7 @@ namespace gw_dump
      *    length ( schema-path ) != 0
      *    length ( schema-spec ) != 0
      */
-
+    static
     void check_vers_component ( const char * vers, const char * end, long num, unsigned long max, char term )
     {
         if ( vers == end )
@@ -798,6 +1124,7 @@ namespace gw_dump
             throw "bad version";
     }
 
+    static
     void check_vers ( const char * vers )
     {
         char * end;
@@ -851,22 +1178,28 @@ namespace gw_dump
 
         check_software_name ( eh );
 
-        char * string_buffer = read_2string ( eh, in );
-        std :: string software_name ( string_buffer, size1 ( eh ) );
-        std :: string version ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+        auto const &strings = read2Strings(eh, in);
+        auto const &software_name = strings.first;
+        auto const &version = strings.second;
 
         check_vers ( version . c_str () );
 
-        if ( display )
-        {
+        switch(display) {
+        case 1:
             std :: cout
                 << event_num << ": software-name\n"
-                << "  software_name [ " << size1 ( eh ) << " ] = \"" << software_name << "\"\n"
-                << "  version [ " << size2 ( eh ) << " ] = \"" << version << "\"\n"
+                   "  software_name [ " << size1 ( eh ) << " ] = \"" << software_name << "\"\n"
+                   "  version [ " << size2 ( eh ) << " ] = \"" << version << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"software\""
+                   ", \"name\": \"" << software_name << "\""
+                   ", \"version\": \"" << version << "\""
+                   " }\n";
+            break;
         }
-
-        whack_2string ( eh, string_buffer );
     }
 
     /* check_metadata_node
@@ -890,10 +1223,26 @@ namespace gw_dump
             throw "empty value";
     }
 
+    enum metadata_node_root {
+        mnr_database,
+        mnr_table,
+        mnr_column,
+    };
+    char const *metadata_node_root_name(metadata_node_root mnr) {
+        switch (mnr) {
+        case mnr_database:
+            return "db-id";
+        case mnr_table:
+            return "table-id";
+        case mnr_column:
+            return "column-id";
+        }
+    }
+
     /* dump_metadata_node
      */
     template < class D, class T > static
-    void dump_metadata_node ( FILE * in, const D & e )
+    void dump_metadata_node ( FILE * in, const D & e, metadata_node_root const mnr )
     {        
         T eh;
         init ( eh, e );
@@ -904,19 +1253,27 @@ namespace gw_dump
 
         check_metadata_node ( eh );
 
-        char *string_buffer = read_2string ( eh, in );
-        std :: string node_path ( string_buffer, size1 ( eh ) );
-        std :: string value ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+        auto const objectId = id(eh.dad);
+        auto const &strings = read2Strings(eh, in);
+        auto const &node_path = strings.first;
+        auto const &value = strings.second;
 
-        if ( display )
-        {
+        switch (display) {
+        case 1:
             std :: cout 
                 << event_num << ": metadata-node\n"
-                << "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
-                << "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
+                   "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
+                   "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"metadata\""
+                   ", \"" << metadata_node_root_name(mnr) << "\": " << objectId
+                << ", \"node\": \"" << node_path << "\""
+                   ", \"value\": \"" << value << "\""
+                   " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* check_add_mbr
@@ -986,11 +1343,31 @@ namespace gw_dump
 
         check_add_mbr ( eh );
 
-        uint32_t dbid = db_id ( eh );
-        char *string_buffer = read_2string ( eh, in );
-        std :: string member_name ( string_buffer, size1 ( eh ) );
-        std :: string db_tbl_name ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
-        uint8_t cmode = create_mode ( eh ); 
+        auto const dbid = db_id ( eh );
+        auto const cmode = create_mode ( eh );
+        auto const &r2s = read2Strings(eh, in);
+        auto const &member_name = r2s.first;
+        auto const &db_tbl_name = r2s.second;
+        auto mode_string = std::string("???");
+
+        switch ( cmode & kcmValueMask )
+        {
+        case kcmOpen:
+            mode_string.assign("kcmOpen");
+            break;
+        case kcmInit:
+            mode_string.assign("kcmInit");
+            break;
+        case kcmCreate:
+            mode_string.assign("kcmCreate");
+            break;
+        }
+        if ((cmode & kcmParents) != 0)
+            mode_string.append(", kcmParents");
+        if ((cmode & kcmMD5) != 0)
+            mode_string.append(", kcmMD5");
+
+        auto const mode = std::string();
 
         switch ( evt ( eh . dad ) )
         {
@@ -1004,8 +1381,8 @@ namespace gw_dump
             throw "logic error";
         }
 
-        if ( display )
-        {
+        switch (display) {
+        case 1:
             std :: cout 
                 << event_num << ": add-member\n"
                 << "  db_id [ " << dbid << " ]\n"
@@ -1013,27 +1390,18 @@ namespace gw_dump
                 << "  db/tbl  [ " << size2 ( eh ) << " ] = \"" << db_tbl_name << "\"\n"
                 << "  create_mode  [ "
                 << ( uint32_t ) cmode
-                << " ] ( ";
-            switch ( cmode & kcmValueMask )
-            {
-            case kcmOpen:
-                std :: cout << "kcmOpen";
-                break;
-            case kcmInit:
-                std :: cout << "kcmInit";
-                break;
-            case kcmCreate:
-                std :: cout << "kcmCreate";
-                break;
-            }
-            if ( ( cmode & kcmParents ) != 0 )
-                std :: cout << ", kcmParents";
-            if ( ( cmode & kcmMD5 ) != 0 )
-                std :: cout << ", kcmMD5";
-            std :: cout << " )\n";
+                << " ] ( " << mode_string << " )\n";
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"add-member\""
+                   ", \"db-id\": \"" << dbid << "\""
+                   ", \"member-name\": \"" << member_name << "\""
+                   ", \"db-or-table-name\": \"" << db_tbl_name << "\""
+                   ", \"mode\": \"[" << mode_string << "]\""
+                   " }\n";
+            break;
         }
-
-        whack_2string ( eh, string_buffer );
     }
 
     /* check_remote_path
@@ -1072,18 +1440,22 @@ namespace gw_dump
 
         check_remote_path ( eh );
 
-        char * string_buffer = read_1string ( eh, in );
+        auto const path = read1String ( eh, in );
 
-        if ( display )
-        {
-            std :: string path ( string_buffer, size ( eh ) );
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": remote-path\n"
                 << "  remote_db_name [ " << size ( eh ) << " ] = \"" << path << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"remote-path\""
+                   ", \"value\": \"" << path << "\""
+                   " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* check_end_stream
@@ -1108,11 +1480,16 @@ namespace gw_dump
     bool dump_end_stream ( FILE * in, const T & eh )
     {
         check_end_stream ( eh );
-        if ( display )
-        {
+
+        switch (display) {
+        case 1:
             std :: cout
                 << "END\n"
                 ;
+            break;
+        case 2:
+            std::cout << "{ \"event\": \"end\" }\n";
+            break;
         }
         return false;
     }
@@ -1153,19 +1530,22 @@ namespace gw_dump
 
         check_errmsg ( eh );
 
-        char * string_buffer = read_1string ( eh, in );
+        auto const &msg = read1String(eh, in);
 
-        if ( display )
-        {
-            std :: string msg ( string_buffer, size ( eh ) );
-
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": error-message\n"
                 << "  msg [ " << size ( eh ) << " ] = \"" << msg << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"error\""
+                   ", \"message\": \"" << msg << "\""
+                   " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* check_logmsg
@@ -1204,19 +1584,22 @@ namespace gw_dump
 
         check_logmsg ( eh );
 
-        char * string_buffer = read_1string ( eh, in );
+        auto const &msg = read1String(eh, in);
 
-        if ( display )
-        {
-            std :: string msg ( string_buffer, size ( eh ) );
-
+        switch (display) {
+        case 1:
             std :: cout
                 << event_num << ": log-message\n"
                 << "  msg [ " << size ( eh ) << " ] = \"" << msg << "\"\n"
                 ;
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"log\""
+                   ", \"message\": \"" << msg << "\""
+                   " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* check_progmsg
@@ -1261,6 +1644,18 @@ namespace gw_dump
             throw "invalid percent";
     }
 
+    static std::string localtimeString(uint32_t ts32) {
+        char buffer[256];
+        time_t ts = (time(NULL) & 0xFFFFFFFF) | time_t(ts32);
+        struct tm tmbuf;
+        size_t len;
+
+        asctime_r(localtime_r(&ts, &tmbuf), buffer);
+        for (len = strlen(buffer); len > 0 && buffer[len - 1] == '\n'; --len)
+            ;
+        return std::string(buffer, len);
+    }
+
     /* dump-progmsg
      */
     template < class D, class T > static
@@ -1275,23 +1670,16 @@ namespace gw_dump
 
         check_progmsg ( eh );
 
-        char *string_buffer = read_1string ( eh, in );
-        std :: string app_name ( string_buffer, size ( eh ) );
-        uint32_t _pid = pid ( eh );
-        uint32_t _timestamp = timestamp ( eh );
-        uint32_t _version = version ( eh );
-        uint32_t _percent = percent ( eh );
+        auto const &app_name = read1String(eh, in);
+        auto const _pid = pid ( eh );
+        auto const _timestamp = timestamp ( eh );
+        auto const _version = version ( eh );
+        auto const _percent = percent ( eh );
+        auto const time_str = localtimeString(_timestamp);
 
-        if ( display )
-        {
-            time_t ts = ( time_t ) _timestamp;
-            char time_str [ 256 ];
-            asctime_r ( localtime ( & ts ), time_str );
-            size_t len = strlen ( time_str );
-            while ( len > 0 && time_str [ len - 1 ] == '\n' )
-                time_str [ -- len ] = 0;
-
-            std :: cout 
+        switch (display) {
+        case 1:
+            std :: cout
                 << event_num << ": prog-msg\n"
                 << "  app [ " << app_name << " ] \n"
                 << "  message [  proccessed " << _percent << "% ] \n"
@@ -1299,9 +1687,18 @@ namespace gw_dump
                 << "  timestamp [ " << time_str << " ( " << _timestamp << " ) ] \n"
                 << "  version [ " << ( _version >> 24 ) << '.' << ( ( _version >> 16 ) & 0xFF ) << '.' << ( _version & 0xFFFF ) << " ] \n"
                 << "  percent [ " << _percent << " ]\n ";
+            break;
+        case 2:
+            std::cout
+                << "{ \"event\": \"progress\""
+                   ", \"timestamp\": \"" << time_str << "\""
+                   ", \"app\": \"" << app_name << "\""
+                   ", \"version\": \"" << ( _version >> 24 ) << '.' << ( ( _version >> 16 ) & 0xFF ) << '.' << ( _version & 0xFFFF ) << "\""
+                   ", \"pid\": " << _pid
+                << ", \"percent\": " << _percent
+                << " }\n";
+            break;
         }
-
-        whack_1string ( eh, string_buffer );
     }
 
     /* dump_v1_event
@@ -1379,13 +1776,13 @@ namespace gw_dump
             dump_software_name < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
             break;
         case evt_db_metadata_node:
-            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e, mnr_database );
             break;
         case evt_tbl_metadata_node:
-            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e, mnr_table );
             break;
         case evt_col_metadata_node:
-            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e, mnr_column );
             break;
         case evt_db_metadata_node2:
         case evt_tbl_metadata_node2:
@@ -1418,9 +1815,9 @@ namespace gw_dump
     bool dump_v1_packed_event ( FILE * in )
     {
         if ( jump_event == event_num )
-            display = true;
+            display = format;
         else if ( end_event == event_num )
-            display = false;
+            display = 0;
 
         gwp_evt_hdr_v1 e;
         memset ( & e, 0, sizeof e );
@@ -1497,22 +1894,22 @@ namespace gw_dump
             dump_software_name < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
             break;
         case evt_db_metadata_node:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_database );
             break;
         case evt_tbl_metadata_node:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_table );
             break;
         case evt_col_metadata_node:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_column );
             break;
         case evt_db_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_database );
             break;
         case evt_tbl_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_table );
             break;
         case evt_col_metadata_node2:
-            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e, mnr_column );
             break;
         case evt_add_mbr_db:
             dump_add_mbr < gwp_evt_hdr_v1, gwp_add_mbr_evt_v1 > ( in, e );
@@ -1541,7 +1938,7 @@ namespace gw_dump
     }
 
     static
-    void dump_v1_header ( FILE * in, const gw_header & dad, bool & packed )
+    void dump_v1_header ( FILE * in, const gw_header & dad, bool *packed )
     {
         gw_header_v1 hdr;
         init ( hdr, dad );
@@ -1553,15 +1950,25 @@ namespace gw_dump
         check_v1_header ( hdr );
 
         if ( hdr . packing )
-            packed = true;
+            *packed = true;
 
-        if ( display )
-        {
+        switch (display) {
+        case 1:
             std :: cout
                 << "header: version " << hdr . dad . version << '\n'
                 << "  hdr_size = " << hdr . dad . hdr_size << '\n'
                 << "  packing = " << hdr . packing << '\n'
                 ;
+            break;
+
+        case 2:
+            std::cout
+                << "{ \"event\": \"header\""
+                   ", \"version\": \"" << hdr.dad.version << "\""
+                   ", \"size\": " << hdr . dad . hdr_size
+                << ", \"packing\": " << (hdr . packing ? "true" : "false")
+                << " }\n";
+            break;
         }
     }
 
@@ -1583,7 +1990,7 @@ namespace gw_dump
     }
 
     static
-    uint32_t dump_header ( FILE * in, bool & packed )
+    uint32_t dump_header ( FILE * in, bool *packed )
     {
         gw_header hdr;
         size_t num_read = readFILE ( & hdr, sizeof hdr, 1, in );
@@ -1610,28 +2017,26 @@ namespace gw_dump
         foffset = 0;
 
         bool packed = false;
-        uint32_t version = dump_header ( in, packed );
+        uint32_t version = dump_header ( in, &packed );
+        auto dumper = dump_v1_event;
 
         event_num = 1;
         switch ( version )
         {
         case 1:
         case 2:
+            if (packed)
+                dumper = dump_v1_packed_event;
 
-            if ( packed )
-            {
-                while ( dump_v1_packed_event ( in ) )
-                    ++ event_num;
-            }
-            else
-            {
-                while ( dump_v1_event ( in ) )
-                    ++ event_num;
-            }
+            while (dumper(in))
+                ++event_num;
+
             break;
+        default:
+            throw "unrecognized version";
         }
 
-        int ch = fgetc ( in );
+        auto ch = fgetc ( in );
         if ( ch != EOF )
             throw "excess data after end-stream";
     }
@@ -1690,8 +2095,8 @@ namespace gw_dump
             << "  -j event-num                     jump to numbered event before displaying.\n"
             << "                                   ( event numbers are 1-based, so the first event is 1. )\n"
             << "  -N event-count                   display a limited number of events and then go quiet.\n"
-            << "  -v                               increase verbosity. Use multiple times for increased verbosity.\n"
-            << "                                   ( currently this only enables or disables display. )\n"
+            << "  -v                               display events.\n"
+            << "  -J                               display events as JSON objects.\n"
             << "  -h                               display this help message\n"
             << '\n'
             << tool_path << '\n'
@@ -1703,6 +2108,8 @@ namespace gw_dump
     {
         uint32_t num_files = 0;
 
+        format = 0; // default
+
         for ( int i = 1; i < argc; ++ i )
         {
             const char * arg = argv [ i ];
@@ -1711,7 +2118,10 @@ namespace gw_dump
             else do switch ( ( ++ arg ) [ 0 ] )
             {
             case 'v':
-                ++ verbose;
+                format = 1;
+                break;
+            case 'J':
+                format = 2;
                 break;
             case 'j':
                 jump_event = atoU64 ( nextArg ( arg, i, argc, argv ) );
@@ -1729,8 +2139,8 @@ namespace gw_dump
             while ( arg [ 1 ] != 0 );
         }
 
-        if ( verbose && jump_event == 0 )
-            display = true;
+        if ( jump_event == 0 )
+            display = format;
 
         end_event += jump_event;
 

@@ -1,6 +1,28 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 3.0.0
+**February 10, 2022**
+
+  **ngs-tools**: updated for _sra-tools 3.0.0_
+
+
+## NCBI NGS Toolkit 2.11.2
+**October 7, 2021**
+
+  **klib, ngs-tools, sra-tools**: status messages (-v) are printed to stderr rather than stdout  
+  **kns, ngs-tools, sra-tools**: old verbose messages now happen at verbosity > 1  
+  **ncbi-vdb, ngs-tools, sra-tools, vdb, vfs**: added  support of SRA Lite files with simplified base quality scores  
+  **sra-search**: fixed a data race in reference-driven mode  
+
+
+## NCBI NGS Toolkit 2.11.1
+**August 17, 2021**
+
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: configure prints the version of compiler  
+  **sra-download**: sra-download-manager tool has been removed  
+
+
 ## NCBI NGS Toolkit 2.11.0
 **March 15, 2021**
 

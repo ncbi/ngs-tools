@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.8.12)
 
 message(CMAKE_VERSION = ${CMAKE_VERSION})
 
-set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.6 )
+set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.10 )
 
 set ( CMAKE_CXX_EXTENSIONS OFF )
 if (CMAKE_VERSION VERSION_LESS "3.1")
@@ -28,6 +28,7 @@ include ( env )
 
 add_subdirectory(libs)
 add_subdirectory(tools)
+add_subdirectory(test)
 
 set ( CPACK_PACKAGE_NAME ngs-tools )
 set ( CPACK_PACKAGE_VERSION 0.1 )

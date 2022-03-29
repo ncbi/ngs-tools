@@ -33,8 +33,8 @@
 
 #include <kfc/except.h>
 
-#include <../libs/ngs/NGS_FragmentBlobIterator.h>
-#include <../libs/ngs/NGS_FragmentBlob.h>
+#include <../ncbi/ngs/NGS_FragmentBlobIterator.h>
+#include <../ncbi/ngs/NGS_FragmentBlob.h>
 
 #include "Error.hpp"
 
@@ -50,9 +50,12 @@ FragmentBlobIterator :: FragmentBlobIterator ( FragmentBlobIteratorRef ref ) NGS
 FragmentBlobIterator &
 FragmentBlobIterator :: operator = ( const FragmentBlobIterator & obj )
 {
-    HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
-    THROW_ON_FAIL ( NGS_FragmentBlobIteratorRelease ( self, ctx) );
-    self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx);
+    if ( &obj != this )
+    {
+        HYBRID_FUNC_ENTRY ( rcSRA, rcArc, rcAccessing );
+        THROW_ON_FAIL ( NGS_FragmentBlobIteratorRelease ( self, ctx) );
+        THROW_ON_FAIL ( self = NGS_FragmentBlobIteratorDuplicate ( obj . self, ctx) );
+    }
     return *this;
 }
 
@@ -95,4 +98,3 @@ FragmentBlobIterator :: nextBlob()
     THROW_ON_FAIL ( NGS_FragmentBlobRelease ( blob, ctx ) );
     return ret;
 }
-
