@@ -1,3 +1,5 @@
+cmake_policy(SET CMP0115 OLD)
+
 #/////////////////////// Cache variables, may be overridden at config time:
 
 # by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir

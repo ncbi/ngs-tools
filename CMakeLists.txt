@@ -28,7 +28,7 @@ set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
-include ( env )
+include ( env NO_POLICY_SCOPE )
 
 add_subdirectory(libs)
 add_subdirectory(tools)
