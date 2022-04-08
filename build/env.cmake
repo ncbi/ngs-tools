@@ -1,4 +1,8 @@
-cmake_policy(SET CMP0115 OLD)
+# allow implicit source file extensions
+if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
+     ${CMAKE_VERSION} VERSION_GREATER "3.20")
+    cmake_policy(SET CMP0115 OLD)
+endif()
 
 #/////////////////////// Cache variables, may be overridden at config time:
 
