@@ -22,7 +22,7 @@ if( NOT WIN32 )
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 ./load-diff.sh ${SRATOOLS_BINDIR} ./temp
                 "latf-load ${latf-params}  -1 ./input/${File1} -2 ./input/${File2} -o ${TestCase}.latf" ${TestCase}.latf
-                "sharq ./input/${File1} ./input/${File2} | ${SRATOOLS_BINDIR}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}.sharq" ${TestCase}.sharq
+                "sharq ${sharq-params} ./input/${File1} ./input/${File2} | ${SRATOOLS_BINDIR}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}.sharq" ${TestCase}.sharq
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endmacro()

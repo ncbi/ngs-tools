@@ -9,7 +9,7 @@ if( NOT WIN32 )
                 ${CMAKE_COMMAND} -E env NCBI_SETTINGS=/
                 ${CMAKE_COMMAND} -E env VDB_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}
                 ./load-dump-diff.sh ${SRATOOLS_BINDIR} ./temp
-                "sharq ./input/${TestCase} | ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}  " ${TestCase}
+                "sharq ./input/${TestCase} | ${SRATOOLS_BINDIR}/general-loader --schema sra/generic-fastq.vschema --target ${TestCase}  " ${TestCase}
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         )
     endmacro()
