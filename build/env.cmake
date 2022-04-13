@@ -1,3 +1,9 @@
+# allow implicit source file extensions
+if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
+     ${CMAKE_VERSION} VERSION_GREATER "3.20")
+    cmake_policy(SET CMP0115 OLD)
+endif()
+
 #/////////////////////// Cache variables, may be overridden at config time:
 
 # by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
@@ -196,7 +202,7 @@ else()
 
 		# on Windows, require both debug and release libraries
         if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Debug.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
+            find_library ( NGS_LIBRARY ngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
 			if ( NGS_LIBRARY )
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Debug NGS libraries in ${NGS_LIBDIR_DEBUG}" )
@@ -206,7 +212,7 @@ else()
         endif()
 
         if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Release.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
+            find_library ( NGS_LIBRARY ngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
 			if ( NGS_LIBRARY )
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Release NGS libraries in ${NGS_LIBRARY_DIR}" )
