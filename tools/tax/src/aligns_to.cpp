@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.703";
+const std::string VERSION = "0.706";
 
 typedef uint64_t hash_t;
 
@@ -66,8 +66,11 @@ int main(int argc, char const *argv[])
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
     
     LOG("aligns_to version " << VERSION);
-    LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << omp_get_num_threads());
     Config config(argc, argv);
+    {
+        int num_threads = config.num_threads > 0 ? config.num_threads : omp_get_max_threads();
+        LOG("hardware threads: "  << std::thread::hardware_concurrency() << ", omp threads: " << num_threads);
+    }
     if (config.num_threads > 0)
         omp_set_num_threads(config.num_threads);
 
