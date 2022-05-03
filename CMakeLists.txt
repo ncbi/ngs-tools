@@ -14,7 +14,7 @@ else ()
 endif ()
 
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # best to use at the top
 project ( ngs-tools )
