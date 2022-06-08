@@ -34,6 +34,7 @@
 #include "seq_transform.h"
 #include "p_string.h"
 #include "dbs.h"
+#include <mutex>
 #include "tax_collator.hpp"
 
 // incompatible with multiple intput files option todo: fix by moving table creation to constructor and enable
@@ -51,24 +52,46 @@ struct DBSJob : public Job
         }
     };
 
+    typedef std::set<hash_t> hash_set;
     typedef std::vector<KmerTax> HashSortedArray;
 
     HashSortedArray hash_array;
     typedef unsigned int tax_t; // todo: remove duplicate definition of tax_t and tax_id_t
     size_t kmer_len = 0;
 
-public:
+    public:
 
-    struct Hits : public std::map<tax_t, int>
+    struct Hits : public std::map<tax_t, hash_set>
     {
         operator bool() const { return size() != 0; }
 
         void operator += (const Hits &x)
         {
             for (auto &other : x)
-                (*this)[other.first] += other.second;
+                // (*this)[other.first] += other.second;
+                for (auto other_khit : other.second){
+                    (*this)[other.first].emplace(other_khit);
+                    //(*this)[other.first].insert(other.second.begin(),other.second.end());
+                }
         }
+        void print_uniq_hits(IO::Writer &uniq_file)
+        {
+            if (uniq_file.stream_f){
+                for (auto tax_hit : *this){
+                    uniq_file.f() <<  tax_hit.first << '\t' << tax_hit.second.size() << std::endl;
+                }
+            }
+            else {
+                std::cout << "Unique" << unique_hits.size() << std::endl;
+                for (auto tax_hit : unique_hits){
+                    std::cout <<  tax_hit.first << '\t' << tax_hit.second.size() << std::endl;
+                }
+            }
+        }
+
     };
+    static Hits unique_hits;
+    static std::mutex uniq_mutex;
 
     virtual size_t db_kmers() const override { return hash_array.size();}
 
@@ -83,8 +106,9 @@ public:
         const HashSortedArray &hash_array;
         int kmer_len;
         int max_lookups_per_seq = 0;
+        bool unique = false;
 
-        Matcher(const HashSortedArray &hash_array, int kmer_len, int max_lookups_per_seq) : hash_array(hash_array), kmer_len(kmer_len), max_lookups_per_seq(max_lookups_per_seq)
+        Matcher(const HashSortedArray &hash_array, int kmer_len, int max_lookups_per_seq, bool unique) : hash_array(hash_array), kmer_len(kmer_len), max_lookups_per_seq(max_lookups_per_seq), unique(unique)
         {
             if (max_lookups_per_seq != 0)
                 LOG("max lookups per seq fragment " << max_lookups_per_seq);
@@ -126,7 +150,7 @@ public:
  #endif
         }
 
-        int find_hash(hash_t hash, int default_value) const
+        std::pair<tax_t, hash_t>  find_hash(hash_t hash, int  default_value ) const
         {
 #if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
@@ -137,7 +161,13 @@ public:
             auto last = hash_array.end();
 #endif
             first = std::lower_bound(first, last, KmerTax(hash, 0));
-            return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_id;
+            if ((first == last) || (hash < first->kmer)){
+                return {default_value,default_value};
+            }
+            else {
+                return {first->tax_id, (unique ? first->kmer : default_value)};
+            }
+            // return { ((first == last) || (hash < first->kmer) ) ? {default_value, default_value}; :  {first->tax_id, first->kmer}; }
         }
 
         int calculate_lookup_window(int seq_kmers) const
@@ -171,16 +201,20 @@ public:
 
                     index++;
 
-                    if ((index % lookup_window) == 0 || index == seq_kmers)
+                    if ((index % lookup_window) == 0 || index == seq_kmers) 
                     {
-                        if (auto tax_id = find_hash(min_hash, 0))
-                            hits[tax_id] ++;
+                        auto hit = find_hash(min_hash,0);
+                        if (unique && hit.first && hits[hit.first].find(hit.second) == hits[hit.first].end())   {
+                            hits[hit.first].emplace(hit.second);
+                        }
+                        else if (hit.first){
+                            hash_t h(hits[hit.first].size() + 1);
+                            hits[hit.first].emplace(h);
+                        }
                         index = 0;
                     }
-
                     return true;
                 });
-
 
             return hits;
         }
@@ -188,13 +222,14 @@ public:
     };
 
     struct TaxMatchId
-    {
+   {
         int seq_id;
         Hits hits;
         TaxMatchId(int seq_id, const Hits &hits) : seq_id(seq_id), hits(hits)   {}
 
         bool operator < (const TaxMatchId &b) const { return seq_id < b.seq_id; }
     };
+
 
 template<class TaxHitsO>
     struct TaxHitsPrinter
@@ -218,7 +253,7 @@ template<class TaxHitsO>
                 for (auto &hit : seq_id.hits) {
                     spot.tax_id.push_back(hit.first);
                     if constexpr (TaxHitsO::has_counts()) {
-                        spot.counts.push_back(hit.second);
+                        spot.counts.push_back(hit.second.size());
                     }
                 }
                 if (spot.name == last_spot.name) {
@@ -236,11 +271,27 @@ template<class TaxHitsO>
     struct TaxPrinter
     {
         IO::Writer &writer;
-        const bool print_counts, compact;
-        TaxPrinter(bool print_counts, bool compact, IO::Writer &writer) : print_counts(print_counts), compact(compact), writer(writer) {}
+        const bool print_counts, compact, unique;
+        TaxPrinter(bool print_counts, bool compact, IO::Writer &writer, bool unique) : print_counts(print_counts), compact(compact), writer(writer), unique(unique) {}
+
+        void load_uniq_chunk(const std::vector<TaxMatchId> &tm_ids)
+        {
+            uniq_mutex.lock();
+            for (auto tm_id : tm_ids){
+                for (auto &hit : tm_id.hits){
+                    for (auto khit : hit.second){
+                        unique_hits[hit.first].emplace(khit);
+                    }
+                }
+            }
+            uniq_mutex.unlock();
+        }
 
         void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
         {
+            if (unique){
+                load_uniq_chunk(ids);
+            }
             if (compact)
                 print_compact(processing_sequences, ids);
             else
@@ -249,7 +300,8 @@ template<class TaxHitsO>
             writer.check();
         }
 
-    private:
+        private:
+
         void print(const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
         {
             for (auto seq_id : ids)
@@ -273,8 +325,8 @@ template<class TaxHitsO>
             for (auto &hit : seq_id.hits) 
             {
                 writer.f() << '\t' << hit.first;
-                if (print_counts && hit.second > 1)
-                    writer.f() << 'x' << hit.second;
+                if (print_counts && hit.second.size() > 1)
+                    writer.f() << 'x' << hit.second.size();
             }
 
             writer.f() << std::endl;
@@ -361,6 +413,7 @@ template<class TaxHitsO>
     bool hide_counts = false;
     bool compact = false;
 
+
     template<class Options>
     void run_collator(const std::string &filename, IO::Writer &writer, const Config &config)
     {
@@ -368,7 +421,7 @@ template<class TaxHitsO>
 
         auto tax_hits = make_unique<tc::Tax_hits<Options>>(true);
         {
-            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
+            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment, config.unique); // todo: move to constructor
             TaxHitsPrinter tc_print(!hide_counts, compact, *tax_hits);
 
             Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
@@ -404,6 +457,7 @@ template<class TaxHitsO>
     {
         hide_counts = config.hide_counts;
         compact = config.compact;
+
         if (config.collate || config.vectorize) {
             if (hide_counts)
                 run_collator<tc::tax_hits_options<false, false>>(filename, writer, config);
@@ -413,16 +467,26 @@ template<class TaxHitsO>
                 run_collator<tc::tax_hits_options<false, true>>(filename, writer, config);
 
         } else {
-            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment); // todo: move to constructor
-            TaxPrinter print(!hide_counts, compact, writer);
+            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment,
+                            config.unique); // todo: move to constructor
+            TaxPrinter print(!hide_counts, compact, writer, config.unique);
             Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
             [&](const std::vector<Reader::Fragment> &chunk) { 
                 Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, matcher);
             } );
+            if (config.unique){
+                IO::Writer writer_u((!writer.filename.empty()) ? writer.filename + ".uniq" : "");
+                unique_hits.print_uniq_hits(writer_u);
+            }
         }
     }
-
 };
+
+
+
+std::mutex DBSJob::uniq_mutex;
+DBSJob::Hits DBSJob::unique_hits;
+
 
 struct DBSBasicJob : public DBSJob
 {
