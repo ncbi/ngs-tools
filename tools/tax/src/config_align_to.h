@@ -48,6 +48,7 @@ struct Config
     int num_threads = 0;
     bool collate = false;
     bool vectorize = false;
+    size_t chunk_size = 0;
 
     Config(int argc, char const *argv[])
     {
@@ -91,6 +92,8 @@ struct Config
                 optimization_dbs_max_lookups_per_seq_fragment = std::stoi(pop_arg(args));
             else if (arg == "-num_threads")
                 num_threads = std::stoi(pop_arg(args));
+            else if (arg == "-chunk_size")
+                chunk_size = std::stoll(pop_arg(args));
             else if (arg.empty() || arg[0] == '-' || !contig_file.empty()) 
             {
                 std::string reason = "unexpected argument: " + arg;

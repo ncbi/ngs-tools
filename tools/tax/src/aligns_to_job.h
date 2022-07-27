@@ -62,7 +62,7 @@ struct Job
     }     
 
     template <class MatchAndPrint>
-	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, int ultrafast_skip_reader, MatchAndPrint &&match_and_print)
+	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, int ultrafast_skip_reader, size_t chunk_size, MatchAndPrint &&match_and_print)
 	{
 		Progress progress;
         Reader::Params params;
@@ -78,7 +78,7 @@ struct Job
             while (!done) {
                 #pragma omp critical (read)
                 {
-                    done = !reader->read_many(chunk);
+                    done = !reader->read_many(chunk, chunk_size);
                     progress.report(reader->progress());
                 }
 

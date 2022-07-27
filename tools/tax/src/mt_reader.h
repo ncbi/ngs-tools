@@ -220,7 +220,7 @@ public:
         return true;
     }
 
-    bool read_many(std::vector<Fragment>& output) override {
+    bool read_many(std::vector<Fragment>& output, size_t chunk_size) override {
         if (current_fragment_idx >= current_chunk.size()) {
             if (!load_chunk()) {
                 output.clear();

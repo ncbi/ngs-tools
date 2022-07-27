@@ -408,7 +408,7 @@ void test_read(const char* path) {
     auto reader = Reader::create(path, Reader::Params());
     std::vector<Reader::Fragment> chunk;
     int percent = -1;
-    while (reader->read_many(chunk)) {
+    while (reader->read_many(chunk, 0)) {
         ASSERT(reader->progress() >= 0 && reader->progress() <= 1);
         int new_percent = int(100 * reader->progress());
         if (new_percent != percent) {

@@ -82,8 +82,11 @@ public:
     // read the most efficient count of fragments into output
     // replaces output content
     // returns true if anything was read (i.e. output is not empty)
-    virtual bool read_many(std::vector<Fragment>& output) {
-        output.resize(std::max(output.capacity(), size_t(DEFAULT_CHUNK_SIZE)));
+    virtual bool read_many(std::vector<Fragment>& output, size_t chunk_size) {
+        if (chunk_size == 0)
+            chunk_size = DEFAULT_CHUNK_SIZE;
+
+        output.resize(std::max(output.capacity(), chunk_size));
         for (size_t i = 0; i < output.size(); ++i) {
             if (!read(&output[i])) {
                 output.resize(i);
