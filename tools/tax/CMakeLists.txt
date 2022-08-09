@@ -37,6 +37,26 @@ add_executable(dump_kmers src/dump_kmers.cpp)
 target_link_libraries(dump_kmers PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(dump_kmers tax)
 
+add_executable(add_db src/add_db.cpp)
+target_link_libraries(add_db PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(add_db tax)
+
+add_executable(dbs_to_db src/dbs_to_db.cpp)
+target_link_libraries(dbs_to_db PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(dbs_to_db tax)
+
+add_executable(sam_filter src/sam_filter.cpp)
+target_link_libraries(sam_filter PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(sam_filter tax)
+
+add_executable(subtract_db src/subtract_db.cpp)
+target_link_libraries(subtract_db PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(subtract_db tax)
+
+add_executable(subtract_dbs src/subtract_dbs.cpp)
+target_link_libraries(subtract_dbs PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(subtract_dbs tax)
+
 add_executable(build_index src/build_index.cpp)
 target_link_libraries(build_index PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(build_index tax)
@@ -60,14 +80,6 @@ links_and_install_subdir(merge_kingdoms tax)
 add_executable(build_index_multi src/build_index_multi.cpp)
 target_link_libraries(build_index_multi PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(build_index_multi tax)
-
-#add_executable(check_index src/check_index.cpp)
-#target_link_libraries(check_index PRIVATE ReaderLib ${SYS_LIBRARIES})
-#links_and_install_subdir(check_index tax)
-
-#add_executable(check_index_multi src/check_index_multi.cpp)
-#target_link_libraries(check_index_multi PRIVATE ReaderLib ${SYS_LIBRARIES})
-#links_and_install_subdir(check_index_multi tax)
 
 add_executable(db_fasta_to_bin src/db_fasta_to_bin.cpp)
 target_link_libraries(db_fasta_to_bin PRIVATE ReaderLib ${SYS_LIBRARIES})
@@ -101,10 +113,6 @@ add_executable(filter_db_multi src/filter_db_multi.cpp)
 target_link_libraries(filter_db_multi PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(filter_db_multi tax)
 
-#add_executable(contig_builder src/contig_builder.cpp)
-#target_link_libraries(contig_builder PRIVATE ReaderLib ${SYS_LIBRARIES})
-#links_and_install_subdir(contig_builder tax)
-
 add_executable(fasta_contamination src/fasta_contamination.cpp)
 target_link_libraries(fasta_contamination PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(fasta_contamination tax)
@@ -116,10 +124,6 @@ links_and_install_subdir(fasta_contamination_multi tax)
 add_executable(find_closest_profile_linear src/find_closest_profile_linear.cpp)
 target_link_libraries(find_closest_profile_linear PRIVATE ReaderLib ${SYS_LIBRARIES})
 links_and_install_subdir(find_closest_profile_linear tax)
-
-add_executable(contig_connectivity src/contig_connectivity.cpp)
-target_link_libraries(contig_connectivity PRIVATE ReaderLib ${SYS_LIBRARIES})
-links_and_install_subdir(contig_connectivity tax)
 
 add_executable(sort_dbs src/sort_dbs.cpp)
 target_link_libraries(sort_dbs PRIVATE ReaderLib ${SYS_LIBRARIES})
@@ -133,7 +137,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 install(TARGETS aligns_to dump_kmers build_index build_index_of_each_file merge_db merge_tax_ids merge_kingdoms build_index_multi db_to_dbs db_tax_id_to_dbs identify_tax_ids db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_dbs filter_db_multi
                   fasta_contamination fasta_contamination_multi find_closest_profile_linear
-                  contig_connectivity print_dbs sort_dbs
+                  print_dbs sort_dbs add_db dbs_to_db subtract_db subtract_dbs sam_filter
           RUNTIME DESTINATION bin/tax)
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")
