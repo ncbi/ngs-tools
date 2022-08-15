@@ -37,9 +37,13 @@ add_executable(dump_kmers src/dump_kmers.cpp)
 target_link_libraries(dump_kmers PRIVATE ReaderLib)
 links_and_install_subdir(dump_kmers tax)
 
-add_executable(add_db src/add_db.cpp)
-target_link_libraries(add_db PRIVATE ReaderLib)
-links_and_install_subdir(add_db tax)
+add_executable(or_db src/or_db.cpp)
+target_link_libraries(or_db PRIVATE ReaderLib)
+links_and_install_subdir(or_db tax)
+
+add_executable(and_db src/and_db.cpp)
+target_link_libraries(and_db PRIVATE ReaderLib)
+links_and_install_subdir(and_db tax)
 
 add_executable(dbs_to_db src/dbs_to_db.cpp)
 target_link_libraries(dbs_to_db PRIVATE ReaderLib)
@@ -137,7 +141,7 @@ include_directories(${CMAKE_SOURCE_DIR})
 
 install(TARGETS aligns_to dump_kmers build_index build_index_of_each_file merge_db merge_tax_ids merge_kingdoms build_index_multi db_to_dbs db_tax_id_to_dbs identify_tax_ids db_fasta_to_bin db_fasta_to_bin_multi filter_db filter_dbs filter_db_multi
                   fasta_contamination fasta_contamination_multi find_closest_profile_linear
-                  print_dbs sort_dbs add_db dbs_to_db subtract_db subtract_dbs sam_filter
+                  print_dbs sort_dbs and_db or_db subtract_db subtract_dbs dbs_to_db sam_filter
           RUNTIME DESTINATION bin/tax)
 
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Windows")

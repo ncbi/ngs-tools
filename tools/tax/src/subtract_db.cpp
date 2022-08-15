@@ -26,10 +26,11 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 #include <vector>
 #include "dbs.h"
 #include "hash.h"
-#include "config_subtract_db.h"
+#include "config_db_binary_op.h"
 
 bool in_db(hash_t hash, const std::vector<hash_t> &db)
 {
@@ -50,8 +51,12 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    // todo: mt
+	std::vector<hash_t> db_c;
+    db_c.reserve(db_a.size());
+
 	for (auto kmer : db_a)
         if (!in_db(kmer, db_b))
-    		std::cout << Hash<hash_t>::str_from_hash(kmer, kmer_len_a) << std::endl;
+    		db_c.push_back(kmer);
+
+	DBSIO::save_dbs(config.db_c, db_c, kmer_len_a);
 }

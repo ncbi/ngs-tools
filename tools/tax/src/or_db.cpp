@@ -23,40 +23,41 @@
 * ===========================================================================
 *
 */
-#pragma once
-
 #include <string>
+#include <fstream>
 #include <iostream>
+#include <algorithm>
+#include <vector>
+#include "dbs.h"
+#include "hash.h"
+#include "config_db_binary_op.h"
 
-struct Config
+bool in_db(hash_t hash, const std::vector<hash_t> &db, size_t lookup_len)
 {
-	std::string db_a, db_b;
-	int argc;
-	char const **argv;
+	return std::binary_search(db.begin(), db.begin() + lookup_len, hash);
+}
 
-	std::string arg(int index) const
-	{
-		if (index >= argc)
-			fail();
+int main(int argc, char const *argv[])
+{
+	Config config(argc, argv);
 
-		return std::string(argv[index]);
-	}
+	std::vector<hash_t> db_a, db_b;
+	int kmer_len_a = DBSIO::load_dbs(config.db_a, db_a);
+	int kmer_len_b = DBSIO::load_dbs(config.db_b, db_b);
 
-	Config(int argc, char const *argv[]) : argc(argc), argv(argv)
-	{
-		db_a = arg(1);
-		db_b = arg(2);
-	}
+    if (kmer_len_a != kmer_len_b)
+    {
+        std::cerr << "kmer_len_a != kmer_len_b" << std::endl;
+        return 1;
+    }
 
-	void fail() const
-	{
-		print_usage();
-        exit(1);
-	}
+    size_t original_a_size = db_a.size();
+    db_a.reserve(db_a.size() + db_b.size());
 
-	static void print_usage()
-	{
-		std::cerr << "need <a.db> <b.db>" << std::endl;
-	}
-};
+	for (auto kmer : db_b)
+        if (!in_db(kmer, db_a, original_a_size))
+    		db_a.push_back(kmer);
 
+	std::sort(db_a.begin(), db_a.end());
+	DBSIO::save_dbs(config.db_c, db_a, kmer_len_a);
+}

@@ -30,11 +30,11 @@
 #include <vector>
 #include "dbs.h"
 #include "hash.h"
-#include "config_add_db.h"
+#include "config_db_binary_op.h"
 
-bool in_db(hash_t hash, const std::vector<hash_t> &db, size_t lookup_len)
+bool in_db(hash_t hash, const std::vector<hash_t> &db)
 {
-	return std::binary_search(db.begin(), db.begin() + lookup_len, hash);
+	return std::binary_search(db.begin(), db.end(), hash);
 }
 
 int main(int argc, char const *argv[])
@@ -51,13 +51,12 @@ int main(int argc, char const *argv[])
         return 1;
     }
 
-    size_t original_a_size = db_a.size();
-    db_a.reserve(db_a.size() + db_b.size());
+	std::vector<hash_t> db_c;
+    db_c.reserve(std::min(db_a.size(), db_b.size()));
 
-	for (auto kmer : db_b)
-        if (!in_db(kmer, db_a, original_a_size))
-    		db_a.push_back(kmer);
+	for (auto kmer : db_a)
+        if (in_db(kmer, db_b))
+    		db_c.push_back(kmer);
 
-	std::sort(db_a.begin(), db_a.end());
-	DBSIO::save_dbs(config.db_c, db_a, kmer_len_a);
+	DBSIO::save_dbs(config.db_c, db_c, kmer_len_a);
 }
