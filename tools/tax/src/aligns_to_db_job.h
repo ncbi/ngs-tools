@@ -32,6 +32,7 @@
 #include "seq_transform.h"
 #include <map>
 #include "omp_adapter.h"
+#include <list>
 
 struct BasicMatchId
 {
@@ -39,6 +40,20 @@ struct BasicMatchId
 
 	BasicMatchId(int seq_id, int matches) : seq_id((int)seq_id){}
 	bool operator < (const BasicMatchId &b) const { return seq_id < b.seq_id; }
+};
+
+struct KmerBasicMatchId
+{
+    struct Matches : public std::list<hash_t>
+    {
+        operator bool() const { return !empty(); }
+    };
+
+	int seq_id;
+    const Matches matches;
+
+	KmerBasicMatchId(int seq_id, const Matches &matches) : seq_id((int)seq_id), matches(matches) {}
+	bool operator < (const KmerBasicMatchId &b) const { return seq_id < b.seq_id; }
 };
 
 struct BasicPrinter
@@ -49,11 +64,23 @@ struct BasicPrinter
 	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<BasicMatchId> &ids)
 	{
 		for (auto seq_id : ids)
-        {
-//            if (writer.stream_id >= 0)
-//                writer.f() << writer.stream_id  << '\t';
 			writer.f() << processing_sequences[seq_id.seq_id].spotid << std::endl;
-        }
+
+        writer.check();
+	}
+};
+
+struct KmerBasicPrinter
+{
+    IO::Writer &writer;
+    int kmer_len = 0;
+    KmerBasicPrinter(IO::Writer &writer, int kmer_len) : writer(writer), kmer_len(kmer_len){}
+
+	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<KmerBasicMatchId> &ids)
+	{
+		for (auto seq : ids)
+		for (auto kmer : seq.matches)
+		    writer.f() << Hash<hash_t>::str_from_hash(kmer, kmer_len) << std::endl;
 
         writer.check();
 	}
@@ -82,7 +109,7 @@ struct DBJob : public Job
 			int found = 0;
 			Hash<hash_t>::for_all_hashes_do(seq, (int)kmer_len, [&](hash_t hash)
 				{
-					if (in_db(hash) > 0)
+					if (in_db(hash))
 						found++;
 
 					return !found;
@@ -98,16 +125,55 @@ struct DBJob : public Job
 		}
 	};
 
+	struct KmerMatcher
+	{
+		const HashSortedArray &hash_array;
+		size_t kmer_len;
+		KmerMatcher(const HashSortedArray &hash_array, size_t kmer_len) : hash_array(hash_array), kmer_len(kmer_len){}
+
+		KmerBasicMatchId::Matches operator() (const std::string &seq) const 
+		{
+            KmerBasicMatchId::Matches matches; // todo: optimize. though not really urgent
+			Hash<hash_t>::for_all_hashes_do(seq, (int)kmer_len, [&](hash_t hash)
+				{
+					if (in_db(hash))
+						matches.push_back(hash);
+
+					return true;
+				});
+
+			return matches;
+		}
+
+		bool in_db(hash_t hash) const
+		{
+			hash = seq_transform<hash_t>::min_hash_variant(hash, (int)kmer_len);
+			return std::binary_search(hash_array.begin(), hash_array.end(), hash);
+		}
+	};
+
+    bool print_kmers_only = false;
+
 	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
 	{
+        print_kmers_only = config.print_kmers_only;
 		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, config.chunk_size, [&](const std::vector<Reader::Fragment> &chunk){ match_and_print_chunk(chunk, writer); } );
 	}
 
     virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer)
     {
-		Matcher matcher(hash_array, kmer_len);
-		BasicPrinter print(writer);
-        Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
+        if (print_kmers_only)
+        {
+		    KmerMatcher matcher(hash_array, kmer_len);
+    		KmerBasicPrinter print(writer, kmer_len);
+            Job::match_and_print<KmerMatcher, KmerBasicPrinter, KmerBasicMatchId>(chunk, print, matcher);
+        }
+        else
+        {
+    		Matcher matcher(hash_array, kmer_len);
+    		BasicPrinter print(writer);
+            Job::match_and_print<Matcher, BasicPrinter, BasicMatchId>(chunk, print, matcher);
+        }
     }
 };
 

@@ -49,6 +49,7 @@ struct Config
     bool collate = false;
     bool vectorize = false;
     size_t chunk_size = 0;
+    bool print_kmers_only = false;
 
     Config(int argc, char const *argv[])
     {
@@ -82,6 +83,8 @@ struct Config
                 compact = true;
             else if (arg == "-unaligned_only")
                 unaligned_only = true;
+            else if (arg == "-print_kmers_only")
+                print_kmers_only = true;
             else if (arg == "-out")
                 out = pop_arg(args);
             else if (arg == "-spot_filter")
