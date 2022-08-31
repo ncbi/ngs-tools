@@ -196,6 +196,11 @@ int main(int argc, char const *argv[])
         {
             if (filtered_file.good())
                 filtered_file << sam_line << endl;
+            if (!config.remove_reads)
+            {
+                seq_transform_actg::mask_with_n(nucl_seq);
+                cout << local_copy_sam_line << endl;
+            }
             stat.rejected++;
         }
 

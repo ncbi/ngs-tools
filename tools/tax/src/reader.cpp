@@ -26,9 +26,6 @@
 
 #include "reader.h"
 #include "fasta_reader.h"
-#ifndef NO_NGS_SUPPORT
-#include "vdb_reader.h"
-#endif
 #include "mt_reader.h"
 #include "aux_reader.h"
 #include "omp_adapter.h"
@@ -76,22 +73,6 @@ ReaderPtr Reader::create(const std::string& path, const Reader::Params& params) 
     if (FastaReader::is_fasta(path)) {
         LOG("FastaReader");
         return create_threaded<FastaReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path);
-    } else {
-#ifdef NO_NGS_SUPPORT
-		throw std::runtime_error("Please rebuild the software with NGS library support to read runs directly or use pipes to stdin instead.");
-#else
-        if (!params.read_qualities) {
-            LOG("FastVdbReader");
-            return create_threaded<FastVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.unaligned_only);
-        }
-        if (!params.unaligned_only && AlignedVdbReader::is_aligned(path)) {
-            LOG("AlignedVdbReader");
-            return create_threaded<AlignedVdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.read_qualities);
-        }
-        else {
-            LOG("VdbReader");
-            return create_threaded<VdbReader>(params.filter_file, params.exclude_filter, params.ultrafast_skip_reader, params.thread_count, params.chunk_size, path, params.read_qualities, params.unaligned_only);
-        }
-#endif
-    }
+    } else 
+		throw std::runtime_error("NGS library support has been removed, please use fasta data streaming to stdin instead");
 }

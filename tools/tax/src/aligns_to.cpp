@@ -32,7 +32,7 @@
 #include <list>
 #include "omp_adapter.h"
 
-const std::string VERSION = "0.706";
+const std::string VERSION = "0.801";
 
 typedef uint64_t hash_t;
 
@@ -112,11 +112,13 @@ int main(int argc, char const *argv[])
 		}
     }
 
+/*
 #ifdef __linux__
     struct rusage r_usage;
     getrusage(RUSAGE_SELF,&r_usage);
     spdlog::info("Total memory: {:L}Kb", r_usage.ru_maxrss);
 #endif     
+*/
 
     LOG("total time (sec) " << std::chrono::duration_cast<std::chrono::seconds>( high_resolution_clock::now() - before ).count());
 

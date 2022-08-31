@@ -28,15 +28,6 @@ if (UNIX)
         set ( BUILD rel )
     endif ()
 
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
-	message("NGS_INCDIR: ${NGS_INCDIR}")
-	set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk )
-	message("NGS_INCDIR: ${NGS_INCDIR}")
-    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
-	message("NGS_LIBDIR: ${NGS_LIBDIR}")
-	set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-	message("NGS_LIBDIR: ${NGS_LIBDIR}")
-    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -59,9 +50,6 @@ elseif (WIN32)
     endif()
 
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
@@ -92,16 +80,12 @@ if (UNIX)
     include_directories ("${VDB_INCDIR}/os/unix")
 
     set ( SYS_LIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ngs-c++-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
     )
 
     set ( SYS_WLIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-wvdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
             pthread
             dl
@@ -126,8 +110,6 @@ elseif (WIN32)
     SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG   ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Debug/ilib)
     SET( CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${NGSTOOLS_OUTDIR}/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/Release/ilib)
 
-    include_directories ("${NGS_INCDIR}/win")
-
     # use miltiple processors
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 
@@ -140,8 +122,6 @@ elseif (WIN32)
     set ( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT" )
     set ( CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG}   /MTd" )
 
-    string(REPLACE "$(Configuration)" "Debug"   NGS_LIBDIR_DEBUG ${NGS_LIBDIR})
-    string(REPLACE "$(Configuration)" "Release" NGS_LIBDIR_RELEASE ${NGS_LIBDIR})
     string(REPLACE "$(Configuration)" "Debug"   VDB_LIBDIR_DEBUG ${VDB_LIBDIR})
     string(REPLACE "$(Configuration)" "Release" VDB_LIBDIR_RELEASE ${VDB_LIBDIR})
 
@@ -149,9 +129,6 @@ elseif (WIN32)
         ${CMAKE_STATIC_LIBRARY_PREFIX}bz2${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}zlib${CMAKE_STATIC_LIBRARY_SUFFIX}
         ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-vdb${CMAKE_STATIC_LIBRARY_SUFFIX}
-        ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs${CMAKE_STATIC_LIBRARY_SUFFIX}
-        libngs-bind-c++${CMAKE_STATIC_LIBRARY_SUFFIX}
-        libngs-disp${CMAKE_STATIC_LIBRARY_SUFFIX}
         ws2_32
         Crypt32
     )
@@ -172,54 +149,10 @@ if ( Java_FOUND )
     if ( NOT DEFINED ENV{JAVA_HOME} )
         message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
     endif ()
-    #set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
-    set ( NGSJAR "${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ngs-java.jar" )
     set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 endif()
 
 # look for dependencies
-
-if (NOT EXISTS ${NGS_INCDIR})
-    message( FATAL_ERROR "NGS includes are not found in ${NGS_INCDIR}." )
-else()
-    message( STATUS "Found NGS includes in ${NGS_INCDIR}. Looking for NGS libraries..." )
-
-    if (UNIX)
-        find_library ( NGS_LIBRARY ngs-c++ PATHS ${NGS_LIBDIR} NO_DEFAULT_PATH )
-		if ( NGS_LIBRARY )
-			get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-			message ( STATUS "Found NGS libraries in ${NGS_LIBDIR}" )
-		else ()
-			message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR}." )
-		endif()
-    else()
-
-		# on Windows, require both debug and release libraries
-        if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Debug.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
-			if ( NGS_LIBRARY )
-				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-				message ( STATUS "Found Debug NGS libraries in ${NGS_LIBDIR_DEBUG}" )
-			else ()
-				message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_DEBUG}." )
-			endif()
-        endif()
-
-        if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Release.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
-			if ( NGS_LIBRARY )
-				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
-				message ( STATUS "Found Release NGS libraries in ${NGS_LIBRARY_DIR}" )
-			else ()
-				message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_RELEASE}." )
-			endif()
-        endif()
-
-    endif()
-
-    unset ( NGS_LIBRARY )
-endif()
-
 if (NOT EXISTS ${VDB_INCDIR})
     message( FATAL_ERROR "NCBI-VDB includes are not found in ${VDB_INCDIR}" )
 else ()
@@ -260,10 +193,8 @@ include_directories ("${VDB_INCDIR}")
 include_directories ("${VDB_INCDIR}/cc/${COMPILER}/${PLATFORM}")
 include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
 include_directories ("${VDB_INCDIR}/os/${OS}")
-include_directories ("${NGS_INCDIR}")
-include_directories ("${NGS_INCDIR}/../..")
 
-link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
+link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} )
 
 #/////////////////////////////////////////////////
 # versioned names, symbolic links and installation for the tools
