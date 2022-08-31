@@ -88,3 +88,28 @@ The main complexity of this format is that it also may have such lines as
 They start with the tab character. This means that aligns_to failed to merge such reads into spots (because they may belong to different blocks) and 
 such lines reported in the different format (spot id, set of tax ids) described at the beginning of the readme file.
 
+**************** UNIQUE FORMAT ****************
+The optional [-unique] flag produces the same format as described for STANDARD FORMAT above, however each taxid hit represents a only unique hits. For example using the first three lines from STANDARD example  the lines are identical but the meaning is different.  Here "9526x2" means two distinct kmers from taxid 9526 hit spot id 1030, while in STANDARD output they might be the same kmer simply hitting the same spot twice.
+1026    10239
+1030    9526x2
+1031    10376x3
+
+More importantly there is a second output that totals all unique hits by tax id for the input file. If a file (not stdout) is requested then a second file using the same file name with added extension "uniq.summary" is produced where each line has only two (tab delimited) columns: taxid, total unique kmers for that taxid for all spots.
+
+Unique 16 Taxa
+2759    2
+9347    10
+9443    2
+9526    20
+9604    7
+9606    51
+32524    1
+33213    9
+117571    2
+131567    281
+207598    69
+314146    4
+314293    17
+314295    34
+376913    1
+1437010    16
