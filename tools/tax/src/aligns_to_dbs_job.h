@@ -424,7 +424,7 @@ template<class TaxHitsO>
             Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment, config.unique); // todo: move to constructor
             TaxHitsPrinter tc_print(!hide_counts, compact, *tax_hits);
 
-            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
+            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, config.chunk_size,
                 [&matcher, &tc_print](const std::vector<Reader::Fragment> &chunk) { 
                     Job::match_and_print<Matcher, TaxHitsPrinter<Options>, TaxMatchId>(chunk, tc_print, matcher);
                     //match_and_print_chunk(chunk, tax_hits, matcher); 
@@ -470,7 +470,7 @@ template<class TaxHitsO>
             Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment,
                             config.unique); // todo: move to constructor
             TaxPrinter print(!hide_counts, compact, writer, config.unique);
-            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, 
+            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only,  config.optimization_ultrafast_skip_reader, config.chunk_size,
             [&](const std::vector<Reader::Fragment> &chunk) { 
                 Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, matcher);
             } );

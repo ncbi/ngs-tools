@@ -109,7 +109,7 @@ struct DBSMJob : public Job
     virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
     {
         hide_counts = config.hide_counts;
-        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk) { match_and_print_chunk(chunk, writer, config); } );
+        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, config.chunk_size, [&](const std::vector<Reader::Fragment> &chunk) { match_and_print_chunk(chunk, writer, config); } );
         if (config.unique){
             DBSJob * jptr;
             IO::Writer writer_u((!writer.filename.empty()) ? writer.filename + ".uniq" : "");
