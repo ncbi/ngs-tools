@@ -91,7 +91,7 @@ struct DBSJob : public Job
 
     };
     static Hits unique_hits;
-    static std::mutex uniq_mutex;
+    //static std::mutex uniq_mutex;
 
     virtual size_t db_kmers() const override { return hash_array.size();}
 
@@ -276,7 +276,7 @@ template<class TaxHitsO>
 
         void load_uniq_chunk(const std::vector<TaxMatchId> &tm_ids)
         {
-            uniq_mutex.lock();
+            //uniq_mutex.lock();
             for (auto tm_id : tm_ids){
                 for (auto &hit : tm_id.hits){
                     for (auto khit : hit.second){
@@ -284,7 +284,7 @@ template<class TaxHitsO>
                     }
                 }
             }
-            uniq_mutex.unlock();
+            //uniq_mutex.unlock();
         }
 
         void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<TaxMatchId> &ids)
@@ -484,7 +484,7 @@ template<class TaxHitsO>
 
 
 
-std::mutex DBSJob::uniq_mutex;
+//std::mutex DBSJob::uniq_mutex;
 DBSJob::Hits DBSJob::unique_hits;
 
 
