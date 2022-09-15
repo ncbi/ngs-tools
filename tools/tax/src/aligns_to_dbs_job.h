@@ -91,7 +91,6 @@ struct DBSJob : public Job
 
     };
     static Hits unique_hits;
-    //static std::mutex uniq_mutex;
 
     virtual size_t db_kmers() const override { return hash_array.size();}
 
