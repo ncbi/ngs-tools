@@ -89,7 +89,8 @@ if (UNIX)
     endif()
 
     if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
-        set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.10 -stdlib=libc++" )
+        #set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmacosx-version-min=10.10 -stdlib=libc++" )
+        set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++" )
         # on Mac, we may need some gcc headers in addition to clang's
         include_directories ("${VDB_INCDIR}/cc/gcc/${PLATFORM}")
         include_directories ("${VDB_INCDIR}/cc/gcc")
