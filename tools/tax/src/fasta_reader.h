@@ -78,6 +78,9 @@ public:
 	{
         if (filename != "stdin")
         {
+            if (f_of_filename.fail())
+    		    throw std::runtime_error(std::string("cannot open the file: ") + filename);
+
             f = &f_of_filename;
             f->seekg(0, std::ios::end);
             filesize = f->tellg();
