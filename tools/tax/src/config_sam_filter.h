@@ -34,6 +34,7 @@
 struct Config
 {
 	std::string db, filtered_file;
+    bool remove_reads = false;
 
 	int argc;
 	char const **argv;
@@ -55,7 +56,18 @@ struct Config
 	{
 		db = arg(1);
         if (arg_exists(2))
-            filtered_file = arg(2);
+        {
+            if (arg(2) == "--remove_reads")
+                remove_reads = true;
+            else
+                filtered_file = arg(2);
+        }
+
+        if (arg_exists(3))
+            if (arg(3) == "--remove_reads")
+                remove_reads = true;
+            else
+                fail();
 	}
 
 	void fail() const
@@ -67,6 +79,6 @@ struct Config
 	static void print_usage()
 	{
 		std::cerr << "accepts sam file as stdin, prints clean data to stdout" << std::endl;
-		std::cerr << "need <.db file> [rejected data file]" << std::endl;
+		std::cerr << "need <.db file> [rejected data file] [--remove_reads]" << std::endl;
 	}
 };
