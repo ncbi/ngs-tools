@@ -64,7 +64,7 @@ void for_all_reads_do(const string &accession, Lambda &&lambda)
             #pragma omp critical (read)
 #endif
             {
-                done = !reader->read_many(chunk, 0);   
+                done = !reader->read_many(chunk);   
             }
 
 #if 0

@@ -194,17 +194,6 @@ struct seq_transform_actg
         return s;
     }
 
-    static p_string mask_with_n(p_string s)
-    {
-        for (int i = 0; i < s.len; i++)
-        {
-            char *p = const_cast<char*>(&s.s[i]);
-            *p = 'N';
-        }
-
-        return s;
-    }
-
 private:
 	static char complement_letter(char ch) // todo: optimize ?
 	{

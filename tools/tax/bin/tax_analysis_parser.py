@@ -113,7 +113,7 @@ def deduce_tax_id(hits, lineage_cache, conn):
     #print 'deduced', hits, last_matching_tax_id
     return last_matching_tax_id
 
-def iterate_merged_spots(f, collated):
+def iterate_merged_spots(f):
     last_spot = None
     last_hits = None
     for line in f:
@@ -121,21 +121,18 @@ def iterate_merged_spots(f, collated):
         spot = parts[0]
         hits = set(int(p.split('x')[0]) for p in parts[1:])
         assert hits, 'no hits for spot: %s' % spot
-        if collated:
-            yield hits
+        if spot == last_spot:
+            last_hits |= hits
         else:
-            if spot == last_spot:
-                last_hits |= hits
-            else:
-                if last_spot:
-                    assert last_spot <= spot, 'input is not sorted'
-                    yield last_hits
-                last_spot = spot
-                last_hits = hits
+            if last_spot:
+                assert last_spot <= spot, 'input is not sorted'
+                yield last_hits
+            last_spot = spot
+            last_hits = hits
     if last_spot:
         yield last_hits
 
-def iterate_merged_spots_compact(f, collated):
+def iterate_merged_spots_compact(f):
     last_spot = None
     last_hits = None
     for line in f:
@@ -157,22 +154,19 @@ def iterate_merged_spots_compact(f, collated):
             spot = parts[0]
             hits = set(int(p.split('x')[0]) for p in parts[1:])
             assert hits, 'no hits for spot: %s' % spot
-            if collated:
-                yield hits, 1
-            else:    
-                if spot == last_spot:
-                    last_hits |= hits
-                else:
-                    if last_spot:
-                        assert last_spot <= spot, 'input is not sorted'
-                        yield last_hits, 1
-                    last_spot = spot
-                    last_hits = hits
+            if spot == last_spot:
+                last_hits |= hits
+            else:
+                if last_spot:
+                    assert last_spot <= spot, 'input is not sorted'
+                    yield last_hits, 1
+                last_spot = spot
+                last_hits = hits
 
     if last_spot:
         yield last_hits, 1
 
-def parse(f, conn, wgs_mode, compact, collated, include_tax_ids=[]):
+def parse(f, conn, wgs_mode, compact, include_tax_ids=[]):
     '''parses tax_analysis output file'''
     counter = collections.Counter()
     counter[1] = 0 # explicitly add root
@@ -195,11 +189,11 @@ def parse(f, conn, wgs_mode, compact, collated, include_tax_ids=[]):
                 counter[tax_id] += count
     else:
         if compact:
-            for hits, copies in iterate_merged_spots_compact(f, collated):
+            for hits, copies in iterate_merged_spots_compact(f):
                 tax_id = deduce_tax_id(hits, lineage_cache, conn)
                 counter[tax_id] += copies
         else:
-            for hits in iterate_merged_spots(f, collated):
+            for hits in iterate_merged_spots(f):
                 tax_id = deduce_tax_id(hits, lineage_cache, conn)
                 counter[tax_id] += 1
 
@@ -217,12 +211,11 @@ def main():
     parser.add_argument('--compact', action='store_true')
     parser.add_argument('--wgs-mode', action='store_true', help='''
 In regular mode parser assigns single consensus tax_id for each input sequence.
-It then builds hierarchy showing counts of sequences matching each particular tax_id.
+It then builds hieararchy showing counts of sequences matching each particular tax_id.
 It doesn't work very well for wgs, because there are only few sequences and because they can have very uneven lengths.
 With this flag parser builds hierarchy based on count of kmer hits, not the count of sequences.
 '''.strip())
     parser.add_argument('path', nargs='?', help='path ot file with tax analysis output, if empty reads from stdin')
-    parser.add_argument('--collated', action='store_true', help='the input is collated')
     args = parser.parse_args()
 
     if args.verbose:
@@ -241,7 +234,7 @@ With this flag parser builds hierarchy based on count of kmer hits, not the coun
         f = sys.stdin
 
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
-        xml = parse(f, conn, args.wgs_mode, args.compact, args.collated, args.include_tax_id or [])
+        xml = parse(f, conn, args.wgs_mode, args.compact, args.include_tax_id or [])
     xml = E.taxon_tree(xml, parser_version=__version__)
     print etree.tostring(xml, pretty_print=True)
 

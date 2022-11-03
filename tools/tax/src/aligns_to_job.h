@@ -51,7 +51,7 @@ struct Job
             // auto const &spotid = chunk[seq_id].spotid;
             auto const &bases = chunk[seq_id].bases;
             if (auto const m = matcher(bases)) {
-                matched_ids.emplace_back((int)seq_id, m);
+                matched_ids.push_back(MatchId((int)seq_id, m));
             }
         }
 
@@ -62,7 +62,7 @@ struct Job
     }     
 
     template <class MatchAndPrint>
-	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, int ultrafast_skip_reader, size_t chunk_size, MatchAndPrint &&match_and_print)
+	static void run_for_matcher(const std::string &contig_filename, const std::string &spot_filter_file, bool unaligned_only, int ultrafast_skip_reader, MatchAndPrint &&match_and_print)
 	{
 		Progress progress;
         Reader::Params params;
@@ -78,7 +78,7 @@ struct Job
             while (!done) {
                 #pragma omp critical (read)
                 {
-                    done = !reader->read_many(chunk, chunk_size);
+                    done = !reader->read_many(chunk);
                     progress.report(reader->progress());
                 }
 
@@ -93,7 +93,7 @@ struct Job
         if (unaligned_only) {
             auto unaligned_stats = reader->stats();
             LOG("unaligned spot count: " << unaligned_stats.spot_count);
-            LOG("unaligned read count: " << unaligned_stats.read_count);
+            LOG("unaligned read count: " << unaligned_stats.frag_count());
         
             Reader::Params total_params;
             total_params.thread_count = 0;
@@ -107,7 +107,7 @@ struct Job
         }
         
         LOG("total spot count: " << total_stats.spot_count);
-        LOG("total read count: " << total_stats.read_count);
+        LOG("total read count: " << total_stats.frag_count());
 	}
 
 	virtual size_t db_kmers() const { return 0; }

@@ -24,8 +24,6 @@
 *
 */
 
-#if 0 // not in use anymore due to some issues
-
 #pragma once
 
 #include "reader.h"
@@ -65,7 +63,16 @@ private:
         Thread(const Thread& other) = delete;
 
         void run(size_t chunk_size, size_t start_chunk_idx, std::mutex& mutex, std::condition_variable& ready) {
-            run_impl(chunk_size, start_chunk_idx, mutex, ready);
+#ifndef NO_NGS_SUPPORT
+            try {
+#endif
+                run_impl(chunk_size, start_chunk_idx, mutex, ready);
+#ifndef NO_NGS_SUPPORT
+            } catch (ngs::ErrorMsg error) {
+                LOG("Exception in reader thread: " << error.what());
+                std::terminate();
+            }
+#endif
         }
 
         void run_impl(size_t chunk_size, size_t start_chunk_idx, std::mutex& mutex, std::condition_variable& ready) {
@@ -211,7 +218,7 @@ public:
         return true;
     }
 
-    bool read_many(std::vector<Fragment>& output, size_t chunk_size) override {
+    bool read_many(std::vector<Fragment>& output) override {
         if (current_fragment_idx >= current_chunk.size()) {
             if (!load_chunk()) {
                 output.clear();
@@ -233,5 +240,3 @@ public:
         return true;
     }
 };
-
-#endif

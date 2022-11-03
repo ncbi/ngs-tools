@@ -1,28 +1,28 @@
 /*===========================================================================
- *
- *                            PUBLIC DOMAIN NOTICE
- *               National Center for Biotechnology Information
- *
- *  This software/database is a "United States Government Work" under the
- *  terms of the United States Copyright Act.  It was written as part of
- *  the author's official duties as a United States Government employee and
- *  thus cannot be copyrighted.  This software/database is freely available
- *  to the public for use. The National Library of Medicine and the U.S.
- *  Government have not placed any restriction on its use or reproduction.
- *
- *  Although all reasonable efforts have been taken to ensure the accuracy
- *  and reliability of the software and data, the NLM and the U.S.
- *  Government do not and cannot warrant the performance or results that
- *  may be obtained by using this software or data. The NLM and the U.S.
- *  Government disclaim all warranties, express or implied, including
- *  warranties of performance, merchantability or fitness for any particular
- *  purpose.
- *
- *  Please cite the author in any work or product based on this material.
- *
- * ===========================================================================
- *
- */
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
 
 #pragma once
 
@@ -30,41 +30,40 @@
 
 struct DBSMJob : public Job
 {
-    struct KmerTax : public DBS::KmerTaxMulti
-    {
+	struct KmerTax : public DBS::KmerTaxMulti
+	{
         KmerTax() = default;
-        KmerTax(hash_t kmer, const std::vector<int> &tax_ids) : DBS::KmerTaxMulti(kmer, tax_ids) { } // todo: remove constructor from KmerTax for faster loading ?
+		KmerTax(hash_t kmer, const std::vector<int> &tax_ids) : DBS::KmerTaxMulti(kmer, tax_ids) { } // todo: remove constructor from KmerTax for faster loading ?
 
-        bool operator < (const KmerTax &x) const // for binary search by hash
-        {
-            return kmer < x.kmer;
-        }
-    };
+		bool operator < (const KmerTax &x) const // for binary search by hash
+		{
+			return kmer < x.kmer;
+		}
+	};
 
-    typedef std::vector<KmerTax> HashSortedArray;
+	typedef std::vector<KmerTax> HashSortedArray;
 
-    HashSortedArray hash_array;
-    size_t kmer_len = 0;
+	HashSortedArray hash_array;
+	size_t kmer_len = 0;
 
-    public:
+public:
 
-    DBSMJob(const std::string &dbsm)
-    {
-        kmer_len = DBSIO::load_dbsm(dbsm, hash_array);
-    }
+	DBSMJob(const std::string &dbsm)
+	{
+		kmer_len = DBSIO::load_dbsm(dbsm, hash_array);
+	}
 
-    struct Hits : public DBSJob::Hits {};
+    typedef DBSJob::Hits Hits;
 
-    virtual size_t db_kmers() const override { return hash_array.size();}
+	virtual size_t db_kmers() const override { return hash_array.size();}
 
-    struct Matcher
-    {
-        const HashSortedArray &hash_array;
-        int kmer_len;
-        bool unique = false;
+	struct Matcher
+	{
+		const HashSortedArray &hash_array;
+		int kmer_len;
         const std::vector<int> EMPTY_TAXES;
 
-        Matcher(const HashSortedArray &hash_array, int kmer_len, bool unique) : hash_array(hash_array), kmer_len(kmer_len), unique(unique) { }
+		Matcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len) { }
 
         const std::vector<int> &find_hash(hash_t hash, const std::vector<int> &default_value) const
         {
@@ -74,53 +73,44 @@ struct DBSMJob : public Job
             return ((first == last) || (hash < first->kmer) ) ? default_value : first->tax_ids;
         }
 
-        Hits operator() (const std::string &seq) const
-        {
-            Hits hits;
-            Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
-            {
-                auto  &tax_ids = get_db_tax(hash);
-                for (auto tax_id : tax_ids)
-                    if (unique && (hits[tax_id].find(hash) == hits[tax_id].end()))  {
-                        hits[tax_id].emplace(hash);
-                    }
-                    else if (!unique){
-                        hash_t h(hits[tax_id].size() + 1);
-                        hits[tax_id].emplace(h);
-                    }
-                return true;
-            });
+		Hits operator() (const std::string &seq) const 
+		{
+			Hits hits;
+			Hash<hash_t>::for_all_hashes_do(seq, kmer_len, [&](hash_t hash)
+				{
+					auto &tax_ids = get_db_tax(hash);
+                    for (auto tax_id : tax_ids)
+                        hits[tax_id] ++;
 
-            return hits;
-        }
+					return true;
+				});
 
-        const std::vector<int> &get_db_tax(hash_t hash) const
-        {
-            hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
+			return hits;
+		}
+
+		const std::vector<int> &get_db_tax(hash_t hash) const
+		{
+			hash = seq_transform<hash_t>::min_hash_variant(hash, kmer_len);
             return find_hash(hash, EMPTY_TAXES);
-        }
-    };
+		}
+	};
 
     typedef DBSJob::TaxMatchId TaxMatchId;
     typedef DBSJob::TaxPrinter TaxPrinter;
 
     bool hide_counts = false;
 
-    virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
-    {
+	virtual void run(const std::string &filename, IO::Writer &writer, const Config &config) override
+	{
         hide_counts = config.hide_counts;
-        Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, config.chunk_size, [&](const std::vector<Reader::Fragment> &chunk) { match_and_print_chunk(chunk, writer, config); } );
-        if (config.unique){
-            DBSJob * jptr;
-            IO::Writer writer_u((!writer.filename.empty()) ? writer.filename + ".uniq" : "");
-            jptr->unique_hits.print_uniq_hits(writer_u);
-        }
-    }
+		Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only, config.optimization_ultrafast_skip_reader, [&](const std::vector<Reader::Fragment> &chunk) { match_and_print_chunk(chunk, writer); } );
+	}
 
-    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer, const Config &config)
+    virtual void match_and_print_chunk(const std::vector<Reader::Fragment> &chunk, IO::Writer &writer)
     {
-        Matcher m(hash_array, (int)kmer_len, config.unique);
-        TaxPrinter print(!hide_counts, false, writer, config.unique);
-        Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
+		Matcher m(hash_array, (int)kmer_len);
+		TaxPrinter print(!hide_counts, false, writer);
+		Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, m);
     }
 };
+
