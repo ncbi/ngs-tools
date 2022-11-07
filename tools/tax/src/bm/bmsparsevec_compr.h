@@ -744,6 +744,18 @@ public:
     void calc_stat(
            struct rsc_sparse_vector<Val, SV>::statistics* st) const BMNOEXCEPT;
 
+    /**
+    @brief Turn sparse vector into immutable mode
+    Read-only (immutable) vector uses less memory and allows faster searches.
+    Before freezing it is recommenede to call optimize() to get full memory saving effect
+    @sa optimize
+     */
+    void freeze() { sv_.freeze(); }
+
+    /** Returns true if vector is read-only */
+    bool is_ro() const BMNOEXCEPT { return sv_.is_ro_; }
+
+
 
     ///@}
 
@@ -944,10 +956,9 @@ private:
     void throw_no_rsc_index();
 
 protected:
-    template<class SVect> friend class sparse_vector_scanner;
+    template<class SVect, unsigned S_FACTOR> friend class sparse_vector_scanner;
     template<class SVect> friend class sparse_vector_serializer;
     template<class SVect> friend class sparse_vector_deserializer;
-    template<class SVect> friend class sparse_vector_scanner;
 
 
 private:
@@ -1423,6 +1434,7 @@ void rsc_sparse_vector<Val, SV>::sync(bool force)
     const bvector_type* bv_null = sv_.get_null_bvector();
     BM_ASSERT(bv_null);
     bv_null->build_rs_index(rs_idx_); // compute popcount prefix list
+    sv_.is_ro_ = bv_null->is_ro();
 
     if (force)
         sync_size();

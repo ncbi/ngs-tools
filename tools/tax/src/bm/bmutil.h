@@ -22,6 +22,7 @@ For more information please visit:  http://bitmagic.io
     \brief Bit manipulation primitives (internal)
 */
 
+
 #include "bmdef.h"
 #include "bmconst.h"
 
@@ -30,11 +31,8 @@ For more information please visit:  http://bitmagic.io
 #else
     #if defined(_M_AMD64) || defined(_M_X64)
     #include <intrin.h>
-    #elif defined(BMSSE2OPT) || defined(BMSSE42OPT)
-    #include <emmintrin.h>
-    #elif defined(BMAVX2OPT)
-    #include <emmintrin.h>
-    #include <avx2intrin.h>
+    #elif defined(__x86_64__)
+    #include <x86intrin.h>
     #endif
 #endif
 
@@ -555,7 +553,7 @@ BMFORCEINLINE void xor_swap(W& x, W& y) BMNOEXCEPT
     @internal
  */
 inline
-unsigned compute_h64_mask(unsigned long long w)
+unsigned compute_h64_mask(unsigned long long w) BMNOEXCEPT
 {
     unsigned h_mask = 0;
     for (unsigned i = 0; w && (i < 8); ++i, w >>= 8)
@@ -564,6 +562,15 @@ unsigned compute_h64_mask(unsigned long long w)
             h_mask |= (1u<<i);
     } // for
     return h_mask;
+}
+
+/**
+    Returns true if INT64 contains 0 octet
+ */
+BMFORCEINLINE
+bool has_zero_byte_u64(bm::id64_t v) BMNOEXCEPT
+{
+  return (v - 0x0101010101010101ULL) & ~(v) & 0x8080808080808080ULL;
 }
 
 
@@ -622,6 +629,20 @@ unsigned word_bitcount64(bm::id64_t x) BMNOEXCEPT
 #endif
 }
 
+/**
+    Check pointer alignment
+    @internal
+ */
+template< typename T >
+bool is_aligned(T* p) BMNOEXCEPT
+{
+#if defined (BM_ALLOC_ALIGN)
+    return !(reinterpret_cast<unsigned int*>(p) % BM_ALLOC_ALIGN);
+#else
+    (void)p;
+    return true;
+#endif
+}
 
 
 } // bm

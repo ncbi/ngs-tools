@@ -281,43 +281,7 @@ int for_each_bit_range(const BV&             bv,
 #undef BM_SCANNER_OP
 
 
-/// functor-adaptor for C-style callbacks
-///
-/// @internal
-///
-template <class VCBT, class size_type>
-struct bit_visitor_callback_adaptor
-{
-    typedef VCBT bit_visitor_callback_type;
 
-    bit_visitor_callback_adaptor(void* h, bit_visitor_callback_type cb_func)
-        : handle_(h), func_(cb_func)
-    {}
-
-    int add_bits(size_type offset, const unsigned char* bits, unsigned size)
-    {
-        for (unsigned i = 0; i < size; ++i)
-        {
-            int ret = func_(handle_, offset + bits[i]);
-            if (ret < 0)
-                return ret;
-        }
-        return 0;
-    }
-    int add_range(size_type offset, size_type size)
-    {
-        for (size_type i = 0; i < size; ++i)
-        {
-            int ret = func_(handle_, offset + i);
-            if (ret < 0)
-                return ret;
-        }
-        return 0;
-    }
-
-    void*                     handle_;
-    bit_visitor_callback_type func_;
-};
 
 
 /// Functor for bit-copy (for testing)

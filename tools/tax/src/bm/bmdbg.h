@@ -409,7 +409,7 @@ void print_stat(TOut& tout, const BV& bv, typename BV::block_idx_type blocks = 0
 {
     const typename BV::blocks_manager_type& bman = bv.get_blocks_manager();
 
-    bm::id_t count = 0;
+    bm::id_t count = 0; (void)count;
     int printed = 0;
 
     int total_gap_eff = 0;
@@ -664,9 +664,12 @@ void print_svector_stat(TOut& tout, const SV& svect, bool print_sim = false)
     
     bm::build_jaccard_similarity_batch(sbatch, svect);
     
-    sbatch.calculate();
-    sbatch.sort();
-    
+    if (print_sim)
+    {
+        sbatch.calculate();
+        sbatch.sort();
+    }
+
     typename similarity_batch_type::vector_type& sim_vec = sbatch.descr_vect_;
     if (print_sim)
     {
@@ -1083,6 +1086,27 @@ void convert_bv2sv(SV& sv, const BV& bv)
     }
     bit.flush();
 }
+
+#if 0
+/**
+    Get RSS on
+    @internal
+ */
+size_t getCurrentRSS( )
+{
+    long rss = 0L;
+    FILE* fp = NULL;
+    if ( (fp = fopen( "/proc/self/statm", "r" )) == NULL )
+        return (size_t)0L;      /* Can't open? */
+    if ( fscanf( fp, "%*s%ld", &rss ) != 1 )
+    {
+        fclose( fp );
+        return (size_t)0L;      /* Can't read? */
+    }
+    fclose( fp );
+    return (size_t)rss * (size_t)sysconf( _SC_PAGESIZE);
+}
+#endif
 
 
 } // namespace
