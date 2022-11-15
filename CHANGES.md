@@ -1,7 +1,16 @@
 # NCBI External Developer Release:
 
 
-## SRA Toolkit 3.0.0
+## NCBI NGS Toolkit 3.0.1
+**November 15, 2022**
+
+  **build**: added support for overriding cmake and ctest commands  
+  **build**: will use a system-provided libmbedtls, otherwise the copy included in the source code will be used  
+  **ngs-tools**: fixed configure script  
+  **ref-variation**: added libraries and tools: ngs-vdb, general-writer, ref-variation, sra-search, general-loader, pileup-stats  
+
+
+## NCBI NGS Toolkit 3.0.0
 **February 10, 2022**
 
   **ngs-tools**: updated for _sra-tools 3.0.0_

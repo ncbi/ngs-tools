@@ -14,17 +14,21 @@ else ()
 endif ()
 
 
-set(CMAKE_VERBOSE_MAKEFILE ON)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
 # best to use at the top
 project ( ngs-tools )
+if( PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR )
+    message(FATAL_ERROR "In-source builds are not allowed")
+endif()
+
 
 # this has to follow the project() command!
 set(CMAKE_MODULE_PATH
     ${CMAKE_MODULE_PATH}
     "${CMAKE_CURRENT_SOURCE_DIR}/build"
 )
-include ( env )
+include ( env NO_POLICY_SCOPE )
 
 add_subdirectory(libs)
 add_subdirectory(tools)

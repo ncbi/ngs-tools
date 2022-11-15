@@ -1,3 +1,9 @@
+# allow implicit source file extensions
+if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
+     ${CMAKE_VERSION} VERSION_GREATER "3.20")
+    cmake_policy(SET CMP0115 OLD)
+endif()
+
 #/////////////////////// Cache variables, may be overridden at config time:
 
 # by default, look for sister repositories sources side by side with ngs-tools, binaries under $OUTDIR if set, otherwise $HOME/ncbi-outdir
@@ -179,6 +185,26 @@ endif()
 
 # look for dependencies
 
+include(CheckIncludeFileCXX)
+check_include_file_cxx(mbedtls/md.h HAVE_MBEDTLS_H)
+if ( HAVE_MBEDTLS_H )
+	set( MBEDTLS_LIBS mbedx509 mbedtls mbedcrypto )
+	set( CMAKE_REQUIRED_LIBRARIES ${MBEDTLS_LIBS} )
+    list( APPEND SYS_LIBRARIES ${MBEDTLS_LIBS} )
+	include(CheckCXXSourceRuns)
+	check_cxx_source_runs("
+#include <stdio.h>
+#include \"mbedtls/md.h\"
+#include \"mbedtls/sha256.h\"
+int main(int argc, char *argv[]) {
+	mbedtls_md_context_t ctx;
+	mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
+	mbedtls_md_init(&ctx);
+	printf(\"test p: %p\", ctx.md_ctx);
+}
+" HAVE_MBEDTLS_F)
+endif()
+
 if (NOT EXISTS ${NGS_INCDIR})
     message( FATAL_ERROR "NGS includes are not found in ${NGS_INCDIR}." )
 else()
@@ -196,7 +222,7 @@ else()
 
 		# on Windows, require both debug and release libraries
         if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Debug.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
+            find_library ( NGS_LIBRARY ngs-bind-c++ PATHS ${NGS_LIBDIR_DEBUG} NO_DEFAULT_PATH )
 			if ( NGS_LIBRARY )
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Debug NGS libraries in ${NGS_LIBDIR_DEBUG}" )
@@ -206,7 +232,7 @@ else()
         endif()
 
         if (CMAKE_CONFIGURATION_TYPES MATCHES ".*Release.*")
-            find_library ( NGS_LIBRARY libngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
+            find_library ( NGS_LIBRARY ngs-bind-c++ PATHS ${NGS_LIBDIR_RELEASE} NO_DEFAULT_PATH )
 			if ( NGS_LIBRARY )
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Release NGS libraries in ${NGS_LIBRARY_DIR}" )
