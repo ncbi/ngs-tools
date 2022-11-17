@@ -41,8 +41,11 @@ private:
     mutable std::ifstream f_of_filename;
 
     size_t filesize = 0;
-    size_t spot_idx = 0;
+    size_t spot_count = 0, read_count = 0;
     std::string last_desc;
+    std::string last_spot_id;
+    std::string tmp_line;
+
 
     static bool is_description(const std::string &s)
 	{
@@ -75,6 +78,9 @@ public:
 	{
         if (filename != "stdin")
         {
+            if (f_of_filename.fail())
+    		    throw std::runtime_error(std::string("cannot open the file: ") + filename);
+
             f = &f_of_filename;
             f->seekg(0, std::ios::end);
             filesize = f->tellg();
@@ -104,7 +110,7 @@ public:
     virtual SourceStats stats() const override 
     {
         assert(f->eof());
-        return SourceStats(spot_idx);
+        return SourceStats(spot_count, read_count);
     }
     
     virtual float progress() const override 
@@ -119,10 +125,8 @@ public:
     {
         if (f->eof())
             return false;
-
-        if (output) 
-        {
-            auto end_pos = last_desc.find('/');
+        if (output) {    
+            auto end_pos = last_desc.find_first_of(" /");
             if (end_pos == std::string::npos)
                 end_pos = last_desc.size();
 
@@ -137,30 +141,37 @@ public:
             output->spotid.assign(last_desc, start_pos + 1, end_pos - 1 - start_pos);
             output->bases.clear();
             output->bases.reserve(300); // todo: tune
-        }
 
-		std::string line;
-		while (!f->eof()) 
-        {
-            read_line(line);
-
-            if (is_description(line)) 
+            while (!f->eof()) 
             {
-                last_desc = line;
-                break;
-            } 
-            else if (output)
-                output->bases += line;
-        }
+                read_line(tmp_line);
+                if (is_description(tmp_line)) {
+                    last_desc = tmp_line;
+                    break;
+                } 
+                output->bases += tmp_line;
+            }
 
-        if (output) 
-        {
             if (output->bases.empty())
                 throw std::runtime_error(std::string("Read is empty: ") + last_desc);
 //            output->bases.shrink_to_fit(); todo: tune
+            read_count ++;
+            if (last_spot_id != output->spotid)
+                spot_count ++;
+            last_spot_id = output->spotid;
+
+        } else {
+
+            while (!f->eof()) 
+            {
+                read_line(tmp_line);
+                if (is_description(tmp_line)) {
+                    last_desc = tmp_line;
+                    break;
+                } 
+            }
         }
 
-        spot_idx++;
         return true;
     }
 };

@@ -9,18 +9,19 @@ sudo apt install ant
 
 git clone https://github.com/ncbi/ngs-tools.git --branch tax
 git clone https://github.com/ncbi/ncbi-vdb.git
-git clone https://github.com/ncbi/ngs.git
-cd ./ngs/
-./configure --without-debug
-make
-cd ..
-
+git clone https://github.com/ncbi/sra-tools.git
 cd ./ncbi-vdb/
 ./configure --without-debug
 make
 cd ..
 
+cd ./sra-tools/
+./configure --without-debug
+make
+cd ..
+
 cd ./ngs-tools/
+# git merge origin/master
 ./configure --without-debug
 make
 cd ../

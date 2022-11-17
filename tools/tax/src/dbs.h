@@ -62,27 +62,6 @@ struct DBS
     typedef std::vector<KmerTax> Kmers;
 };
 
-// todo: remove duplicate from the job
-struct DBSS
-{
-    typedef int tax_id_t;
-
-    struct DBSAnnot
-    {
-        tax_id_t tax_id;
-        size_t count, offset;
-
-        DBSAnnot(int tax_id, size_t count, size_t offset) : tax_id(tax_id), count(count), offset(offset){}
-
-        bool operator < (const DBSAnnot &x) const
-        {
-            return tax_id < x.tax_id;
-        }
-    };
-
-    typedef std::vector<DBSAnnot> DBSAnnotation;
-};
-
 struct DBSIO
 {
     static const int VERSION = 1;
@@ -221,45 +200,6 @@ struct DBSIO
         return header.kmer_len;
     }
 
-};
-
-struct DBSSIO
-{
-    static size_t load_dbs_annotation(const std::string &filename, DBSS::DBSAnnotation &annotation)
-    {
-        std::ifstream f(filename);
-        if (f.fail())
-            throw std::runtime_error("cannot open annotation file");
-
-        size_t offset = sizeof(DBSIO::DBSHeader) + sizeof(size_t); 
-        DBSS::tax_id_t prev_tax = 0;
-
-        while (!f.eof())
-        {
-            DBSS::DBSAnnot a(0, 0, 0);
-            f >> a.tax_id >> a.count;
-            if (f.fail())
-                break;
-
-            if (!a.count)
-                throw std::runtime_error("bad annotation format - bad count");
-
-            if (prev_tax >= a.tax_id)
-                throw std::runtime_error("bad annotation format - tax less");
-
-            a.offset = offset;
-            annotation.push_back(a);
-            offset += sizeof(hash_t) *a.count;
-            prev_tax = a.tax_id;
-        }
-
-        return offset;
-    }
-
-    static DBSIO::DBSHeader load_header(const std::string &filename)
-    {
-        return DBSIO::load_header(filename); // the same
-    }
 };
 
 #endif

@@ -62,7 +62,7 @@ struct KmerLoader
             {
                 #pragma omp critical (read)
                 {
-                    done = !reader->read_many(chunk);
+                    done = !reader->read_many(chunk, 1024);
                 }
 
                 for (auto& frag: chunk) 
