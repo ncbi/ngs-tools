@@ -149,7 +149,7 @@ struct DBSJob : public Job
  #endif
         }
 
-        std::pair<tax_t, hash_t>  find_hash(hash_t hash, int  default_value ) const
+        std::pair<tax_t, hash_t> find_hash(hash_t hash, int  default_value ) const
         {
 #if LOOKUP_TABLE
             hash_t bucket_idx = hash >> hash_lookup_shift;
@@ -220,8 +220,60 @@ struct DBSJob : public Job
 
     };
 
+    struct KmerTaxIdMatchId
+    {
+        struct Matches : public std::list<KmerTax>
+        {
+            operator bool() const { return !empty(); }
+        };
+
+    	int seq_id;
+        const Matches matches;
+
+    	KmerTaxIdMatchId(int seq_id, const Matches &matches) : seq_id((int)seq_id), matches(matches) {}
+    	bool operator < (const KmerTaxIdMatchId &b) const { return seq_id < b.seq_id; }
+    };
+
+    struct KmerTaxIdMatcher
+    {
+        const HashSortedArray &hash_array;
+        typedef KmerTaxIdMatchId::Matches Hits;
+        int kmer_len;
+
+        KmerTaxIdMatcher(const HashSortedArray &hash_array, int kmer_len) : hash_array(hash_array), kmer_len(kmer_len) {}
+
+        tax_t find_tax_id(hash_t hash) const
+        {
+            auto first = hash_array.begin();
+            auto last = hash_array.end();
+
+            first = std::lower_bound(first, last, KmerTax(hash, 0));
+            if ((first == last) || (hash < first->kmer))
+                return 0;
+            else 
+                return first->tax_id;
+        }
+
+        Hits operator() (const std::string &seq) const // todo: optimize, move Hits out
+        {
+            Hits hits;
+
+			Hash<hash_t>::for_all_hashes_do(seq, (int)kmer_len, [&](hash_t hash)
+				{
+			        hash = seq_transform<hash_t>::min_hash_variant(hash, (int)kmer_len);
+                    auto tax_id = find_tax_id(hash);
+					if (tax_id != 0)
+						hits.push_back(KmerTax(hash, tax_id));
+
+					return true;
+				});
+            return hits;
+        }
+    };
+
+
     struct TaxMatchId
-   {
+    {
         int seq_id;
         Hits hits;
         TaxMatchId(int seq_id, const Hits &hits) : seq_id(seq_id), hits(hits)   {}
@@ -407,6 +459,23 @@ template<class TaxHitsO>
 
     };
 
+    struct KmerTaxIdPrinter
+    {
+        IO::Writer &writer;
+        int kmer_len = 0;
+        KmerTaxIdPrinter(IO::Writer &writer, int kmer_len) : writer(writer), kmer_len(kmer_len){}
+
+    	void operator() (const std::vector<Reader::Fragment> &processing_sequences, const std::vector<KmerTaxIdMatchId> &ids)
+    	{
+    		for (auto seq : ids)
+    		for (auto kmer_tax : seq.matches)
+    		    writer.f() << Hash<hash_t>::str_from_hash(kmer_tax.kmer, kmer_len) << '\t' << kmer_tax.tax_id << std::endl;
+
+            writer.check();
+    	}
+    };
+
+
     bool hide_counts = false;
     bool compact = false;
 
@@ -463,17 +532,33 @@ template<class TaxHitsO>
             else
                 run_collator<tc::tax_hits_options<false, true>>(filename, writer, config);
 
-        } else {
-            Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment,
-                            config.unique); // todo: move to constructor
-            TaxPrinter print(!hide_counts, compact, writer, config.unique);
-            Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only,  config.optimization_ultrafast_skip_reader, config.chunk_size,
-            [&](const std::vector<Reader::Fragment> &chunk) { 
-                Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, matcher);
-            } );
-            if (config.unique){
-                IO::Writer writer_u((!writer.filename.empty()) ? writer.filename + ".uniq" : "");
-                unique_hits.print_uniq_hits(writer_u);
+        } 
+        else 
+        {
+            if (config.print_kmers_only)
+            {
+    		    KmerTaxIdMatcher matcher(hash_array, kmer_len);
+        		KmerTaxIdPrinter print(writer, kmer_len);
+                Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only,  config.optimization_ultrafast_skip_reader, config.chunk_size,
+                    [&](const std::vector<Reader::Fragment> &chunk) { 
+                        Job::match_and_print<KmerTaxIdMatcher, KmerTaxIdPrinter, KmerTaxIdMatchId>(chunk, print, matcher);
+                    } );
+            }
+            else
+            {
+                Matcher matcher(hash_array, (int)kmer_len, config.optimization_dbs_max_lookups_per_seq_fragment,
+                                config.unique); // todo: move to constructor
+                TaxPrinter print(!hide_counts, compact, writer, config.unique);
+
+                Job::run_for_matcher(filename, config.spot_filter_file, config.unaligned_only,  config.optimization_ultrafast_skip_reader, config.chunk_size,
+                    [&](const std::vector<Reader::Fragment> &chunk) { 
+                        Job::match_and_print<Matcher, TaxPrinter, TaxMatchId>(chunk, print, matcher);
+                    } );
+
+                if (config.unique){
+                    IO::Writer writer_u((!writer.filename.empty()) ? writer.filename + ".uniq" : "");
+                    unique_hits.print_uniq_hits(writer_u);
+                }
             }
         }
     }
