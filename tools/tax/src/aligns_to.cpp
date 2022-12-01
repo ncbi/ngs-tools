@@ -50,7 +50,6 @@ typedef uint64_t hash_t;
 #include <sys/resource.h>
 #endif
 
-// test commit
 
 using namespace std;
 using namespace std::chrono;
