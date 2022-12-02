@@ -43,6 +43,8 @@ using namespace std::chrono;
 
 const string VERSION = "0.37";
 
+//test tc change
+
 size_t weight(size_t kmers_count)
 {
 	return kmers_count*16;
