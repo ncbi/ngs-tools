@@ -33,6 +33,7 @@
 #include "checksum.h"
 #include "log.h"
 
+//test tc
 
 static bool is_actg(char const ch) { return (ch == 'A') | (ch == 'C') | (ch == 'T') | (ch == 'G'); }
 static bool non_actg(char const ch) { return !is_actg(ch); }
