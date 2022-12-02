@@ -32,6 +32,8 @@
 #include "seq_transform.h"
 #include "tax_id_tree.h"
 
+//test tc
+
 struct KmerIO
 {
     static hash_t kmer_from(const char *s, int from, int len)
