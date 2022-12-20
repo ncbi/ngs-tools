@@ -34,19 +34,18 @@ if (UNIX)
         set ( BUILD rel )
     endif ()
 
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk                                    CACHE PATH "ngs include directory" )
-	message("NGS_INCDIR: ${NGS_INCDIR}")
-	set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk )
-	message("NGS_INCDIR: ${NGS_INCDIR}")
-    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib          CACHE PATH "ngs library directory" )
-	message("NGS_LIBDIR: ${NGS_LIBDIR}")
-	set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib )
-	message("NGS_LIBDIR: ${NGS_LIBDIR}")
-    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                  CACHE PATH "ngs Java directory" )
+
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+
+    set ( SRATOOLS_SRCDIR ${CMAKE_SOURCE_DIR}/../sra-tools/                                 CACHE PATH "sra-tools source directory" )
     set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/bin    CACHE PATH "sra-tools executables directory" )
+
+    set ( NGS_INCDIR  ${SRATOOLS_SRCDIR}/ngs/ngs-sdk                                        CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib        CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib      CACHE PATH "ngs Java directory" )
+
     set ( NGSTOOLS_OUTDIR ${OUTDIR}/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}        CACHE PATH "ngs-tools output directory" )
 
 elseif (WIN32)
@@ -65,13 +64,17 @@ elseif (WIN32)
     endif()
 
     # by default, look for sister repositories sources side by side with ngs-tools, binaries under ../OUTDIR
-    set ( NGS_INCDIR  ${CMAKE_SOURCE_DIR}/../sra-tools/ngs/ngs-sdk/                                                   CACHE PATH "ngs include directory" )
-    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib          CACHE PATH "ngs library directory" )
-    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                                                                  CACHE PATH "ngs Java directory" )
     set ( VDB_INCDIR  ${CMAKE_SOURCE_DIR}/../ncbi-vdb/interfaces/                                           CACHE PATH "ncbi-vdb include directory" )
     set ( VDB_LIBDIR  ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib         CACHE PATH "ncbi-vdb library directory" )
     set ( VDB_ILIBDIR ${OUTDIR}/ncbi-vdb/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/ilib        CACHE PATH "ncbi-vdb internal library directory" )
+
+    set ( SRATOOLS_SRCDIR ${CMAKE_SOURCE_DIR}/../sra-tools/                                                 CACHE PATH "sra-tools source directory" )
     set ( SRATOOLS_BINDIR ${OUTDIR}/sra-tools/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/bin    CACHE PATH "sra-tools executables directory" )
+
+    set ( NGS_INCDIR  ${SRATOOLS_SRCDIR}/ngs/ngs-sdk                                                            CACHE PATH "ngs include directory" )
+    set ( NGS_LIBDIR  ${OUTDIR}/sra-tools/ngs-sdk/${OS}/${PLATFORM_TOOLSET}/${PLATFORM}/$(Configuration)/lib    CACHE PATH "ngs library directory" )
+    set ( NGS_JAVADIR  ${OUTDIR}/sra-tools//${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib                          CACHE PATH "ngs Java directory" )
+
     set ( NGSTOOLS_OUTDIR ${OUTDIR}/ngs-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}                        CACHE PATH "ngs-tools output directory")
 
 endif()
@@ -207,7 +210,7 @@ int main(int argc, char *argv[]) {
 endif()
 
 if (NOT EXISTS ${NGS_INCDIR})
-    message( FATAL_ERROR "NGS includes are not found in ${NGS_INCDIR}." )
+    message( WARNING "NGS includes are not found in ${NGS_INCDIR}." )
 else()
     message( STATUS "Found NGS includes in ${NGS_INCDIR}. Looking for NGS libraries..." )
 
@@ -217,7 +220,7 @@ else()
 			get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 			message ( STATUS "Found NGS libraries in ${NGS_LIBDIR}" )
 		else ()
-			message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR}." )
+			message( WARNING "NGS libraries are not found in ${NGS_LIBDIR}." )
 		endif()
     else()
 
@@ -228,7 +231,7 @@ else()
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Debug NGS libraries in ${NGS_LIBDIR_DEBUG}" )
 			else ()
-				message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_DEBUG}." )
+				message( WARNING "NGS libraries are not found in ${NGS_LIBDIR_DEBUG}." )
 			endif()
         endif()
 
@@ -238,7 +241,7 @@ else()
 				get_filename_component(NGS_LIBRARY_DIR ${NGS_LIBRARY} PATH)
 				message ( STATUS "Found Release NGS libraries in ${NGS_LIBRARY_DIR}" )
 			else ()
-				message( FATAL_ERROR "NGS libraries are not found in ${NGS_LIBDIR_RELEASE}." )
+				message( WARNING "NGS libraries are not found in ${NGS_LIBDIR_RELEASE}." )
 			endif()
         endif()
 
@@ -289,6 +292,7 @@ include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
 include_directories ("${VDB_INCDIR}/os/${OS}")
 include_directories ("${NGS_INCDIR}")
 include_directories ("${NGS_INCDIR}/../..")
+include_directories ("${SRATOOLS_SRCDIR}/libs/inc")
 
 link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
