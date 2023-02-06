@@ -27,7 +27,7 @@
 */
 
 
-#include "bm/bm.h"
+#include "bm/bm64.h"
 #include "bm/bmstrsparsevec.h"
 #include "bm/bmsparsevec_compr.h"
 #include "bm/bmsparsevec_algo.h"
@@ -1080,7 +1080,7 @@ void Tax_hits<Options>::group_columns_bulk(const vector<uint32_t>& rows, int car
         for (int i = 0; i < cardinality; ++i) {
             col_values[i].resize(batch_size);
             auto &d = *tax_ids.data[i];
-            d.gather(col_values[i].data(), &rows[row], tmp_buf.data(), batch_size, bm::BM_UNSORTED);
+            //d.gather(col_values[i].data(), &rows[row], tmp_buf.data(), batch_size, bm::BM_UNSORTED);
         }
         int idx = 0;
         if (group_count == 0) {

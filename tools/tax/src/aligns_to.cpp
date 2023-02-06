@@ -23,7 +23,7 @@
 * ===========================================================================
 *
 */
-
+#include <bm/bm64.h>
 #include "config_align_to.h"
 
 #include <iostream>
@@ -49,22 +49,50 @@ typedef uint64_t hash_t;
 #ifdef __linux__
 #include <sys/resource.h>
 #endif
-
+#include "taskflow/taskflow.hpp"
+#include <taskflow/algorithm/transform.hpp>
+#include <chrono>
 
 using namespace std;
 using namespace std::chrono;
+
+void test() {
+
+    ifstream ss("text");
+    string word; // for storing each word
+     // Traverse through all words
+    // while loop till we get
+    // strings to store in string word
+    vector<string> in, out;
+    while (ss >> word)
+        // print the read word
+        in.push_back(word);
+    tf::Executor executor(8);
+    tf::Taskflow taskflow;
+    out.resize(in.size());
+    taskflow.transform(in.begin(), in.end(), out.begin(), [](const string& s) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(rand() % 50));
+        return s;
+    });
+    executor.run(taskflow).wait();
+    for (auto& s : out)
+        cout << s << " ";
+    exit(0);
+
+}
 
 int main(int argc, char const *argv[])
 {
     #ifdef __GLIBCXX__
     std::set_terminate(__gnu_cxx::__verbose_terminate_handler);
     #endif
-//    std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
+    //std::locale::global(std::locale("en_US.UTF-8")); // enable comma as thousand separator
 
     auto stderr_logger = spdlog::stderr_logger_mt("stderr"); // send log to stderr
     spdlog::set_default_logger(stderr_logger);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v"); // default logging pattern (datetime, error level, error text)
-    
+
+    //test();
     LOG("aligns_to version " << VERSION);
     Config config(argc, argv);
     {
