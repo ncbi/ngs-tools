@@ -33,6 +33,10 @@ target_link_libraries(tax_collator PRIVATE Threads::Threads)
 
 links_and_install_subdir(aligns_to tax)
 
+add_executable(reads_from src/reads_from.cpp)
+target_link_libraries(reads_from PRIVATE ReaderLib ${SYS_LIBRARIES})
+links_and_install_subdir(reads_from tax)
+
 add_executable(dump_kmers src/dump_kmers.cpp)
 target_link_libraries(dump_kmers PRIVATE ReaderLib)
 links_and_install_subdir(dump_kmers tax)
