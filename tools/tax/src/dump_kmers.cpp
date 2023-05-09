@@ -61,7 +61,7 @@ void do_for_run(const string &filename, Lambda &&lambda)
     bool done = false;
     while (!done) 
     {
-        done = !reader->read_many(chunk);
+        done = !reader->read_many(chunk, 1024);
         for (size_t seq_id = 0; seq_id < chunk.size(); ++seq_id) 
         {
 //            auto& spotid = chunk[seq_id].spotid;

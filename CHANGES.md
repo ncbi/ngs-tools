@@ -1,6 +1,13 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 3.0.5
+**May 9, 2023**
+
+  **kfg, ngs-tools, sra-tools, vfs**: stopped using old names resolver cgi  
+  **ngs-tools**: updated aligns_to to use the latest libraries  
+
+
 ## NCBI NGS Toolkit 3.0.2
 **December 12, 2022**
 
