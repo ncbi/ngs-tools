@@ -19,12 +19,24 @@ if (UNIX)
 
 #    set ( PLATFORM x86_64 )
 
-    if ( "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
-        set ( OS mac )
+# determine OS
+    if ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Darwin" )
+        set(OS "mac")
+    elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Linux" )
+        set(OS "linux")
+    elseif ( ${CMAKE_HOST_SYSTEM_NAME} STREQUAL  "Windows" )
+        set(OS "windows")
+    else()
+        message ( FATAL_ERROR "unknown OS " ${CMAKE_HOST_SYSTEM_NAME})
+    endif()
+	message("OS=${OS}")
+
+    if ( CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_C_COMPILER_ID MATCHES "^(Apple)?Clang$" )
         set ( COMPILER clang )
-    else ()
-        set ( OS linux )
+    elseif ( "GNU" STREQUAL "${CMAKE_C_COMPILER_ID}" )
         set ( COMPILER gcc )
+    else ()
+        message( FATAL_ERROR "Unsupported compiler: CMAKE_C_COMPILER_ID=${CMAKE_C_COMPILER_ID}, CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}" )
     endif()
 
     # gmake is a single-configuration generator; we are either Debug or Release
