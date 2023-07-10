@@ -1,6 +1,13 @@
 # NCBI External Developer Release:
 
 
+=======
+## NCBI NGS Toolkit 3.0.6
+**July 10, 2023**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
 ## NCBI NGS Toolkit 3.0.5
 **May 9, 2023**
 
