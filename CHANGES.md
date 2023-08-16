@@ -1,6 +1,13 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 3.0.7
+**August 29, 2023**
+
+  **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
+  **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
+
+
 ## NCBI NGS Toolkit 3.0.6
 **July 10, 2023**
 
