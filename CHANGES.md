@@ -4,6 +4,7 @@
 ## NCBI NGS Toolkit 3.0.7
 **August 29, 2023**
 
+  **cloud, kns, ngs-tools, sra-tools**: added support of IMDSv2 to allow to use instance identity on new AWS machines  
   **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
   **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
 
