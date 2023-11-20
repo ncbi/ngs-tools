@@ -68,7 +68,7 @@ sub OsArch {
 sub MacArch {
     my $ARCH = `uname -m`;
     chomp $ARCH;
-    if ($ARCH eq 'x86_64') {
+    if ($ARCH eq 'arm64' || $ARCH eq 'x86_64') {
         return $ARCH;
     } else {
         my $SYSCTL = '/usr/sbin/sysctl';

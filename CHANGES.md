@@ -1,7 +1,49 @@
 # NCBI External Developer Release:
 
 
-## SRA Toolkit 3.0.0
+## NCBI NGS Toolkit 3.0.8
+**September 19, 2023**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.7
+**August 29, 2023**
+
+  **cloud, kns, ngs-tools, sra-tools**: added support of IMDSv2 to allow to use instance identity on new AWS machines  
+  **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
+  **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
+
+
+## NCBI NGS Toolkit 3.0.6
+**July 10, 2023**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.5
+**May 9, 2023**
+
+  **kfg, ngs-tools, sra-tools, vfs**: stopped using old names resolver cgi  
+  **ngs-tools**: updated aligns_to to use the latest libraries  
+
+
+## NCBI NGS Toolkit 3.0.2
+**December 12, 2022**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.1
+**November 15, 2022**
+
+  **build**: added support for overriding cmake and ctest commands  
+  **build**: will use a system-provided libmbedtls, otherwise the copy included in the source code will be used  
+  **ngs-tools**: fixed configure script  
+  **ref-variation**: added libraries and tools: ngs-vdb, general-writer, ref-variation, sra-search, general-loader, pileup-stats  
+
+
+## NCBI NGS Toolkit 3.0.0
 **February 10, 2022**
 
   **ngs-tools**: updated for _sra-tools 3.0.0_

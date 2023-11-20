@@ -95,15 +95,15 @@ int run ( int argc, char const * argv [] ) {
             {
             case 'h':
                 handle_help ();
-                return true;
+                return 0;
             case 'V':
                 HelpVersion ( UsageDefaultName, KAppVersion () );
-                return true;
+                return 0;
             case '-':
                 if ( strcmp ( & arg [ 2 ], "help"  ) == 0 )
                 {
                     handle_help ();
-                    return true;
+                    return 0;
                 }
                 else if ( strcmp ( & arg [ 2 ], "version"  ) == 0 )
                 {

@@ -1,5 +1,5 @@
-#add_subdirectory(dump_ref_fasta)
-#add_subdirectory(compute-coverage)
+add_subdirectory(dump_ref_fasta)
+add_subdirectory(compute-coverage)
 
 if ( ( ${CMAKE_SYSTEM_NAME} MATCHES "Linux" )
         OR
