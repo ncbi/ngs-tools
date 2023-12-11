@@ -1,6 +1,16 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 3.0.10
+**December 19, 2023**
+
+  **cloud, ngs-tools, sra-tools**: accept AWS credentials in CSV format; warn when credentials file cannot be loaded; don't load credentials if user doesn't agree to pay  
+  **cloud, ngs-tools, sra-tools**: fixed support of IMDSv2 to allow instance identity on Amazon Linux 2023  
+  **kns, ngs-tools, sra-tools, vfs**: print NCBI_PHID after error in names resolving to simplify troubleshooting  
+  **ncbi-vdb, ngs-tools, sra-tools**: added support for Arm64  
+  **ngs-tools, sra-tools, vdb, vfs**: avoids multiple calls to resolve the same accession  
+
+
 ## NCBI NGS Toolkit 3.0.8
 **September 19, 2023**
 
