@@ -1,4 +1,4 @@
-#!/opt/python-2.7env/bin/python
+#!/usr/bin/env python3
 import sys
 import argparse
 import collections
