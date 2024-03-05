@@ -1,6 +1,13 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 3.1.0
+**March 5, 2024**
+
+  **cloud, kns, ngs-tools, sra-tools**: don't change global network timeouts when checking cloud location  
+  **kns, ngs-tools, sra-tools**: fixed hanging on Mac and BSD when data access is unreliable  
+
+
 ## NCBI NGS Toolkit 3.0.10
 **December 19, 2023**
 
