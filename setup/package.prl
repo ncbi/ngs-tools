@@ -33,7 +33,7 @@ sub REQ { (
               option  => 'with-sra-tools-sources',
               boption => 'with-sra-tools-build',
               origin  => 'I',
-              type    => 'ESO',
+              type    => 'ES',
               srcpath => '../sra-tools',
               pkgpath => '/usr/local/ncbi/sra-tools',
               usrpath =>      '$HOME/ncbi/sra-tools',
