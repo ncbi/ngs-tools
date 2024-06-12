@@ -175,14 +175,6 @@ endif()
 # Java needs
 find_package(Java)
 if ( Java_FOUND )
-    find_program(ANT_EXECUTABLE ant PATHS $ENV{ANT_HOME} ENV PATH )
-    if ( NOT ANT_EXECUTABLE )
-        message ( WARNING "Failed to locate 'ant' executable in PATH or ANT_HOME. Please specify path to 'ant' via ANT_EXECUTABLE" )
-    endif()
-    if ( NOT DEFINED ENV{JAVA_HOME} )
-        message ( STATUS "Warning: JAVA_HOME is not set, 'ant' scripts may work incorrectly" )
-    endif ()
-    #set ( NGSJAR "${NGS_JAVADIR}/jar/ngs-java.jar" )
     set ( NGSJAR "${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ngs-java.jar" )
     set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
 endif()
@@ -286,15 +278,9 @@ endif()
 
 #//////////////////////////////////////////////////
 
-include_directories ("${VDB_INCDIR}")
-include_directories ("${VDB_INCDIR}/cc/${COMPILER}/${PLATFORM}")
-include_directories ("${VDB_INCDIR}/cc/${COMPILER}")
-include_directories ("${VDB_INCDIR}/os/${OS}")
-include_directories ("${NGS_INCDIR}")
-include_directories ("${NGS_INCDIR}/../..")
 include_directories ("${SRATOOLS_SRCDIR}/libs/inc")
 
-link_directories (  ${VDB_ILIBDIR} ${VDB_LIBDIR} ${NGS_LIBDIR} )
+link_directories (  ${VDB_LIBDIR} ${NGS_LIBDIR} )
 
 #/////////////////////////////////////////////////
 # versioned names, symbolic links and installation for the tools
