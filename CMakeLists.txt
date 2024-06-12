@@ -30,7 +30,6 @@ set(CMAKE_MODULE_PATH
 )
 include ( env NO_POLICY_SCOPE )
 
-add_subdirectory(libs)
 add_subdirectory(tools)
 add_subdirectory(test)
 
