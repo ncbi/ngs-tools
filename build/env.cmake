@@ -50,7 +50,7 @@ if (UNIX)
 
 elseif (WIN32)
 
-    set ( PLATFORM "x64" CACHE STRING "Windows Platform (x64 or Win32)" )
+    set ( PLATFORM "x64" CACHE STRING "Windows Platform" )
     set ( OS win )
     set ( COMPILER "vc++" )
     if ( CMAKE_GENERATOR MATCHES "2010" )
@@ -110,13 +110,6 @@ if (UNIX)
             dl
     )
 
-    set ( SYS_WLIBRARIES
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-ngs-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            ${CMAKE_STATIC_LIBRARY_PREFIX}ncbi-wvdb-static${CMAKE_STATIC_LIBRARY_SUFFIX}
-            pthread
-            dl
-    )
-
     if ( NOT DEFINED CMAKE_INSTALL_PREFIX)
         set ( CMAKE_INSTALL_PREFIX /usr/local/ )
     endif ()
@@ -170,35 +163,6 @@ elseif (WIN32)
 
 else()
     message ( FATAL_ERROR "Unsupported OS" )
-endif()
-
-# Java needs
-find_package(Java)
-if ( Java_FOUND )
-    set ( NGSJAR "${OUTDIR}/sra-tools/${OS}/${COMPILER}/${PLATFORM}/${BUILD}/lib/ngs-java.jar" )
-    set ( CMAKE_JAVA_COMPILE_FLAGS "-Xmaxerrs" "1" )
-endif()
-
-# look for dependencies
-
-include(CheckIncludeFileCXX)
-check_include_file_cxx(mbedtls/md.h HAVE_MBEDTLS_H)
-if ( HAVE_MBEDTLS_H )
-	set( MBEDTLS_LIBS mbedx509 mbedtls mbedcrypto )
-	set( CMAKE_REQUIRED_LIBRARIES ${MBEDTLS_LIBS} )
-    list( APPEND SYS_LIBRARIES ${MBEDTLS_LIBS} )
-	include(CheckCXXSourceRuns)
-	check_cxx_source_runs("
-#include <stdio.h>
-#include \"mbedtls/md.h\"
-#include \"mbedtls/sha256.h\"
-int main(int argc, char *argv[]) {
-	mbedtls_md_context_t ctx;
-	mbedtls_md_type_t md_type = MBEDTLS_MD_SHA256;
-	mbedtls_md_init(&ctx);
-	printf(\"test p: %p\", ctx.md_ctx);
-}
-" HAVE_MBEDTLS_F)
 endif()
 
 if (NOT EXISTS ${NGS_INCDIR})
@@ -286,34 +250,11 @@ link_directories (  ${VDB_LIBDIR} ${NGS_LIBDIR} )
 # versioned names, symbolic links and installation for the tools
 
 function ( links_and_install_subdir TARGET INST_SUBDIR)
-
-    if (WIN32)
-
-        install ( TARGETS ${TARGET} RUNTIME DESTINATION bin )
-
-    else()
-
-        # on Unix, version the binary and add 2 symbolic links
-        set_target_properties(${TARGET} PROPERTIES OUTPUT_NAME "${TARGET}.${VERSION}")
-
-        set (TGTPATH ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TARGET})
-
-        ADD_CUSTOM_TARGET(link_${TARGET} ALL
-                        COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${VERSION} ${TGTPATH}.${MAJVERS}
-                        COMMAND ${CMAKE_COMMAND}   -E create_symlink ${TARGET}.${MAJVERS} ${TGTPATH}
-                        DEPENDS ${TARGET}
-                        )
-
-        install ( TARGETS ${TARGET} RUNTIME     DESTINATION bin/${INST_SUBDIR} )
-        install ( FILES ${TGTPATH}.${MAJVERS}   DESTINATION bin/${INST_SUBDIR} )
-        install ( FILES ${TGTPATH}              DESTINATION bin/${INST_SUBDIR} )
-
-    endif()
-
+    install ( TARGETS ${TARGET} RUNTIME DESTINATION bin/${INST_SUBDIR} )
 endfunction(links_and_install_subdir)
 
 function ( links_and_install TARGET )
-    links_and_install_subdir( ${TARGET} "" )
+    install ( TARGETS ${TARGET} RUNTIME DESTINATION bin )
 endfunction(links_and_install)
 
 # testing
