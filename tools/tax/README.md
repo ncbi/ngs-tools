@@ -10,4 +10,4 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 * ### Read build_db_and_run.sh: it is richly annotated with comments about each step performed.
   * (NOTE: requires python3 for successful script execution.)
 
-* ### If you need NGS library support, or want all the tools you can run ./build.sh from any folder. 
+* ### If want all the tools you can run ./build.sh from any folder. 
