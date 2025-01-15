@@ -1,9 +1,5 @@
 cmake_minimum_required (VERSION 2.8.12)
 
-message(CMAKE_VERSION = ${CMAKE_VERSION})
-
-#set ( CMAKE_OSX_DEPLOYMENT_TARGET 10.10 )
-
 set ( CMAKE_CXX_EXTENSIONS OFF )
 if (CMAKE_VERSION VERSION_LESS "3.1")
    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
@@ -13,13 +9,10 @@ else ()
    message(CMAKE_CXX_STANDARD = ${CMAKE_CXX_STANDARD})
 endif ()
 
-
-# set(CMAKE_VERBOSE_MAKEFILE ON)
-
 # best to use at the top
 project ( ngs-tools )
 if( PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR )
-    message(FATAL_ERROR "In-source builds are not allowed")
+    message(FATAL_ERROR "In-source builds are not supported")
 endif()
 
 
@@ -30,7 +23,6 @@ set(CMAKE_MODULE_PATH
 )
 include ( env NO_POLICY_SCOPE )
 
-add_subdirectory(libs)
 add_subdirectory(tools)
 add_subdirectory(test)
 
