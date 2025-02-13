@@ -26,7 +26,7 @@ SQL=SELECT id,cigar FROM alignments WHERE cigar LIKE '%I%' OR cigar LIKE '%D%'
 # where to write the output to
 OUT=res.txt
 
-#TEMP=/panfs/pan1/sra-test/raetz/sparktemp
+#TEMP=
 
 # how to write the output to
 FORMAT=TAB

@@ -23,7 +23,6 @@
 * ===========================================================================
 *
 */
-#define SINGLETHREADED_BUILD_INDEX 0
 
 #include <iostream>
 #include <chrono>
@@ -51,7 +50,7 @@ int main(int argc, char const *argv[])
 
     FileListLoader file_list(config.file_list);
 
-#if SINGLETHREADED_BUILD_INDEX
+#ifdef SINGLETHREADED_BUILD_INDEX
     const int THREADS = 96;
 
     #pragma omp parallel num_threads(THREADS) 

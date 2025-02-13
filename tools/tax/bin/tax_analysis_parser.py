@@ -1,4 +1,4 @@
-#!/opt/python-2.7env/bin/python
+#!/usr/bin/env python3
 import sys
 import argparse
 import collections
@@ -100,7 +100,7 @@ def deduce_tax_id(hits, lineage_cache, conn):
 
     lineages = [get_lineage(hit, lineage_cache, conn) for hit in hits]
     last_matching_tax_id = None
-    for nodes in itertools.izip_longest(*lineages):
+    for nodes in itertools.zip_longest(*lineages):
         first_not_empty_node = None
         for node in nodes:
             if node is not None:
@@ -243,7 +243,7 @@ With this flag parser builds hierarchy based on count of kmer hits, not the coun
     with gettax.connect(args.tax_dump, args.sqlite_cache, args.rebuild_timeout, args.connection_timeout) as conn:
         xml = parse(f, conn, args.wgs_mode, args.compact, args.collated, args.include_tax_id or [])
     xml = E.taxon_tree(xml, parser_version=__version__)
-    print etree.tostring(xml, pretty_print=True)
+    print (etree.tostring(xml, pretty_print=True).decode('utf-8'))
 
 if __name__ == '__main__':
     main()
