@@ -680,7 +680,7 @@ void Tax_hits<Options>::set_null(tf::Executor& executor, const bvector_type& bv)
     taskflow.for_each(tax_ids.data.begin(), tax_ids.data.end(), [&](unique_ptr<U32_rsc_matrix::vector_type>& data) { 
         try {
             data->clear(bv);
-            data->sync(false);
+            data->sync();
             data->optimize();
         } catch(exception& e) {
             cerr << e.what() << endl;
@@ -690,7 +690,7 @@ void Tax_hits<Options>::set_null(tf::Executor& executor, const bvector_type& bv)
         taskflow.for_each(counts.data.begin(), counts.data.end(), [&](unique_ptr<U32_rsc_matrix::vector_type>& data) { 
             try {
                 data->clear(bv);
-                data->sync(false);
+                data->sync();
                 data->optimize();
             } catch(exception& e) {
                 cerr << e.what() << endl;
