@@ -1,7 +1,10 @@
 # allow implicit source file extensions
 if ( ${CMAKE_VERSION} VERSION_EQUAL "3.20" OR
-     ${CMAKE_VERSION} VERSION_GREATER "3.20")
+     ${CMAKE_VERSION} VERSION_GREATER "3.20"
+   )
+  if ( NOT "${CMAKE_SYSTEM_NAME}" MATCHES "Darwin" )
     cmake_policy(SET CMP0115 OLD)
+  endif()
 endif()
 
 #/////////////////////// Cache variables, may be overridden at config time:
