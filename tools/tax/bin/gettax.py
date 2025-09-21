@@ -1,4 +1,4 @@
-#!/opt/python-2.7env/bin/python
+#!/usr/bin/env python3
 
 import os
 import tempfile
@@ -350,10 +350,10 @@ def main():
                 taxon = conn.gettax(tax_id)
                 if args.attribute:
                     assert args.attribute in taxon._fields, 'unknown attribute: %s' % args.attribute
-                    print taxon._asdict()[args.attribute]
+                    print(taxon._asdict()[args.attribute])
                 else:
                     print
-                    print format_taxon(taxon)
+                    print(format_taxon(taxon))
     else:
         logger.debug('no tax_ids to process')
 

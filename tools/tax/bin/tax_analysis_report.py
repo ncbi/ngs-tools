@@ -1,4 +1,4 @@
-#!/opt/python-2.7env/bin/python
+#!/usr/bin/env python3
 
 import sys
 import argparse
@@ -127,7 +127,7 @@ def main():
         logger.info('Reading stdin')
         xml = etree.parse(sys.stdin)
 
-    print format_tax_tree(xml.getroot(), args)
+    print (format_tax_tree(xml.getroot(), args))
 
 if __name__ == '__main__':
     main()
