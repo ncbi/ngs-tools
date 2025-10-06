@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## NCBI NGS Toolkit 3.3.0
+**October 14, 2025**
+
+  **ngs-tools**: fixed deprecation  
+
+
 ## NCBI NGS Toolkit 3.2.0
 **January 14, 2025**
 
