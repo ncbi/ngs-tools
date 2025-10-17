@@ -2,7 +2,7 @@
 
 
 ## NCBI NGS Toolkit 3.3.0
-**October 14, 2025**
+**October 21, 2025**
 
   **ngs-tools**: fixed deprecation  
 
