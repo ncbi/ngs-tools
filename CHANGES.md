@@ -24,7 +24,7 @@ Please cite the author in any work or product based on this material.
 
 
 ## NCBI NGS Toolkit 3.3.0
-**November 25, 2025**
+**December 2, 2025**
 
   **ngs-tools**: fixed deprecation  
 
