@@ -1,7 +1,106 @@
+----
+                          PUBLIC DOMAIN NOTICE
+             National Center for Biotechnology Information
+
+This software/database is a "United States Government Work" under the
+terms of the United States Copyright Act.  It was written as part of
+the author's official duties as a United States Government employee and
+thus cannot be copyrighted.  This software/database is freely available
+to the public for use. The National Library of Medicine and the U.S.
+Government have not placed any restriction on its use or reproduction.
+
+Although all reasonable efforts have been taken to ensure the accuracy
+and reliability of the software and data, the NLM and the U.S.
+Government do not and cannot warrant the performance or results that
+may be obtained by using this software or data. The NLM and the U.S.
+Government disclaim all warranties, express or implied, including
+warranties of performance, merchantability or fitness for any particular
+purpose.
+
+Please cite the author in any work or product based on this material.
+
+----
 # NCBI External Developer Release:
 
 
-## SRA Toolkit 3.0.0
+## NCBI NGS Toolkit 3.3.0
+**December 2, 2025**
+
+  **ngs-tools**: fixed deprecation  
+
+
+## NCBI NGS Toolkit 3.2.0
+**January 14, 2025**
+
+  **sra-tools, ngs-tools**: SRA Tools were moved from _ngs-tools_ to _sra-tools_  
+
+
+## NCBI NGS Toolkit 3.1.1
+**May 21, 2024**
+
+  **ngs-tools**: changed version to match that of _sra-tools_  
+
+
+## NCBI NGS Toolkit 3.1.0
+**March 5, 2024**
+
+  **cloud, kns, ngs-tools, sra-tools**: don't change global network timeouts when checking cloud location  
+  **kns, ngs-tools, sra-tools**: fixed hanging on Mac and BSD when data access is unreliable  
+
+
+## NCBI NGS Toolkit 3.0.10
+**December 19, 2023**
+
+  **cloud, ngs-tools, sra-tools**: accept AWS credentials in CSV format; warn when credentials file cannot be loaded; don't load credentials if user doesn't agree to pay  
+  **cloud, ngs-tools, sra-tools**: fixed support of IMDSv2 to allow instance identity on Amazon Linux 2023  
+  **kns, ngs-tools, sra-tools, vfs**: print NCBI_PHID after error in names resolving to simplify troubleshooting  
+  **ncbi-vdb, ngs-tools, sra-tools**: added support for Arm64  
+  **ngs-tools, sra-tools, vdb, vfs**: avoids multiple calls to resolve the same accession  
+
+
+## NCBI NGS Toolkit 3.0.8
+**September 19, 2023**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.7
+**August 29, 2023**
+
+  **cloud, kns, ngs-tools, sra-tools**: added support of IMDSv2 to allow to use instance identity on new AWS machines  
+  **cloud, ngs-tools, sra-tools, vdb-config**: fixed use of AWS credentials  
+  **kns, ngs, ngs-tools, sra-tools**: fixed a bug that caused failure during accession resolution while reading HTTP stream  
+
+
+## NCBI NGS Toolkit 3.0.6
+**July 10, 2023**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.5
+**May 9, 2023**
+
+  **kfg, ngs-tools, sra-tools, vfs**: stopped using old names resolver cgi  
+  **ngs-tools**: updated aligns_to to use the latest libraries  
+
+
+## NCBI NGS Toolkit 3.0.2
+**December 12, 2022**
+
+  **ngs-tools**: changed version to match that of _sra-tools_
+
+
+## NCBI NGS Toolkit 3.0.1
+**November 15, 2022**
+
+  **build**: added support for overriding cmake and ctest commands  
+  **build**: will use a system-provided libmbedtls, otherwise the copy included in the source code will be used  
+  **ngs-tools**: fixed configure script  
+  **ref-variation**: added libraries and tools: ngs-vdb, general-writer, ref-variation, sra-search, general-loader, pileup-stats  
+
+
+## NCBI NGS Toolkit 3.0.0
 **February 10, 2022**
 
   **ngs-tools**: updated for _sra-tools 3.0.0_

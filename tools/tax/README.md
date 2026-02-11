@@ -8,4 +8,6 @@ ngs-tools::Sequence Taxonomic Analysis Tool (STAT)
 * ### Run quickbuild.sh to build only the files for minimum functionality.
 * ### Go to ./examples folder and run build_db_and_run.sh shell script. 
 * ### Read build_db_and_run.sh: it is richly annotated with comments about each step performed.
-* ### If you need NGS library support, or want all the tools you can run ./build.sh from any folder. 
+  * (NOTE: requires python3 for successful script execution.)
+
+* ### If want all the tools you can run ./build.sh from any folder. 

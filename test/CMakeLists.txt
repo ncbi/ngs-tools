@@ -1,3 +1,3 @@
-#if ( NOT WIN32)
-#    add_subdirectory(load-diff)
-#endif()
+if ( NOT WIN32)
+#VDB-4861: temporarily disabled    add_subdirectory(load-diff)
+endif()
